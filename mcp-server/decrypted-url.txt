@@ -1,0 +1,1 @@
+postgresql://wxKanban:pK%25wjT2BFE%25%23mU0h@pgkanban.wxperts.com:5432/wxKanban?schema=wxkanban&sslmode=require

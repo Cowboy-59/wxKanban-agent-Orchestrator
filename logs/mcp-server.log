@@ -1,0 +1,94 @@
+Failed to decrypt embedded database URL: Error: Invalid embedded credentials format
+    at getEmbeddedDatabaseUrl (file:///E:/AI_Development/wxperts/wxKanban-agent-Orchestrator/mcp-server/dist/config.js:94:19)
+    at getDatabaseUrl (file:///E:/AI_Development/wxperts/wxKanban-agent-Orchestrator/mcp-server/dist/config.js:115:22)
+    at file:///E:/AI_Development/wxperts/wxKanban-agent-Orchestrator/mcp-server/dist/config.js:143:18
+    at ModuleJob.run (node:internal/modules/esm/module_job:371:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:669:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+[2026-04-05T19:37:20.879Z] INFO: Checking for MCP server updates... {"currentVersion":"0.1.0"}
+{"timestamp":"2026-04-05T19:37:20.879Z","level":"info","message":"Checking for MCP server updates...","context":{"currentVersion":"0.1.0"}}
+
+╔════════════════════════════════════════════════════════════════╗
+║           🚀 wxKanban MCP Project Hub Server                   ║
+║                  Version 0.1.0                                 ║
+╠════════════════════════════════════════════════════════════════╣
+║  📝 Project Management Integration for wxKanban Platform       ║
+║  🔗 Connected to PostgreSQL Database                           ║
+╚════════════════════════════════════════════════════════════════╝
+
+[2026-04-05T19:37:20.941Z] INFO: Starting MCP Project Hub Server...
+{"timestamp":"2026-04-05T19:37:20.941Z","level":"info","message":"Starting MCP Project Hub Server..."}
+[2026-04-05T19:37:20.941Z] INFO: Transport: stdio
+{"timestamp":"2026-04-05T19:37:20.941Z","level":"info","message":"Transport: stdio"}
+[2026-04-05T19:37:20.941Z] INFO: Log level: info
+{"timestamp":"2026-04-05T19:37:20.941Z","level":"info","message":"Log level: info"}
+[2026-04-05T19:37:21.196Z] WARN: No releases found in repository
+{"timestamp":"2026-04-05T19:37:21.196Z","level":"warn","message":"No releases found in repository"}
+
+## ✅ Database Connection Verified
+
+| Status | Database | Transport | Timestamp |
+|--------|----------|-----------|-----------|
+| **CONNECTED** | PostgreSQL | STDIO | 2026-04-05T19:37:21.394Z |
+
+✅ **Successfully connected to wxKanban database**
+
+[2026-04-05T19:37:21.395Z] INFO: Database connection established
+{"timestamp":"2026-04-05T19:37:21.395Z","level":"info","message":"Database connection established"}
+✅ MCP startup project: wxKanban-agent-orchestrator (73d25de9-aeca-4736-86ae-4df306f07a19)
+[2026-04-05T19:37:21.446Z] INFO: Loaded startup project context: wxKanban-agent-orchestrator (73d25de9-aeca-4736-86ae-4df306f07a19) source=env
+{"timestamp":"2026-04-05T19:37:21.446Z","level":"info","message":"Loaded startup project context: wxKanban-agent-orchestrator (73d25de9-aeca-4736-86ae-4df306f07a19) source=env"}
+## 📋 Available Commands
+
+| Alias | Full Command | Description | Usage |
+|-------|--------------|-------------|-------|
+| `analyze` | `project.analyze` | Execute wxAI-analyze: Cross-artifact consistency analysis across spec.md, plan.md, and tasks.md |  |
+| `buildscope` | `project.buildscope` | Guided-first scope drafting that asks clarifying questions unless quick mode is enabled |  |
+| `checkupdates` | `project.check_for_updates` | Check for MCP server updates from GitHub releases |  |
+| `createspecs` | `project.create_specs` | Execute complete wxKanban spec workflow with strict scope-quality preflight |  |
+| `createtask` | `project.create_task` | Create new project tasks with priority and status |  |
+| `createtoken` | `project.create_api_token` | Create new API token for programmatic access |  |
+| `dbpush` | `project.capture_event` | Push/capture project events to database (chat, commits, meeting notes, manual notes) |  |
+| `downloadkit` | `project.download_kit` | Generate download URL for project kit |  |
+| `gitbranch` | `wxAIGit.branch` | Branch management operations | .\wxAIGit.cmd branch --list |
+| `gitcheckpoint` | `wxAIGit.checkpoint` | Quick timestamped git commit | .\wxAIGit.cmd checkpoint "WIP: auth module" |
+| `gitcommit` | `wxAIGit.commit` | Full conventional commit with changelog | .\wxAIGit.cmd commit |
+| `gitmerge` | `wxAIGit.merge` | Merge to main with version bump | .\wxAIGit.cmd merge |
+| `gitpull` | `wxAIGit.pull` | Pull with rebase | .\wxAIGit.cmd pull |
+| `gitpush` | `wxAIGit.push` | Push current branch to remote | .\wxAIGit.cmd push |
+| `gitstash` | `wxAIGit.stash` | Stash current changes | .\wxAIGit.cmd stash |
+| `gitstatus` | `wxAIGit.status` | Enhanced git status | .\wxAIGit.cmd status |
+| `gitsync` | `wxAIGit.sync` | Safe fast-forward from remote | .\wxAIGit.cmd sync |
+| `gitunstash` | `wxAIGit.unstash` | Apply stashed changes | .\wxAIGit.cmd unstash |
+| `help` | `project.help` | Display this help message with all available commands |  |
+| `implement` | `project.implement` | Execute wxAI-implement: Run implementation plan from tasks.md with scope-first enforcement |  |
+| `importproject` | `project.import_project` | Import existing project into wxKanban |  |
+| `kitstatus` | `project.kit_status` | Get project kit status and metadata |  |
+| `link` | `project.link_doc_to_task` | Link documents to tasks bidirectionally |  |
+| `list` | `project.list_open_items` | List open tasks, recent documents, and events |  |
+| `listtokens` | `project.list_api_tokens` | List all active API tokens |  |
+| `mcphealth` | `project.mcp_health` | Show MCP health status and active project context |  |
+| `regeneratekit` | `project.regenerate_kit` | Trigger kit regeneration with latest project state |  |
+| `revoketoken` | `project.revoke_api_token` | Revoke an API token by ID |  |
+| `sessionstart` | `project.session_start` | Execute wxAI-session-start: Initialize AI session with governance checks and scope context |  |
+| `updatestatus` | `project.update_task_status` | Update task status (todo -> in_progress -> blocked -> done) |  |
+| `upgrade` | `project.upgrade_mcp` | Download and install latest MCP server version |  |
+| `upsert` | `project.upsert_document` | Create or update project documents and specs |  |
+| `validatescope` | `project.validatescope` | Validate a scope document for completeness, placeholders, and minimum quality gates |  |
+
+### 💡 Quick Usage Guide:
+
+- alias `help` -> `project.help`: Display this help message with all available commands
+- alias `dbpush` -> `project.capture_event`: Push/capture project events to database (chat, commits, meeting notes, manual notes)
+- alias `createspecs` -> `project.create_specs`: Execute complete wxKanban spec workflow with strict scope-quality preflight
+- alias `buildscope` -> `project.buildscope`: Guided-first scope drafting that asks clarifying questions unless quick mode is enabled
+- alias `implement` -> `project.implement`: Execute wxAI-implement: Run implementation plan from tasks.md with scope-first enforcement
+- alias `list` -> `project.list_open_items`: List open tasks, recent documents, and events
+- alias `gitcommit` -> `wxAIGit.commit`: Full conventional commit with changelog
+
+---
+
+🌐 **Server Status: ONLINE and ready for requests**
+
+[2026-04-05T19:37:21.448Z] INFO: MCP Project Hub Server running on stdio
+{"timestamp":"2026-04-05T19:37:21.448Z","level":"info","message":"MCP Project Hub Server running on stdio"}

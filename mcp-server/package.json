@@ -1,0 +1,48 @@
+{
+  "name": "mcp-project-hub",
+  "version": "0.1.0",
+  "description": "MCP server for wxKanban project management integration",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:http": "tsc --project tsconfig.json",
+    "start": "node start-with-env.mjs",
+    "start:http": "node dist/index-http.js",
+    "dev": "tsx watch src/index.ts",
+    "dev:http": "tsx watch src/index-http.ts",
+    "test": "vitest",
+    "test:integration": "vitest run tests/integration/",
+    "lint": "eslint src/",
+    "db:generate": "drizzle-kit generate:pg",
+    "db:migrate": "drizzle-kit up:pg"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "cors": "^2.8.5",
+    "drizzle-orm": "^0.30.0",
+    "eventsource": "^2.0.2",
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.0",
+    "@types/pg": "^8.11.0",
+    "@types/uuid": "^9.0.8",
+    "drizzle-kit": "^0.18.1",
+    "eslint": "^8.56.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "overrides": {
+    "esbuild": "^0.25.4"
+  }
+}

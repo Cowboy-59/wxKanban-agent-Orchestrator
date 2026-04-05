@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "projectName": { "type": "string" },
+    "description": { "type": "string" },
+    "lifecycleStage": { "type": "string", "enum": ["idea", "scoped", "specified", "test_tasks_ready", "implemented", "handoff_ready"] },
+    "features": { "type": "array", "items": { "type": "object" } },
+    "artifacts": { "type": "array", "items": { "type": "object" } }
+  },
+  "required": ["projectName", "description", "lifecycleStage", "features", "artifacts"]
+}

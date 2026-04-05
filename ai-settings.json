@@ -1,0 +1,57 @@
+{
+  "_comment": "wxKanban AI Settings — MCP Project Hub (017)",
+  "version": "2.0.0",
+  "primaryAI": "blackboxai",
+  "project": {
+    "id": "73d25de9-aeca-4736-86ae-4df306f07a19",
+    "name": "{{project_name}}",
+    "wxkanban_url": "{{wxkanban_api_url}}"
+  },
+  "mcpRuntime": {
+    "transport": "http",
+    "baseUrl": "http://localhost:3002",
+    "preferredEntrypoint": "mcp-server/dist/index-http.js",
+    "startupScript": "node scripts/setup-mcp.mjs",
+    "healthEndpoint": "http://localhost:3002/health",
+    "validation": {
+      "primary": "GET /health",
+      "secondary": "POST /call using a known tool",
+      "note": "Do not rely on GET /tools as the only readiness check."
+    }
+  },
+  "mcpServers": {
+    "wxkanban": {
+      "transport": "http",
+      "url": "http://localhost:3002",
+      "env": {
+        "DATABASE_URL_ENCRYPTED": "4d5f6d7a33ae4a16a1a9660d9ef6f150:66d569ccdc92a2dfbe0f41e8e2c827fd:de4843389fa3952947bbfe8d750a02a5037e614b4e76fc63a34478715e914f354d674123a63e0569ca19a9015970503c2dca68c55f65606048f3ddacaa4aae9b82edea03e438aa03c5ec744fa61c21f43e7af05c73bbb8b5b66f77bbd66cab27ee397a0069fd4238d40e8ce9dd0c0c",
+        "WXKANBAN_API_TOKEN": "-cv4lzTWrpwrreu0cTk8X8chcwUPGFPpcECUH7ndQ2c",
+        "API_KEY": "your_api_key_here",
+        "WXKANBAN_PROJECT_ID": "73d25de9-aeca-4736-86ae-4df306f07a19",
+        "MCP_HTTP_URL": "http://localhost:3002"
+      }
+    }
+  },
+  "aiAdapters": {
+    "claude-code": {
+      "settingsFile": ".claude/settings.json",
+      "commandsDir": ".claude/commands/",
+      "note": "Copy mcpServers block into .claude/settings.json. Symlink _wxAI/commands/ to .claude/commands/"
+    },
+    "blackboxai": {
+      "settingsFile": "_wxAI-global/settings.json",
+      "commandsDir": "_wxAI-global/commands/",
+      "note": "Copy mcpServers block into _wxAI-global/settings.json"
+    },
+    "cursor": {
+      "settingsFile": ".cursor/mcp.json",
+      "commandsDir": ".cursor/rules/",
+      "note": "Copy mcpServers block into .cursor/mcp.json. Copy _wxAI/commands/ to .cursor/rules/"
+    },
+    "copilot": {
+      "settingsFile": ".github/copilot-instructions.md",
+      "commandsDir": ".github/",
+      "note": "Add MCP server config to workspace settings. Copy commands as GitHub Copilot instructions."
+    }
+  }
+}

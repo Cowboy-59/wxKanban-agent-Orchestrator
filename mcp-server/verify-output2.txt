@@ -1,0 +1,28 @@
+≡ƒöì MCP Server Setup Verification
+
+1∩╕ÅΓâú Loading environment variables...
+   Γ£à .env file loaded
+
+2∩╕ÅΓâú Checking encrypted credentials:
+   DATABASE_URL_ENCRYPTED: Γ£à Set
+   WXKANBAN_API_TOKEN: Γ£à Set
+   WXKANBAN_PROJECT_ID: Γ£à Set (ba924193-0335-4080-9fa6-33cd6b81300a)
+
+3∩╕ÅΓâú Loading MCP configuration...
+   Γ£à Configuration loaded
+
+4∩╕ÅΓâú Configuration Details:
+   Database URL: Γ£à Decrypted successfully
+   API Key: Γ£à Set
+   Log Level: info
+   Transport: stdio
+
+5∩╕ÅΓâú Database Connection Test:
+   Γ£à Database connection successful
+
+Γ£à All checks passed! MCP server is ready to run.
+
+To start the server:
+   npm start
+
+Project ID: ba924193-0335-4080-9fa6-33cd6b81300a

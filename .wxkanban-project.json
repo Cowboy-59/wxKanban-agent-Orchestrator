@@ -1,0 +1,14 @@
+{
+  "projectId": "73d25de9-aeca-4736-86ae-4df306f07a19",
+  "version": "2.0.0",
+  "createdAt": "2026-04-05T19:26:58.999Z",
+  "mode": "new",
+  "kitVersion": "2.0.0",
+  "mcpServer": "mcp-server/dist/index-http.js",
+  "mcpTransport": "http",
+  "mcpHttpUrl": "http://localhost:3002",
+  "mcpStartupScript": "scripts/setup-mcp.mjs",
+  "commandsDir": "_wxAI/commands/",
+  "rulesDir": "_wxAI/rules/",
+  "vscodeDir": ".vscode/"
+}

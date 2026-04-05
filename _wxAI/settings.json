@@ -1,0 +1,12 @@
+{
+  "enabledPlugins": {
+    "atlassian@claude-plugins-official": true
+  },
+  "mcpServers": {
+    "wxkanban": {
+      "command": "node",
+      "args": ["tools/wxkanban-mcp.mjs"],
+      "cwd": "e:\\AI_Development\\wxperts\\wxKanban"
+    }
+  }
+}

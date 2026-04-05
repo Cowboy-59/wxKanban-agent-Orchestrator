@@ -1,0 +1,16 @@
+{
+  "name": "wxkanban-agent",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dbpush": "ts-node dbpush.ts",
+    "postinstall": "node ../scripts/copy-repo-rules-to-project.js",
+    "postupdate": "node ../scripts/copy-repo-rules-to-project.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
