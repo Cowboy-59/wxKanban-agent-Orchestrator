@@ -1,5 +1,35 @@
 # wxKanban Project Kit
 
+## Directory and File Structure
+
+The following directories and files are included in the kit and are required for a complete project setup. If a directory is listed, all its contents are needed:
+
+```
+.vscode/
+_wxAI/
+   commands/
+   rules/
+   scripts/
+   settings.json
+   settings.local.json
+   wxai-implement-rules.md
+logs/
+mcp-server/
+resources/
+scripts/
+wxkanban-agent/
+ai-settings.json
+AI.md
+package.json
+package-lock.json
+project-kit.md
+ProjectOverview.md
+README.md
+TODO.md
+wxkanban-agent-orchestrator-draft.md
+```
+
+
 ## Purpose
 This project kit provides everything needed to bootstrap a new wxKanban project with full enforcement, governance, and deterministic workflow. It includes all orchestrator commands, enforcement rules, and automation scripts required for compliance and auditability.
 
