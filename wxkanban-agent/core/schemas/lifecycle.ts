@@ -2,7 +2,7 @@
 export enum LifecycleStage {
 	Design = 'Design',
 	Implementation = 'Implementation',
-	QATesting = 'QA testing',
+	QATesting = 'QA Testing',
 	HumanTesting = 'Human Testing',
 	Beta = 'Beta',
 	Release = 'Release',
@@ -16,3 +16,5 @@ export const AllowedCommandsByStage: Record<LifecycleStage, string[]> = {
 	[LifecycleStage.Beta]: ['prepareRelease'],
 	[LifecycleStage.Release]: ['finalizeRelease'],
 };
+
+export const CrossCuttingCommands: readonly string[] = ['dbpush', 'pipeline-agent'] as const;

@@ -1,0 +1,12 @@
+{
+  "name": "wxai-cli",
+  "version": "1.0.0",
+  "description": "wxKanban agent orchestrator CLI (wxai)",
+  "private": true,
+  "bin": {
+    "wxai": "./bin/wxai.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

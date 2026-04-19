@@ -1,3 +1,10 @@
+import { randomBytes, createHash, createCipheriv, createDecipheriv, randomUUID } from 'crypto';
+import { join, dirname, resolve, isAbsolute } from 'path';
+import { writeFileSync, mkdirSync, existsSync, readdirSync, readFileSync } from 'fs';
+import { db } from '../db/connection.js';
+import { sql, eq } from 'drizzle-orm';
+import logger from './logger.js';
+/**
  * Generate download URL for kit
  */
 export function generateDownloadUrl(projectId: string): string {
@@ -109,6 +116,8 @@ export async function createApiToken(
 /**
  * List API tokens for user
  */
+// TODO: Replace 'any' with actual ApiToken type
+type ApiToken = any;
 export async function listApiTokens(userId: string): Promise<ApiToken[]> {
   try {
     // Use raw SQL to avoid schema type issues

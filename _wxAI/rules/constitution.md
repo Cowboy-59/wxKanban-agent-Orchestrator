@@ -98,11 +98,7 @@ Use Pino structured logging with namespaced loggers.
 - Never overwrite env vars without explicit consent.
 - No schema modifications (`DROP`, `ALTER`, `CREATE`) without approval.
 - Error messages must not expose internal details.
-<<<<<<< HEAD
-- **Authentication**: Custom JWT implementation required (no third-party auth providers). Implement:
-=======
 - **Authentication**: Custom JWT implementation required (NOT third-party auth like Clerk). Implement:
->>>>>>> origin/014-sysadmin-platform-admin
   - bcrypt password hashing (12+ salt rounds, never plaintext)
   - Access token (short-lived, 15 minutes, in-memory storage)
   - Refresh token (7 days, httpOnly cookie, securely hashed in database)
@@ -198,3 +194,42 @@ Toasts are deprecated. Use contextual feedback instead. See `development-guideli
 ```
 
 **Enforcement**: When editing any component, audit all color classes in that file. If any lack `dark:` variants, add them before committing. Do not leave light-only colors in touched files.
+
+## XIII. MCP-Mandatory Enforcement Gateway (Commercial Rule)
+
+**ALL lifecycle-gated operations MUST route through the MCP server.** This rule applies to every AI tool — Claude, Cursor, Blackbox, Copilot, or any future tool. No exceptions.
+
+### What is enforced server-side (MCP)
+
+| Gate | Enforcement Point | Bypass? |
+| --- | --- | --- |
+| **Stage-gating** | CommandPolicyEngine blocks commands not permitted in the current lifecycle stage | NO |
+| **Spec-first verification** | Spec, tasks, and documents must exist in DB before implementation commands run | NO |
+| **Role-based access** | MCP auth middleware validates API key + role before tool execution | NO |
+| **Input validation** | Zod schemas reject malformed input at the API boundary | NO |
+| **Preflight quality gates** | create_specs runs blocking quality checks before spec creation | NO |
+| **Force overrides** | `--force` logs an escalation request that is still BLOCKED — no bypass | NO |
+
+### What the AI tool MUST NOT do
+
+1. **NEVER write implementation code without first calling `project.implement` through MCP.** Direct file writes that bypass the MCP gate violate the lifecycle and will not be tracked.
+2. **NEVER skip spec creation.** All scopes must be created via `buildscope` → `createspecs` → `dbpush` before implementation begins.
+3. **NEVER modify lifecycle stage directly.** Stage transitions are managed by the workflow engine.
+4. **NEVER claim a force override succeeded.** Force overrides are escalation requests — they are logged and BLOCKED, not permitted.
+
+### Enforcement levels
+
+| Level | Description | Examples |
+| --- | --- | --- |
+| **HARD** (server-enforced) | MCP server rejects the request. Cannot be bypassed by any AI tool. | Stage-gating, spec-first verification, role checks |
+| **HOOK** (commit-enforced) | Pre-commit hook rejects the commit. Catches violations before code is persisted. | TypeScript errors, console.log, dark mode |
+| **ADVISORY** (documentation) | Rule is documented but not programmatically enforced. Relies on AI compliance. | Code style, architecture patterns, debugging protocol |
+
+### Commercial guarantee
+
+wxKanban guarantees that **HARD-enforced rules cannot be bypassed** by any AI tool, regardless of the tool's capabilities or configuration. This is achieved by:
+
+1. Enforcement lives in the MCP server (server-side), not in the AI tool's prompt
+2. The AI tool receives error responses — it cannot "decide" to ignore them
+3. All enforcement decisions are logged in the audit trail with timestamps and actor identity
+4. Escalation requests (force overrides) are logged but BLOCKED — they require human admin approval via the wxKanban admin UI

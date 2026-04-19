@@ -4,7 +4,10 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run --config vitest.config.ts",
+    "verify": "ts-node scripts/verify-install.ts",
+    "gateway:cli": "ts-node apps/command-gateway/src/cli.ts",
+    "gateway:http": "ts-node apps/command-gateway/src/http.ts",
     "dbpush": "ts-node dbpush.ts",
     "postinstall": "node ../scripts/copy-repo-rules-to-project.js",
     "postupdate": "node ../scripts/copy-repo-rules-to-project.js"

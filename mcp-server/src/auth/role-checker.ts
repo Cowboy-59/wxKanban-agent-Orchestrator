@@ -33,6 +33,9 @@ const PERMISSION_MATRIX: Record<string, UserRole[]> = {
   'project.buildscope': ['editor', 'admin'],
   'project.validatescope': ['read_only', 'editor', 'admin'],
   
+  // Proposal tools (Spec 024)
+  'project.submit_proposal': ['editor', 'admin'],
+
   // Update tools
   'project.upgrade_mcp': ['admin'],
   

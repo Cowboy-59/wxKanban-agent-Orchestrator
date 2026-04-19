@@ -1,3 +1,40 @@
+import { execSync } from 'child_process';
+import { join } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import logger from './logger.js';
+
+// Stub for getCurrentVersion (should be replaced with actual version logic)
+function getCurrentVersion(): string {
+  // TODO: Replace with actual version retrieval logic
+  return '0.0.0';
+}
+
+// --- Type and constant definitions to resolve missing references ---
+export interface ReleaseInfo {
+  version: string;
+  tagName: string;
+  publishedAt: string;
+  htmlUrl: string;
+  tarballUrl: string;
+  zipballUrl: string;
+  body: string;
+  prerelease: boolean;
+  draft: boolean;
+}
+
+export interface UpdateStatus {
+  currentVersion: string;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  releaseInfo: ReleaseInfo | null;
+  lastChecked: Date | null;
+  error?: string;
+}
+
+const GITHUB_API_BASE = 'https://api.github.com/repos/Cowboy-59/wxKanban';
+const MCP_SERVER_PATH = process.env.MCP_SERVER_PATH || process.cwd();
+const LAST_CHECK_FILE = join(MCP_SERVER_PATH, '.last-update-check');
+const UPDATE_CHECK_INTERVAL_HOURS = 24;
 
 /**
  * Fetch latest release from GitHub API

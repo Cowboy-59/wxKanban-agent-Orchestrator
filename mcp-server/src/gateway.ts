@@ -1,3 +1,7 @@
+import { db } from './db/connection.js';
+import { events } from './db/schema.js';
+import logger from './utils/logger.js';
+/**
  * Post-tool audit log
  */
 export async function auditToolCall(toolName: string, args: any, result: any): Promise<void> {

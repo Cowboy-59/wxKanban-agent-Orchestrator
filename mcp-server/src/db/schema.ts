@@ -82,6 +82,35 @@ export const companyprojects = pgTable('companyprojects', {
   updatedAt: timestamp('updatedat', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Project Phases (existing table — for lifecycle stage enforcement)
+export const projectphases = pgTable('projectphases', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('projectid').notNull(),
+  phaseName: varchar('phasename', { length: 50 }).notNull(),
+  status: varchar('status', { length: 50 }).default('pending').notNull(),
+  enteredAt: timestamp('enteredat', { withTimezone: true }),
+  completedAt: timestamp('completedat', { withTimezone: true }),
+  createdAt: timestamp('createdat', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Project Proposals (Spec 024 — proposal pipeline for new projects)
+export const projectproposals = pgTable('projectproposals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  companyid: uuid('companyid').notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  priority: varchar('priority', { length: 20 }).default('medium').notNull(),
+  estimatedeffort: varchar('estimatedeffort', { length: 100 }),
+  status: varchar('status', { length: 20 }).default('pending').notNull(),
+  rejectionreason: text('rejectionreason'),
+  proposeddate: timestamp('proposeddate', { withTimezone: true }).defaultNow().notNull(),
+  source: varchar('source', { length: 255 }).notNull(),
+  projectid: uuid('projectid'),
+  createdbyid: varchar('createdbyid', { length: 255 }).notNull(),
+  createdAt: timestamp('createdat', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedat', { withTimezone: true }).defaultNow().notNull(),
+});
+
 // Export types
 export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;

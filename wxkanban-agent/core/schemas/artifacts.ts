@@ -1,4 +1,12 @@
 // Artifact schemas
+import { LifecycleStage } from './lifecycle';
+
+export interface Feature {
+	id: string;
+	name: string;
+	stage: LifecycleStage;
+}
+
 export interface ScopeDraft {
 	title: string;
 	problemStatement: string;
@@ -11,13 +19,13 @@ export interface ScopeDraft {
 export interface AuditRecord {
 	timestamp: string;
 	command: string;
-	input: any;
-	result: any;
+	input: Record<string, unknown>;
+	result: Record<string, unknown>;
 	user?: string;
 }
 
 export interface HandoffBundle {
-	features: any[];
-	artifacts: any[];
+	features: Feature[];
+	artifacts: ScopeDraft[];
 	auditTrail: AuditRecord[];
 }

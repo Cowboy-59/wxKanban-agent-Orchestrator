@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -229,6 +230,40 @@ MCP_HTTP_URL=${env.MCP_HTTP_URL || 'http://localhost:3002'}
   const projectConfigPath = path.join(__dirname, '..', '.wxkanban-project.json');
   fs.writeFileSync(projectConfigPath, JSON.stringify(projectConfig, null, 2));
   console.log('✅ Created .wxkanban-project.json');
+
+  // Create .vscode/tasks.json for auto-starting MCP server on project open
+  const vscodeDirPath = path.join(__dirname, '..', '.vscode');
+  if (!fs.existsSync(vscodeDirPath)) {
+    fs.mkdirSync(vscodeDirPath, { recursive: true });
+  }
+  const vscodeTasksPath = path.join(vscodeDirPath, 'tasks.json');
+  if (!fs.existsSync(vscodeTasksPath)) {
+    const vscodeTasks = {
+      "version": "2.0.0",
+      "tasks": [
+        {
+          "label": "Start MCP Server",
+          "type": "shell",
+          "command": "node",
+          "args": ["scripts/setup-mcp.mjs"],
+          "isBackground": true,
+          "problemMatcher": [],
+          "presentation": {
+            "reveal": "silent",
+            "panel": "dedicated",
+            "showReuseMessage": false
+          },
+          "runOptions": {
+            "runOn": "folderOpen"
+          }
+        }
+      ]
+    };
+    fs.writeFileSync(vscodeTasksPath, JSON.stringify(vscodeTasks, null, 2) + '\n');
+    console.log('✅ Created .vscode/tasks.json (MCP auto-start on project open)');
+  } else {
+    console.log('ℹ️  .vscode/tasks.json already exists, skipping');
+  }
   
   // Create ai-settings.json
   const aiSettings = {
@@ -276,11 +311,20 @@ MCP_HTTP_URL=${env.MCP_HTTP_URL || 'http://localhost:3002'}
   console.log('');
   console.log('Project ID:', projectId);
   console.log('API Token:', apiToken);
+  // Configure git hooks path to use .husky/ for pre-commit enforcement
+  try {
+    execSync('git config core.hooksPath .husky', { cwd: path.join(__dirname, '..'), stdio: 'ignore' });
+    console.log('✅ Configured git hooks path (.husky/pre-commit enforcement active)');
+  } catch {
+    console.log('ℹ️  Could not configure git hooks path (not a git repo or git not available)');
+  }
+
   console.log('');
   console.log('Next steps:');
   console.log('  1. Build the MCP server: cd mcp-server && npm run build');
   console.log('  2. Test the setup: cd mcp-server && node verify-setup.mjs');
-  console.log('  3. Start the server: cd mcp-server && npm start');
+  console.log('  3. Start the server: node scripts/setup-mcp.mjs');
+  console.log('     (or just open the project in VS Code — MCP starts automatically)');
   console.log('');
   console.log('⚠️  IMPORTANT: Save your API token securely. If lost, you must re-run initialization.');
 }

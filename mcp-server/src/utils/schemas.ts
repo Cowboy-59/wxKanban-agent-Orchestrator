@@ -490,8 +490,18 @@ export const RevokeApiTokenResultSchema = z.object({
 export const ImplementInputSchema = z.object({
   specNumber: z.string().min(1).max(10).describe('Spec number to implement (e.g., "017")'),
   scopeCheck: z.boolean().default(true).describe('Run scope-first gate verification'),
-  force: z.boolean().default(false).describe('Force implementation even if scope check fails'),
-  reason: z.string().optional().describe('Reason for force override'),
+  force: z.boolean().default(false).describe('DEPRECATED: Force overrides are blocked. Escalation is logged but command is still rejected. Resolve prerequisites instead.'),
+  reason: z.string().optional().describe('Reason for escalation request (logged for admin review, does NOT bypass enforcement)'),
+});
+
+// Spec 024: Submit Proposal Input (AI Agent proposal submission)
+export const SubmitProposalInputSchema = z.object({
+  title: z.string().min(1).max(255).describe('Proposal title'),
+  description: z.string().optional().describe('Proposal description'),
+  priority: z.enum(['low', 'medium', 'high']).default('medium').describe('Proposal priority'),
+  estimatedEffort: z.string().max(100).optional().describe('Estimated effort (e.g., "2 weeks")'),
+  projectId: z.string().uuid().describe('Company project context UUID'),
+  source: z.string().max(255).optional().describe('Source identifier (defaults to "AI Agent")'),
 });
 
 // wxAI Analyze Input

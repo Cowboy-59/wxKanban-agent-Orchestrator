@@ -1,6 +1,6 @@
 // wxHT API outline for web integration
 import express from 'express';
-import { handleWxHT } from './core/orchestrator/command-handlers/wxht';
+import { handleWxHT } from '../core/orchestrator/command-handlers/wxht';
 
 const router = express.Router();
 

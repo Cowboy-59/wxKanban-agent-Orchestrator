@@ -1,8 +1,10 @@
 // Command schemas
+import { ProjectContext } from '../context/project-context';
+
 export interface CommandRequest<TInput> {
 	command: string;
 	input: TInput;
-	context: any;
+	context: ProjectContext;
 }
 
 export interface CommandResult<TArtifact> {
