@@ -201,15 +201,24 @@ async function waitForHealth() {
   const maxAttempts = 10;
   for (let i = 1; i <= maxAttempts; i++) {
     await sleep(1500);
-    const r = spawnSync(process.execPath, [healthScript], { stdio: i === maxAttempts ? 'inherit' : 'pipe' });
+    // On the final attempt, inherit stdio so the user sees the full probe
+    // output (success or failure). Otherwise run silently and loop.
+    const inherit = i === maxAttempts;
+    const r = spawnSync(process.execPath, [healthScript], { stdio: inherit ? 'inherit' : 'pipe' });
     if (r.status === 0) {
-      const r2 = spawnSync(process.execPath, [healthScript], { stdio: 'inherit' });
-      process.exit(r2.status ?? 0);
+      if (!inherit) {
+        // Print the success output once on the first healthy attempt.
+        const r2 = spawnSync(process.execPath, [healthScript], { stdio: 'inherit' });
+        process.exitCode = r2.status ?? 0;
+        return;
+      }
+      process.exitCode = 0;
+      return;
     }
     process.stdout.write(`  attempt ${i}/${maxAttempts} not yet…\r`);
   }
   console.log('\nServices did not become healthy in time. See logs/ for details.');
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 async function main() {
@@ -222,4 +231,4 @@ async function main() {
   await waitForHealth();
 }
 
-main().catch(err => { console.error('init failed:', err); process.exit(1); });
+main().catch(err => { console.error('init failed:', err); process.exitCode = 1; });

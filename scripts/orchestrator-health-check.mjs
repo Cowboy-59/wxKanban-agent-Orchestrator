@@ -22,7 +22,13 @@ async function probe(label, url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(`${url}/health`, { signal: controller.signal });
+    // Connection: close so undici doesn't keep sockets in the keep-alive pool
+    // past the response — which on Windows triggers UV_HANDLE_CLOSING during
+    // process teardown and leaks a non-zero exit.
+    const response = await fetch(`${url}/health`, {
+      signal: controller.signal,
+      headers: { Connection: 'close' },
+    });
     const body = await response.json().catch(() => ({}));
     if (response.ok && (body?.status === 'ok')) {
       const meta = [body.service, body.transport, body.port ? `port ${body.port}` : null]
@@ -52,7 +58,11 @@ async function main() {
   console.log('');
   if (mcpOk && gwOk) {
     console.log('✓ All services healthy.');
-    process.exit(0);
+    // Setting exitCode (rather than calling process.exit) lets Node drain the
+    // event loop naturally — prevents UV_HANDLE_CLOSING on Windows when
+    // undici sockets are still closing.
+    process.exitCode = 0;
+    return;
   }
 
   console.log('✗ One or more services not reachable.');
@@ -62,10 +72,10 @@ async function main() {
   console.log('  Orchestrator: node wxkanban-agent/apps/command-gateway/bin/wxai-http.mjs');
   console.log('');
   console.log('If you opened this folder in VSCode, both start automatically via .vscode/tasks.json.');
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 main().catch((err) => {
   console.error('unexpected failure:', err);
-  process.exit(2);
+  process.exitCode = 2;
 });
