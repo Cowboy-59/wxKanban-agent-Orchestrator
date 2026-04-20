@@ -1,0 +1,9 @@
+# POSIX shell scripts must stay LF-only, even on Windows checkout
+bin/wxkanban-agent text eol=lf
+*.sh text eol=lf
+
+# Shell wrappers for Windows use CRLF
+bin/*.cmd text eol=crlf
+
+# Everything else uses platform default
+* text=auto

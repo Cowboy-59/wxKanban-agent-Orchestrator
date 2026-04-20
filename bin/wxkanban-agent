@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# wxkanban-agent — POSIX wrapper for the orchestrator CLI
+# Spec 019 Decision #9: Node >= 20 required on PATH; this wrapper locates system Node.
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KIT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "wxkanban-agent: 'node' not found on PATH. Install Node.js >= 20 from https://nodejs.org/" >&2
+  exit 127
+fi
+
+NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]")
+if [ "$NODE_MAJOR" -lt 20 ]; then
+  echo "wxkanban-agent: Node.js >= 20 required (found $(node --version))" >&2
+  exit 1
+fi
+
+exec node "$KIT_ROOT/wxkanban-agent/apps/command-gateway/bin/wxai.mjs" "$@"

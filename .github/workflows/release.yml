@@ -1,0 +1,90 @@
+name: Release kit tarball
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wxkanban-agent dependencies
+        working-directory: wxkanban-agent
+        run: npm install --omit=dev --ignore-scripts
+
+      - name: Install mcp-server dependencies
+        working-directory: mcp-server
+        run: npm install --omit=dev --ignore-scripts
+
+      - name: Resolve version from tag
+        id: ver
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Build kit.tar.gz
+        # Does NOT include per-project files (.wxkanban-project.json, ai-settings.json,
+        # .env) — wxKanban's kitRoutes injects those server-side at download time
+        # per spec 019 Decision #13.
+        run: |
+          mkdir -p dist
+          tar \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.history' \
+            --exclude='dist' \
+            --exclude='logs' \
+            --exclude='*.log' \
+            --exclude='TODO.md' \
+            --exclude='project-kit.md' \
+            --exclude='wxkanban-agent-orchestrator-draft.md' \
+            --exclude='resources' \
+            --exclude='kit.tar.gz' \
+            -czf dist/kit.tar.gz \
+            bin \
+            wxkanban-agent \
+            mcp-server \
+            _wxAI \
+            scripts \
+            .vscode \
+            CLAUDE.md \
+            AI.md \
+            ProjectOverview.md \
+            package.json \
+            package-lock.json \
+            README.md
+
+      - name: Compute checksum
+        working-directory: dist
+        run: sha256sum kit.tar.gz > kit.tar.gz.sha256
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: wxKanban Orchestrator Kit ${{ steps.ver.outputs.version }}
+          body: |
+            ## wxKanban Orchestrator Kit ${{ steps.ver.outputs.version }}
+
+            Auto-built from tag `${{ steps.ver.outputs.version }}`.
+
+            **Artifacts:**
+            - `kit.tar.gz` — full kit bundle (runtime dependencies included)
+            - `kit.tar.gz.sha256` — SHA-256 checksum
+
+            **Consumption:**
+            wxKanban's `/api/kit/download` endpoint fetches this tarball, injects per-project credentials server-side, and streams to the user. Direct download is also supported for manual installs.
+
+            See `CLAUDE.md` in the tarball for orientation.
+          files: |
+            dist/kit.tar.gz
+            dist/kit.tar.gz.sha256

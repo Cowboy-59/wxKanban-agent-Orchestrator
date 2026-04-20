@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start MCP Server",
+      "type": "shell",
+      "command": "node",
+      "args": ["scripts/setup-mcp.mjs"],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "Start Orchestrator HTTP Gateway",
+      "type": "shell",
+      "command": "node",
+      "args": ["wxkanban-agent/apps/command-gateway/bin/wxai-http.mjs"],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "runOptions": { "runOn": "folderOpen" }
+    }
+  ]
+}
