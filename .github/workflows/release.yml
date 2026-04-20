@@ -20,13 +20,20 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install root dependencies (tsx, express)
+        run: npm install --omit=dev --ignore-scripts --no-audit --no-fund
+
       - name: Install wxkanban-agent dependencies
         working-directory: wxkanban-agent
-        run: npm install --omit=dev --ignore-scripts
+        run: npm install --omit=dev --ignore-scripts --no-audit --no-fund
 
       - name: Install mcp-server dependencies
         working-directory: mcp-server
-        run: npm install --omit=dev --ignore-scripts
+        run: npm install --no-audit --no-fund
+
+      - name: Build mcp-server
+        working-directory: mcp-server
+        run: npm run build
 
       - name: Resolve version from tag
         id: ver
@@ -50,6 +57,7 @@ jobs:
             ProjectOverview.md \
             package.json \
             package-lock.json \
+            node_modules \
             README.md \
             staging/
           # Scrub any dev-only/noise artifacts that may have slipped in
