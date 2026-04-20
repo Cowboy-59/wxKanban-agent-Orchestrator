@@ -32,25 +32,13 @@ jobs:
         id: ver
         run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
-      - name: Build kit.tar.gz
+      - name: Assemble kit staging directory
         # Does NOT include per-project files (.wxkanban-project.json, ai-settings.json,
         # .env) — wxKanban's kitRoutes injects those server-side at download time
         # per spec 019 Decision #13.
         run: |
-          mkdir -p dist
-          tar \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='.history' \
-            --exclude='dist' \
-            --exclude='logs' \
-            --exclude='*.log' \
-            --exclude='TODO.md' \
-            --exclude='project-kit.md' \
-            --exclude='wxkanban-agent-orchestrator-draft.md' \
-            --exclude='resources' \
-            --exclude='kit.tar.gz' \
-            -czf dist/kit.tar.gz \
+          mkdir -p dist staging
+          cp -r \
             bin \
             wxkanban-agent \
             mcp-server \
@@ -62,11 +50,25 @@ jobs:
             ProjectOverview.md \
             package.json \
             package-lock.json \
-            README.md
+            README.md \
+            staging/
+          # Scrub any dev-only/noise artifacts that may have slipped in
+          find staging -type d -name '.history' -prune -exec rm -rf {} +
+          find staging -type d -name 'node_modules/.cache' -prune -exec rm -rf {} +
 
-      - name: Compute checksum
+      - name: Build kit.tar.gz (Unix/Mac)
+        working-directory: staging
+        run: tar -czf ../dist/kit.tar.gz .
+
+      - name: Build kit.zip (Windows)
+        working-directory: staging
+        run: zip -rq ../dist/kit.zip .
+
+      - name: Compute checksums
         working-directory: dist
-        run: sha256sum kit.tar.gz > kit.tar.gz.sha256
+        run: |
+          sha256sum kit.tar.gz > kit.tar.gz.sha256
+          sha256sum kit.zip    > kit.zip.sha256
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
@@ -78,13 +80,16 @@ jobs:
             Auto-built from tag `${{ steps.ver.outputs.version }}`.
 
             **Artifacts:**
-            - `kit.tar.gz` — full kit bundle (runtime dependencies included)
-            - `kit.tar.gz.sha256` — SHA-256 checksum
+            - `kit.tar.gz` — full kit bundle for Unix/Mac (runtime dependencies included)
+            - `kit.zip` — full kit bundle for Windows (same contents, zip format)
+            - `kit.tar.gz.sha256` / `kit.zip.sha256` — SHA-256 checksums
 
             **Consumption:**
-            wxKanban's `/api/kit/download` endpoint fetches this tarball, injects per-project credentials server-side, and streams to the user. Direct download is also supported for manual installs.
+            wxKanban's `/api/kit/download` endpoint fetches the appropriate archive based on the client platform (or user preference), injects per-project credentials server-side, and streams to the user. Direct download of either artifact is also supported for manual installs.
 
-            See `CLAUDE.md` in the tarball for orientation.
+            See `CLAUDE.md` in the archive for orientation.
           files: |
             dist/kit.tar.gz
             dist/kit.tar.gz.sha256
+            dist/kit.zip
+            dist/kit.zip.sha256
