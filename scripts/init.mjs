@@ -163,12 +163,59 @@ function loadEnv(envPath) {
   return env;
 }
 
-function startMcp() {
+// Spec 019 R16 AC1-2 — if an MCP is already listening on :3002, verify via
+// project.mcp_health that it serves THIS project's id. If not, kill it and
+// let setup-mcp.mjs start a fresh one. Without this, stale MCP processes from
+// other project directories silently serve the wrong project.
+async function ensureMcpIsForThisProject() {
+  const pidFile = path.join(root, '.mcp-server.pid');
+  if (!fs.existsSync(pidFile)) return;
+  const pid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+  if (!Number.isFinite(pid) || !isRunning(pid)) return;
+
+  const env = loadEnv(path.join(root, '.env'));
+  const expectedId = env['WXKANBAN_PROJECT_ID'];
+  if (!expectedId) return; // nothing to verify against
+
+  const mcpUrl = process.env.MCP_HTTP_URL || 'http://localhost:3002';
+  let reported;
+  try {
+    const resp = await fetch(`${mcpUrl}/call`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Connection: 'close' },
+      body: JSON.stringify({ tool: 'project.mcp_health', args: {} }),
+    });
+    if (!resp.ok) {
+      console.warn(`  MCP on ${mcpUrl} returned HTTP ${resp.status} to mcp_health — treating as stale, restarting.`);
+    } else {
+      const envelope = await resp.json();
+      const text = envelope?.content?.[0]?.text;
+      const health = typeof text === 'string' ? JSON.parse(text) : null;
+      reported = health?.projectContext?.projectId;
+    }
+  } catch (err) {
+    console.warn(`  PID file points at PID ${pid} but /call unreachable (${err.message}) — restarting.`);
+  }
+
+  if (reported && reported === expectedId) return; // same project, keep it
+
+  console.warn(`\n⚠  MCP on port 3002 is bound to a DIFFERENT project.`);
+  console.warn(`   expected: ${expectedId}`);
+  console.warn(`   reported: ${reported ?? '(unknown)'}`);
+  console.warn(`   killing PID ${pid} and restarting MCP with this project's identity…`);
+  try { process.kill(pid, 'SIGTERM'); } catch { /* may already be dead */ }
+  try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
+  // Give the OS a moment to release the port before setup-mcp tries to bind.
+  await new Promise(r => setTimeout(r, 1000));
+}
+
+async function startMcp() {
   console.log('\nStarting MCP server…');
+  await ensureMcpIsForThisProject();
   const r = spawnSync(process.execPath, [path.join(here, 'setup-mcp.mjs')], {
     cwd: root, stdio: 'inherit',
   });
-  if (r.status !== 0) { console.error('MCP startup failed.'); process.exit(1); }
+  if (r.status !== 0) { console.error('MCP startup failed.'); process.exitCode = 1; throw new Error('mcp-startup-failed'); }
 }
 
 function startGateway() {
@@ -226,7 +273,7 @@ async function main() {
   console.log('═════════════════');
   await maybeDownloadKit();
   ensureDeps();
-  startMcp();
+  await startMcp();
   startGateway();
   await waitForHealth();
 }
