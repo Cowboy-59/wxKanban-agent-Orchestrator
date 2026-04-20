@@ -101,6 +101,45 @@ async function waitForPortBind() {
   return false;
 }
 
+// Spec 019 R16 (hardened) — when we see a live PID, verify that the running
+// MCP's project identity matches our .env before declaring "already running."
+// Otherwise running setup-mcp.mjs directly (outside init.mjs) would still be
+// vulnerable to the stale-cross-project adoption bug.
+async function verifyIdentityOrKill(pid, env) {
+  const expectedId = env['WXKANBAN_PROJECT_ID'];
+  if (!expectedId) return true; // nothing to verify against — treat as match
+
+  let reported;
+  try {
+    const resp = await fetch(`${HEALTH_PROBE_URL}/call`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Connection: 'close' },
+      body: JSON.stringify({ tool: 'project.mcp_health', args: {} }),
+    });
+    if (!resp.ok) {
+      console.warn(`MCP on ${HEALTH_PROBE_URL} returned HTTP ${resp.status} to mcp_health — treating as stale.`);
+    } else {
+      const envelope = await resp.json();
+      const text = envelope?.content?.[0]?.text;
+      const health = typeof text === 'string' ? JSON.parse(text) : null;
+      reported = health?.projectContext?.projectId;
+    }
+  } catch (err) {
+    console.warn(`PID file points at PID ${pid} but /call unreachable (${err.message}) — treating as stale.`);
+  }
+
+  if (reported && reported === expectedId) return true;
+
+  console.warn(`\n⚠  MCP on port 3002 is bound to a DIFFERENT project.`);
+  console.warn(`   expected: ${expectedId}`);
+  console.warn(`   reported: ${reported ?? '(unknown)'}`);
+  console.warn(`   killing PID ${pid} and restarting MCP with this project's identity…`);
+  try { process.kill(pid, 'SIGTERM'); } catch { /* may already be dead */ }
+  try { fs.unlinkSync(pidPath); } catch { /* ignore */ }
+  await new Promise(r => setTimeout(r, 1000));
+  return false;
+}
+
 function tailLog(n = 30) {
   if (!fs.existsSync(logPath)) return '(log file not created)';
   const content = fs.readFileSync(logPath, 'utf8');
@@ -117,10 +156,13 @@ async function main() {
   if (fs.existsSync(pidPath)) {
     const pid = Number(fs.readFileSync(pidPath, 'utf8').trim());
     if (Number.isFinite(pid) && isRunning(pid)) {
-      // NOTE: we do NOT verify projectId here — that's init.mjs's job (R16 AC1-2).
-      // setup-mcp is a lower-level spawn tool; it just reports "a PID is alive."
-      console.log('MCP already running with PID:', pid);
-      return;
+      const matches = await verifyIdentityOrKill(pid, env);
+      if (matches) {
+        console.log('MCP already running with PID:', pid, '(project identity verified)');
+        return;
+      }
+      // Mismatch path: verifyIdentityOrKill killed the stale process and
+      // removed the pidfile; fall through to spawn a fresh MCP.
     }
   }
 
