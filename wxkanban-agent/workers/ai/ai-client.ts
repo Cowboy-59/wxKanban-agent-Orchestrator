@@ -28,7 +28,7 @@ export interface AIResponse {
 const DEFAULT_PRIMARY: AIProviderConfig = {
 	name: 'gemini',
 	apiKey: process.env['GEMINI_API_KEY'] || '',
-	model: 'gemini-pro',
+	model: process.env['GEMINI_MODEL'] || 'gemini-2.5-flash',
 	endpoint: 'https://generativelanguage.googleapis.com/v1beta',
 	timeoutMs: 30000,
 	confidenceThreshold: 0.7,
