@@ -51,7 +51,13 @@ export class BuildScopeWorker {
 		}
 
 		if (!response.ok) {
-			throw new Error(`buildscope: MCP /call returned ${response.status} ${response.statusText}`);
+			// BUG-9: include the response body so structured McpError messages
+			// (e.g. "Validation error: featureDescription: Required") reach the
+			// user instead of a bare "500 Internal Server Error".
+			let body = '';
+			try { body = await response.text(); } catch { /* non-fatal */ }
+			const detail = body ? ` — ${body.slice(0, 500)}` : '';
+			throw new Error(`buildscope: MCP /call returned ${response.status} ${response.statusText}${detail}`);
 		}
 
 		const envelope = (await response.json()) as { content?: Array<{ text?: string }> };
@@ -64,11 +70,32 @@ export class BuildScopeWorker {
 			success?: boolean;
 			error?: string;
 			mode?: string;
+			status?: 'created' | 'updated' | 'template_only' | 'draft_interview';
 			specNumber?: string;
 			shortName?: string;
+			questions?: string[];
+			blockingIssues?: string[];
+			canProceedToCreateSpecs?: boolean;
+			message?: string;
 		};
 		if (mcpResult.success === false) {
 			throw new Error(mcpResult.error || 'buildscope: project.buildscope returned success=false');
+		}
+
+		// BUG-6: when MCP returns status=draft_interview, NO spec file was
+		// written and the user must answer clarification questions before
+		// rerunning. Previously the CLI surfaced "Spec X created" anyway,
+		// leaving the user to discover downstream that the file was missing.
+		if (mcpResult.status === 'draft_interview') {
+			const questionList = (mcpResult.questions ?? []).map(q => `  - ${q}`).join('\n');
+			const blockerList = (mcpResult.blockingIssues ?? []).map(b => `  - ${b}`).join('\n');
+			const parts = [
+				mcpResult.message || `buildscope: scope ${mcpResult.specNumber ?? '?'} needs clarification before a draft can be written.`,
+			];
+			if (questionList) parts.push(`Questions:\n${questionList}`);
+			if (blockerList) parts.push(`Blocking issues:\n${blockerList}`);
+			parts.push('Re-run buildscope with the missing fields filled in.');
+			throw new Error(parts.join('\n\n'));
 		}
 
 		// Map BuildScopeResult → ScopeDraft so WorkflowEngine.runBuildScope's
@@ -81,8 +108,8 @@ export class BuildScopeWorker {
 		const problemStatement =
 			typeof args['businessProblem'] === 'string' ? (args['businessProblem'] as string) : 'See generated spec file.';
 		const objectives = pickSuccessMetrics(args['successMetrics']);
-		const notes =
-			`Spec ${mcpResult.specNumber ?? '?'} created via project.buildscope (mode: ${mcpResult.mode ?? 'unknown'}).`;
+		const verb = mcpResult.status === 'updated' ? 'updated' : mcpResult.status === 'template_only' ? 'scaffolded from template' : 'created';
+		const notes = `Spec ${mcpResult.specNumber ?? '?'} ${verb} via project.buildscope (mode: ${mcpResult.mode ?? 'unknown'}).`;
 
 		return {
 			title,

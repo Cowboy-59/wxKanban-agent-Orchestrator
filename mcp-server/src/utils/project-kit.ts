@@ -382,14 +382,6 @@ function titleCase(value: string): string {
     .join(' ');
 }
 
-function pascalCase(value: string): string {
-  return value
-    .split(/[\s-]+/)
-    .filter(Boolean)
-    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-    .join('');
-}
-
 function deriveKeyValue(featureDescription: string, businessProblem?: string): string {
   const normalizedProblem = normalizeText(businessProblem);
   if (normalizedProblem.length >= 20) {
@@ -530,9 +522,19 @@ function normalizeText(value: string | undefined): string {
 
 function matchesPlaceholder(value: string): string[] {
   const normalized = normalizeText(value);
-  return PLACEHOLDER_MARKERS.filter((marker) =>
-    new RegExp(`\\b${marker.replace(/\s+/g, '\\s+')}\\b`, 'i').test(normalized)
-  );
+  return PLACEHOLDER_MARKERS.filter((marker) => {
+    // BUG-12: "placeholder" is a real English word (e.g., "the URL still
+    // contains the placeholder string"). Only match it as a standalone
+    // marker — bracketed ([placeholder], <placeholder>), as a leading
+    // label (placeholder:), or as a whole-line value — not as substring
+    // of natural prose. The other markers (TODO, TBD, NEEDS CLARIFICATION)
+    // are unambiguous and use word-boundary matching unchanged.
+    if (marker === 'placeholder') {
+      const standalone = /(^|[\s])(?:\[placeholder\]|<placeholder>|placeholder\s*:)|^\s*placeholder\s*$/i;
+      return standalone.test(normalized);
+    }
+    return new RegExp(`\\b${marker.replace(/\s+/g, '\\s+')}\\b`, 'i').test(normalized);
+  });
 }
 
 function matchesDefaultValue(value: string | undefined, defaults: string[]): boolean {
@@ -758,14 +760,6 @@ export function buildScopeContent(input: {
   const integrationContext = input.integrationContext || 'This scope should align with the existing wxKanban workflow, project lifecycle, and any already-approved integrations in the same feature area.';
   const constraintsAndRisks = input.constraintsAndRisks || 'No additional delivery constraints or risks were identified during guided discovery.';
   const featureLabel = titleCase(input.shortName.replace(/-/g, ' '));
-  const componentBase = pascalCase(featureLabel);
-  const featureWords = input.shortName.split('-').filter(Boolean);
-  const resourceBase = featureWords[featureWords.length - 1] || 'scope';
-  const entityRoot = featureWords.join('') || 'scope';
-  const primaryTable = `company${resourceBase.endsWith('s') ? resourceBase : `${resourceBase}s`}`;
-  const eventTable = `${entityRoot}events`;
-  const historyTable = `${entityRoot}history`;
-  const apiBasePath = `/api/${input.shortName}`;
   const scopeBoundarySummary = `${sentence(scopeBoundary)} ${sentence(outOfScope)}`;
   const overview = [
     sentence(`${normalizeText(input.featureDescription)} gives wxKanban a clearly defined business workflow with accountable outcomes`),
@@ -922,47 +916,24 @@ export function buildScopeContent(input: {
     '',
     '## Data Requirements',
     '',
-    '### Schema Changes',
-    '',
-    '| Table | Purpose |',
-    '|-------|---------|',
-    `| \`${primaryTable}\` | Stores the current business state for ${normalizeText(input.featureDescription).toLowerCase()} at the company or workflow level. |`,
-    `| \`${eventTable}\` | Stores lifecycle events, status transitions, and system-generated workflow actions for this scope. |`,
-    `| \`${historyTable}\` | Stores customer-visible or operator-visible history records needed for review, audit, or reporting. |`,
-    '',
-    '**Schema Notes**:',
-    `- The schema MUST reflect the scope boundary: ${sentence(scopeBoundary)}`,
-    `- Out-of-scope persistence or unrelated aggregates remain excluded: ${sentence(outOfScope)}`,
+    '> [NEEDS CLARIFICATION] Data requirements were not provided during discovery. List the tables this scope adds, modifies, or takes over — and call out anything explicitly forbidden by the scope boundary below. Do NOT invent tables from the feature name.',
+    '>',
+    `> **Scope boundary to respect:** ${sentence(scopeBoundary)}`,
+    `> **Out of scope:** ${sentence(outOfScope)}`,
     '',
     '## API Routes',
     '',
-    '| Method | Route | Description |',
-    '|--------|-------|-------------|',
-    `| POST | \`${apiBasePath}\` | Create or initiate the primary ${normalizeText(input.featureDescription).toLowerCase()} workflow. |`,
-    `| GET | \`${apiBasePath}\` | Return the current workflow summary, status, and key business details for this scope. |`,
-    `| PATCH | \`${apiBasePath}\` | Update workflow state, business settings, or approval outcomes within the declared scope. |`,
-    `| GET | \`${apiBasePath}/history\` | Return operator-visible or customer-visible workflow history for review. |`,
-    `| GET | \`${apiBasePath}/reports\` | Return operational reporting or summary views derived from the current workflow state. |`,
-    `| POST | \`${apiBasePath}/events\` | Capture integration, lifecycle, or downstream events that must keep wxKanban state synchronized. |`,
+    '> [NEEDS CLARIFICATION] API routes were not provided during discovery. List the endpoints this scope adds or modifies, with method, path, and one-line description. Do NOT invent routes from the feature name.',
+    '>',
+    `> **Scope boundary to respect:** ${sentence(scopeBoundary)}`,
+    `> **Out of scope:** ${sentence(outOfScope)}`,
     '',
     '## Frontend Components',
     '',
-    '### New Components',
-    '',
-    '| Component | Path | Description |',
-    '|-----------|------|-------------|',
-    `| \`${componentBase}PrimaryPanel\` | \`src/client/components/${input.shortName}/${componentBase}PrimaryPanel.tsx\` | Handles the primary user workflow for this scope. |`,
-    `| \`${componentBase}HistoryPanel\` | \`src/client/components/${input.shortName}/${componentBase}HistoryPanel.tsx\` | Shows the workflow history, outcomes, or event trail for review. |`,
-    `| \`${componentBase}ManagementPanel\` | \`src/client/components/${input.shortName}/${componentBase}ManagementPanel.tsx\` | Lets authorized users review status, business rules, and operational controls. |`,
-    `| \`${componentBase}Notice\` | \`src/client/components/${input.shortName}/${componentBase}Notice.tsx\` | Surfaces important state changes, scope guardrails, or user-facing warnings. |`,
-    '',
-    '### Modified Components',
-    '',
-    '| Component | Change |',
-    '|-----------|--------|',
-    `| \`SettingsPage\` | Add entry points, current-state visibility, and management controls for ${normalizeText(input.featureDescription).toLowerCase()}. |`,
-    `| \`AdminDashboard\` | Add reporting or operational summary access for the new workflow. |`,
-    `| \`${componentBase}Page\` | Add the primary end-user workflow entry point, review states, and exception messaging. |`,
+    '> [NEEDS CLARIFICATION] Frontend components were not provided during discovery. List the new and modified React components this scope requires, with paths and one-line descriptions. Do NOT invent components from the feature name.',
+    '>',
+    `> **Scope boundary to respect:** ${sentence(scopeBoundary)}`,
+    `> **Out of scope:** ${sentence(outOfScope)}`,
     '',
     '## Success Criteria',
     '',
@@ -970,12 +941,10 @@ export function buildScopeContent(input: {
     '',
     '## Key Entities',
     '',
-    '| Entity | Description |',
-    '|--------|-------------|',
-    `| \`${titleCase(resourceBase)}Workflow\` | Represents the primary business workflow or configuration state introduced by this scope. |`,
-    `| \`${titleCase(resourceBase)}Event\` | Represents lifecycle, approval, or synchronization events emitted as the workflow changes state. |`,
-    `| \`${titleCase(resourceBase)}HistoryRecord\` | Represents the history or review record shown to users or operators after workflow actions occur. |`,
-    `| \`${titleCase(resourceBase)}ReportSnapshot\` | Represents the reporting or summary view used to monitor current status and recent outcomes. |`,
+    '> [NEEDS CLARIFICATION] Key entities were not provided during discovery. List the domain entities this scope introduces, modifies, or takes over, with one-line descriptions. Do NOT invent entities from the feature name.',
+    '>',
+    `> **Scope boundary to respect:** ${sentence(scopeBoundary)}`,
+    `> **Out of scope:** ${sentence(outOfScope)}`,
     '',
     '## Constraints',
     '',
@@ -1013,18 +982,36 @@ export function buildScopeContent(input: {
  * Generate next spec number for a project
  */
 function resolveWorkspaceRoot(): string {
+  // Anchor on .wxkanban-project.json — the consumer-project root marker
+  // installed by the kit. This is canonical regardless of whether specs/
+  // exists yet (BUG-4: first-ever buildscope on a clean install used to
+  // mis-file into mcp-server/specs/ because the legacy specs/ walk-up
+  // fell back to process.cwd() when no specs/ was found, and the MCP
+  // server runs from the mcp-server/ cwd).
   let currentDir = process.cwd();
-
   while (true) {
-    if (existsSync(join(currentDir, 'specs'))) {
+    if (existsSync(join(currentDir, '.wxkanban-project.json'))) {
       return currentDir;
     }
-
     const parentDir = dirname(currentDir);
     if (parentDir === currentDir) {
       break;
     }
+    currentDir = parentDir;
+  }
 
+  // Legacy fallback: walk up looking for an existing specs/ directory.
+  // Kept for kit-author dogfooding where .wxkanban-project.json may not
+  // be present at the dev cwd.
+  currentDir = process.cwd();
+  while (true) {
+    if (existsSync(join(currentDir, 'specs'))) {
+      return currentDir;
+    }
+    const parentDir = dirname(currentDir);
+    if (parentDir === currentDir) {
+      break;
+    }
     currentDir = parentDir;
   }
 
@@ -1064,7 +1051,13 @@ export async function generateNextSpecNumber(): Promise<string> {
  */
 export function generateShortName(featureDescription: string): string {
   const withoutLeadingNumber = featureDescription.replace(/^\s*\d{3}\s*[-_:]\s*/i, '');
-  const stopWords = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'for', 'to', 'with']);
+  // BUG-13: include common environment/lifecycle names so they don't get
+  // selected as keywords (e.g. "UAT foundation" was producing the short
+  // name "...-uat" + entity prefix "Uat" everywhere downstream).
+  const stopWords = new Set([
+    'a', 'an', 'the', 'and', 'or', 'of', 'for', 'to', 'with',
+    'uat', 'prod', 'dev', 'qa', 'stg', 'staging', 'production', 'development',
+  ]);
 
   const tokens = withoutLeadingNumber
     .toLowerCase()

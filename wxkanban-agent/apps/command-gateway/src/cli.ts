@@ -73,6 +73,15 @@ function printAvailableCommands(stage: LifecycleStage, customCommands?: string[]
 		console.log(`  ${cmd}`);
 	}
 	console.log(`\nUsage: wxkanban-agent <command> [options]`);
+	console.log(`\nFlag conventions:`);
+	console.log(`  --key value      space-separated`);
+	console.log(`  --key=value      = sign also accepted`);
+	console.log(`  --kebab-case     converted to camelCase server-side (e.g. --feature-description → featureDescription)`);
+	console.log(`  --camelCase      passed through unchanged`);
+	console.log(`  --boolean-flag   passed as true when no value follows`);
+	console.log(`\nExample:`);
+	console.log(`  wxkanban-agent buildscope --feature-description "Time tracking" --quick`);
+	console.log(`  wxkanban-agent buildscope --featureDescription="Time tracking" --quick`);
 }
 
 async function main(): Promise<void> {
@@ -94,13 +103,29 @@ async function main(): Promise<void> {
 	const command = args[0];
 	const rawOptions: Record<string, unknown> = {};
 
-	// Parse simple CLI flags: --key value or --flag
+	// BUG-7: pre-split `--key=value` into `--key value` so the standard
+	// shell convention works alongside the existing space-separated form.
+	// Without this, `--feature-description="x"` was parsed as a single
+	// boolean flag with key `feature-description="x"` and the MCP call
+	// crashed with `featureDescription: Required`.
+	const expandedArgs: string[] = [];
 	for (let i = 1; i < args.length; i++) {
-		const arg = args[i];
+		const a = args[i];
+		if (a.startsWith('--') && a.includes('=')) {
+			const eq = a.indexOf('=');
+			expandedArgs.push(a.slice(0, eq), a.slice(eq + 1));
+		} else {
+			expandedArgs.push(a);
+		}
+	}
+
+	// Parse CLI flags: --key value or --flag
+	for (let i = 0; i < expandedArgs.length; i++) {
+		const arg = expandedArgs[i];
 		if (arg.startsWith('--')) {
 			const key = arg.slice(2);
-			const next = args[i + 1];
-			if (next && !next.startsWith('--')) {
+			const next = expandedArgs[i + 1];
+			if (next !== undefined && !next.startsWith('--')) {
 				rawOptions[key] = next;
 				i++;
 			} else {
