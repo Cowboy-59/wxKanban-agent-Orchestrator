@@ -43,6 +43,10 @@ jobs:
         # Does NOT include per-project files (.wxkanban-project.json, ai-settings.json,
         # .env) — wxKanban's kitRoutes injects those server-side at download time
         # per spec 019 Decision #13.
+        # Does NOT include node_modules — they are platform-specific (esbuild,
+        # bcrypt, etc. ship native binaries) and the runner is Linux-only, so
+        # shipping them breaks Windows/Mac consumers. scripts/init.mjs runs
+        # `npm install` on the consumer's machine for the right platform.
         run: |
           mkdir -p dist staging
           cp -r \
@@ -57,12 +61,13 @@ jobs:
             ProjectOverview.md \
             package.json \
             package-lock.json \
-            node_modules \
             README.md \
             staging/
           # Scrub any dev-only/noise artifacts that may have slipped in
           find staging -type d -name '.history' -prune -exec rm -rf {} +
-          find staging -type d -name 'node_modules/.cache' -prune -exec rm -rf {} +
+          # Strip every node_modules under staging — they were installed on the
+          # Linux runner for build steps but must not ship in the kit.
+          find staging -type d -name 'node_modules' -prune -exec rm -rf {} +
 
       - name: Build kit.tar.gz (Unix/Mac)
         working-directory: staging

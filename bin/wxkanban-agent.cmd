@@ -13,7 +13,7 @@ if errorlevel 1 (
   exit /b 127
 )
 
-for /f "tokens=*" %%V in ('node -p "process.versions.node.split(^'.^')[0]"') do set "NODE_MAJOR=%%V"
+for /f "tokens=1 delims=v." %%V in ('node --version') do set "NODE_MAJOR=%%V"
 if %NODE_MAJOR% LSS 20 (
   echo wxkanban-agent: Node.js ^>= 20 required 1>&2
   exit /b 1

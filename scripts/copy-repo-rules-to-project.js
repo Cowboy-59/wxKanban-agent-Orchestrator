@@ -6,6 +6,9 @@ const REPO_MEMORY_DIR = path.resolve(__dirname, '../../../memories/repo');
 const DEST_RULES_DIR = path.resolve(process.cwd(), '_wxAI/rules');
 
 async function copyRepoMemoryToProject() {
+  if (!(await fs.pathExists(REPO_MEMORY_DIR))) {
+    return;
+  }
   await fs.ensureDir(DEST_RULES_DIR);
   const files = await fs.readdir(REPO_MEMORY_DIR);
   for (const file of files) {
