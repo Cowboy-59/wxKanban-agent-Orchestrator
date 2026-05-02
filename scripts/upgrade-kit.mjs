@@ -205,18 +205,28 @@ async function downloadFromGitHub({ targetVersion }) {
   return { archivePath: tmpPath, fromVersion: 'unknown', toVersion: tag, source: 'github' };
 }
 
+function resolveTarBinary() {
+  // On Windows, prefer the built-in bsdtar at C:\Windows\System32\tar.exe.
+  // It handles BOTH tar.gz and zip. PATH-resolved `tar` may point at GNU
+  // tar (Git Bash, MSYS2, Cygwin) which doesn't handle zip and misreads
+  // Windows drive paths like "E:/..." as remote-host references.
+  if (process.platform === 'win32') {
+    const winTar = 'C:\\Windows\\System32\\tar.exe';
+    if (fs.existsSync(winTar)) return winTar;
+  }
+  return 'tar';
+}
+
 function extractArchive(archivePath) {
   const ext = archivePath.endsWith('.zip') ? 'zip' : 'tar.gz';
   log('info', `Extracting ${ext} archive over project root`);
-  let result;
-  if (ext === 'tar.gz') {
-    result = spawnSync('tar', ['-xzf', archivePath, '-C', root], { stdio: 'inherit' });
-  } else {
-    // Built-in tar on Win10+ extracts zip too
-    result = spawnSync('tar', ['-xf', archivePath, '-C', root], { stdio: 'inherit' });
-  }
+  const tarBin = resolveTarBinary();
+  const args = ext === 'tar.gz'
+    ? ['-xzf', archivePath, '-C', root]
+    : ['-xf', archivePath, '-C', root];
+  const result = spawnSync(tarBin, args, { stdio: 'inherit' });
   if (result.status !== 0) {
-    throw new Error('Extraction failed. Make sure tar is on PATH.');
+    throw new Error(`Extraction failed (tar=${tarBin}). On Windows, ${tarBin} should be bsdtar; on Unix, GNU tar.`);
   }
   log('ok', 'Extraction complete');
 }
