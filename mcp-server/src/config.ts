@@ -117,13 +117,28 @@ function parseEncryptedDatabaseUrl(encryptedString: string): EncryptedData {
 }
 
 /**
+ * True when EMBEDDED_DATABASE_URL is the unpatched placeholder shipped in
+ * source. The kit-author build replaces this object with real ciphertext
+ * (KitGenerationService); on a consumer install where that replacement
+ * never happens, every field is empty. Treating that as "not embedded"
+ * avoids noisy decrypt-failure logs at startup.
+ */
+function hasUsableEmbeddedCredentials(): boolean {
+  if (!EMBEDDED_DATABASE_URL) return false;
+  return Boolean(
+    EMBEDDED_DATABASE_URL.encrypted &&
+    EMBEDDED_DATABASE_URL.iv &&
+    EMBEDDED_DATABASE_URL.authTag
+  );
+}
+
+/**
  * Get database URL from embedded credentials
  * This is the primary secure method - credentials are embedded at build time
  */
 function getEmbeddedDatabaseUrl(): string | null {
   try {
-    // Check if we have embedded credentials (set at build time)
-    if (!EMBEDDED_DATABASE_URL) {
+    if (!hasUsableEmbeddedCredentials()) {
       return null;
     }
 
@@ -144,21 +159,29 @@ function getEmbeddedDatabaseUrl(): string | null {
 }
 
 /**
- * Get database URL - priority: embedded > system env > legacy encrypted
- * 
- * SECURITY NOTE: We never read from .env files. The embedded credentials
- * are the primary source, providing zero-exposure security.
+ * Get database URL — priority order:
+ *   1. WXKANBAN_MCP_DATABASE_URL (env)            — consumer projects
+ *   2. Embedded credentials                       — kit-author dogfooding
+ *   3. DATABASE_URL_ENCRYPTED + WXKANBAN_API_TOKEN — legacy
+ *   4. DATABASE_URL                                — dev only
+ *
+ * Why env first: in a consumer project that installs the kit, the embedded
+ * credentials are kit-author state and must be ignored — the consumer uses
+ * its own DB via env. Checking env first keeps the consumer flow silent
+ * (no spurious "Failed to decrypt embedded database URL" log) and matches
+ * the rule that consumer projects must recognize + ignore the wxKanban PG
+ * connection that ships in the kit.
  */
 function getDatabaseUrl(): string {
-  // Priority 1: Embedded credentials (most secure, zero file exposure)
+  // Priority 1: explicit env DB URL — consumer projects, dev overrides
+  if (env.WXKANBAN_MCP_DATABASE_URL) {
+    return env.WXKANBAN_MCP_DATABASE_URL;
+  }
+
+  // Priority 2: Embedded credentials (kit-author dogfooding only)
   const embedded = getEmbeddedDatabaseUrl();
   if (embedded) {
     return embedded;
-  }
-
-  // Priority 2: System environment variable (for development/override)
-  if (env.WXKANBAN_MCP_DATABASE_URL) {
-    return env.WXKANBAN_MCP_DATABASE_URL;
   }
 
   // Priority 3: Legacy encrypted format (for backward compatibility)
