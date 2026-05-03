@@ -25,5 +25,8 @@ npm-debug.log*
 Thumbs.db
 
 # Kit build artifacts
+releases/
 kit.tar.gz
+kit.zip
 *.tgz
+*.sha256

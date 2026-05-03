@@ -5,10 +5,14 @@
   "type": "module",
   "scripts": {
     "init": "node scripts/init.mjs",
-    "health": "node scripts/orchestrator-health-check.mjs"
+    "health": "node scripts/orchestrator-health-check.mjs",
+    "build-release": "node scripts/build-release.mjs"
   },
   "dependencies": {
     "express": "^4.21.2",
     "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "archiver": "^7.0.1"
   }
 }
