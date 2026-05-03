@@ -32,10 +32,10 @@ export interface EncryptedData {
  * file on disk. It is unique per kit and cannot be read by project code.
  */
 const EMBEDDED_DATABASE_URL: EmbeddedCredentials | undefined = {
-  encrypted: '',
-  iv: '',
-  authTag: '',
-  version: '1.0.0',
+  encrypted: '527664b4663f2e28f2fdccf2dfe14ba56861494995b368cd4599c628d69ebebef39211954d9855b81e5d2124661d58474d486de411136ee4a6adc6c4205b54c801e7306bf17a3e87591cab3d403e29bc04a64d3a4a61f8c1225dc6378d982bfb28ea0b57c1f93258fce8400cfe9b1e9cf07df051b7739ae555bf7f8808b36343928d5c7c9bb57ae7e99949d2f683',
+  iv: '0439abd4dcc2f62f23e28d84c17e42ea',
+  authTag: '931195a4b8be00cf3187572d5877423e',
+  version: '1.0',
 };
 
 /**
