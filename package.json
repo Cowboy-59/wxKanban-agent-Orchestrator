@@ -1,6 +1,6 @@
 {
   "name": "wxkanban-agent-orchestrator",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "wxKanban orchestrator kit — MCP + command gateway + rules",
   "type": "module",
   "scripts": {
