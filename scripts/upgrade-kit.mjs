@@ -206,10 +206,6 @@ async function downloadFromGitHub({ targetVersion }) {
 }
 
 function resolveTarBinary() {
-  // On Windows, prefer the built-in bsdtar at C:\Windows\System32\tar.exe.
-  // It handles BOTH tar.gz and zip. PATH-resolved `tar` may point at GNU
-  // tar (Git Bash, MSYS2, Cygwin) which doesn't handle zip and misreads
-  // Windows drive paths like "E:/..." as remote-host references.
   if (process.platform === 'win32') {
     const winTar = 'C:\\Windows\\System32\\tar.exe';
     if (fs.existsSync(winTar)) return winTar;
@@ -220,14 +216,30 @@ function resolveTarBinary() {
 function extractArchive(archivePath) {
   const ext = archivePath.endsWith('.zip') ? 'zip' : 'tar.gz';
   log('info', `Extracting ${ext} archive over project root`);
-  const tarBin = resolveTarBinary();
-  const args = ext === 'tar.gz'
-    ? ['-xzf', archivePath, '-C', root]
-    : ['-xf', archivePath, '-C', root];
-  const result = spawnSync(tarBin, args, { stdio: 'inherit' });
-  if (result.status !== 0) {
-    throw new Error(`Extraction failed (tar=${tarBin}). On Windows, ${tarBin} should be bsdtar; on Unix, GNU tar.`);
+
+  if (ext === 'zip' && process.platform === 'win32') {
+    // bsdtar misreads drive-letter paths (e.g. E:\...) in -C as remote hosts.
+    // PowerShell's Expand-Archive handles Windows paths correctly.
+    const ps = spawnSync(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command',
+        `Expand-Archive -LiteralPath '${archivePath}' -DestinationPath '${root}' -Force`],
+      { stdio: 'inherit' }
+    );
+    if (ps.status !== 0) {
+      throw new Error('Extraction failed (Expand-Archive)');
+    }
+  } else {
+    // tar.gz on any platform, and zip on Unix.
+    // Use cwd instead of -C to avoid drive-letter parsing issues on Windows.
+    const tarBin = resolveTarBinary();
+    const args = ext === 'tar.gz' ? ['-xzf', archivePath] : ['-xf', archivePath];
+    const result = spawnSync(tarBin, args, { cwd: root, stdio: 'inherit' });
+    if (result.status !== 0) {
+      throw new Error(`Extraction failed (tar=${tarBin})`);
+    }
   }
+
   log('ok', 'Extraction complete');
 }
 
