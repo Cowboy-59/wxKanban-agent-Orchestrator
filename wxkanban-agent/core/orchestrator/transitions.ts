@@ -1,14 +1,8 @@
-// Workflow transitions — defines valid stage transitions and enforces ordering
-import { LifecycleStage } from '../schemas/lifecycle';
-
-const STAGE_ORDER: LifecycleStage[] = [
-	LifecycleStage.Design,
-	LifecycleStage.Implementation,
-	LifecycleStage.QATesting,
-	LifecycleStage.HumanTesting,
-	LifecycleStage.Beta,
-	LifecycleStage.Release,
-];
+// Workflow transitions — defines valid stage transitions and enforces ordering.
+// Spec 030 FR-011 — STAGE_ORDER is imported from the canonical schema instead
+// of declared locally; ensures transitions and the policy module agree on the
+// phase order by construction.
+import { LifecycleStage, STAGE_ORDER } from '../schemas/lifecycle';
 
 export interface TransitionResult {
 	allowed: boolean;

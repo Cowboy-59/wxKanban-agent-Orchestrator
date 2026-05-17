@@ -49,6 +49,7 @@ Synchronize the current project with the wxKanban starter kit using MCP Project 
 - [ ] Update `mcp-server/` — Full 017 MCP Project Hub server
 - [ ] Update `ai-settings.json` — AI configuration with MCP server settings
 - [ ] Update `CLAUDE.md` / `AI.md` — Project context templates with MCP tool references
+- [ ] Update `.claude/<skill>/` subdirectories — Kit-shipped Claude Code skills (wxICA, diagnose, code-review, …). Top-level `.claude/settings.json`, `.claude/settings.local.json`, and `.claude/mcp.json` are **preserved** (per-machine state). Skills are discovered dynamically: anything that exists as `.claude/<dir>/` in the kit source with at least one file ships automatically. See [scripts/upgrade-kit.mjs](scripts/upgrade-kit.mjs) — `listClaudeSkillDirs()`.
 
 ### 5. Update Configuration
 - [ ] Merge new settings into existing `ai-settings.json`
@@ -56,8 +57,8 @@ Synchronize the current project with the wxKanban starter kit using MCP Project 
 - [ ] Add new AI adapters if available
 - [ ] Update MCP server configuration:
   - `command`: "node"
-  - `args`: ["mcp-server/dist/index.js"]
-  - `env`: DATABASE_URL, API_KEY, PROJECT_ID
+  - `args`: ["mcp-server/dist/index-http.js"]
+  - `env`: MCP_HTTP_PORT, API_KEY, PROJECT_ID, WXKANBAN_MCP_DATABASE_URL
 
 ### 6. Update Directory Structure
 - [ ] Ensure `specs/` directory structure matches standard

@@ -19,7 +19,7 @@ const DEFAULTS: RepoConfig = {
 	kitVersion: '1.0.0',
 	mcpServer: 'mcp-server/dist/index-http.js',
 	mcpTransport: 'http',
-	mcpHttpUrl: 'http://localhost:3002',
+	mcpHttpUrl: process.env['MCP_BASE_URL'] || 'http://localhost:3003',
 	commandsDir: '_wxAI/commands/',
 	rulesDir: '_wxAI-project/rules/',
 };

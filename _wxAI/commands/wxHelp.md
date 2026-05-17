@@ -55,6 +55,9 @@ flowchart TD
         checkupdates["checkupdates"]
         upgrade["upgrade"]
     end
+    subgraph Architecture
+        analyzecode["analyzecode"]
+    end
     buildscope --> createspecs --> implement --> dbpush
     auditrun --> auditreport --> auditcheck --> audittasks
     kitstatus --> downloadkit --> regeneratekit --> importproject --> newproject
@@ -74,5 +77,6 @@ flowchart TD
 - push, upsert, createtask, updatestatus, link, list — MCP Project Ops
 - kitstatus, downloadkit, regeneratekit, importproject, new-project — Project Kit
 - scope-check, todo-import, training, sync-global, session-start, validatescope, checkupdates, upgrade — AI Governance
+- analyzecode — Architecture (wxICA drift audit + deepening exploration)
 
 > For details on each command, see the full help.md or run `wxai help <command>`.

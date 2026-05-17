@@ -1,0 +1,20 @@
+# wxkanban-agent kit — recommended .gitignore entries
+# Paste into your project's .gitignore. None of these belong in version control.
+
+# Spec 027 — per-developer transient runtime state (port, PID, parent PID).
+# Cleared automatically by the parent-watcher when VS Code exits.
+.wxai/kit-runtime.json
+
+# Legacy MCP pid file (pre-027 — still honored as a fallback by kit:stop).
+.mcp-server.pid
+
+# Local-only legacy hashes for spec 026 auditfences --baseline.
+# Captured once per machine; safe to leave gitignored.
+.wxai/auditfences-legacy.json
+
+# Kit runtime logs.
+logs/
+
+# Local env overrides.
+.env
+.env.local

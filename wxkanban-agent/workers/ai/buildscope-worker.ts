@@ -7,8 +7,7 @@
 // specs/Project-Scope/NNN-<shortName>.md via project-kit's buildScope().
 
 import { ScopeDraft } from '../../core/schemas/artifacts';
-
-const MCP_URL = process.env['MCP_HTTP_URL'] || 'http://localhost:3002';
+import { resolveServiceUrl } from '../../core/context/runtime-state';
 
 function kebabToCamel(s: string): string {
 	return s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
@@ -35,17 +34,18 @@ function pickSuccessMetrics(value: unknown): string[] {
 export class BuildScopeWorker {
 	static async generateScopeDraft(input: Partial<ScopeDraft> & Record<string, unknown>): Promise<ScopeDraft> {
 		const args = mapInputsToMcpArgs(input as Record<string, unknown>);
+		const mcpUrl = resolveServiceUrl('mcp');
 
 		let response: Response;
 		try {
-			response = await fetch(`${MCP_URL}/call`, {
+			response = await fetch(`${mcpUrl}/call`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Connection: 'close' },
 				body: JSON.stringify({ tool: 'project.buildscope', args }),
 			});
 		} catch (err) {
 			throw new Error(
-				`buildscope: MCP not reachable at ${MCP_URL}/call (${(err as Error).message}). ` +
+				`buildscope: MCP not reachable at ${mcpUrl}/call (${(err as Error).message}). ` +
 				`Start the kit runtime with \`node scripts/init.mjs\` or \`node scripts/setup-mcp.mjs\`.`
 			);
 		}

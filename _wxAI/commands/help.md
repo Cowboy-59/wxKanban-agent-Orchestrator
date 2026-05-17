@@ -48,6 +48,9 @@ flowchart TD
         checkupdates["checkupdates"]
         upgrade["upgrade"]
     end
+    subgraph Architecture
+        analyzecode["analyzecode"]
+    end
     buildscope --> createspecs --> implement --> dbpush
     auditrun --> auditreport --> auditcheck --> audittasks
     kitstatus --> downloadkit --> regeneratekit --> importproject --> newproject
@@ -66,5 +69,6 @@ flowchart TD
 - lifecycle, qa, help (wxHelp), config, validate, task-analyze, gateway, clearcontext, web-config, cleanup, git-commit, git-push, git-merge-main, git-branch — Utilities
 - kitstatus, downloadkit, regeneratekit, importproject, new-project — Project Kit
 - scope-check, todo-import, training, session-start, validatescope, checkupdates, upgrade — AI Governance
+- analyzecode — Architecture (wxICA drift audit + deepening exploration)
 
 > For details on each command, see the full help.md or run `wxHelp <command>`.

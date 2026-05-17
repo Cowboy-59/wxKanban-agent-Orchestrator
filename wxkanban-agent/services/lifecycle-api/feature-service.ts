@@ -4,6 +4,7 @@ import { LifecycleClient, LifecycleClientConfig } from './lifecycle-client';
 export interface CreateTaskInput {
 	title: string;
 	description: string;
+	specId?: string;
 	status?: 'todo' | 'in_progress' | 'blocked' | 'done';
 	priority?: 'low' | 'medium' | 'high' | 'critical';
 	assignee?: string;
@@ -21,6 +22,7 @@ export class FeatureService {
 			projectId: this.client['config'].projectId,
 			title: input.title,
 			descriptionMarkdown: input.description,
+			...(input.specId ? { specId: input.specId } : {}),
 			...(input.status ? { status: input.status } : {}),
 			...(input.priority ? { priority: input.priority } : {}),
 			...(input.assignee ? { assignee: input.assignee } : {}),

@@ -52,15 +52,20 @@ Before fetching project data, verify and configure the developer environment. Ru
 
 Check `.claude/settings.json` (workspace root) for the `wxkanban-mcp` entry.
 
-**If missing**, add it:
+**If missing**, add it. The kit ships with the HTTP MCP transport (stdio was removed in v0.3.2 — spec 019 R17). Read the assigned port from `.wxkanban-project.json` `mcpHttpUrl` (auto-allocated at init per spec 019 R18 — typically `3002`, may differ if that port was taken):
 
 ```json
 {
   "mcpServers": {
     "wxkanban": {
+      "type": "http",
       "command": "node",
-      "args": ["tools/wxkanban-mcp.mjs"],
-      "env": {}
+      "args": ["mcp-server/dist/index-http.js"],
+      "env": {
+        "MCP_HTTP_PORT": "<port from .wxkanban-project.json>",
+        "API_KEY": "<from .env>",
+        "WXKANBAN_PROJECT_ID": "<from .env>"
+      }
     }
   }
 }
@@ -68,7 +73,7 @@ Check `.claude/settings.json` (workspace root) for the `wxkanban-mcp` entry.
 
 If `.claude/settings.json` exists but has other entries, merge — do not overwrite the file.
 
-Report: `✓ MCP wxKanban registered` or `⚠ Already present`.
+Report: `✓ MCP wxKanban registered (port <n>)` or `⚠ Already present`.
 
 ---
 

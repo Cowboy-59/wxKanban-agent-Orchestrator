@@ -1,7 +1,10 @@
-// createSpecs command handler — follows _wxAI/commands/createSpecs.md canonical flow
-// Orchestrates: capture → specify → clarify → plan → tasks → tests → lifecycle
+// createSpecs command handler — Spec 019 R6a compliant.
+// Accepts already-generated content (scope text + task list) from the user's
+// editor AI and writes specs/NNN-<slug>/{spec,plan,tasks,tests,quickstart,...}.md.
+// No AI call inside this handler — the editor AI does all generation.
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import { readFileSync } from 'fs';
 import { AuditRecord } from '../../schemas/artifacts';
 
 export interface CreateSpecsArgs {
@@ -14,6 +17,145 @@ export interface CreateSpecsArgs {
 	generateLifecycle?: boolean;
 	generateTests?: boolean;
 	user?: string;
+}
+
+// Spec 019 R6a — proposal source resolution (matches implement.ts pattern).
+// CLI: `--input <path>` reads JSON; `--input -` reads stdin; `--print-prompt`
+// emits a prompt for the user's editor AI without writing anything.
+export interface CreateSpecsOptions {
+	inputPath?: string;
+	proposalJson?: string;
+	printPromptOnly?: boolean;
+	// Direct args from existing callers (CLI flags, MCP tool, run-createspecs script).
+	args?: CreateSpecsArgs;
+}
+
+// The prompt the editor AI is asked to produce JSON for, when called with
+// `--print-prompt`. Mirrors the user-prompt shape implement.ts emits.
+function buildCreateSpecsPrompt(): { systemPrompt: string; userPrompt: string } {
+	const systemPrompt = `You are the wxKanban specs-generation agent.
+You produce the structured input that the kit's createspecs handler will turn into
+specs/NNN-<slug>/{spec,plan,tasks,tests,quickstart,checklists/requirements}.md files.
+
+Hard rules:
+- Output ONLY a JSON object. No prose, no markdown fences, no explanation.
+- JSON shape (CreateSpecsArgs):
+  {
+    "specNumber": "NNN",                        // three-digit, next free under specs/
+    "featureName": "<title-case feature name>",
+    "scopeContent": "<multi-paragraph markdown body for Spec ## Overview section>",
+    "phase": "design",                          // or implementation/qaTesting/...
+    "priority": "low" | "medium" | "high",
+    "tasks": [
+      {
+        "title": "<short imperative>",
+        "description": "<one-paragraph task spec>",
+        "priority": "low" | "medium" | "high",
+        "status": "todo"
+      }
+    ],
+    "generateLifecycle": true,
+    "generateTests": true
+  }
+- specNumber MUST be three digits with leading zeros.
+- featureName should match the title used in the parent Project-Scope file (if any).
+- tasks SHOULD cover the main functional requirements; each task description should be
+  detailed enough that an implement-handler proposal can be derived from it without
+  re-reading the full spec.`;
+	const userPrompt = `Produce a CreateSpecsArgs JSON object for the scope currently
+under review in this conversation. Use the Project-Scope file (under
+specs/Project-Scope/) as the source for featureName + scopeContent. Include 4–8
+tasks unless the spec is unusually small/large.`;
+	return { systemPrompt, userPrompt };
+}
+
+export interface CreateSpecsHandlerResult {
+	exitCode: 0 | 1 | 2 | 3;
+	message: string;
+	result?: Record<string, unknown>;
+	audit?: AuditRecord;
+	prompt?: { systemPrompt: string; userPrompt: string };
+}
+
+export class CreateSpecsError extends Error {
+	constructor(public readonly exitCode: 1 | 2 | 3, message: string) {
+		super(message);
+		this.name = 'CreateSpecsError';
+	}
+}
+
+function parseCreateSpecsArgs(raw: string): CreateSpecsArgs {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch (err) {
+		throw new CreateSpecsError(3, `--input JSON is not valid: ${(err as Error).message}`);
+	}
+	if (!parsed || typeof parsed !== 'object') {
+		throw new CreateSpecsError(3, '--input must be a JSON object (CreateSpecsArgs shape)');
+	}
+	const obj = parsed as Record<string, unknown>;
+	if (typeof obj['specNumber'] !== 'string') {
+		throw new CreateSpecsError(3, '--input missing string `specNumber`');
+	}
+	if (typeof obj['featureName'] !== 'string') {
+		throw new CreateSpecsError(3, '--input missing string `featureName`');
+	}
+	if (typeof obj['scopeContent'] !== 'string') {
+		throw new CreateSpecsError(3, '--input missing string `scopeContent`');
+	}
+	return obj as unknown as CreateSpecsArgs;
+}
+
+// Spec 019 R6a — orchestrating entry point used by CLI / MCP dispatch.
+// Resolves args from one of: direct .args, --input path, --input -, stdin,
+// or returns the prompt when printPromptOnly is set.
+export async function runCreateSpecsCommand(
+	options: CreateSpecsOptions,
+	projectRoot: string = process.cwd(),
+): Promise<CreateSpecsHandlerResult> {
+	if (options.printPromptOnly) {
+		return {
+			exitCode: 0,
+			message: 'createspecs — prompt only (no input written)',
+			prompt: buildCreateSpecsPrompt(),
+		};
+	}
+
+	let args: CreateSpecsArgs;
+	if (options.args) {
+		args = options.args;
+	} else if (typeof options.proposalJson === 'string') {
+		args = parseCreateSpecsArgs(options.proposalJson);
+	} else if (options.inputPath) {
+		let raw: string;
+		try {
+			raw =
+				options.inputPath === '-'
+					? readFileSync(0, 'utf-8')
+					: readFileSync(path.resolve(projectRoot, options.inputPath), 'utf-8');
+		} catch (err) {
+			throw new CreateSpecsError(
+				2,
+				`Cannot read --input ${options.inputPath}: ${(err as Error).message}`,
+			);
+		}
+		args = parseCreateSpecsArgs(raw);
+	} else {
+		throw new CreateSpecsError(
+			2,
+			'createspecs requires --input <path> (or --input - for stdin), or --print-prompt to emit the prompt for your editor AI. The kit does not generate spec content itself (Spec 019 R6a).',
+		);
+	}
+
+	const { result, audit } = await handleCreateSpecs(args);
+	const filesCreated = (result['filesCreated'] as string[] | undefined) ?? [];
+	return {
+		exitCode: 0,
+		message: `createspecs ${args.specNumber} — wrote ${filesCreated.length} file(s)`,
+		result,
+		audit,
+	};
 }
 
 interface CreateSpecsResult {

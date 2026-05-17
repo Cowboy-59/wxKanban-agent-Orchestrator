@@ -1,6 +1,7 @@
 // Lifecycle API client — communicates with MCP server via HTTP
 import { ScopeDraft } from '../../core/schemas/artifacts';
 import { LifecycleStage } from '../../core/schemas/lifecycle';
+import { resolveServiceUrl } from '../../core/context/runtime-state';
 
 interface McpCallResult {
 	success: boolean;
@@ -14,17 +15,19 @@ export interface LifecycleClientConfig {
 	projectId: string;
 }
 
-const DEFAULT_CONFIG: LifecycleClientConfig = {
-	mcpBaseUrl: process.env['MCP_BASE_URL'] || 'http://localhost:3002',
-	apiKey: process.env['WXKANBAN_API_TOKEN'] || '',
-	projectId: process.env['WXKANBAN_PROJECT_ID'] || '',
-};
+function buildDefaultConfig(): LifecycleClientConfig {
+	return {
+		mcpBaseUrl: resolveServiceUrl('mcp'),
+		apiKey: process.env['WXKANBAN_API_TOKEN'] || '',
+		projectId: process.env['WXKANBAN_PROJECT_ID'] || '',
+	};
+}
 
 export class LifecycleClient {
 	private config: LifecycleClientConfig;
 
 	constructor(config?: Partial<LifecycleClientConfig>) {
-		this.config = { ...DEFAULT_CONFIG, ...config };
+		this.config = { ...buildDefaultConfig(), ...config };
 	}
 
 	private async callMcpTool(tool: string, args: Record<string, unknown>): Promise<McpCallResult> {

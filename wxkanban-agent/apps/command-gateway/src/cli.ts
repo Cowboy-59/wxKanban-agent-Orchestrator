@@ -1,10 +1,21 @@
 // Entry point for CLI command gateway (R4)
 import * as fs from 'fs';
 import * as path from 'path';
-import { WorkflowEngine } from '../../../core/orchestrator/workflow-engine';
+import { WorkflowEngine, DispatchOptions } from '../../../core/orchestrator/workflow-engine';
 import { ProjectContext } from '../../../core/context/project-context';
 import { LifecycleStage } from '../../../core/schemas/lifecycle';
-import { AllowedCommandsByStage, CrossCuttingCommands } from '../../../core/schemas/lifecycle';
+// Spec 030 — getAllowedCommandsForStage replaces direct use of the legacy
+// AllowedCommandsByStage + CrossCuttingCommands exports; SpecVerification
+// re-exported from cli-adapter for import-path-swap convenience.
+import { getAllowedCommandsForStage, SpecVerification } from '../../../core/policy/adapters/cli-adapter';
+import { buildSpecVerification, extractScopeNumber } from './spec-verification';
+// Spec 031 Phase 2 — batch-mode `implement <scope>` dispatches directly to the
+// orchestrator's batch handler, bypassing WorkflowEngine. Surgical mode
+// (`implement <scope>/<task>`) continues through WorkflowEngine unchanged.
+import {
+	handleImplementBatchCommand,
+	formatBatchSummaryTable,
+} from '../../../core/orchestrator/command-handlers/implement';
 
 interface ProjectConfig {
 	projectId: string;
@@ -64,8 +75,7 @@ function resolveProjectContext(config: ProjectConfig): ProjectContext {
 }
 
 function printAvailableCommands(stage: LifecycleStage, customCommands?: string[]): void {
-	const stageCommands = AllowedCommandsByStage[stage] || [];
-	const allCommands = [...stageCommands, ...CrossCuttingCommands, ...(customCommands || [])];
+	const allCommands = getAllowedCommandsForStage(stage, customCommands);
 	console.log(`\nwxKanban Agent Orchestrator Kit`);
 	console.log(`Current stage: ${stage}\n`);
 	console.log(`Available commands:`);
@@ -82,6 +92,30 @@ function printAvailableCommands(stage: LifecycleStage, customCommands?: string[]
 	console.log(`\nExample:`);
 	console.log(`  wxkanban-agent buildscope --feature-description "Time tracking" --quick`);
 	console.log(`  wxkanban-agent buildscope --featureDescription="Time tracking" --quick`);
+}
+
+// Spec 031 Phase 2 — file-based proposal source.
+// Convention: per-task proposal at `.wxai/proposals/<scope>/<taskId>.json`.
+// The driving system (today: editor AI writes files; future: claude coworker
+// pipes directly) populates this directory before invoking `implement <scope>`.
+// Tasks with no proposal file are recorded as skipped (no proposal provided).
+function createFileBasedProposalSource(
+	projectRoot: string,
+	scope: string,
+): (taskId: string) => Promise<string | undefined> {
+	return async (taskId: string) => {
+		const proposalPath = path.resolve(
+			projectRoot,
+			'.wxai',
+			'proposals',
+			scope,
+			`${taskId}.json`,
+		);
+		if (!fs.existsSync(proposalPath)) {
+			return undefined;
+		}
+		return fs.readFileSync(proposalPath, 'utf-8');
+	};
 }
 
 async function main(): Promise<void> {
@@ -119,7 +153,8 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// Parse CLI flags: --key value or --flag
+	// Parse CLI flags: --key value or --flag; collect positionals into `_`
+	const positionals: string[] = [];
 	for (let i = 0; i < expandedArgs.length; i++) {
 		const arg = expandedArgs[i];
 		if (arg.startsWith('--')) {
@@ -131,13 +166,60 @@ async function main(): Promise<void> {
 			} else {
 				rawOptions[key] = true;
 			}
+		} else {
+			positionals.push(arg);
 		}
+	}
+	if (positionals.length > 0) {
+		rawOptions['_'] = positionals;
 	}
 
 	const user = (rawOptions['user'] as string) || process.env['USER'] || 'cli-user';
 	delete rawOptions['user'];
 
-	const { result, audit } = await WorkflowEngine.dispatch(context, command, rawOptions, user);
+	// Spec 031 Phase 2 — batch-mode short-circuit for `implement <scope>`.
+	// A positional matching ^\d{3}$ is batch mode; ^\d{3}/T\d+$ is surgical
+	// (passes through to WorkflowEngine unchanged); anything else with the
+	// implement command is a malformed argument.
+	if (command === 'implement' && positionals.length > 0) {
+		const positional = positionals[0]!;
+		if (/^[0-9]{3}$/.test(positional)) {
+			const batchResult = await handleImplementBatchCommand({
+				scope: positional,
+				projectRoot: process.cwd(),
+				projectId: config.projectId,
+				dryRun: rawOptions['dry-run'] === true || rawOptions['dryRun'] === true,
+				acceptDrift: rawOptions['accept-drift'] === true || rawOptions['acceptDrift'] === true,
+				continueOnError:
+					rawOptions['continue-on-error'] === true ||
+					rawOptions['continueOnError'] === true,
+				proposalSource: createFileBasedProposalSource(process.cwd(), positional),
+			});
+			const verbose = rawOptions['verbose'] === true;
+			console.log(formatBatchSummaryTable(batchResult, { verbose }));
+			process.exit(batchResult.exitCode);
+		} else if (!/^[0-9]{3}\/T[0-9]+$/.test(positional)) {
+			console.error(
+				`Fatal: invalid <scope> or <scope>/<task> argument: ${positional}`,
+			);
+			process.exit(2);
+		}
+		// else: surgical mode, falls through to WorkflowEngine.dispatch below.
+	}
+
+	// BUG-11: spec-gated commands (`implement`, `createtesttasks`, etc.) need
+	// SpecVerification in DispatchOptions or evaluateSpecFirst hard-blocks them.
+	// Build it from the local filesystem — implement.ts reads the same artifacts
+	// via loadSpecBundle, so disk presence is the right gate.
+	const scopeNum = extractScopeNumber(command, rawOptions);
+	const specVerification: SpecVerification | undefined = scopeNum
+		? buildSpecVerification(scopeNum, process.cwd())
+		: undefined;
+	const dispatchOptions: DispatchOptions | undefined = specVerification
+		? { specVerification }
+		: undefined;
+
+	const { result, audit } = await WorkflowEngine.dispatch(context, command, rawOptions, user, dispatchOptions);
 
 	if (result.success) {
 		console.log(JSON.stringify({ status: 'success', artifact: result.artifact, audit }, null, 2));

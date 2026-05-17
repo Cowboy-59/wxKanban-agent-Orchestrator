@@ -90,12 +90,23 @@ This command executes Phase 3 (QA Testing) of the 6-phase project lifecycle. It 
    **Gate Status**: [PASS | FAIL — reason]
    ```
 
-9. **Update lifecycle.json**:
-   - If all gates pass: Set `qa.status` to `complete`, `qa.completed` to current timestamp
-   - If gates fail: Keep `qa.status` as `in_progress`, document blocking issues
-   - Write lifecycle.json
+9. **Code Review Gate** (MANDATORY — runs automatically before QA can pass):
 
-10. **Report completion**:
+   Run `/code-review` on all files changed during the implementation phase for this spec.
+
+   - If P0 findings exist → **BLOCK** QA phase advancement. Report findings, do not update lifecycle.json. Tell the developer: "QA gate blocked — code review found critical issues. Fix and re-run `/wxAI-qa`."
+   - If P1 findings exist → surface them in the QA report. Developer must explicitly accept or fix each one before the gate passes.
+   - If P2/P3 only → note in qa-report.md, allow gate to pass.
+   - If compliance gaps found → run `/compound` to document the control that was added, then re-run the review.
+
+   Add a `## Code Review` section to qa-report.md with the findings summary and verdict.
+
+10. **Update lifecycle.json**:
+    - If all gates pass (tests + code review): Set `qa.status` to `complete`, `qa.completed` to current timestamp
+    - If gates fail: Keep `qa.status` as `in_progress`, document blocking issues
+    - Write lifecycle.json
+
+11. **Report completion**:
 
     ```
     ---------------------------------------------------

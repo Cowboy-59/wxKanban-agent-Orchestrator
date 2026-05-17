@@ -163,9 +163,10 @@ describe('WorkflowEngine.dispatch', () => {
 				specStatus: 'in_progress',
 			},
 		});
-		// implement has no handler registered yet, so it will fail with "No handler"
+		// implement handler is now registered (spec 026). Without a real scope/task argument
+		// it returns the argument-validation error.
 		expect(result.success).toBe(false);
-		expect(result.error).toContain('No handler registered');
+		expect(result.error).toContain('implement requires <scope>/<task>');
 	});
 
 	it('blocks spec-gated command even with --force --reason (escalation only, no bypass)', async () => {

@@ -1,7 +1,10 @@
 // MCP server adapter — registers orchestrator commands as MCP tools (R3)
 import { WorkflowEngine } from '../../core/orchestrator/workflow-engine';
 import { ProjectContext } from '../../core/context/project-context';
-import { LifecycleStage, AllowedCommandsByStage, CrossCuttingCommands } from '../../core/schemas/lifecycle';
+import { LifecycleStage } from '../../core/schemas/lifecycle';
+// Spec 030 — getAllowedCommandsForStage replaces the removed AllowedCommandsByStage
+// + CrossCuttingCommands exports. Returns the combined per-stage list.
+import { getAllowedCommandsForStage } from '../../core/policy/adapters/cli-adapter';
 
 export interface McpToolDefinition {
 	name: string;
@@ -31,8 +34,10 @@ export class OrchestratorMcpAdapter {
 	}
 
 	getToolDefinitions(): McpToolDefinition[] {
-		const stageCommands = AllowedCommandsByStage[this.context.lifecycleStage] || [];
-		const allCommands = [...stageCommands, ...CrossCuttingCommands, ...(this.context.customCommands || [])];
+		const allCommands = getAllowedCommandsForStage(
+			this.context.lifecycleStage,
+			this.context.customCommands,
+		);
 
 		return allCommands.map(cmd => ({
 			name: `orchestrator.${cmd}`,

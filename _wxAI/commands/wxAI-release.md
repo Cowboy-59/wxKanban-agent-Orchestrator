@@ -57,6 +57,24 @@ This command executes Phase 6 (Release) of the 6-phase project lifecycle. It val
    - **REQUIRED**: Read beta-report.md — beta feedback summary
    - **IF EXISTS**: Read plan.md — deployment context
 
+6. **Compound Refresh + Compliance Scan** (MANDATORY — runs automatically before version bump):
+
+   **Step A — Compound Refresh:**
+   Run `/compound-refresh` against the learnings knowledge base.
+   - Updates any stale file paths, class names, or code references since last run
+   - Flags any compliance documents that have drifted from current code
+   - If stale compliance docs found → update them before proceeding
+
+   **Step B — Compliance Scan (only if frameworks active):**
+   Call `project.get_audit_config` to check active frameworks.
+   - If `complianceActive: false` → skip, proceed to version bump
+   - If `complianceActive: true` → run `/compliance-scan mode:audit`
+     - Critical gaps → **BLOCK** release. List gaps. Tell developer: "Release blocked — compliance gaps must be resolved before shipping. Run `/compliance-scan` to see remediation steps."
+     - High gaps → surface in release notes. Developer must explicitly accept each one.
+     - Medium/Low → note in release notes, allow release to proceed.
+
+   Both steps must complete before the version number is determined. Audit evidence generated here is part of the release record.
+
 7. **Determine version number**:
    - Check for existing version in lifecycle.json or package.json
    - If user provided version in {{args}}, use that

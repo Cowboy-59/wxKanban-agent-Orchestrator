@@ -74,8 +74,10 @@ Every feature progresses through these phases in order. You cannot skip phases o
 | 6 | **Release** | Ship it | `finalizeRelease` |
 
 **Cross-cutting commands** (available in every phase):
-- `dbpush` — validate and sync all local data to the wxKanban database
+- `dbpush` — validate and sync all local data to the wxKanban database (also applies bundled kit migrations to the consumer DB)
 - `pipeline-agent` — multi-phase orchestration (run, resume, retry, status)
+- `auditfences` — verify every code unit is fenced with its owning spec/task (spec 026)
+- `kit:status` — report per-service liveness from `.wxai/kit-runtime.json` (spec 027)
 
 ---
 
@@ -120,7 +122,18 @@ wxkanban-agent createspecs --specNumber 020 --featureName "User Authentication" 
 Every spec gets a `tests.md` by default (3 test cases per task: happy path, validation error, edge case). Disable with `--generateTests false`.
 
 #### `implement`
-*Available in Implementation phase.* Executes implementation with scope-first enforcement and task checklist validation.
+*Available in Implementation phase.* Generates code for a single spec task: reads the spec + tasks.md, calls Gemini (OpenAI fallback) to produce file proposals, passes each file through the fence-emitter (spec 026), writes to disk, updates the `taskfences` DB table, and flips the task's status from `todo` to `done` in tasks.md.
+
+```bash
+wxkanban-agent implement 026/T010                   # implement scope 026, task T010
+wxkanban-agent implement 026/T010 --dry-run         # show proposed output without writing
+wxkanban-agent implement 026/T010 --replace         # force full-replacement fence rule
+wxkanban-agent implement 026/T010 --modify          # force MODIFIED-BY nesting
+wxkanban-agent implement 026/T010 --accept-drift    # proceed even if a fenced block was hand-edited
+wxkanban-agent implement 026/T010 --file src/x.ts   # restrict output to a single file
+```
+
+Requires `GEMINI_API_KEY` and/or `OPENAI_API_KEY` in env. See `docs/implement.md` for full reference.
 
 #### `createtesttasks`
 *Available in Implementation phase.* Generates test task definitions from specifications.
@@ -147,6 +160,30 @@ wxkanban-agent dbpush                # validate and push
 wxkanban-agent dbpush --dry-run      # validate only, no push
 wxkanban-agent dbpush --force        # push even with validation warnings
 ```
+
+#### `auditfences`
+Walks the source tree, parses every fenced code unit, and reports problems: un-fenced top-level declarations, malformed fences, fences pointing at non-existent task IDs, and warnings for stacked `MODIFIED-BY` lines. Provides a baseline mode that captures the current tree's hash set so legacy un-fenced code is reported as info, not error.
+
+```bash
+wxkanban-agent auditfences                       # scan repo, exit 1 on any error
+wxkanban-agent auditfences --strict              # promote warnings to errors
+wxkanban-agent auditfences --format json         # machine-readable output for CI
+wxkanban-agent auditfences --history 026/T010    # show ownership timeline for a task
+wxkanban-agent auditfences --baseline            # capture legacy hashes (one-time at kit upgrade)
+```
+
+CI integration: drop in `templates/auditfences-github-action.yml`. See `docs/fencing.md` for the full convention.
+
+#### `kit:status`
+*Available in every stage.* Reports per-service liveness from `.wxai/kit-runtime.json` (the runtime-state file written by MCP + gateway at bind time per spec 027). Probes each entry's PID, prints port/parent/uptime, exits 0 if all expected services (`mcp`, `gateway`) are alive.
+
+```bash
+npm run kit:status                       # text output, exit 0/1/2
+npm run kit:status -- --format=json      # machine-readable
+npm run kit:status -- --strict           # promote stale entries to errors
+```
+
+Exit codes: `0` healthy, `1` stale/missing, `2` runtime-state file unreadable. See `docs/kit-runtime.md` for the full reference (port autoselect, parent-watcher, runtime-state schema).
 
 #### `pipeline-agent`
 Multi-phase pipeline orchestration. Runs the full lifecycle pipeline for a feature, with support for pausing, resuming, retrying failed phases, and skipping phases.

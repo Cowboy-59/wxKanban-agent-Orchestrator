@@ -54,8 +54,20 @@ if (!version.startsWith('v')) version = `v${version}`;
 
 // ─── What goes into the kit archive ──────────────────────────────────────────
 // These dirs/files are copied relative to the project root.
-const KIT_INCLUDE_DIRS  = ['bin', 'wxkanban-agent', 'mcp-server', '_wxAI', 'scripts', '.vscode'];
+// `.claude` is included so kit-shipped Claude Code skills (wxICA, diagnose,
+// code-review, …) reach consumers. Top-level .claude/ files like
+// settings.json / settings.local.json / mcp.json are kept out via
+// EXCLUDE_BASENAMES + EXCLUDE_CLAUDE_TOPLEVEL below.
+const KIT_INCLUDE_DIRS  = ['bin', 'wxkanban-agent', 'mcp-server', '_wxAI', 'scripts', '.vscode', '.claude'];
 const KIT_INCLUDE_FILES = ['package.json', 'package-lock.json'];
+
+// Files at exactly .claude/<name> (top-level of .claude/) that must never be
+// packed — they hold per-machine state, not kit content.
+const EXCLUDE_CLAUDE_TOPLEVEL = new Set([
+  'settings.json',
+  'settings.local.json',
+  'mcp.json',
+]);
 
 // Never include these anywhere in the tree (matched against basename).
 const EXCLUDE_BASENAMES = new Set([
@@ -104,6 +116,11 @@ function shouldExclude(relPath /* relative to root, forward slashes */) {
 
   // Top-level entry in exclude list
   if (parts.length === 1 && EXCLUDE_ROOT_FILES.has(basename)) return true;
+
+  // .claude/<name> top-level (files only, skill subdirs are fine)
+  if (parts.length === 2 && parts[0] === '.claude' && EXCLUDE_CLAUDE_TOPLEVEL.has(basename)) {
+    return true;
+  }
 
   // Banned basenames at any depth
   if (EXCLUDE_BASENAMES.has(basename)) return true;

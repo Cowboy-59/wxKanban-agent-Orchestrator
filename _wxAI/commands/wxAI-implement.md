@@ -307,6 +307,16 @@ You **MUST** consider the user input before proceeding (if not empty).
       wxk_spec_update({ spec_number: "<NNN>", status: "implemented" })
       ```
 
+    - **Run `/compound`** (MANDATORY — runs automatically after spec is marked implemented):
+
+      Capture what was learned during this implementation while context is fresh.
+      - Document key decisions made and why
+      - Note any patterns established that future specs should follow
+      - If any security controls or compliance-relevant changes were made → mark `compliance_relevant: true` and populate the Compliance Evidence section
+      - Push the compound document to the wxKanban DB (`CompoundLearning` doctype)
+
+      This step is not optional. Knowledge that isn't captured here is lost. The compound document becomes part of the project's audit trail and is visible in the Learnings tab.
+
     - Report final status with summary of completed work
 
 <<<<<<< HEAD
