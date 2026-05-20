@@ -5,8 +5,17 @@
 # Cleared automatically by the parent-watcher when VS Code exits.
 .wxai/kit-runtime.json
 
+# Spec 028 — kit:configure writes an API token into the `kit` block of
+# .wxai/project.json. Treat the whole file as a secret-bearing artifact;
+# either ignore it (default below) and re-run kit:configure per checkout,
+# or commit it with the `kit` block stripped before push.
+.wxai/project.json
+
 # Legacy MCP pid file (pre-027 — still honored as a fallback by kit:stop).
 .mcp-server.pid
+
+# Legacy pre-028 token/credentials file. Safe to remove after migrating.
+.wxkanban-project.json
 
 # Local-only legacy hashes for spec 026 auditfences --baseline.
 # Captured once per machine; safe to leave gitignored.
@@ -18,3 +27,4 @@ logs/
 # Local env overrides.
 .env
 .env.local
+mcp-server/.env

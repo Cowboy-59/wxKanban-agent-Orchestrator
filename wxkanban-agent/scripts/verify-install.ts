@@ -42,15 +42,29 @@ async function runVerification(): Promise<{ success: boolean; steps: Verificatio
 		return { success: false, steps };
 	}
 
-	// Step 2: MCP server health check (resolved via runtime-state file per spec 027 FR-008)
+	// Step 2: MCP server health check.
+	// Spec 028 / T023 — split into `hosted-mcp-reachable` and `token-valid` when the
+	// resolved URL is https://; otherwise keep the legacy local-MCP check.
 	const step2Start = Date.now();
 	const mcpUrl = resolveServiceUrl('mcp');
-	const client = new LifecycleClient({ mcpBaseUrl: mcpUrl, projectId });
+	const isHosted = /^https:\/\//i.test(mcpUrl);
+	const stepName = isHosted ? 'hosted-mcp-reachable' : 'mcp-health';
+	const client = new LifecycleClient({ projectId });
 	const health = await client.checkHealth();
 	if (health.healthy) {
-		steps.push({ name: 'mcp-health', status: 'pass', message: `MCP server healthy at ${mcpUrl}`, durationMs: Date.now() - step2Start });
+		steps.push({ name: stepName, status: 'pass', message: `MCP healthy at ${mcpUrl}`, durationMs: Date.now() - step2Start });
 	} else {
-		steps.push({ name: 'mcp-health', status: 'fail', message: `MCP server not reachable at ${mcpUrl}`, durationMs: Date.now() - step2Start });
+		steps.push({ name: stepName, status: 'fail', message: `MCP not reachable at ${mcpUrl}`, durationMs: Date.now() - step2Start });
+	}
+
+	if (isHosted) {
+		const tokenStepStart = Date.now();
+		const tokenCheck = await client.listOpenItems(1);
+		if (tokenCheck.success) {
+			steps.push({ name: 'token-valid', status: 'pass', message: 'API token accepted by hosted MCP', durationMs: Date.now() - tokenStepStart });
+		} else {
+			steps.push({ name: 'token-valid', status: 'fail', message: 'Hosted MCP rejected the API token (missing/invalid/revoked)', durationMs: Date.now() - tokenStepStart });
+		}
 	}
 
 	// Step 3: DB reachability (via MCP health details)

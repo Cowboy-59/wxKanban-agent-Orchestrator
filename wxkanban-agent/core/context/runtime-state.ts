@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
 import {
   readRuntimeState,
   isPidAlive,
@@ -8,6 +10,22 @@ export const DEFAULT_PORTS: Record<ServiceName, number> = {
   mcp: 3002,
   gateway: 3003,
 };
+
+// [SCOPE 028 / T019] BEGIN — Read `.wxai/project.json` kit block for hosted-MCP base URL
+function readKitMcpBaseUrl(projectRoot: string): string | null {
+  const path = join(projectRoot, ".wxai", "project.json");
+  if (!existsSync(path)) return null;
+  try {
+    const json = JSON.parse(readFileSync(path, "utf-8")) as {
+      kit?: { mcpBaseUrl?: unknown };
+    };
+    const v = json?.kit?.mcpBaseUrl;
+    return typeof v === "string" && v.length > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+// [SCOPE 028 / T019] END
 
 export interface ResolveOptions {
   projectRoot?: string;
@@ -31,6 +49,13 @@ export function resolveServiceUrl(
   if (service === "mcp") {
     const explicit = env["MCP_BASE_URL"] || env["MCP_HTTP_URL"];
     if (explicit && explicit.length > 0) return explicit;
+
+    // Spec 028 / T019 — .wxai/project.json kit.mcpBaseUrl takes precedence
+    // over the legacy port-derived default. Runtime-state (live local MCP)
+    // and explicit env override it; everything else falls through to it.
+    const kitUrl = readKitMcpBaseUrl(projectRoot);
+    if (kitUrl) return kitUrl;
+
     const portEnv = env["MCP_HTTP_PORT"];
     if (portEnv) {
       const parsed = parseInt(portEnv, 10);

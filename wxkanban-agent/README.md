@@ -300,24 +300,64 @@ Custom commands are allowed in **every lifecycle stage** (like cross-cutting com
 
 ---
 
+## Setup
+
+### Recommended: hosted MCP (v0.4.0+)
+
+```bash
+# 1. Ask an admin to mint an API token for your project at
+#    wxkanban.wxperts.com → Admin → Projects → <project> → API tokens.
+#
+# 2. Configure the kit:
+wxkanban-agent kit:configure \
+  --token wxk_live_<64hex> \
+  --project-id <uuid> \
+  --mcp-url https://mcp.wxperts.com
+
+# 3. Verify:
+wxkanban-agent verify
+```
+
+`kit:configure` writes `.wxai/project.json` atomically. The token is
+never echoed in full. The kit no longer needs a `DATABASE_URL` —
+everything goes over HTTPS to `mcp.wxperts.com`. See
+[docs/hosted-mcp.md](docs/hosted-mcp.md) for the full reference and
+[docs/hosted-mcp-migration.md](docs/hosted-mcp-migration.md) for the
+v0.3.x → v0.4.0 upgrade.
+
+### Self-hosted (legacy)
+
+For air-gapped environments or local MCP development, run the MCP
+server locally:
+
+```bash
+npm run kit:start:legacy   # spawns mcp-server + gateway
+```
+
+You'll need `DATABASE_URL` pointing at the wxKanban Postgres in `.env`.
+This path emits a deprecation warning on every start and may be removed
+in a future kit release.
+
 ## Configuration Files
 
 | File | Purpose |
 |------|---------|
-| `.wxkanban-project.json` | Project ID, kit version, MCP server config |
-| `.wxai/project.json` | Current lifecycle stage |
+| `.wxai/project.json` | Lifecycle stage + `kit` block (mcpBaseUrl, apiToken, projectId) |
+| `.wxkanban-project.json` | **Legacy** — pre-v0.4.0 project metadata + creds; safe to remove after `kit:configure` |
 | `ai-settings.json` | AI adapter config, custom commands |
 
 ### Environment Variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `MCP_BASE_URL` | `http://localhost:3002` | MCP server URL |
-| `WXKANBAN_API_TOKEN` | — | Per-project API token for MCP auth |
-| `WXKANBAN_PROJECT_ID` | — | Project ID (fallback if not in config file) |
+| `MCP_BASE_URL` | `https://mcp.wxperts.com` | Hosted MCP endpoint (override for staging or local) |
+| `WXKANBAN_API_TOKEN` | — | Bearer token for the hosted MCP (format: `wxk_live_<64hex>` or `wxk_test_<64hex>`) |
+| `WXKANBAN_PROJECT_ID` | — | Project ID (fallback if not in `.wxai/project.json`) |
 | `GATEWAY_HTTP_PORT` | `3003` | HTTP gateway port |
-| `GEMINI_API_KEY` | — | Primary AI provider key |
+| `GROQ_API_KEY` | — | Primary AI provider key (spec 025 / 028 default) |
 | `OPENAI_API_KEY` | — | Fallback AI provider key |
+
+Env vars take precedence over the `kit` block in `.wxai/project.json`.
 
 ---
 

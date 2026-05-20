@@ -78,7 +78,7 @@ function printAvailableCommands(stage: LifecycleStage, customCommands?: string[]
 	const allCommands = getAllowedCommandsForStage(stage, customCommands);
 	console.log(`\nwxKanban Agent Orchestrator Kit`);
 	console.log(`Current stage: ${stage}\n`);
-	console.log(`Available commands:`);
+	console.log(`Available CLI commands (stage-gated):`);
 	for (const cmd of allCommands) {
 		console.log(`  ${cmd}`);
 	}
@@ -92,6 +92,76 @@ function printAvailableCommands(stage: LifecycleStage, customCommands?: string[]
 	console.log(`\nExample:`);
 	console.log(`  wxkanban-agent buildscope --feature-description "Time tracking" --quick`);
 	console.log(`  wxkanban-agent buildscope --featureDescription="Time tracking" --quick`);
+
+	const slashCount = countSlashCommands();
+	if (slashCount > 0) {
+		console.log(`\nClaude Code / slash commands (${slashCount} available):`);
+		console.log(`  wxkanban-agent --list-slash    # list with descriptions`);
+	}
+}
+
+/**
+ * Walk _wxAI/commands/<name>.md in the project root and return their metadata.
+ * Skips ENFORCEMENT_SUMMARY.md and any non-.md files. Description is parsed
+ * from the YAML frontmatter `description:` line; falls back to the first
+ * non-blank `# Title` line.
+ */
+function listSlashCommands(): Array<{ name: string; description: string }> {
+	const cmdDir = path.resolve(process.cwd(), '_wxAI', 'commands');
+	if (!fs.existsSync(cmdDir)) return [];
+	const entries: Array<{ name: string; description: string }> = [];
+	for (const file of fs.readdirSync(cmdDir).sort()) {
+		if (!file.endsWith('.md')) continue;
+		if (file === 'ENFORCEMENT_SUMMARY.md') continue;
+		const full = path.join(cmdDir, file);
+		let content = '';
+		try {
+			content = fs.readFileSync(full, 'utf-8');
+		} catch {
+			continue;
+		}
+		const name = file.replace(/\.md$/, '');
+		let description = '';
+		// Frontmatter description (between --- markers)
+		const fm = content.match(/^---\s*\n([\s\S]*?)\n---/);
+		if (fm) {
+			const m = fm[1].match(/^description:\s*(.+)$/m);
+			if (m) description = m[1].trim().replace(/^["']|["']$/g, '');
+		}
+		if (!description) {
+			// Fall back to the first H1 heading
+			const m = content.match(/^#\s+(.+?)(?:\s+—\s+|\s+-\s+|\s*$)/m);
+			if (m) description = m[1].trim();
+		}
+		entries.push({ name, description });
+	}
+	return entries;
+}
+
+function countSlashCommands(): number {
+	try {
+		const cmdDir = path.resolve(process.cwd(), '_wxAI', 'commands');
+		if (!fs.existsSync(cmdDir)) return 0;
+		return fs.readdirSync(cmdDir).filter((f) => f.endsWith('.md') && f !== 'ENFORCEMENT_SUMMARY.md').length;
+	} catch {
+		return 0;
+	}
+}
+
+function printSlashCommands(): void {
+	const cmds = listSlashCommands();
+	console.log(`\nClaude Code / slash commands shipped with this kit (${cmds.length}):`);
+	if (cmds.length === 0) {
+		console.log(`  (none found at ${path.resolve(process.cwd(), '_wxAI', 'commands')})`);
+		return;
+	}
+	const widest = cmds.reduce((w, c) => Math.max(w, c.name.length), 0);
+	for (const c of cmds) {
+		const desc = c.description || '(no description in frontmatter)';
+		console.log(`  /${c.name.padEnd(widest)}  ${desc}`);
+	}
+	console.log(`\nSource: _wxAI/commands/<name>.md`);
+	console.log(`Skills shipped at .claude/<skill>/ (use the matching slash command or load directly in Claude Code).`);
 }
 
 // Spec 031 Phase 2 — file-based proposal source.
@@ -125,6 +195,11 @@ async function main(): Promise<void> {
 
 	if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
 		printAvailableCommands(context.lifecycleStage, context.customCommands);
+		return;
+	}
+
+	if (args[0] === '--list-slash' || args[0] === '--list-slash-commands') {
+		printSlashCommands();
 		return;
 	}
 

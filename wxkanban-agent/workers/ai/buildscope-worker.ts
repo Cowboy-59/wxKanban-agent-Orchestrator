@@ -7,7 +7,7 @@
 // specs/Project-Scope/NNN-<shortName>.md via project-kit's buildScope().
 
 import { ScopeDraft } from '../../core/schemas/artifacts';
-import { resolveServiceUrl } from '../../core/context/runtime-state';
+import { McpClient } from '../../core/http/mcp-client';
 
 function kebabToCamel(s: string): string {
 	return s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
@@ -34,34 +34,22 @@ function pickSuccessMetrics(value: unknown): string[] {
 export class BuildScopeWorker {
 	static async generateScopeDraft(input: Partial<ScopeDraft> & Record<string, unknown>): Promise<ScopeDraft> {
 		const args = mapInputsToMcpArgs(input as Record<string, unknown>);
-		const mcpUrl = resolveServiceUrl('mcp');
 
-		let response: Response;
-		try {
-			response = await fetch(`${mcpUrl}/call`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', Connection: 'close' },
-				body: JSON.stringify({ tool: 'project.buildscope', args }),
-			});
-		} catch (err) {
+		// Spec 028 / T021 — go through the shared mcp-client so bearer auth +
+		// 429-retry + hosted-base-URL resolution are handled centrally.
+		const mcp = new McpClient();
+		const result = await mcp.callTool<{ content?: Array<{ text?: string }> }>(
+			'project.buildscope',
+			args,
+		);
+
+		if (!result.ok) {
 			throw new Error(
-				`buildscope: MCP not reachable at ${mcpUrl}/call (${(err as Error).message}). ` +
-				`Start the kit runtime with \`node scripts/init.mjs\` or \`node scripts/setup-mcp.mjs\`.`
+				`buildscope: MCP /call returned ${result.status} — ${result.error ?? 'unknown error'}`,
 			);
 		}
 
-		if (!response.ok) {
-			// BUG-9: include the response body so structured McpError messages
-			// (e.g. "Validation error: featureDescription: Required") reach the
-			// user instead of a bare "500 Internal Server Error".
-			let body = '';
-			try { body = await response.text(); } catch { /* non-fatal */ }
-			const detail = body ? ` — ${body.slice(0, 500)}` : '';
-			throw new Error(`buildscope: MCP /call returned ${response.status} ${response.statusText}${detail}`);
-		}
-
-		const envelope = (await response.json()) as { content?: Array<{ text?: string }> };
-		const text = envelope.content?.[0]?.text;
+		const text = result.data?.content?.[0]?.text;
 		if (typeof text !== 'string') {
 			throw new Error('buildscope: MCP response missing content[0].text');
 		}

@@ -107,6 +107,46 @@ function stopService(pidFileName, label) {
   try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
 }
 
+// [SPEC 019 R15 AC#5 / SPEC 028 T054] v1.1.0 legacy cleanup.
+// Pre-v1.1.0 kits shipped a local mcp-server/ that tried to open a Postgres
+// connection from the consumer (BUG-20). After spec 028, the MCP runs at
+// mcp.wxperts.com and the kit is HTTPS-only. When a consumer upgrades across
+// the v1.1.0 boundary, remove the now-dead files so the upgraded kit is clean.
+function isPreV110(currentVersion) {
+  if (!currentVersion || currentVersion === 'unknown') return true; // safest assumption
+  const m = String(currentVersion).match(/^v?(\d+)\.(\d+)/);
+  if (!m) return false;
+  const major = Number(m[1]);
+  const minor = Number(m[2]);
+  return major < 1 || (major === 1 && minor < 1);
+}
+
+function cleanupLegacyMcpIfNeeded(currentVersion) {
+  if (!isPreV110(currentVersion)) return;
+  log('info', `Pre-v1.1.0 install detected (${currentVersion}); removing legacy local-MCP files`);
+  const targets = [
+    'mcp-server',
+    'scripts/setup-mcp.mjs',
+    'scripts/mcp-health-check.mjs',
+    '.mcp-server.pid',
+  ];
+  let removed = 0;
+  for (const rel of targets) {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) continue;
+    try {
+      fs.rmSync(abs, { recursive: true, force: true });
+      log('ok', `  removed ${rel}`);
+      removed++;
+    } catch (err) {
+      log('warn', `  could not remove ${rel}: ${err.message}`);
+    }
+  }
+  if (removed > 0) {
+    log('ok', `Legacy cleanup complete: ${removed} path(s) removed`);
+  }
+}
+
 function platform() {
   return process.platform === 'win32' ? 'windows' : 'unix';
 }
@@ -290,6 +330,10 @@ async function main() {
   log('info', 'Stopping services');
   stopService('.mcp-server.pid', 'MCP server');
   stopService('.orchestrator-gateway.pid', 'orchestrator gateway');
+
+  // [SPEC 019 R15 AC#5] v1.1.0 cutover — remove legacy local-MCP files when upgrading
+  // from a pre-v1.1.0 kit. Hosted MCP (spec 028) means no consumer-side mcp-server/.
+  cleanupLegacyMcpIfNeeded(currentVersion);
 
   let download;
   try {

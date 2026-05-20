@@ -27,13 +27,9 @@ jobs:
         working-directory: wxkanban-agent
         run: npm install --omit=dev --ignore-scripts --no-audit --no-fund
 
-      - name: Install mcp-server dependencies
-        working-directory: mcp-server
-        run: npm install --no-audit --no-fund
-
-      - name: Build mcp-server
-        working-directory: mcp-server
-        run: npm run build
+      # mcp-server/ removed in v1.1.0 (spec 019 Decision #1 + spec 028) — the
+      # MCP runs only on wxKanban-operated infrastructure at mcp.wxperts.com.
+      # The kit no longer ships an MCP server, so no build step is needed.
 
       - name: Resolve version from tag
         id: ver
@@ -52,7 +48,6 @@ jobs:
           cp -r \
             bin \
             wxkanban-agent \
-            mcp-server \
             _wxAI \
             scripts \
             .vscode \
@@ -68,6 +63,9 @@ jobs:
           # Strip every node_modules under staging — they were installed on the
           # Linux runner for build steps but must not ship in the kit.
           find staging -type d -name 'node_modules' -prune -exec rm -rf {} +
+
+      - name: Verify no Postgres deps or mcp-server in kit (spec 028 T055)
+        run: bash scripts/check-no-pg-in-kit.sh staging
 
       - name: Build kit.tar.gz (Unix/Mac)
         working-directory: staging

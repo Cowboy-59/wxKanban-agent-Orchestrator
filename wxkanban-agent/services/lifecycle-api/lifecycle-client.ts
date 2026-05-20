@@ -1,7 +1,8 @@
-// Lifecycle API client — communicates with MCP server via HTTP
+// Lifecycle API client — communicates with MCP server via the shared mcp-client.
+// Spec 028 / T022 — refactored to use core/http/mcp-client (Bearer + 429-retry + token resolution).
 import { ScopeDraft } from '../../core/schemas/artifacts';
 import { LifecycleStage } from '../../core/schemas/lifecycle';
-import { resolveServiceUrl } from '../../core/context/runtime-state';
+import { McpClient } from '../../core/http/mcp-client';
 
 interface McpCallResult {
 	success: boolean;
@@ -10,65 +11,44 @@ interface McpCallResult {
 }
 
 export interface LifecycleClientConfig {
-	mcpBaseUrl: string;
-	apiKey: string;
 	projectId: string;
+	mcpClient?: McpClient;
 }
 
 function buildDefaultConfig(): LifecycleClientConfig {
 	return {
-		mcpBaseUrl: resolveServiceUrl('mcp'),
-		apiKey: process.env['WXKANBAN_API_TOKEN'] || '',
 		projectId: process.env['WXKANBAN_PROJECT_ID'] || '',
 	};
 }
 
 export class LifecycleClient {
-	private config: LifecycleClientConfig;
+	private projectId: string;
+	private mcp: McpClient;
 
 	constructor(config?: Partial<LifecycleClientConfig>) {
-		this.config = { ...buildDefaultConfig(), ...config };
+		const merged = { ...buildDefaultConfig(), ...config };
+		this.projectId = merged.projectId;
+		this.mcp = merged.mcpClient ?? new McpClient();
 	}
 
 	private async callMcpTool(tool: string, args: Record<string, unknown>): Promise<McpCallResult> {
-		const url = `${this.config.mcpBaseUrl}/call`;
-		try {
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'API_KEY': this.config.apiKey,
-				},
-				body: JSON.stringify({ tool, args }),
-			});
-			if (!response.ok) {
-				const text = await response.text();
-				return { success: false, error: `MCP call failed (${response.status}): ${text}` };
-			}
-			const data = await response.json() as Record<string, unknown>;
-			return { success: true, data };
-		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : String(err);
-			return { success: false, error: `MCP connection failed: ${message}` };
+		const result = await this.mcp.callTool<Record<string, unknown>>(tool, args);
+		if (!result.ok) {
+			return { success: false, error: result.error ?? `MCP call failed (${result.status})` };
 		}
+		return { success: true, data: result.data ?? {} };
 	}
 
 	async checkHealth(): Promise<{ healthy: boolean; details?: Record<string, unknown> }> {
-		try {
-			const response = await fetch(`${this.config.mcpBaseUrl}/health`);
-			if (!response.ok) {
-				return { healthy: false };
-			}
-			const data = await response.json() as Record<string, unknown>;
-			return { healthy: data['status'] === 'ok', details: data };
-		} catch {
-			return { healthy: false };
-		}
+		const result = await this.mcp.health();
+		if (!result.ok) return { healthy: false };
+		const details = result.data as Record<string, unknown> | undefined;
+		return { healthy: details?.['status'] === 'ok', details };
 	}
 
 	async createArtifact(artifact: ScopeDraft): Promise<{ success: boolean; id?: string }> {
 		const result = await this.callMcpTool('project.upsert_document', {
-			projectId: this.config.projectId,
+			projectId: this.projectId,
 			title: artifact.title,
 			bodyMarkdown: [
 				`# ${artifact.title}`,
@@ -92,7 +72,7 @@ export class LifecycleClient {
 
 	async transitionFeature(featureId: string, stage: LifecycleStage): Promise<{ success: boolean }> {
 		const result = await this.callMcpTool('project.capture_event', {
-			projectId: this.config.projectId,
+			projectId: this.projectId,
 			type: 'document_updated',
 			source: 'orchestrator-kit',
 			actor: 'workflow-engine',
@@ -110,7 +90,7 @@ export class LifecycleClient {
 		metadata?: Record<string, unknown>
 	): Promise<{ success: boolean; id?: string }> {
 		const result = await this.callMcpTool('project.capture_event', {
-			projectId: this.config.projectId,
+			projectId: this.projectId,
 			type,
 			source,
 			actor,
@@ -126,7 +106,7 @@ export class LifecycleClient {
 
 	async listOpenItems(maxItems?: number): Promise<{ success: boolean; data?: Record<string, unknown> }> {
 		const result = await this.callMcpTool('project.list_open_items', {
-			projectId: this.config.projectId,
+			projectId: this.projectId,
 			...(maxItems ? { maxItems } : {}),
 		});
 		return result;

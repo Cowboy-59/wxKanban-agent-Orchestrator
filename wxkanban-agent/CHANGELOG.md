@@ -2,6 +2,80 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v0.7.0 — 2026-05-19
+
+### Added — Hosted MCP (spec 028, partial)
+
+The kit pivots from "consumer runs a local MCP server with direct DB access"
+to "consumer calls the hosted MCP at `mcp.wxperts.com` over HTTPS with a
+bearer token." This release ships the bulk of spec 028; see
+`specs/028-HostedMCPDeployment/tasks.md` for the per-task status.
+
+- **DB schema** (T001–T004) — new `mcpapitokens` + `mcprequestaudit` tables;
+  migrations under `src/db/migrations/0020_*.sql` + `0021_*.sql`; live DB
+  verified.
+- **MCP middleware** (T005–T009, T011) — bearer-auth, per-token rate-limit,
+  async per-request audit, security headers, scoped-query wrapper, CI grep
+  gate (`mcp-server/scripts/check-no-direct-db.sh`).
+- **Kit HTTP client** (T018–T024) — `wxkanban-agent/core/http/mcp-client.ts`
+  centralizes every MCP call site: bearer header, 429-retry with
+  `Retry-After`, 5xx clean-error surface, token-resolution precedence
+  (env → `kit` block → legacy file), strict token-format guard. The
+  `buildscope-worker` and `lifecycle-client` are refactored onto it.
+- **`kit:configure`** (T020) — new orchestrator command writes
+  `kit.mcpBaseUrl` / `kit.apiToken` / `kit.projectId` atomically into
+  `.wxai/project.json` (or `.env` with `--write-to=.env`). Token masked in
+  stdout; malformed tokens / non-https URLs rejected with exit 2.
+- **`resolveServiceUrl`** (T019) — gained a tier that reads
+  `.wxai/project.json` `kit.mcpBaseUrl` between explicit env vars and the
+  legacy port default.
+- **Admin UI** (T013–T017) — new endpoints under
+  `/api/admin/projects/:projectid/tokens` (issue / list / revoke / rotate)
+  plus `ProjectTokensPage.tsx` + `TokenDisplayModal.tsx`. Role-check
+  middleware accepts `COMPANY_ADMIN` (same company) or the project owner.
+- **`setup-mcp.mjs` deprecation** (T025) — banner on every run; early-exit
+  within 1 s when `MCP_BASE_URL` is `https://`. `kit:start` now routes
+  through `scripts/kit-start.mjs`; `kit:start:legacy` preserves the
+  spec-027 chain.
+- **Deployment infra** (T029, T032, T033) — `apprunner-mcp.yaml` for App
+  Runner source-code mode; `Makefile` with tag-gated
+  `make deploy-mcp-prod TAG=vX.Y.Z`; full `infra/secrets-rotation-runbook.md`
+  (DB rotation, token revocation, deploy rollback).
+- **Docs** (T027, T034, T035) — `docs/hosted-mcp-migration.md` (v0.3.x →
+  v0.4.0 consumer migration guide), `docs/hosted-mcp.md` (reference),
+  `templates/.gitignore.snippet` updated for the new secret-bearing
+  `.wxai/project.json`.
+
+### Deferred from spec 028 (tracked in tasks.md)
+
+- **T010** — refactoring the 24 direct `db.*` call sites in
+  `mcp-server/src/server.ts` onto the new `withScope` wrapper. The CI
+  grep gate exists and currently fails; the boundary is auditable but
+  not yet enforced at the handler layer.
+- **T012** partial — audit + scoped-query middleware tests still pending.
+- **T028** — v0.3.x → v0.4.0 consumer migration smoke test.
+- **Phase 8** (T037–T044) — 8 integration tests require live staging
+  endpoint to actually run.
+
+### Blocked on AWS operator action
+
+- **T030 / T031** — App Runner service provisioning + Route53/ACM cert.
+- **Phase 9 + T047** — live-infra dogfood + lifecycle close to `Released`.
+
+### Spec 032 amendment
+
+Track D added to spec 032 (kit shadcn/CSS bootstrap defaults). FRs and
+tasks land in `specs/032-KitHousekeeping/`; the new
+`templates/shadcn-baseline/` tree and `kit:bootstrap-ui` command are
+**not yet implemented** — they're the next planned scope of work and
+will ship in a follow-up release.
+
+### Breaking changes
+
+- `setup-mcp.mjs` now prints a deprecation warning on every invocation;
+  future kit releases will remove it. Use `kit:start:legacy` if you need
+  the pre-028 behavior intact.
+
 ## v0.6.2 — 2026-05-17
 
 ### Added — kit-shipped wxICA skill
