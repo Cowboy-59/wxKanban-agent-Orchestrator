@@ -28,8 +28,15 @@ const projectJsonPath = path.join(root, '.wxai', 'project.json');
 const gwPidPath = path.join(root, '.orchestrator-gateway.pid');
 const logsDir = path.join(root, 'logs');
 const gwLogPath = path.join(logsDir, 'orchestrator-gateway.log');
-const gwEntry = path.join(root, 'wxkanban-agent', 'apps', 'command-gateway', 'http.ts');
-const gwBin = path.join(root, 'wxkanban-agent', 'apps', 'command-gateway', 'bin', 'wxai.mjs');
+// The gateway HTTP server lives at apps/command-gateway/src/http.ts. The
+// `wxai-http.mjs` shim launches it via tsx. Do NOT confuse with `wxai.mjs`,
+// which is the *CLI* dispatcher and routes every argument through the policy
+// stage gate — `wxai.mjs gateway:start` always rejects because `gateway:start`
+// is not a Capability (BUG: pre-fix init.mjs spawned that and the gateway
+// never bound :3003, then orchestrator-health-check.mjs reported the install
+// as failed on an otherwise-healthy v1.1.0 kit).
+const gwEntry = path.join(root, 'wxkanban-agent', 'apps', 'command-gateway', 'src', 'http.ts');
+const gwBin = path.join(root, 'wxkanban-agent', 'apps', 'command-gateway', 'bin', 'wxai-http.mjs');
 const healthCheckScript = path.join(root, 'scripts', 'orchestrator-health-check.mjs');
 
 const DEFAULT_MCP_BASE_URL = 'https://mcp.wxperts.com';
@@ -176,8 +183,10 @@ function startGateway(cfg) {
     WXKANBAN_API_TOKEN: cfg.apiToken,
     WXKANBAN_PROJECT_ID: cfg.projectId,
   };
-  const args = entry.endsWith('.mjs') ? [entry, 'gateway:start'] : [entry];
-  const child = spawn(process.execPath, args, {
+  // wxai-http.mjs / http.ts take no positional args — they bind the HTTP
+  // server on GATEWAY_HTTP_PORT (default 3003). DO NOT pass `gateway:start`;
+  // that's a non-existent CLI command and would be rejected by the policy.
+  const child = spawn(process.execPath, [entry], {
     cwd: root,
     env,
     detached: true,
