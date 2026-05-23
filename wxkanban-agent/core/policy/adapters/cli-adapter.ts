@@ -44,6 +44,7 @@ const CLI_COMMAND_TO_CAPABILITY: Readonly<Record<string, Capability>> = {
   "pipeline-agent": Capability.PipelineAgent,
   auditfences: Capability.AuditFences,
   "kit:status": Capability.KitStatus,
+  "scaffold:frontend": Capability.ScaffoldFrontend,
 };
 
 // Reverse map for computing `allowedCommands` per stage in the

@@ -416,6 +416,29 @@ wxkanban-agent/
 
 ---
 
+## Frontend Stack
+
+The kit ships an opinionated Tailwind v4 + shadcn/ui scaffold via the
+`scaffold:frontend` command. A single run on a fresh consumer project drops
+in:
+
+- Tailwind v4 + PostCSS configs
+- `components.json` (shadcn registry) and `cn()` helper
+- 11 stock shadcn primitives (Button, Card, Input, Label, Dialog, DropdownMenu,
+  Table, Form, Select, Toast, Calendar)
+- A Tailwind-styled `<ResourceCalendar>` wrapping `react-big-calendar`
+  (no library CSS imported — fully restyled from scratch)
+- `<ThemeProvider>` + `<ModeToggle>` for light/dark/system mode
+
+```bash
+wxkanban-agent scaffold:frontend          # idempotent; skips existing files
+wxkanban-agent scaffold:frontend --dry-run
+wxkanban-agent scaffold:frontend --force --yes
+```
+
+See [`docs/scaffold-frontend.md`](docs/scaffold-frontend.md) for the full
+command reference, dark-mode wiring, and known limitations.
+
 ## Spec Reference
 
 The orchestrator kit is defined by **Spec 019** at `specs/Project-Scope/019-agent-orchestrator-kit.md`. It contains 13 requirements (R0-R13) covering bootstrap, MCP runtime, command gateway, lifecycle policy, AI routing, structured outputs, adapter installation, kit updates, audit trails, wxKanban migration, and multi-project onboarding.

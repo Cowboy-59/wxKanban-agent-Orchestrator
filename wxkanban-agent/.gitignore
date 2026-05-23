@@ -1,3 +1,30 @@
 node_modules/
 dist/
 .env
+
+# Compiled TypeScript outputs in source directories. The kit's source tree
+# is .ts-only; any .js / .d.ts / .map sitting next to a .ts is from a stray
+# `tsc` invocation and will shadow the source under Node's CommonJS resolution
+# (ts-node prefers .js when both exist). Templates ship real .js files
+# (e.g. templates/frontend/postcss.config.js) so the pattern is scoped to
+# the source dirs only.
+core/**/*.js
+core/**/*.d.ts
+core/**/*.js.map
+core/**/*.d.ts.map
+apps/**/*.js
+apps/**/*.d.ts
+apps/**/*.js.map
+apps/**/*.d.ts.map
+workers/**/*.js
+workers/**/*.d.ts
+workers/**/*.js.map
+workers/**/*.d.ts.map
+adapters/**/*.js
+adapters/**/*.d.ts
+adapters/**/*.js.map
+adapters/**/*.d.ts.map
+services/**/*.js
+services/**/*.d.ts
+services/**/*.js.map
+services/**/*.d.ts.map

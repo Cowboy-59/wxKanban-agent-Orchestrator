@@ -250,6 +250,43 @@ export class WorkflowEngine {
 		return { result, audit };
 	}
 
+	static async runScaffoldFrontend(
+		context: ProjectContext,
+		options: Record<string, unknown>,
+		user?: string,
+	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
+		const timestamp = new Date().toISOString();
+		const policy = evaluateStageOnly(
+			context.lifecycleStage, 'scaffold:frontend', context.customCommands,
+		);
+		if (!policy.allowed) {
+			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
+			const audit: AuditRecord = { timestamp, command: 'scaffold:frontend', input: options, result: result as unknown as Record<string, unknown>, user };
+			return { result, audit };
+		}
+		const { handleScaffoldFrontend } = await import('./command-handlers/scaffold-frontend');
+		const handlerResult = await handleScaffoldFrontend({
+			dryRun: options['dry-run'] === true || options['dryRun'] === true,
+			force: options['force'] === true,
+			yes: options['yes'] === true,
+		});
+		console.log(handlerResult.output);
+		const success = handlerResult.exitCode === 0;
+		const result: CommandResult<Record<string, unknown>> = success
+			? {
+				success: true,
+				artifact: {
+					exitCode: handlerResult.exitCode,
+					actions: handlerResult.actions,
+					packageJsonChanged: handlerResult.packageJsonChanged,
+					claudeMdChanged: handlerResult.claudeMdChanged,
+				},
+			}
+			: { success: false, error: `scaffold:frontend exited with code ${handlerResult.exitCode}` };
+		const audit: AuditRecord = { timestamp, command: 'scaffold:frontend', input: options, result: result as unknown as Record<string, unknown>, user };
+		return { result, audit };
+	}
+
 	static async runAuditFences(
 		context: ProjectContext,
 		options: Record<string, unknown>,
@@ -345,6 +382,8 @@ export class WorkflowEngine {
 				return WorkflowEngine.runCreateSpecs(context, input, user);
 			case 'kit:status':
 				return WorkflowEngine.runKitStatus(context, input, user);
+			case 'scaffold:frontend':
+				return WorkflowEngine.runScaffoldFrontend(context, input, user);
 			default: {
 				const result: CommandResult<unknown> = {
 					success: false,

@@ -2,6 +2,47 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.2.1 — 2026-05-23
+
+### Added — Frontend Scaffolding (spec 036)
+
+(Version line reconciled with the published Cowboy-59/wxKanban-agent-Orchestrator
+series. Local kit jumped from 0.8.0 to 1.2.1 to land on the next slot after
+the published v1.1.1.)
+
+New cross-cutting `scaffold:frontend` command produces a working Tailwind v4
++ shadcn/ui foundation in a consumer project with no manual `npx shadcn init`
+or hand-authored configs required.
+
++ **19 templates** under `templates/frontend/`: Tailwind v4 config, PostCSS
+  config, `components.json`, `globals.css` (hybrid `@theme` + CSS vars),
+  `cn()` helper, 11 stock shadcn primitives (button, card, input, label,
+  dialog, dropdown-menu, table, form, select, toast, calendar), a
+  Tailwind-styled `ResourceCalendar` wrapping `react-big-calendar` (no
+  library CSS imported), and a `ThemeProvider` + `ModeToggle` pair for
+  light/dark/system mode.
++ **Centralized deps** in `templates/frontend/deps.json` — 17 runtime + 3
+  dev deps pinned at `^major.minor`.
++ **Scaffold modules** under `core/scaffold/`: `consumer-detect`,
+  `template-copy`, `deps-merge`, `prompt` — atomic, idempotent, TTY-aware.
++ **CLI handler** at `core/orchestrator/command-handlers/scaffold-frontend.ts`
+  registered in `WorkflowEngine.dispatch` and policy capability table
+  (cross-cutting, all phases). Flags: `--dry-run`, `--force`, `--yes`;
+  exit codes `0`/`1`/`2`/`3`.
++ **Idempotent** — second run on a fully-scaffolded project writes nothing,
+  mutates no `package.json`, does not duplicate the `CLAUDE.md` note.
++ **CLAUDE.md note** appended on first run (marker-guarded) documenting
+  primitive ownership, dark-mode wiring, and the `npx shadcn@latest add`
+  escape hatch.
++ **Docs**: `docs/scaffold-frontend.md`, README "Frontend Stack" section,
+  `templates/frontend/verify-scaffold.md` copy-paste smoke snippet.
++ **Tests**: 25 unit tests for scaffold modules + 12 handler tests
+  covering flag matrix, idempotency, partial-state preservation, and
+  CLAUDE.md round-tripping.
+
+Spec 036 marked `released`. See `specs/036-KitFrontendScaffolding/` for
+the full FR / AC / risk register.
+
 ## v0.7.0 — 2026-05-19
 
 ### Added — Hosted MCP (spec 028, partial)

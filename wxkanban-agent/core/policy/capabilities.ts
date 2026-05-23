@@ -21,6 +21,7 @@ export enum Capability {
   PipelineAgent = "PipelineAgent",
   AuditFences = "AuditFences",
   KitStatus = "KitStatus",
+  ScaffoldFrontend = "ScaffoldFrontend",
 }
 
 export interface CapabilityGate {
@@ -88,6 +89,11 @@ export const gateTable: Readonly<Record<Capability, CapabilityGate>> = {
     allowsEscalation: false,
   },
   [Capability.KitStatus]: {
+    allowedPhases: "all",
+    requiresVerifiedSpec: false,
+    allowsEscalation: false,
+  },
+  [Capability.ScaffoldFrontend]: {
     allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,
