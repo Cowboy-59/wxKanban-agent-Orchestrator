@@ -2,6 +2,21 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.2.2 — 2026-05-24
+
+### Fixed — dead local-MCP references (kit shipping cleanup)
+
+VSCode "Start MCP Server" folderOpen task and 8 `kit:*` npm scripts pointed
+to files removed in the v1.1.0 hosted-MCP cutover (setup-mcp.mjs,
+setup-gateway.mjs, mcp-health-check.mjs, kit-status.mjs, kit-stop.mjs,
+mcp-server/). They've been failing silently for shipped kits since v1.1.0.
+
+This release ships the cleanup so freshly-downloaded kits no longer
+reference missing files.
+
+(`wxkanban-agent/` source unchanged from v1.2.1.)
+
+
 ## v1.2.1 — 2026-05-23
 
 ### Added — Frontend Scaffolding (spec 036)
