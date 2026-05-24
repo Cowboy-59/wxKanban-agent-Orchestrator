@@ -208,8 +208,41 @@ async function runHealthCheck() {
   });
 }
 
+// Auto-install dependencies if missing. The kit ships without node_modules
+// because they're platform-specific (esbuild, bcrypt, etc.); consumers must
+// install for their own platform. Detect by probing for `tsx` — every
+// downstream script (wxai-http.mjs, gateway startup) needs it.
+async function ensureDepsInstalled() {
+  const tsxPath = path.join(root, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  if (fs.existsSync(tsxPath)) return;
+  console.log('[init] dependencies missing  → running `npm install` at kit root…');
+  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const code = await new Promise((resolve) => {
+    const c = spawn(npmCmd, ['install', '--no-audit', '--no-fund'], {
+      cwd: root,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+    });
+    c.on('exit', (rc) => resolve(rc ?? 1));
+    c.on('error', (err) => {
+      console.error(`[init] failed to spawn npm: ${err.message}`);
+      console.error('[init] is npm in PATH? (try: which npm / where.exe npm)');
+      resolve(1);
+    });
+  });
+  if (code !== 0) {
+    bail(`npm install failed (exit ${code}). Fix the error above and re-run scripts/init.mjs.`);
+  }
+  if (!fs.existsSync(tsxPath)) {
+    bail(`npm install succeeded but tsx is still missing at ${tsxPath}. Inspect package.json for the tsx dep.`);
+  }
+  console.log('[init] ✓ dependencies installed');
+}
+
 async function main() {
   console.log('\nwxKanban kit — install\n──────────────────────');
+
+  await ensureDepsInstalled();
 
   const cfg = loadConfig();
   console.log(`[init] config: mcpBaseUrl=${cfg.mcpBaseUrl}  token=${fmt(cfg.apiToken)}  projectId=${cfg.projectId || '(missing)'}`);

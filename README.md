@@ -93,10 +93,17 @@ node scripts/init.mjs
 
 `init.mjs` will:
 
-1. Confirm `https://mcp.wxperts.com` (or your configured `MCP_BASE_URL`) is reachable via `GET /health`.
-2. Verify the configured `WXKANBAN_API_TOKEN` authenticates against the hosted MCP.
-3. Start the Orchestrator HTTP Gateway on port 3003 (detached, log at `logs/orchestrator-gateway.log`, PID at `.orchestrator-gateway.pid`).
-4. Run `orchestrator-health-check.mjs` and report the result. Exits 0 if the hosted MCP is reachable, the token is valid, and the gateway is up; exits 1 otherwise.
+1. **Run `npm install` at the kit root if `node_modules/tsx` is missing.** The kit ships without `node_modules` (they're platform-specific — esbuild/bcrypt/etc.); consumers install for their own platform on first run.
+2. Confirm `https://mcp.wxperts.com` (or your configured `MCP_BASE_URL`) is reachable via `GET /health`.
+3. Verify the configured `WXKANBAN_API_TOKEN` authenticates against the hosted MCP.
+4. Start the Orchestrator HTTP Gateway on port 3003 (detached, log at `logs/orchestrator-gateway.log`, PID at `.orchestrator-gateway.pid`).
+5. Run `orchestrator-health-check.mjs` and report the result. Exits 0 if the hosted MCP is reachable, the token is valid, and the gateway is up; exits 1 otherwise.
+
+> **If the orchestrator doesn't work — run `npm install` at the kit root.**
+> The most common cause of a broken kit is missing `node_modules`. `init.mjs`
+> auto-installs them on first run, but if you bypass `init.mjs` (e.g. running
+> `wxai-http.mjs` directly) you'll see `tsx not found in either of: …` until
+> you run `npm install` yourself.
 
 If `init.mjs` reports `WXKANBAN_API_TOKEN missing`, you haven't configured the kit yet. Run `kit-configure` first:
 

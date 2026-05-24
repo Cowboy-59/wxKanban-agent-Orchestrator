@@ -2,6 +2,33 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.2.3 — 2026-05-24
+
+### Fixed — `init.mjs` now auto-installs missing dependencies
+
+The kit has always shipped without `node_modules` (they're platform-specific
+— esbuild, bcrypt, etc. ship native binaries, and the Linux release runner
+can't produce a Windows/Mac-compatible tree). The README promised
+`scripts/init.mjs` would `npm install` on first run, but in practice it
+never did — so consumers running `init.mjs` (or `wxai-http.mjs` directly)
+on a fresh extract hit:
+
+```
+wxai-http: tsx not found in either of:
+  <consumer>/wxkanban-agent/node_modules/tsx/dist/cli.mjs
+  <consumer>/node_modules/tsx/dist/cli.mjs
+```
+
+`init.mjs` now probes for `node_modules/tsx/dist/cli.mjs` at the kit root
+on every run; if missing, it spawns `npm install` (cross-platform shell
+handling) before going any further. Idempotent — second runs see the
+dep and skip.
+
+README updated with a prominent troubleshooting note pointing at the
+same fix for anyone who bypasses `init.mjs`.
+
+(`wxkanban-agent/` source unchanged from v1.2.2.)
+
 ## v1.2.2 — 2026-05-24
 
 ### Fixed — dead local-MCP references (kit shipping cleanup)
