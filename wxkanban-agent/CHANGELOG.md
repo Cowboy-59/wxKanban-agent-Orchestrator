@@ -2,53 +2,49 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.2.5 — 2026-05-24
+
+### Fixed — `dbpush` tasks.md parser format mismatch (BUG-2026-05-24)
+
+`createspecs` emits the tasks summary table as `| # | Task | Priority | Status |`
+— integer in col 1, bare title in col 2, no `T###` token anywhere in
+the table (the canonical T### id lives on the `### T001 — Title`
+headings under `## Task Details`). The pre-fix `dbpush.parseTasksMd`
+regex required `T\d+` in col 2 and matched zero rows on every
+createspecs-produced tasks.md, silently reporting `tasksCreated: 0`
+while exiting success. Consumers had to hand-roll push scripts.
+
++ Loosened the row regex to match createspecs's actual format.
++ Synthesize the T### id from the column-1 integer
+  (`'T' + String(num).padStart(3, '0')`) for downstream consumers.
++ Skip the header (`| # | Task | …`) and separator rows explicitly so
+  they never produce phantom T-prefix entries.
++ Exported both `parseTasksMd` (dbpush.ts) and `generateTasksMarkdown`
+  (createspecs.ts) so a round-trip regression test can hold them
+  together.
++ New unit test `tests/unit/dbpush-tasks-roundtrip.test.ts` (4 tests)
+  pins createspecs → tasks.md → parseTasksMd. Adding a column or
+  changing the table shape will fail it loudly.
+
 ## v1.2.4 — 2026-05-24
 
-### Changed — README cleanup
+### Changed — kit README cleanup
 
-Removed three obsolete sections from the kit's shipped README:
-
-+ The "⚠️ Upgrading from v1.0.5 or earlier?" warning block (BUG-20 was
-  resolved in v1.1.0; the warning is now noise for anyone downloading
-  fresh from v1.2+).
-+ The "What's NOT in v1.1.0 (deliberately)" subsection (the cutover is
-  several minor versions in the past; readers don't need a delta against
-  it on every kit download).
-+ The "Release log" section at the end (CHANGELOG.md inside the kit is
-  the canonical release history; duplicating it in the README created
-  drift).
-
-Maintainer guide updated to point step 3 at `wxkanban-agent/CHANGELOG.md`
-instead of the removed README release log.
-
-(`wxkanban-agent/` source unchanged from v1.2.3.)
+Removed the obsolete v1.0.5 upgrade warning, the "What's NOT in v1.1.0"
+subsection, and the Release log section from the kit-shipped README.
+Maintainer guide step 3 now points at `CHANGELOG.md`. Source unchanged
+from v1.2.3.
 
 ## v1.2.3 — 2026-05-24
 
 ### Fixed — `init.mjs` now auto-installs missing dependencies
 
-The kit has always shipped without `node_modules` (they're platform-specific
-— esbuild, bcrypt, etc. ship native binaries, and the Linux release runner
-can't produce a Windows/Mac-compatible tree). The README promised
-`scripts/init.mjs` would `npm install` on first run, but in practice it
-never did — so consumers running `init.mjs` (or `wxai-http.mjs` directly)
-on a fresh extract hit:
-
-```
-wxai-http: tsx not found in either of:
-  <consumer>/wxkanban-agent/node_modules/tsx/dist/cli.mjs
-  <consumer>/node_modules/tsx/dist/cli.mjs
-```
-
-`init.mjs` now probes for `node_modules/tsx/dist/cli.mjs` at the kit root
-on every run; if missing, it spawns `npm install` (cross-platform shell
-handling) before going any further. Idempotent — second runs see the
-dep and skip.
-
-README updated with a prominent troubleshooting note pointing at the
-same fix for anyone who bypasses `init.mjs`.
-
-(`wxkanban-agent/` source unchanged from v1.2.2.)
+Consumers running `init.mjs` (or `wxai-http.mjs` directly) on a fresh
+extract hit `wxai-http: tsx not found in either of: …` because the kit
+ships without `node_modules` and the install was never automated despite
+the README claiming it was. `init.mjs` now probes for tsx at the kit
+root and runs `npm install` if missing. README troubleshooting note
+added. Source unchanged from v1.2.2.
 
 ## v1.2.2 — 2026-05-24
 
@@ -63,7 +59,6 @@ This release ships the cleanup so freshly-downloaded kits no longer
 reference missing files.
 
 (`wxkanban-agent/` source unchanged from v1.2.1.)
-
 
 ## v1.2.1 — 2026-05-23
 

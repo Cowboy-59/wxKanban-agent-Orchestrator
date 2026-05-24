@@ -227,7 +227,7 @@ function generatePlanMarkdown(args: CreateSpecsArgs): string {
 
 // --- Generate tasks.md ---
 
-function generateTasksMarkdown(args: CreateSpecsArgs): string {
+export function generateTasksMarkdown(args: CreateSpecsArgs): string {
 	const lines: string[] = [];
 	lines.push(`# Task Breakdown: ${args.featureName}`);
 	lines.push('');

@@ -55,17 +55,29 @@ interface ParsedTask {
   title: string;
   status: string;
 }
+// createspecs emits the summary table as `| # | Task | Priority | Status |`
+// — integer in col 1, bare title in col 2, no T### prefix anywhere. The
+// canonical T### id lives on the per-task headings in `## Task Details`
+// (`### T001 — Title`). Synthesize the id from col 1 here so the parser
+// matches the emitter; col 4 (status) maps to ParsedTask.status. Pre-fix
+// behavior required `T###` in col 2 and matched zero rows on every
+// createspecs-produced tasks.md (BUG-2026-05-24).
 const TASKS_TABLE_ROW_RE =
-  /^\|\s*(\d+)\s*\|\s*(T\d+)[:\s.]+([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|/;
-function parseTasksMd(body: string): ParsedTask[] {
+  /^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|/;
+export function parseTasksMd(body: string): ParsedTask[] {
   const out: ParsedTask[] = [];
   for (const line of body.split(/\r?\n/)) {
+    // Skip the header + separator rows (`| # | Task | …` and `|---|---|…`).
+    if (/^\|\s*#\s*\|/i.test(line)) continue;
+    if (/^\|\s*-+\s*\|/.test(line)) continue;
     const m = line.match(TASKS_TABLE_ROW_RE);
     if (!m) continue;
+    const num = Number(m[1]);
+    if (!Number.isFinite(num)) continue;
     out.push({
-      id: m[2] ?? '',
-      title: (m[3] ?? '').trim(),
-      status: (m[5] ?? '').trim(),
+      id: 'T' + String(num).padStart(3, '0'),
+      title: (m[2] ?? '').trim(),
+      status: (m[4] ?? '').trim(),
     });
   }
   return out;
