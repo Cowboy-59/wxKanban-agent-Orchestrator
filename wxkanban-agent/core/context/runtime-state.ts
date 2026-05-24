@@ -27,6 +27,24 @@ function readKitMcpBaseUrl(projectRoot: string): string | null {
 }
 // [SCOPE 028 / T019] END
 
+// init.mjs (v1.2.x) writes the hosted-MCP URL to `.wxkanban-project.json`
+// at the project root rather than `.wxai/project.json`. Honour that file
+// as an additional fallback so dbpush and friends pick up the hosted
+// endpoint without requiring MCP_BASE_URL to be exported in every shell.
+function readWxkanbanProjectMcpBaseUrl(projectRoot: string): string | null {
+  const path = join(projectRoot, ".wxkanban-project.json");
+  if (!existsSync(path)) return null;
+  try {
+    const json = JSON.parse(readFileSync(path, "utf-8")) as {
+      mcpBaseUrl?: unknown;
+    };
+    const v = json?.mcpBaseUrl;
+    return typeof v === "string" && v.length > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface ResolveOptions {
   projectRoot?: string;
   env?: NodeJS.ProcessEnv;
@@ -47,7 +65,10 @@ export function resolveServiceUrl(
   }
 
   if (service === "mcp") {
-    const explicit = env["MCP_BASE_URL"] || env["MCP_HTTP_URL"];
+    const explicit =
+      env["MCP_BASE_URL"] ||
+      env["MCP_HTTP_URL"] ||
+      env["WXKANBAN_MCP_BASE_URL"];
     if (explicit && explicit.length > 0) return explicit;
 
     // Spec 028 / T019 — .wxai/project.json kit.mcpBaseUrl takes precedence
@@ -55,6 +76,11 @@ export function resolveServiceUrl(
     // and explicit env override it; everything else falls through to it.
     const kitUrl = readKitMcpBaseUrl(projectRoot);
     if (kitUrl) return kitUrl;
+
+    // init.mjs writes the URL here too (separate from .wxai/project.json).
+    // Final fallback before the legacy port-derived default.
+    const projectFileUrl = readWxkanbanProjectMcpBaseUrl(projectRoot);
+    if (projectFileUrl) return projectFileUrl;
 
     const portEnv = env["MCP_HTTP_PORT"];
     if (portEnv) {

@@ -13,10 +13,7 @@ describe("createspecs → dbpush tasks.md round-trip (BUG-2026-05-24)", () => {
   it("dbpush parses every task createspecs emits", () => {
     const md = generateTasksMarkdown({
       specNumber: "042",
-      featureName: "Round Trip",
-      featureDescription: "test",
-      problem: "x",
-      solution: "y",
+      featureName: "Round Trip", scopeContent: "",
       tasks: [
         { title: "First task", description: "do thing 1", priority: "high", status: "todo" },
         { title: "Second task", description: "do thing 2", priority: "medium", status: "todo" },
@@ -47,10 +44,7 @@ describe("createspecs → dbpush tasks.md round-trip (BUG-2026-05-24)", () => {
     }));
     const md = generateTasksMarkdown({
       specNumber: "043",
-      featureName: "Many",
-      featureDescription: "",
-      problem: "",
-      solution: "",
+      featureName: "Many", scopeContent: "",
       tasks,
     });
     const parsed = parseTasksMd(md);
@@ -63,10 +57,7 @@ describe("createspecs → dbpush tasks.md round-trip (BUG-2026-05-24)", () => {
   it("ignores the header + separator rows", () => {
     const md = generateTasksMarkdown({
       specNumber: "044",
-      featureName: "Skip headers",
-      featureDescription: "",
-      problem: "",
-      solution: "",
+      featureName: "Skip headers", scopeContent: "",
       tasks: [{ title: "Only", description: "x", priority: "high", status: "todo" }],
     });
     const parsed = parseTasksMd(md);
@@ -77,10 +68,7 @@ describe("createspecs → dbpush tasks.md round-trip (BUG-2026-05-24)", () => {
   it("returns empty array when tasks.md has no table", () => {
     const md = generateTasksMarkdown({
       specNumber: "045",
-      featureName: "Empty",
-      featureDescription: "",
-      problem: "",
-      solution: "",
+      featureName: "Empty", scopeContent: "",
       tasks: [],
     });
     const parsed = parseTasksMd(md);

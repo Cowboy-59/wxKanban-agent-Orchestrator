@@ -2,6 +2,33 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.2.6 — 2026-05-24
+
+### Fixed — upstreamed two YappChat local patches so consumers don't have to reapply them
+
+Both patches address the same friction: getting a freshly-initialized
+consumer project to reach the hosted MCP without the operator manually
+exporting env vars in every shell.
+
++ **`core/context/runtime-state.ts`** — `resolveServiceUrl('mcp')` now
+  honours `WXKANBAN_MCP_BASE_URL` as an env var alongside `MCP_BASE_URL`
+  and `MCP_HTTP_URL`, and adds `.wxkanban-project.json` `mcpBaseUrl` as
+  a final filesystem fallback before the legacy port default. `init.mjs`
+  writes the hosted URL to `.wxkanban-project.json`, so this closes the
+  loop and `dbpush` / `lifecycle-client` reach mcp.wxperts.com
+  automatically.
++ **`apps/command-gateway/bin/wxai.mjs`** — shim now autoloads `.env`
+  at `process.cwd()` before spawning `tsx`, so `WXKANBAN_API_TOKEN`
+  (written by `init.mjs`/`kit-configure`) is available to the child
+  without `source .env`. Existing exported env vars win — `.env` never
+  overrides what the operator set explicitly. Handles single- and
+  double-quoted values, skips comments and blank lines.
+
+(`wxkanban-agent/` source otherwise unchanged from v1.2.5. No new tests
+required — both patches are additive guards on existing precedence
+chains and continue to pass the runtime-state-resolver and dbpush
+round-trip suites.)
+
 ## v1.2.5 — 2026-05-24
 
 ### Fixed — `dbpush` tasks.md parser format mismatch (BUG-2026-05-24)
