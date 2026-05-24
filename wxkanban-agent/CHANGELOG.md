@@ -2,6 +2,27 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.2.4 — 2026-05-24
+
+### Changed — README cleanup
+
+Removed three obsolete sections from the kit's shipped README:
+
++ The "⚠️ Upgrading from v1.0.5 or earlier?" warning block (BUG-20 was
+  resolved in v1.1.0; the warning is now noise for anyone downloading
+  fresh from v1.2+).
++ The "What's NOT in v1.1.0 (deliberately)" subsection (the cutover is
+  several minor versions in the past; readers don't need a delta against
+  it on every kit download).
++ The "Release log" section at the end (CHANGELOG.md inside the kit is
+  the canonical release history; duplicating it in the README created
+  drift).
+
+Maintainer guide updated to point step 3 at `wxkanban-agent/CHANGELOG.md`
+instead of the removed README release log.
+
+(`wxkanban-agent/` source unchanged from v1.2.3.)
+
 ## v1.2.3 — 2026-05-24
 
 ### Fixed — `init.mjs` now auto-installs missing dependencies

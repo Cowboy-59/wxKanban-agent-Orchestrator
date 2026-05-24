@@ -15,33 +15,6 @@ the user.
 
 ---
 
-## ⚠️ Upgrading from v1.0.5 or earlier? Read this first.
-
-If you downloaded v1.0.5 (or any earlier version) and `node scripts/init.mjs`
-crashed with `[startup.db.check.fail]` / `Connection terminated due to
-connection timeout` — that's [BUG-20](https://github.com/Cowboy-59/wxKanban-agent-Orchestrator/issues),
-the architectural defect where the kit tried to open a Postgres
-connection from your machine. v1.1.0 removes that path entirely.
-
-**Fastest unblock without re-downloading anything:**
-
-1. Ask a wxKanban admin to mint an API token for your project (see [Install — Step 2](#install)).
-2. In the extracted v1.0.5 directory, run:
-   ```bash
-   node wxkanban-agent/bin/wxkanban-agent kit-configure \
-     --token wxk_live_<64hex> \
-     --project-id <uuid> \
-     --mcp-url https://mcp.wxperts.com
-   ```
-3. Skip `node scripts/init.mjs`. Run `wxkanban-agent` commands directly.
-
-The v1.1.0 kit ships without `mcp-server/` at all, so this trap is gone.
-Existing consumers should upgrade via `node scripts/upgrade-kit.mjs` —
-the v1.1.0 upgrade flow detects and removes the legacy `mcp-server/`
-directory from your install.
-
----
-
 ## What's in the kit
 
 | Path | Purpose |
@@ -61,13 +34,6 @@ Per-project files (`.wxai/project.json`, `.env`) are injected
 server-side by wxKanban at download time so each consumer gets their own
 `WXKANBAN_API_TOKEN`. No database credentials of any kind ship in the
 archive.
-
-### What's NOT in v1.1.0 (deliberately)
-
-- **`mcp-server/`** — the MCP server runs on `mcp.wxperts.com`. Consumer machines no longer host it. Removed per spec 019 Decision #1 + spec 028.
-- **`scripts/setup-mcp.mjs` / `scripts/mcp-health-check.mjs`** — there is no local MCP to set up or probe.
-- **`pg`, `drizzle-orm` runtime dependencies** — the kit makes HTTPS calls; it doesn't talk SQL.
-- **`DATABASE_URL_ENCRYPTED`** — the encrypted-DB-URL distribution mechanism is retired per spec 019 Decision #3. The kit carries no DB credentials in any form.
 
 ---
 
@@ -238,8 +204,9 @@ their own platform via `scripts/init.mjs`), and uploads the artifacts.
    - **minor** (`v1.1.0 → v1.2.0`) — new commands, new env vars, new MCP-client tool wrappers
    - **major** (`v1.1.0 → v2.0.0`) — breaking changes (renamed commands, removed env vars, hosted MCP API breaking changes that consumers must migrate)
 
-3. **Update this README's release log** at the bottom of the file with a
-   one-line summary of what's in the new version. Keep entries terse.
+3. **Update `wxkanban-agent/CHANGELOG.md`** with a versioned entry
+   describing what's in the new release. Keep entries terse; that file
+   is the canonical release history.
 
 4. **Tag and push**:
    ```bash
@@ -306,27 +273,3 @@ For a clean re-release with a fix, cut the *next* version (`v1.1.2`,
 not `v1.1.1` again) — append-only history keeps consumer kits
 auditable.
 
----
-
-## Release log
-
-- `v1.1.0` — **architectural cutover: hosted MCP only** (spec 019 update 2026-05-20 + spec 028 Phase 10).
-  - **`mcp-server/` removed from the kit entirely.** The MCP Project Hub now runs only on wxKanban-operated infrastructure at `https://mcp.wxperts.com` (TLS, App Runner, ACM cert). Consumer machines no longer need a route to wxKanban's Postgres — outbound HTTPS to port 443 is sufficient. Closes BUG-20.
-  - **`pg` and `drizzle-orm` removed from the kit's runtime dependencies.** The kit speaks HTTPS, not SQL.
-  - **`DATABASE_URL_ENCRYPTED` retired.** The kit carries no DB credentials in any form. Per-project auth is now a single `WXKANBAN_API_TOKEN` (format: `wxk_live_<64hex>` or `wxk_test_<64hex>`).
-  - **`scripts/setup-mcp.mjs` and `scripts/mcp-health-check.mjs` removed.** No local MCP to set up.
-  - **`scripts/init.mjs` reworked.** Now validates hosted-MCP reachability + token validity, then starts the orchestrator gateway only. Exits cleanly if the kit hasn't been configured yet (instead of crashing on missing `DATABASE_URL`).
-  - **`scripts/upgrade-kit.mjs` v1.1.0 cutover step.** Detects pre-v1.1.0 installs and removes legacy `mcp-server/`, `setup-mcp.mjs`, `mcp-health-check.mjs`, and `.mcp-server.pid` after stopping any running local MCP process. Adds `mcpBaseUrl` field to `.wxkanban-project.json` if absent.
-  - **CI gate `check-no-pg-in-kit.sh`** — kit archive is checked at build time to ensure no future regression re-bundles `pg`, `drizzle-orm`, or `mcp-server/src/db/connection.ts`.
-  - **Bootstrap from pre-v1.1.0 kits**: consumers on v1.0.5 or earlier should run `node scripts/upgrade-kit.mjs` from inside their existing extracted kit. The upgrade script handles the legacy-MCP cleanup automatically. If `upgrade-kit.mjs` isn't present in your kit (pre-v0.1.10), download v1.1.0 directly and run `kit-configure` against your existing project.
-- `v0.1.11` — fix `upgrade-kit.mjs` Windows extraction. Surfaced during the R15 dogfood: when invoked from Git Bash / MSYS2 / Cygwin on Windows, PATH-resolved `tar` is GNU tar which can't handle `.zip` and misreads `E:/...` as a remote host. Now prefers `C:\Windows\System32\tar.exe` (bsdtar) on win32 which handles both `.tar.gz` and `.zip` regardless of the calling shell. Recommended for any v0.1.10 install that hasn't dogfooded an upgrade yet.
-- `v0.1.10` — **first release with kit upgrade machinery** (spec 019 R15).
-  - **`scripts/upgrade-kit.mjs`** — preserve-mode upgrade. `node scripts/upgrade-kit.mjs` (or `node scripts/upgrade-kit.mjs v0.1.X` to pin) downloads from wxKanban's new `/api/projects/:id/kit/upgrade` endpoint, verifies SHA-256 against the response header, extracts in place, updates only the version fields in `.wxkanban-project.json` (preserves `projectId`, `createdAt`, all other fields), and re-runs `init.mjs`. Per-project files (`.wxkanban-project.json`, `ai-settings.json`, `.env`) and customizable templates (`CLAUDE.md`, `AI.md`, `ProjectOverview.md`, `README.md`) are stripped from the archive server-side, so extraction is safe.
-  - **`scripts/check-kit-version.mjs`** — runs as a third `folderOpen` task in `.vscode/tasks.json`. Compares your installed version against the latest available release; prints an up-to-date single-liner or a clearly-bordered upgrade-available notice with the exact upgrade command. Always exits 0 — never blocks workspace open.
-  - **Bootstrap from pre-R15 kits**: consumers on v0.1.8 or v0.1.9 need a one-time manual upgrade to v0.1.10 (since `upgrade-kit.mjs` isn't in those older kits). After v0.1.10 is installed, all future upgrades use `node scripts/upgrade-kit.mjs` end-to-end.
-  - **URL config**: scripts use `WXKANBAN_API_URL` env > `.wxkanban-project.json` `wxkanbanApiUrl` field > `https://wxkanban.wxperts.com` default.
-- `v0.1.9` — full sweep of all 13 issues from `BUG_REPORT-wxkanban-kit-v0.1.8.md` in the wxKanban repo.
-- `v0.1.8` — see commit log; superseded by v0.1.9 fixes.
-- `v0.1.2` — adds `scripts/init.mjs` one-shot installer, README refresh.
-- `v0.1.1` — adds `scripts/orchestrator-health-check.mjs`.
-- `v0.1.0` — initial consolidated release (orchestrator + MCP + rules).
