@@ -258,10 +258,19 @@ async function main() {
   if (existsSync(sharedPreflightDir)) {
     log('prebuild', c.yellow, 'Building shared/preflight...');
     const { execSync } = await import('node:child_process');
+    // Remove any stale tsbuildinfo that got mirrored from wxKanban; tsc -b
+    // treats it as proof the build is current and skips emitting dist/.
+    const buildInfo = path.join(sharedPreflightDir, 'tsconfig.tsbuildinfo');
+    if (existsSync(buildInfo)) await fsp.rm(buildInfo);
+    const distDir = path.join(sharedPreflightDir, 'dist');
+    if (existsSync(distDir)) await fsp.rm(distDir, { recursive: true, force: true });
     if (!existsSync(path.join(sharedPreflightDir, 'node_modules'))) {
       execSync('npm install', { cwd: sharedPreflightDir, stdio: 'inherit' });
     }
-    execSync('npx tsc -b', { cwd: sharedPreflightDir, stdio: 'inherit' });
+    execSync('npx tsc -b --force', { cwd: sharedPreflightDir, stdio: 'inherit' });
+    if (!existsSync(distDir)) {
+      throw new Error('shared/preflight prebuild produced no dist/ — investigate before packing');
+    }
     log('prebuild', c.green, 'shared/preflight/dist ready');
   }
 
