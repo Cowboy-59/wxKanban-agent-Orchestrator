@@ -58,7 +58,11 @@ if (!version.startsWith('v')) version = `v${version}`;
 // code-review, …) reach consumers. Top-level .claude/ files like
 // settings.json / settings.local.json / mcp.json are kept out via
 // EXCLUDE_BASENAMES + EXCLUDE_CLAUDE_TOPLEVEL below.
-const KIT_INCLUDE_DIRS  = ['bin', 'wxkanban-agent', 'mcp-server', '_wxAI', 'scripts', '.vscode', '.claude'];
+// Spec 029 / v1.2.8 hotfix — `shared/` is included so wxkanban-agent's
+// `@wxkanban/preflight` file: dependency resolves on consumer machines
+// after extract. Without this, dbpush crashes on a freshly upgraded kit
+// with "Cannot find module '@wxkanban/preflight'".
+const KIT_INCLUDE_DIRS  = ['bin', 'wxkanban-agent', 'mcp-server', '_wxAI', 'scripts', '.vscode', '.claude', 'shared'];
 const KIT_INCLUDE_FILES = ['package.json', 'package-lock.json'];
 
 // Files at exactly .claude/<name> (top-level of .claude/) that must never be
@@ -120,6 +124,20 @@ function shouldExclude(relPath /* relative to root, forward slashes */) {
   // .claude/<name> top-level (files only, skill subdirs are fine)
   if (parts.length === 2 && parts[0] === '.claude' && EXCLUDE_CLAUDE_TOPLEVEL.has(basename)) {
     return true;
+  }
+
+  // Spec 029 / v1.2.8 — shared/preflight/dist/ MUST ship in the archive
+  // so wxkanban-agent's `@wxkanban/preflight` file: dependency resolves
+  // on consumer machines. The generic `dist` basename ban (used to keep
+  // wxkanban-agent/dist out) would otherwise drop the pre-built JS.
+  if (parts[0] === 'shared' && parts.length >= 2) {
+    // Allow everything under shared/, including dist/
+    for (const suffix of EXCLUDE_SUFFIXES) {
+      if (basename.endsWith(suffix) || basename === suffix) return true;
+    }
+    // Still drop node_modules and .git inside shared/
+    if (basename === 'node_modules' || basename === '.git') return true;
+    return false;
   }
 
   // Banned basenames at any depth
@@ -231,6 +249,21 @@ async function main() {
   const zipShaPath = `${zipPath}.sha256`;
 
   log('output', c.cyan, `releases/${version}/`);
+
+  // ─── Pre-build shared/preflight so dist/ ships in the archive ────────────
+  // Spec 029 / v1.2.8 — wxkanban-agent's `@wxkanban/preflight` file:
+  // dependency resolves to shared/preflight/dist/index.js. The dist/ is
+  // .gitignored, so we build it on demand right before packing.
+  const sharedPreflightDir = path.join(root, 'shared', 'preflight');
+  if (existsSync(sharedPreflightDir)) {
+    log('prebuild', c.yellow, 'Building shared/preflight...');
+    const { execSync } = await import('node:child_process');
+    if (!existsSync(path.join(sharedPreflightDir, 'node_modules'))) {
+      execSync('npm install', { cwd: sharedPreflightDir, stdio: 'inherit' });
+    }
+    execSync('npx tsc -b', { cwd: sharedPreflightDir, stdio: 'inherit' });
+    log('prebuild', c.green, 'shared/preflight/dist ready');
+  }
 
   // ─── Collect ────────────────────────────────────────────────────────────
   log('scan', c.yellow, 'Scanning kit files...');
