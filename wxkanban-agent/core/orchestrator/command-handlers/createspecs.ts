@@ -176,24 +176,84 @@ function logPhase(phase: string, message: string): void {
 
 // --- Generate spec.md ---
 
-function generateSpecMarkdown(args: CreateSpecsArgs): string {
+// [SCOPE 029 / T009] BEGIN — generateSpecMarkdown (canonical preflight-passing template)
+//
+// Spec 029 / FR-015 — template emits explicit `##` headings in the canonical
+// order: Overview → Business Problem → Actors → Success Metrics →
+// Scope Boundary → Out of Scope → Open Questions → Functional Requirements.
+//
+// FR-015a — the Actors section uses `- Primary:` / `- Secondary:` line
+// labels (regex-matched by `extractActorValue()`); the bold-em-dash form
+// `**Primary actor — Name**` does NOT match and fails the preflight even
+// when the heading exists.
+//
+// FR-016 — each section has placeholder content sufficient to clear the
+// preflight content checks (no TODO/TBD markers, >= 20 chars, not exact
+// DEFAULT_SCOPE_CONTENT strings; metrics include digits to pass
+// isMeasurableMetric). A freshly templated scope passes runPreflight() on
+// first generation. Authors then edit each section in place.
+//
+// Exported so the T014 CI guard can render the template and feed it to
+// runPreflight() without invoking the full handler.
+export function generateSpecMarkdown(args: CreateSpecsArgs): string {
+	const today = new Date().toISOString().split('T')[0];
+	const phase = args.phase || 'design';
+	const priority = args.priority || 'medium';
 	return `# Spec ${args.specNumber}: ${args.featureName}
 
 ## Overview
 
 ${args.scopeContent}
 
+## Business Problem
+
+Describe the concrete customer or operator pain point this scope solves. Replace this paragraph with specific language describing the current friction, the desired outcome, and why this work is being prioritized now.
+
+## Actors
+
+- Primary: Operator who initiates this workflow as part of their daily responsibilities and depends on the result for downstream decisions.
+- Secondary: Reviewing engineer, dependent service, or stakeholder who consumes or validates the output produced by this scope.
+
+## Success Metrics
+
+1. Outcome 1 — replace with a concrete target that includes a number, percentage, or timing threshold (e.g., "Reduce X by 30%" or "Complete Y within 2 minutes").
+2. Outcome 2 — replace with a second measurable metric covering reliability, throughput, or operator-visible behavior.
+3. Outcome 3 — replace with a third measurable metric covering correctness, audit, or downstream impact.
+
+## Scope Boundary
+
+This scope covers the specific files, modules, or workflows listed here. Replace this paragraph with the concrete set of code surfaces, screens, or APIs that this iteration changes. Reference paths where helpful.
+
+## Out of Scope
+
+Items deliberately deferred to future scopes. Replace this paragraph with the concrete list of things this iteration does NOT change, including any cross-cutting concerns (publishing, migration, UI polish) that need their own scope.
+
+## Open Questions
+
+None at this time. Add open questions as they arise during scope review; resolve each one with a written decision before promoting the scope.
+
+## Functional Requirements
+
+### FR-001 — Replace with first requirement title
+
+Describe the requirement in concrete behavioral terms. The system MUST do something specific, observable, and testable.
+
+**Acceptance Criteria**:
+- [ ] criterion 1 — what the operator can do
+- [ ] criterion 2 — what the system persists or exposes
+
 ## Phase
 
-**Current Phase**: ${args.phase || 'design'}
-**Priority**: ${args.priority || 'medium'}
+**Current Phase**: ${phase}
+**Priority**: ${priority}
 
 ## Status
 
-- **Date**: ${new Date().toISOString().split('T')[0]}
-- **Phase**: ${args.phase || 'design'}
+- **Date**: ${today}
+- **Phase**: ${phase}
 `;
 }
+// [SCOPE 029 / T009] END
 
 // --- Generate plan.md ---
 

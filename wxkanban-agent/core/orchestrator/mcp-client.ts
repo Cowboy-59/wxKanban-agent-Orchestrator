@@ -3,12 +3,20 @@
 // any future workflow handler that needs to sync data to the MCP Project
 // Hub. The kit's role is to relay validated content; the MCP server owns
 // the canonical DB writes (see spec 019 R6a — kit is workflow, not AI).
+//
+// Spec 029 / T002 — response parsing routes through ./mcp-envelope.ts so
+// the kit handles blocked envelopes (HTTP 422 OR HTTP 200 + success:false)
+// uniformly. callMcpTool keeps its `Promise<T>` signature for backward
+// compatibility (FR-002, T002 acceptance #4); callers that want the full
+// envelope use callMcpToolWithEnvelope (introduced for T003's pushNewSpec /
+// pushExistingSpec rewrite).
 
 import { resolveServiceUrl } from '../context/runtime-state';
-
-export interface McpEnvelope {
-  content?: Array<{ text?: string }>;
-}
+import {
+  parseEnvelope,
+  McpEnvelopeError,
+  type McpEnvelope as McpEnvelopeShape,
+} from './mcp-envelope';
 
 export interface McpCallOptions {
   baseUrl?: string;
@@ -16,6 +24,7 @@ export interface McpCallOptions {
   timeoutMs?: number;
 }
 
+// [SCOPE 029 / T002] BEGIN — McpClientError (preserved error class for callers)
 export class McpClientError extends Error {
   constructor(
     message: string,
@@ -26,12 +35,14 @@ export class McpClientError extends Error {
     this.name = 'McpClientError';
   }
 }
+// [SCOPE 029 / T002] END
 
-export async function callMcpTool<T = unknown>(
+// [SCOPE 029 / T002] BEGIN — sendMcpRequest (HTTP POST + abort/timeout)
+async function sendMcpRequest(
   name: string,
   args: Record<string, unknown>,
-  options: McpCallOptions = {},
-): Promise<T> {
+  options: McpCallOptions,
+): Promise<Response> {
   const mcpUrl = options.baseUrl ?? resolveServiceUrl('mcp');
   const token = options.apiToken ?? process.env['WXKANBAN_API_TOKEN'];
   const headers: Record<string, string> = {
@@ -62,32 +73,51 @@ export async function callMcpTool<T = unknown>(
     );
   }
   if (timer) clearTimeout(timer);
+  return response;
+}
+// [SCOPE 029 / T002] END
 
-  if (!response.ok) {
-    let body = '';
-    try {
-      body = await response.text();
-    } catch {
-      /* non-fatal */
-    }
-    throw new McpClientError(
-      `MCP tool ${name} returned ${response.status} ${response.statusText}${body ? ` — ${body.slice(0, 500)}` : ''}`,
-      name,
-      { status: response.status, body },
-    );
-  }
-
-  const envelope = (await response.json()) as McpEnvelope;
-  const text = envelope.content?.[0]?.text;
-  if (typeof text !== 'string') {
-    throw new McpClientError(`MCP tool ${name}: response missing content[0].text`, name);
-  }
+// [SCOPE 029 / T002] BEGIN — callMcpToolWithEnvelope (T003 entry point)
+//
+// Returns the full envelope so callers can detect blocked responses. Used
+// by dbpush's pushNewSpec / pushExistingSpec (spec 029 FR-005, FR-007).
+export async function callMcpToolWithEnvelope<T extends Record<string, unknown> = Record<string, unknown>>(
+  name: string,
+  args: Record<string, unknown>,
+  options: McpCallOptions = {},
+): Promise<McpEnvelopeShape<T>> {
+  const response = await sendMcpRequest(name, args, options);
   try {
-    return JSON.parse(text) as T;
+    return await parseEnvelope<T>(response);
   } catch (err) {
-    throw new McpClientError(
-      `MCP tool ${name}: response body is not JSON: ${(err as Error).message}`,
-      name,
-    );
+    if (err instanceof McpEnvelopeError) {
+      throw new McpClientError(
+        `MCP tool ${name}: ${err.message}`,
+        name,
+        err.raw && typeof err.raw === 'object' && 'status' in (err.raw as object)
+          ? (err.raw as { status?: number; body?: string })
+          : undefined,
+      );
+    }
+    throw err;
   }
 }
+// [SCOPE 029 / T002] END
+
+// [SCOPE 029 / T002] BEGIN — callMcpTool (legacy entry point — returns data only)
+//
+// Preserved for callers that haven't migrated yet (FR-002 / T002 acceptance
+// #4: existing callers compile without changes). Returns the parsed inner
+// payload; a blocked envelope appears as a successful return whose body has
+// `success: false, blocked: true` — exactly the silent-success failure
+// scope 029 is designed to fix. T003 migrates dbpush to
+// callMcpToolWithEnvelope so this path stops lying.
+export async function callMcpTool<T = unknown>(
+  name: string,
+  args: Record<string, unknown>,
+  options: McpCallOptions = {},
+): Promise<T> {
+  const envelope = await callMcpToolWithEnvelope<Record<string, unknown>>(name, args, options);
+  return envelope.data as unknown as T;
+}
+// [SCOPE 029 / T002] END

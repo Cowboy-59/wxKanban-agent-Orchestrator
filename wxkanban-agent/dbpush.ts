@@ -15,7 +15,10 @@ import { z } from 'zod';
 import path from 'path';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { parseSpecMd, isSpecFolderName, SpecMetadata } from './core/orchestrator/spec-md-parser';
-import { callMcpTool, McpClientError } from './core/orchestrator/mcp-client';
+import * as readline from 'readline';
+import { callMcpTool, callMcpToolWithEnvelope, McpClientError } from './core/orchestrator/mcp-client';
+import { classifyBlockingIssues } from './core/orchestrator/heading-classifier';
+import { rewriteHeadings } from './core/orchestrator/spec-heading-rewriter';
 
 // ---------------------------------------------------------------------------
 // Zod schema for lifecycle.json — lenient by design.
@@ -125,6 +128,10 @@ interface PushTotals {
   tasksCreated: number;
   taskStatusUpdated: number;
   errors: string[];
+  // Spec 029 / T006 — count of blockingIssues entries surfaced from MCP
+  // envelopes (separate from generic `errors` length so consumers can tell
+  // a preflight rejection apart from a network failure). FR-021.
+  blockingIssuesCount: number;
 }
 
 export interface DbPushOptions {
@@ -132,6 +139,11 @@ export interface DbPushOptions {
   spec?: string;
   force?: boolean;
   skipLifecycle?: boolean;
+  // Spec 029 / T012 — disables the interactive heading-shape auto-correct
+  // prompt. Used by the recursive retry path to prevent infinite loops,
+  // and by callers (CI, tests) that want non-interactive behavior even
+  // when stdin is a TTY.
+  skipInteractiveRetry?: boolean;
 }
 
 export interface DbPushReport {
@@ -145,6 +157,12 @@ export interface DbPushReport {
   push: PushTotals;
   dryRun: boolean;
   dbUnreachable: boolean;
+  // Spec 029 / T012 — populated when the kit auto-rewrote heading-shape
+  // issues and re-ran the push. `retryAttempted: false` means no retry
+  // happened (no heading-shape issues, non-TTY, user answered N, or
+  // skipInteractiveRetry was set).
+  retryAttempted?: boolean;
+  rewroteSpecs?: Array<{ scope: string; bakPath: string; rewroteSections: string[] }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -307,10 +325,37 @@ function phase1Validate(specsRoot: string, scopeFilter?: string): ValidationRepo
 // Phase 2 — compare local with database
 // ---------------------------------------------------------------------------
 
+// [SCOPE 029 / T005] BEGIN — TASK_TITLE_SCOPE_RE (extract NNN from `[NNN-T###]` prefix)
+//
+// Spec 029 / FR-010 — the live `project.list_open_items` envelope returns
+// `tasks` with no `specNumber` field, so we derive the scope number from
+// the leading `[NNN-T###]` prefix that createspecs and implement emit on
+// every task title. Tasks whose titles do not match are ignored, not
+// errors.
+const TASK_TITLE_SCOPE_RE = /^\[(\d{3})-T\d+\]/;
+// [SCOPE 029 / T005] END
+
+// [SCOPE 029 / T005] BEGIN — parseScopeFromTaskTitle (single-task helper, exported for tests)
+export function parseScopeFromTaskTitle(title: string | undefined): string | null {
+  if (typeof title !== 'string') return null;
+  const m = title.match(TASK_TITLE_SCOPE_RE);
+  return m ? (m[1] ?? null) : null;
+}
+// [SCOPE 029 / T005] END
+
+// [SCOPE 029 / T005] BEGIN — phase2Compare (envelope-aware idempotency read)
+//
+// Spec 029 / FR-009 — the real `project.list_open_items` envelope only has
+// `tasks` / `documents` / `events` (no `specs[]`), so the old `resp.specs`
+// branch is removed. Scope numbers come from each task's `specNumber`
+// field when present, or are parsed from the title's `[NNN-T###]` prefix
+// (FR-010). FR-011 preserves the prefix parser as the floor even if the
+// envelope later adds an explicit specs[] array.
 async function phase2Compare(projectId: string): Promise<DbState> {
   type ListResp = {
-    tasks?: Array<{ id?: string; specNumber?: string }>;
-    specs?: Array<{ specNumber?: string }>;
+    tasks?: Array<{ id?: string; specNumber?: string; title?: string }>;
+    documents?: Array<{ id?: string; title?: string }>;
+    events?: Array<{ id?: string; type?: string }>;
   };
   try {
     const resp = await callMcpTool<ListResp>('project.list_open_items', {
@@ -319,19 +364,15 @@ async function phase2Compare(projectId: string): Promise<DbState> {
     });
     const knownSpecNumbers = new Set<string>();
     const knownTaskIdsBySpec = new Map<string, Set<string>>();
-    if (Array.isArray(resp.specs)) {
-      for (const s of resp.specs) {
-        if (s.specNumber) knownSpecNumbers.add(s.specNumber);
-      }
-    }
     if (Array.isArray(resp.tasks)) {
       for (const t of resp.tasks) {
-        if (!t.specNumber) continue;
-        knownSpecNumbers.add(t.specNumber);
-        if (!knownTaskIdsBySpec.has(t.specNumber)) {
-          knownTaskIdsBySpec.set(t.specNumber, new Set());
+        const scope = t.specNumber ?? parseScopeFromTaskTitle(t.title);
+        if (!scope) continue;
+        knownSpecNumbers.add(scope);
+        if (!knownTaskIdsBySpec.has(scope)) {
+          knownTaskIdsBySpec.set(scope, new Set());
         }
-        if (t.id) knownTaskIdsBySpec.get(t.specNumber)!.add(t.id);
+        if (t.id) knownTaskIdsBySpec.get(scope)!.add(t.id);
       }
     }
     return { knownSpecNumbers, knownTaskIdsBySpec, unreachable: false };
@@ -345,6 +386,7 @@ async function phase2Compare(projectId: string): Promise<DbState> {
     };
   }
 }
+// [SCOPE 029 / T005] END
 
 // ---------------------------------------------------------------------------
 // Phase 4 — push to database
@@ -355,6 +397,21 @@ async function phase2Compare(projectId: string): Promise<DbState> {
 // maintains them.
 // ---------------------------------------------------------------------------
 
+// Spec 029 / T003 — counters now derived from server-reported envelope,
+// not from the local artifact. Blocked envelopes (success:false, blocked:
+// true) surface their blockingIssues as r.errors entries prefixed with the
+// scope number. FR-005, FR-006, FR-007.
+interface CreateSpecsResponseShape extends Record<string, unknown> {
+  spec?: { id?: string; specNumber?: string } | null;
+  tasks?: Array<{ id?: string; title?: string }>;
+  documents?: Array<{ id?: string; title?: string }>;
+}
+
+interface UpsertDocumentResponseShape extends Record<string, unknown> {
+  document?: { id?: string; title?: string };
+}
+
+// [SCOPE 029 / T003] BEGIN — pushNewSpec (envelope-aware create_specs)
 async function pushNewSpec(
   projectId: string,
   artifact: SpecArtifact,
@@ -367,38 +424,62 @@ async function pushNewSpec(
     tasksCreated: 0,
     taskStatusUpdated: 0,
     errors: [],
+    blockingIssuesCount: 0,
   };
   const featureName =
     artifact.specMeta.title || artifact.slug || `Spec ${artifact.scope}`;
   if (dryRun) {
+    // Dry-run keeps the old behavior — we can't know the server response
+    // without calling, so we estimate from the local artifact. The estimate
+    // is labelled as such by the report's `dryRun: true` flag.
     r.specsCreated++;
     r.tasksCreated += artifact.tasks.length;
     return r;
   }
   try {
-    await callMcpTool('project.create_specs', {
-      projectId,
-      specNumber: artifact.scope,
-      featureName,
-      scopeContent: artifact.specBody,
-      phase: artifact.lifecycle?.phase ?? 'design',
-      priority: artifact.lifecycle?.priority ?? 'medium',
-      tasks: artifact.tasks.map((t) => ({
-        title: t.title,
-        description: t.title,
-        priority: 'medium' as const,
-        status: (t.status || 'todo') as 'todo' | 'in_progress' | 'blocked' | 'done',
-      })),
-      generateLifecycle: false,
-    });
-    r.specsCreated++;
-    r.tasksCreated += artifact.tasks.length;
+    const envelope = await callMcpToolWithEnvelope<CreateSpecsResponseShape>(
+      'project.create_specs',
+      {
+        projectId,
+        specNumber: artifact.scope,
+        featureName,
+        scopeContent: artifact.specBody,
+        phase: artifact.lifecycle?.phase ?? 'design',
+        priority: artifact.lifecycle?.priority ?? 'medium',
+        tasks: artifact.tasks.map((t) => ({
+          title: t.title,
+          description: t.title,
+          priority: 'medium' as const,
+          status: (t.status || 'todo') as 'todo' | 'in_progress' | 'blocked' | 'done',
+        })),
+        generateLifecycle: false,
+      },
+    );
+    if (envelope.success === false) {
+      // FR-005 — blocked envelope. Surface each blocking issue prefixed
+      // with the scope number; do NOT increment counters.
+      const issues = envelope.blockingIssues.length > 0
+        ? envelope.blockingIssues
+        : ['create_specs returned success:false without blockingIssues'];
+      for (const issue of issues) {
+        r.errors.push(`${artifact.scope}: ${issue}`);
+      }
+      // FR-021 — blockingIssuesCount tracks only server-reported blocking
+      // issues, not generic network/throw errors.
+      r.blockingIssuesCount += envelope.blockingIssues.length;
+    } else {
+      // FR-006 — counts derived from server response, not local artifact.
+      r.specsCreated += envelope.data.spec != null ? 1 : 0;
+      r.tasksCreated += Array.isArray(envelope.data.tasks) ? envelope.data.tasks.length : 0;
+    }
   } catch (err) {
     r.errors.push(`create_specs ${artifact.scope}: ${(err as Error).message}`);
   }
   return r;
 }
+// [SCOPE 029 / T003] END
 
+// [SCOPE 029 / T003] BEGIN — pushExistingSpec (envelope-aware upsert_document)
 async function pushExistingSpec(
   projectId: string,
   artifact: SpecArtifact,
@@ -411,6 +492,7 @@ async function pushExistingSpec(
     tasksCreated: 0,
     taskStatusUpdated: 0,
     errors: [],
+    blockingIssuesCount: 0,
   };
   const featureName =
     artifact.specMeta.title || artifact.slug || `Spec ${artifact.scope}`;
@@ -430,12 +512,27 @@ async function pushExistingSpec(
       continue;
     }
     try {
-      await callMcpTool('project.upsert_document', {
-        projectId,
-        title: d.title,
-        bodyMarkdown: d.body,
-      });
-      r.docsUpserted++;
+      const envelope = await callMcpToolWithEnvelope<UpsertDocumentResponseShape>(
+        'project.upsert_document',
+        {
+          projectId,
+          title: d.title,
+          bodyMarkdown: d.body,
+        },
+      );
+      if (envelope.success === false) {
+        // FR-007 — blocked envelope on upsert. Surface each blocking issue
+        // prefixed with the doc title; do NOT increment docsUpserted.
+        const issues = envelope.blockingIssues.length > 0
+          ? envelope.blockingIssues
+          : ['upsert_document returned success:false without blockingIssues'];
+        for (const issue of issues) {
+          r.errors.push(`upsert_document "${d.title}": ${issue}`);
+        }
+        r.blockingIssuesCount += envelope.blockingIssues.length;
+      } else {
+        r.docsUpserted++;
+      }
     } catch (err) {
       r.errors.push(`upsert_document "${d.title}": ${(err as Error).message}`);
     }
@@ -445,6 +542,7 @@ async function pushExistingSpec(
   // side. For now dbpush keeps existing tasks in DB untouched on re-runs.
   return r;
 }
+// [SCOPE 029 / T003] END
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -492,6 +590,7 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
     tasksCreated: 0,
     taskStatusUpdated: 0,
     errors: [],
+    blockingIssuesCount: 0,
   };
   // Short-circuit Phase 4 when MCP is unreachable AND we're not in dry-run.
   // Without this guard we'd emit one "MCP not reachable" error per spec —
@@ -513,6 +612,7 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
       totals.tasksCreated += r.tasksCreated;
       totals.taskStatusUpdated += r.taskStatusUpdated;
       totals.errors.push(...r.errors);
+      totals.blockingIssuesCount += r.blockingIssuesCount;
     }
   }
 
@@ -531,7 +631,11 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
           specsProcessed: validation.artifacts.length,
           specsSkipped: validation.skipped.length,
           validationErrors: blockingErrors.length,
+          // Spec 029 / T006 / FR-021 — pushErrors reflects post-envelope
+          // detection truth; blockingIssuesCount surfaces server-reported
+          // preflight rejections separately from network/throw errors.
           pushErrors: totals.errors.length,
+          blockingIssuesCount: totals.blockingIssuesCount,
           forced: !!options.force,
         },
       });
@@ -539,6 +643,42 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
       console.warn(`dbpush: capture_event failed (non-fatal): ${(err as Error).message}`);
     }
   }
+
+  // [SCOPE 029 / T012] BEGIN — interactive heading-shape retry (FR-017 / FR-018 / FR-019 / FR-020)
+  //
+  // When at least one spec was blocked AND we're attached to a TTY AND
+  // the caller didn't disable interactive retry, classify each blocked
+  // spec for recoverable heading-shape issues and offer auto-correct.
+  // Content blocking issues remain in errors regardless (FR-020).
+  const retryDecision = await maybeOfferInteractiveRetry({
+    artifacts: validation.artifacts,
+    totals,
+    options,
+    dryRun: !!options.dryRun,
+    dbUnreachable: dbState.unreachable,
+  });
+
+  if (retryDecision.retryConfirmed) {
+    // Rewrite affected files, then re-run dbpush once with the retry
+    // flag set so we never loop more than one round.
+    const rewroteSpecs: Array<{ scope: string; bakPath: string; rewroteSections: string[] }> = [];
+    for (const candidate of retryDecision.candidates) {
+      const result = rewriteHeadings(candidate.specPath, candidate.headingShape);
+      rewroteSpecs.push({
+        scope: candidate.scope,
+        bakPath: result.bakPath,
+        rewroteSections: result.rewroteSections,
+      });
+    }
+    console.log(`dbpush: rewrote ${rewroteSpecs.length} spec.md file(s); re-running push.`);
+    const retryReport = await dbpush({ ...options, skipInteractiveRetry: true });
+    return {
+      ...retryReport,
+      retryAttempted: true,
+      rewroteSpecs,
+    };
+  }
+  // [SCOPE 029 / T012] END
 
   return {
     validation: {
@@ -551,8 +691,81 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
     push: totals,
     dryRun: !!options.dryRun,
     dbUnreachable: dbState.unreachable,
+    retryAttempted: false,
   };
 }
+
+// [SCOPE 029 / T012] BEGIN — maybeOfferInteractiveRetry (prompt + classifier orchestration)
+//
+// Side effect: prints heading-shape issues + reads y/N from stdin when the
+// gate conditions are met. Returns:
+//   - retryConfirmed: whether to actually rewrite + re-run
+//   - candidates: per-spec heading-shape sections to rewrite
+async function maybeOfferInteractiveRetry(input: {
+  artifacts: SpecArtifact[];
+  totals: PushTotals;
+  options: DbPushOptions;
+  dryRun: boolean;
+  dbUnreachable: boolean;
+}): Promise<{
+  retryConfirmed: boolean;
+  candidates: Array<{ scope: string; specPath: string; headingShape: string[] }>;
+}> {
+  if (input.options.skipInteractiveRetry) return { retryConfirmed: false, candidates: [] };
+  if (input.dryRun || input.dbUnreachable) return { retryConfirmed: false, candidates: [] };
+  if (input.totals.blockingIssuesCount === 0) return { retryConfirmed: false, candidates: [] };
+
+  // Parse scope numbers out of `r.errors` — pushNewSpec uses `NNN:` prefix
+  // for blocking issues (FR-005).
+  const blockedScopes = new Set<string>();
+  for (const err of input.totals.errors) {
+    const m = err.match(/^(\d{3}):/);
+    if (m && m[1]) blockedScopes.add(m[1]);
+  }
+
+  const candidates: Array<{ scope: string; specPath: string; headingShape: string[] }> = [];
+  for (const artifact of input.artifacts) {
+    if (!blockedScopes.has(artifact.scope)) continue;
+    const specPath = path.join(artifact.dir, 'spec.md');
+    if (!existsSync(specPath)) continue;
+    const classified = classifyBlockingIssues(specPath);
+    if (classified.headingShape.length > 0) {
+      candidates.push({
+        scope: artifact.scope,
+        specPath,
+        headingShape: classified.headingShape,
+      });
+    }
+  }
+
+  if (candidates.length === 0) return { retryConfirmed: false, candidates: [] };
+
+  // FR-018 / FR-020 — non-TTY runs skip the prompt entirely and exit with
+  // all blocking issues as errors (CI-safe).
+  if (!process.stdin.isTTY) return { retryConfirmed: false, candidates: [] };
+
+  console.log('');
+  console.log('Heading-shape issues detected — these can be auto-corrected:');
+  for (const c of candidates) {
+    console.log(`  ${c.scope}: ${c.headingShape.join(', ')}`);
+  }
+  console.log('');
+  const answer = await promptYesNo('Auto-correct heading shape and retry push? [y/N]: ');
+  return { retryConfirmed: answer, candidates };
+}
+// [SCOPE 029 / T012] END
+
+// [SCOPE 029 / T012] BEGIN — promptYesNo (readline wrapper, default = no)
+function promptYesNo(question: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(/^y(es)?$/i.test(answer.trim()));
+    });
+  });
+}
+// [SCOPE 029 / T012] END
 
 // ---------------------------------------------------------------------------
 // CLI entry point (preserved for backwards-compat with `node dbpush.js`)
@@ -577,7 +790,13 @@ if (require.main === module) {
       console.log(`  Docs upserted:   ${report.push.docsUpserted}`);
       console.log(`  Tasks created:   ${report.push.tasksCreated}`);
       if (report.push.errors.length > 0) {
-        console.log(`  Push errors (${report.push.errors.length}):`);
+        // Spec 029 / T006 — surface the blocking-issues subset so operators
+        // can tell a preflight rejection apart from a network/throw error.
+        const blockingIssuesCount = report.push.blockingIssuesCount;
+        const suffix = blockingIssuesCount > 0
+          ? `, ${blockingIssuesCount} from server preflight blocks`
+          : '';
+        console.log(`  Push errors (${report.push.errors.length}${suffix}):`);
         for (const e of report.push.errors) console.log(`    - ${e}`);
       }
       if (report.dryRun) console.log('\n(dry-run — no DB writes performed)');

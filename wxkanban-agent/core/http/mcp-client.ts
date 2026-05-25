@@ -9,10 +9,22 @@
  *   - one automatic retry on 429 with Retry-After
  *   - clean 5xx error surface (no auto-retry)
  *   - fast-fail on missing token + https:// base URL
+ *
+ * Spec 029 / T002 — gains callToolWithEnvelope() which auto-unwraps the
+ * MCP `{content:[{text}]}` wire body and returns the envelope (success /
+ * blocked / blockingIssues / data). callTool() keeps its raw-wire return
+ * for backward compatibility with existing callers (buildscope-worker,
+ * lifecycle-client, tests). FR-002.
  */
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { resolveServiceUrl } from "../context/runtime-state";
+import {
+  unwrapMcpContent,
+  classifyEnvelope,
+  McpEnvelopeError,
+  type McpEnvelope,
+} from "../orchestrator/mcp-envelope";
 
 export interface McpClientOptions {
   baseUrl?: string;
@@ -146,6 +158,40 @@ export class McpClient {
     }
     return { ok: true, status: res.status, data };
   }
+
+  // [SCOPE 029 / T002] BEGIN — callToolWithEnvelope (envelope-aware variant)
+  //
+  // Returns the unwrapped MCP envelope (success / blocked / blockingIssues /
+  // data) so callers can detect HTTP 422 OR HTTP 200 + success:false blocks
+  // without duplicating wire-format parsing. Wraps callTool's HTTP +
+  // 429-retry behavior; routes the resulting body through
+  // unwrapMcpContent + classifyEnvelope from mcp-envelope.ts.
+  //
+  // 5xx and non-422 4xx still surface via McpCallResult.error (ok:false);
+  // the envelope itself is only populated on 2xx and 422.
+  async callToolWithEnvelope<T extends Record<string, unknown> = Record<string, unknown>>(
+    tool: string,
+    args: Record<string, unknown> = {},
+  ): Promise<McpCallResult<McpEnvelope<T>>> {
+    const raw = await this.callTool<unknown>(tool, args);
+    if (!raw.ok) {
+      return { ok: false, status: raw.status, error: raw.error };
+    }
+    // 422 from this client surfaces as ok:false above (status >= 400 path);
+    // but if the server returned 200 with success:false (legacy block),
+    // the body is a normal 2xx response from callTool's perspective.
+    try {
+      const inner = unwrapMcpContent<T>(raw.data);
+      const envelope = classifyEnvelope<T>(inner, raw.status);
+      return { ok: true, status: raw.status, data: envelope };
+    } catch (err) {
+      if (err instanceof McpEnvelopeError) {
+        return { ok: false, status: raw.status, error: err.message };
+      }
+      throw err;
+    }
+  }
+  // [SCOPE 029 / T002] END
 }
 
 let defaultInstance: McpClient | null = null;
