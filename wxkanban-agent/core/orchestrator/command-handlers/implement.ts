@@ -28,6 +28,7 @@ import {
   NoDetectableUnitError,
   TaskFenceRow,
 } from "../fence-emitter";
+import { emitCockpitRefresh } from "../cockpit-refresh";
 import { isSuppressed } from "../language-matrix";
 import { isDriftDetected } from "../content-hash";
 import { markTaskDone } from "../tasks-md-writer";
@@ -532,6 +533,14 @@ export async function handleImplementBatchCommand(
       summary.totalWarnings += outcome.result.warnings.length;
     }
   }
+
+  // [SCOPE 042 / T021] BEGIN — ping the VS Code Dev Cockpit when a batch
+  // completed real work so the affected scope's remaining count drops without a
+  // manual refresh (spec 042 FR-006 / SC-3). Best-effort; skipped on dry-run.
+  if (!options.dryRun && summary.succeeded > 0) {
+    emitCockpitRefresh();
+  }
+  // [SCOPE 042 / T021] END
 
   return {
     exitCode: highestExitCode,

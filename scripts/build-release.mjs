@@ -274,9 +274,40 @@ async function main() {
     log('prebuild', c.green, 'shared/preflight/dist ready');
   }
 
+  // ─── Pre-build the VS Code Dev Cockpit .vsix (spec 042 FR-009) ────────────
+  // The kit ships ONLY the packaged .vsix (not the extension source). init.mjs
+  // installs it via `code --install-extension`. We rebuild it from the mirrored
+  // vscode-extension/ source on every release so the .vsix version tracks the
+  // kit. The source dir itself is NOT in KIT_INCLUDE_DIRS, so only the .vsix
+  // produced here is added to the archive (below).
+  let vsixRel = null;
+  const vscodeExtDir = path.join(root, 'vscode-extension');
+  if (existsSync(vscodeExtDir)) {
+    log('prebuild', c.yellow, 'Packaging vscode-extension (.vsix)...');
+    const { execSync } = await import('node:child_process');
+    // Drop stale .vsix so we pack exactly the one we just built.
+    for (const f of await fsp.readdir(vscodeExtDir)) {
+      if (f.endsWith('.vsix')) await fsp.rm(path.join(vscodeExtDir, f), { force: true });
+    }
+    if (!existsSync(path.join(vscodeExtDir, 'node_modules'))) {
+      execSync('npm install', { cwd: vscodeExtDir, stdio: 'inherit' });
+    }
+    execSync('npm run package', { cwd: vscodeExtDir, stdio: 'inherit' });
+    const vsixFiles = (await fsp.readdir(vscodeExtDir)).filter(f => f.endsWith('.vsix')).sort();
+    if (vsixFiles.length === 0) {
+      throw new Error('vscode-extension packaging produced no .vsix — investigate before packing');
+    }
+    vsixRel = `vscode-extension/${vsixFiles[vsixFiles.length - 1]}`;
+    log('prebuild', c.green, `Dev Cockpit .vsix ready: ${vsixRel}`);
+  }
+
   // ─── Collect ────────────────────────────────────────────────────────────
   log('scan', c.yellow, 'Scanning kit files...');
   const files = await gatherKitFiles();
+  // Spec 042 — add the prebuilt .vsix (only the artifact, not the source tree).
+  if (vsixRel) {
+    files.push({ full: path.join(root, vsixRel), rel: vsixRel });
+  }
   log('scan', c.green, `${files.length} files staged`);
 
   if (DRY_RUN) {

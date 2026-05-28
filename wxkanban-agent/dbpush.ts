@@ -19,6 +19,7 @@ import * as readline from 'readline';
 import { callMcpTool, callMcpToolWithEnvelope, McpClientError } from './core/orchestrator/mcp-client';
 import { classifyBlockingIssues } from './core/orchestrator/heading-classifier';
 import { rewriteHeadings } from './core/orchestrator/spec-heading-rewriter';
+import { emitCockpitRefresh } from './core/orchestrator/cockpit-refresh';
 
 // ---------------------------------------------------------------------------
 // Zod schema for lifecycle.json — lenient by design.
@@ -58,32 +59,161 @@ interface ParsedTask {
   title: string;
   status: string;
 }
-// createspecs emits the summary table as `| # | Task | Priority | Status |`
-// — integer in col 1, bare title in col 2, no T### prefix anywhere. The
-// canonical T### id lives on the per-task headings in `## Task Details`
-// (`### T001 — Title`). Synthesize the id from col 1 here so the parser
-// matches the emitter; col 4 (status) maps to ParsedTask.status. Pre-fix
-// behavior required `T###` in col 2 and matched zero rows on every
-// createspecs-produced tasks.md (BUG-2026-05-24).
-const TASKS_TABLE_ROW_RE =
-  /^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|/;
+// Header-aware tasks.md parser. createspecs historically emitted a 4-column
+// table `| # | Task | Priority | Status |` (specs 028–036), but newer specs
+// (037+) emit 5 columns with an FR/SC linkage column inserted:
+// `| # | Task | FR / SC | Priority | Status |`.
+//
+// Pre-fix (BUG: status column lookup was hard-coded to col index 4) treated
+// the 5-column variant's col 4 — which is Priority — as Status, causing the
+// MCP to reject `tasks.0.status: 'high'` against the
+// `'todo' | 'in_progress' | 'blocked' | 'done'` enum.
+//
+// Fix: read the header row to discover the actual column positions of "Task"
+// (or "Title") and "Status". Fall back to legacy positions (2, last) when the
+// header is missing or unrecognized so we don't regress on hand-authored
+// tables without explicit headers.
+//
+// Also: the canonical T### id lives on per-task headings in `## Task Details`
+// (`### T001 — Title`); synthesize it from col 1 here.
+
+function splitTableRow(line: string): string[] {
+  // Strip leading/trailing pipes and split. Trim each cell.
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return trimmed.split("|").map((cell) => cell.trim());
+}
+
+function findColumnIndex(
+  headerCells: string[],
+  matchers: RegExp[],
+): number {
+  for (let i = 0; i < headerCells.length; i += 1) {
+    for (const re of matchers) {
+      if (re.test(headerCells[i])) return i;
+    }
+  }
+  return -1;
+}
+
 export function parseTasksMd(body: string): ParsedTask[] {
   const out: ParsedTask[] = [];
-  for (const line of body.split(/\r?\n/)) {
-    // Skip the header + separator rows (`| # | Task | …` and `|---|---|…`).
-    if (/^\|\s*#\s*\|/i.test(line)) continue;
-    if (/^\|\s*-+\s*\|/.test(line)) continue;
-    const m = line.match(TASKS_TABLE_ROW_RE);
-    if (!m) continue;
-    const num = Number(m[1]);
+  const lines = body.split(/\r?\n/);
+
+  // First pass: locate the header row + decode column indices.
+  // The header row is the first table line that starts with `| #` (case-insensitive).
+  let titleCol = 1; // legacy default: 2nd column (index 1)
+  let statusCol = -1; // legacy default: last column; resolved per-row below
+  let headerFound = false;
+  for (const line of lines) {
+    if (/^\|\s*#\s*\|/i.test(line)) {
+      const cells = splitTableRow(line);
+      const tIdx = findColumnIndex(cells, [/^task$/i, /^title$/i, /^name$/i]);
+      const sIdx = findColumnIndex(cells, [/^status$/i, /^state$/i]);
+      if (tIdx > 0) titleCol = tIdx;
+      if (sIdx > 0) statusCol = sIdx;
+      headerFound = true;
+      break;
+    }
+  }
+
+  // Reject rows that don't have enough columns to fill the expected layout —
+  // protects against secondary tables (e.g. verification matrices in 026, 028,
+  // 036) appearing later in the same file with fewer columns. Without this
+  // guard the parser would treat their rows as tasks with garbage statuses.
+  const minColsRequired =
+    statusCol >= 0 ? statusCol + 1 : titleCol + 1;
+
+  // Second pass: parse data rows.
+  for (const line of lines) {
+    if (/^\|\s*#\s*\|/i.test(line)) continue; // header
+    if (/^\|\s*-+\s*\|/.test(line)) continue; // separator
+    if (!line.trim().startsWith("|")) continue; // not a table row
+    const cells = splitTableRow(line);
+    if (cells.length < 2) continue;
+
+    // First column may be either bare integer ("1", "001") or T-prefixed
+    // ("T001", "t012") — accept both since createspecs has emitted both
+    // shapes across spec generations.
+    const numMatch = /^T?0*(\d+)$/i.exec(cells[0]);
+    if (!numMatch) continue;
+    const num = Number(numMatch[1]);
     if (!Number.isFinite(num)) continue;
+
+    // Skip rows that can't possibly be from the same table as the header.
+    if (cells.length < minColsRequired) continue;
+
+    const title = (cells[titleCol] ?? "").trim();
+    // When no header (or no Status column found), fall back to the LAST
+    // cell — matches the legacy 4-column emitter where Status was the
+    // rightmost column.
+    const effectiveStatusCol =
+      statusCol >= 0 && statusCol < cells.length ? statusCol : cells.length - 1;
+    const status = (cells[effectiveStatusCol] ?? "").trim();
+
     out.push({
-      id: 'T' + String(num).padStart(3, '0'),
-      title: (m[2] ?? '').trim(),
-      status: (m[4] ?? '').trim(),
+      id: "T" + String(num).padStart(3, "0"),
+      title,
+      status,
     });
   }
+
+  // headerFound is captured for potential future telemetry; current behavior
+  // works fine with or without it (fallback to legacy positions).
+  void headerFound;
+
   return out;
+}
+
+// Normalize free-form status strings authored in tasks.md to the canonical
+// MCP enum. Spec authors have used 'N/A' (026), 'partial' (028), and similar
+// values that the strict MCP server rejects with -32602. Map them to the
+// closest canonical value; default unknowns to 'todo' so create_specs at
+// least lands the task row instead of failing the whole spec.
+function normalizeTaskStatus(
+  raw: string,
+): "todo" | "in_progress" | "blocked" | "done" {
+  const v = raw.toLowerCase().trim();
+  if (
+    v === "done" ||
+    v === "completed" ||
+    v === "complete" ||
+    v === "closed" ||
+    v === "finished" ||
+    v === "shipped"
+  ) return "done";
+  if (
+    v === "in_progress" ||
+    v === "in progress" ||
+    v === "in-progress" ||
+    v === "doing" ||
+    v === "active" ||
+    v === "wip"
+  ) return "in_progress";
+  if (v === "blocked" || v === "stalled" || v === "waiting") return "blocked";
+  if (
+    v === "todo" ||
+    v === "pending" ||
+    v === "open" ||
+    v === "not started" ||
+    v === "queued"
+  ) return "todo";
+  // Closed-but-not-strictly-done values that spec authors use to mark
+  // tasks they've stopped working on. Treat as 'done' so they land in DB.
+  if (
+    v === "n/a" ||
+    v === "na" ||
+    v === "not applicable" ||
+    v === "not-applicable" ||
+    v === "partial" ||
+    v === "wontfix" ||
+    v === "won't fix" ||
+    v === "cancelled" ||
+    v === "canceled" ||
+    v === "deferred"
+  ) return "done";
+  // Anything else: log via the kit logger handled by the caller; default to
+  // 'todo' so the row still lands.
+  return "todo";
 }
 
 // ---------------------------------------------------------------------------
@@ -447,10 +577,18 @@ async function pushNewSpec(
         phase: artifact.lifecycle?.phase ?? 'design',
         priority: artifact.lifecycle?.priority ?? 'medium',
         tasks: artifact.tasks.map((t) => ({
-          title: t.title,
+          // MCP enforces title ≤ 255 chars. Some spec authors author
+          // multi-sentence "titles" in tasks.md (e.g. 028 T050). Truncate
+          // with ellipsis so the row still lands; the full text is
+          // preserved verbatim in the description field below (and in the
+          // source tasks.md on disk).
+          title:
+            t.title.length > 255 ? t.title.slice(0, 252) + "…" : t.title,
           description: t.title,
           priority: 'medium' as const,
-          status: (t.status || 'todo') as 'todo' | 'in_progress' | 'blocked' | 'done',
+          // Normalize free-form status (N/A, partial, etc.) to the MCP enum
+          // instead of casting blindly — see normalizeTaskStatus comment.
+          status: normalizeTaskStatus(t.status || 'todo'),
         })),
         generateLifecycle: false,
       },
@@ -679,6 +817,14 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
     };
   }
   // [SCOPE 029 / T012] END
+
+  // [SCOPE 042 / T021] BEGIN — ping the VS Code Dev Cockpit after a real push
+  // so newly created scopes/specs/tasks surface without a manual refresh
+  // (spec 042 FR-006 / SC-2). Best-effort; skipped for dry-run / DB-unreachable.
+  if (!options.dryRun && !dbState.unreachable) {
+    emitCockpitRefresh();
+  }
+  // [SCOPE 042 / T021] END
 
   return {
     validation: {

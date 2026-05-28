@@ -2,6 +2,36 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.3.0 — 2026-05-28
+
+### Added — VS Code Dev Cockpit extension shipped in the kit (spec 042)
+
+A read-only VS Code sidebar that shows the linked project's remaining work per
+scope (active scope pinned), reading exclusively through the hosted,
+project-scoped MCP. It now ships and installs as part of the kit:
+
++ **`vscode-extension/`** — the Dev Cockpit (Activity Bar view, read-only task
+  detail, open-related-spec, empty/error states). Token lives in VS Code
+  SecretStorage, bootstrapped from the kit's locations on first run.
++ **Live refresh** — `dbpush` and `implement` completion now ping
+  `vscode://wxperts.wxkanban-dev-cockpit/refresh` (best-effort `code
+  --open-url`; disable with `WXKANBAN_NO_COCKPIT_REFRESH=1`) so the cockpit
+  re-queries immediately. A visible-only 30s poll is the fallback for changes
+  made outside the IDE.
++ **Distribution** — `scripts/build-release.mjs` rebuilds the `.vsix` from the
+  mirrored extension source and packs only the artifact into the kit archive;
+  `scripts/init.mjs` installs/updates it via `code --install-extension`,
+  version-aware (unchanged = no-op) and best-effort (skipped when `code` is
+  absent). A kit upgrade re-runs `init.mjs`, so the extension tracks the kit.
+
+### Added/Changed — MCP
+
++ **`project.cockpit_summary`** (mcp-server) — single-project read returning the
+  project's scopes with their incomplete tasks (`todo`/`in_progress`/`blocked`)
+  and counts. Bound to the token's project via `selectScoped`, with an explicit
+  scope assertion, so a token for one project can never surface a sibling
+  project under the same customer.
+
 ## v1.2.6 — 2026-05-24
 
 ### Fixed — upstreamed two YappChat local patches so consumers don't have to reapply them
