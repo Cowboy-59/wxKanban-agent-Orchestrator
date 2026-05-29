@@ -52,18 +52,17 @@ Before fetching project data, verify and configure the developer environment. Ru
 
 Check `.claude/settings.json` (workspace root) for the `wxkanban-mcp` entry.
 
-**If missing**, add it. The kit ships with the HTTP MCP transport (stdio was removed in v0.3.2 — spec 019 R17). Read the assigned port from `.wxkanban-project.json` `mcpHttpUrl` (auto-allocated at init per spec 019 R18 — typically `3002`, may differ if that port was taken):
+**If missing**, add it. The MCP is **hosted** (spec 028) — there is no local MCP server to spawn. Read the endpoint from `.wxkanban-project.json` `mcpBaseUrl` (written by `init.mjs`; defaults to `https://mcp.wxperts.com`) and authenticate with the bearer token from `.env`:
 
 ```json
 {
   "mcpServers": {
     "wxkanban": {
-      "type": "http",
-      "command": "node",
-      "args": ["mcp-server/dist/index-http.js"],
+      "transport": "https",
+      "url": "<mcpBaseUrl from .wxkanban-project.json>",
       "env": {
-        "MCP_HTTP_PORT": "<port from .wxkanban-project.json>",
-        "API_KEY": "<from .env>",
+        "WXKANBAN_MCP_BASE_URL": "<mcpBaseUrl from .wxkanban-project.json>",
+        "WXKANBAN_API_TOKEN": "<from .env>",
         "WXKANBAN_PROJECT_ID": "<from .env>"
       }
     }
@@ -71,9 +70,11 @@ Check `.claude/settings.json` (workspace root) for the `wxkanban-mcp` entry.
 }
 ```
 
+> Legacy note: pre-028 kits ran a local MCP on an auto-allocated port via `mcpHttpUrl` / `MCP_HTTP_PORT`. That model is retired — the hosted MCP uses `mcpBaseUrl` + a project-scoped bearer token, and nothing is started locally.
+
 If `.claude/settings.json` exists but has other entries, merge — do not overwrite the file.
 
-Report: `✓ MCP wxKanban registered (port <n>)` or `⚠ Already present`.
+Report: `✓ MCP wxKanban registered (<mcpBaseUrl>)` or `⚠ Already present`.
 
 ---
 

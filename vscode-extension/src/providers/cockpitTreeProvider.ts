@@ -119,7 +119,9 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
         signature: `${ctx.activeScope ?? ''}|${signatureOf(summary)}`,
       };
     } catch (err) {
-      const msg = (err as Error).message;
+      // Surface the resolved endpoint so a misconfig (e.g. falling back to
+      // localhost when the hosted URL key is missing) is self-diagnosing.
+      const msg = `Tried ${ctx.mcpBaseUrl} — ${(err as Error).message}`;
       return { state: 'error', summary: null, activeScope: ctx.activeScope, errorMsg: msg, signature: `error:${msg}` };
     }
   }

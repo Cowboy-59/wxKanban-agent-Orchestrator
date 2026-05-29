@@ -12,10 +12,11 @@ import { resolveProjectContext } from '../src/services/projectContext';
 
 const VALID_UUID = 'ba924193-0335-4080-9fa6-33cd6b81300a';
 
-function makeProject(opts: { projectId?: string; mcpHttpUrl?: string; mcpHttpPort?: number; activeScope?: string }): string {
+function makeProject(opts: { projectId?: string; mcpBaseUrl?: string; mcpHttpUrl?: string; mcpHttpPort?: number; activeScope?: string }): string {
   const root = mkdtempSync(join(tmpdir(), 'wxk-ctx-'));
   const wxk: Record<string, unknown> = {};
   if (opts.projectId !== undefined) wxk.projectId = opts.projectId;
+  if (opts.mcpBaseUrl !== undefined) wxk.mcpBaseUrl = opts.mcpBaseUrl;
   if (opts.mcpHttpUrl !== undefined) wxk.mcpHttpUrl = opts.mcpHttpUrl;
   if (opts.mcpHttpPort !== undefined) wxk.mcpHttpPort = opts.mcpHttpPort;
   writeFileSync(join(root, '.wxkanban-project.json'), JSON.stringify(wxk));
@@ -41,12 +42,32 @@ afterEach(() => {
 
 describe('resolveProjectContext', () => {
   it('resolves a valid UUID project and reads active scope', () => {
-    const root = track(makeProject({ projectId: VALID_UUID, mcpHttpUrl: 'https://mcp.wxperts.com', activeScope: '042' }));
+    const root = track(makeProject({ projectId: VALID_UUID, mcpBaseUrl: 'https://mcp.wxperts.com', activeScope: '042' }));
     const ctx = resolveProjectContext([root]);
     expect(ctx).not.toBeNull();
     expect(ctx!.projectId).toBe(VALID_UUID);
     expect(ctx!.mcpBaseUrl).toBe('https://mcp.wxperts.com');
     expect(ctx!.activeScope).toBe('042');
+  });
+
+  it('reads the hosted endpoint from mcpBaseUrl (the key init.mjs writes — spec 028)', () => {
+    const root = track(makeProject({ projectId: VALID_UUID, mcpBaseUrl: 'https://mcp.wxperts.com' }));
+    expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('https://mcp.wxperts.com');
+  });
+
+  it('mcpBaseUrl wins over legacy mcpHttpUrl/mcpHttpPort', () => {
+    const root = track(makeProject({
+      projectId: VALID_UUID,
+      mcpBaseUrl: 'https://mcp.wxperts.com',
+      mcpHttpUrl: 'http://localhost:3002',
+      mcpHttpPort: 3004,
+    }));
+    expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('https://mcp.wxperts.com');
+  });
+
+  it('falls back to legacy mcpHttpUrl when mcpBaseUrl absent (old project files)', () => {
+    const root = track(makeProject({ projectId: VALID_UUID, mcpHttpUrl: 'http://localhost:3002' }));
+    expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('http://localhost:3002');
   });
 
   it('rejects the stale tools/ fixture (projectId test-project-123) as not linked', () => {
