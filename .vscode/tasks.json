@@ -28,6 +28,20 @@
         "showReuseMessage": false
       },
       "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "Install wxKanban Dev Cockpit",
+      "type": "shell",
+      "command": "node",
+      "args": ["scripts/install-cockpit-extension.mjs"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false
+      },
+      "runOptions": { "runOn": "folderOpen" }
     }
   ]
 }

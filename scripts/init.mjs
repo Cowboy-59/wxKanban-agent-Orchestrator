@@ -19,8 +19,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
+// Spec 042 — single source of truth for the Dev Cockpit install (also run by
+// the .vscode/tasks.json folderOpen task so a fresh download installs it too).
+import { installCockpitExtension } from './install-cockpit-extension.mjs';
 
 const root = process.cwd();
 const envPath = path.join(root, '.env');
@@ -239,67 +242,6 @@ async function ensureDepsInstalled() {
   console.log('[init] ✓ dependencies installed');
 }
 
-// ─── Spec 042 — VS Code Dev Cockpit extension install (FR-009/FR-010) ────────
-// Best-effort. Runs on every init (fresh install AND upgrade, since
-// upgrade-kit.mjs re-runs init.mjs). Idempotent + version-aware: installs the
-// bundled .vsix only when VS Code doesn't already have that exact version, so
-// an unchanged kit is a no-op. NEVER fails init — `code` may be absent, or the
-// consumer may not use VS Code at all.
-const COCKPIT_EXTENSION_ID = 'wxperts.wxkanban-dev-cockpit';
-
-function findBundledVsix() {
-  const extDir = path.join(root, 'vscode-extension');
-  if (!fs.existsSync(extDir)) return null;
-  const vsix = fs.readdirSync(extDir).filter((f) => f.endsWith('.vsix')).sort();
-  if (vsix.length === 0) return null;
-  const file = vsix[vsix.length - 1];
-  // Filename is `<name>-<version>.vsix`; pull the trailing semver.
-  const m = file.match(/-(\d+\.\d+\.\d+)\.vsix$/);
-  return { path: path.join(extDir, file), version: m ? m[1] : null };
-}
-
-function runCode(args) {
-  const isWin = process.platform === 'win32';
-  const res = spawnSync(isWin ? 'code.cmd' : 'code', args, {
-    encoding: 'utf8',
-    shell: isWin,
-    timeout: 60_000,
-  });
-  return { ok: res.status === 0 && !res.error, stdout: res.stdout || '' };
-}
-
-function installedCockpitVersion() {
-  const res = runCode(['--list-extensions', '--show-versions']);
-  if (!res.ok) return undefined; // `code` not available → caller decides
-  const line = res.stdout.split(/\r?\n/).find((l) => l.startsWith(`${COCKPIT_EXTENSION_ID}@`));
-  return line ? line.split('@')[1]?.trim() : null; // null = not installed
-}
-
-function installCockpitExtension() {
-  const bundled = findBundledVsix();
-  if (!bundled) return; // no extension shipped in this kit
-
-  const installed = installedCockpitVersion();
-  if (installed === undefined) {
-    console.log('[init] VS Code `code` CLI not found on PATH; skipping Dev Cockpit install.');
-    console.log(`[init]   To install manually: code --install-extension "${bundled.path}"`);
-    return;
-  }
-  if (installed && bundled.version && installed === bundled.version) {
-    console.log(`[init] Dev Cockpit ${installed} already installed — no change.`);
-    return;
-  }
-
-  console.log(`[init] Installing Dev Cockpit extension (${installed ?? 'none'} → ${bundled.version ?? 'bundled'})…`);
-  const res = runCode(['--install-extension', bundled.path, '--force']);
-  if (res.ok) {
-    console.log('[init] ✓ Dev Cockpit installed. Reload the VS Code window (Developer: Reload Window) to activate it.');
-  } else {
-    console.log('[init] Dev Cockpit install did not complete; continuing. Install manually with:');
-    console.log(`[init]   code --install-extension "${bundled.path}"`);
-  }
-}
-
 async function main() {
   console.log('\nwxKanban kit — install\n──────────────────────');
 
@@ -327,7 +269,7 @@ async function main() {
 
   // Spec 042 — install/update the Dev Cockpit VS Code extension (best-effort).
   try {
-    installCockpitExtension();
+    installCockpitExtension(root);
   } catch (err) {
     console.log(`[init] Dev Cockpit install skipped (${err?.message ?? err}).`);
   }

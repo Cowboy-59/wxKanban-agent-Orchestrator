@@ -16,12 +16,12 @@ export function emitCockpitRefresh(): void {
   if (process.env.WXKANBAN_NO_COCKPIT_REFRESH) return;
   try {
     const isWindows = process.platform === "win32";
-    const cmd = isWindows ? "code.cmd" : "code";
-    const child = spawn(cmd, ["--open-url", COCKPIT_REFRESH_URI], {
-      stdio: "ignore",
-      detached: true,
-      shell: isWindows, // resolve code.cmd via the shell on Windows
-    });
+    // On Windows `code` is a .cmd that Node can only spawn via the shell; pass
+    // ONE command string (the URI is a fixed constant) to avoid the DEP0190
+    // warning that shell:true + an args array emits. Non-Windows uses no shell.
+    const child = isWindows
+      ? spawn(`code.cmd --open-url "${COCKPIT_REFRESH_URI}"`, { stdio: "ignore", detached: true, shell: true })
+      : spawn("code", ["--open-url", COCKPIT_REFRESH_URI], { stdio: "ignore", detached: true, shell: false });
     // Never let a missing `code` binary surface as an unhandled error.
     child.on("error", () => undefined);
     child.unref();
