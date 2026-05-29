@@ -8,7 +8,7 @@ import { evaluateCommandAllowed, getAllowedCommandsForStage } from '../core/poli
 import { LifecycleStage } from '../core/schemas/lifecycle';
 import { WorkflowEngine } from '../core/orchestrator/workflow-engine';
 import { ProjectContext } from '../core/context/project-context';
-import { resolveServiceUrl } from '../core/context/runtime-state';
+import { resolveMcpBaseUrl } from '../core/context/runtime-state';
 import { handleKitStatusCommand } from '../core/orchestrator/command-handlers/kit-status';
 
 interface VerificationStep {
@@ -46,7 +46,7 @@ async function runVerification(): Promise<{ success: boolean; steps: Verificatio
 	// Spec 028 / T023 — split into `hosted-mcp-reachable` and `token-valid` when the
 	// resolved URL is https://; otherwise keep the legacy local-MCP check.
 	const step2Start = Date.now();
-	const mcpUrl = resolveServiceUrl('mcp');
+	const mcpUrl = resolveMcpBaseUrl();
 	const isHosted = /^https:\/\//i.test(mcpUrl);
 	const stepName = isHosted ? 'hosted-mcp-reachable' : 'mcp-health';
 	const client = new LifecycleClient({ projectId });

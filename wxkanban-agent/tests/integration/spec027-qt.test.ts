@@ -76,21 +76,16 @@ afterAll(() => {
 // QT-1 / T028 — Clean startup (US1)
 // ─────────────────────────────────────────────────────────────────────────────
 describe("QT-1 — Clean startup writes runtime-state file with the bound port (US1)", () => {
-  it("writeServiceEntry + readRuntimeState round-trips a healthy mcp + gateway pair", () => {
-    writeServiceEntry("mcp", {
-      port: 3002, pid: process.pid, parentpid: 1,
-      startedAt: new Date().toISOString(),
-      cmd: "node mcp-server/dist/index-http.js",
-    }, workdir);
+  // Spec 042 cleanup — MCP is hosted; the gateway is the only local service.
+  it("writeServiceEntry + readRuntimeState round-trips a healthy gateway entry", () => {
     writeServiceEntry("gateway", {
       port: 3003, pid: process.pid, parentpid: 1,
       startedAt: new Date().toISOString(),
-      cmd: "ts-node apps/command-gateway/src/http.ts",
+      cmd: "node wxkanban-agent/apps/command-gateway/bin/wxai-http.mjs",
     }, workdir);
     const state = readRuntimeState(workdir);
     expect(state).not.toBeNull();
     expect(state!.schemaVersion).toBe(RUNTIME_STATE_SCHEMA_VERSION);
-    expect(state!.services.mcp?.port).toBe(3002);
     expect(state!.services.gateway?.port).toBe(3003);
   });
 });
@@ -256,25 +251,22 @@ describe("QT-5 — Parent SIGKILL produces identical watcher behavior (US5)", ()
 // QT-6 / T031 — kit:status liveness + exit codes (US7)
 // ─────────────────────────────────────────────────────────────────────────────
 describe("QT-6 — kit:status reports per-service liveness with correct exit codes (US7)", () => {
-  it("returns exit 0 + healthy=2 when both services alive", async () => {
-    writeServiceEntry("mcp", {
-      port: 3002, pid: process.pid, parentpid: 1,
-      startedAt: new Date().toISOString(), cmd: "mcp",
-    }, workdir);
+  it("returns exit 0 + healthy=1 when the gateway is alive", async () => {
     writeServiceEntry("gateway", {
       port: 3003, pid: process.pid, parentpid: 1,
       startedAt: new Date().toISOString(), cmd: "gw",
     }, workdir);
     const result = await handleKitStatusCommand({ projectRoot: workdir });
     expect(result.exitCode).toBe(0);
-    expect(result.report?.summary.healthy).toBe(2);
+    expect(result.report?.summary.healthy).toBe(1);
   });
 
-  it("returns exit 1 when a service is missing (NOT RUNNING)", async () => {
-    writeServiceEntry("mcp", {
-      port: 3002, pid: process.pid, parentpid: 1,
-      startedAt: new Date().toISOString(), cmd: "mcp",
-    }, workdir);
+  it("returns exit 1 when the gateway is missing (NOT RUNNING)", async () => {
+    mkdirSync(join(workdir, ".wxai"), { recursive: true });
+    writeFileSync(
+      join(workdir, RUNTIME_STATE_PATH),
+      JSON.stringify({ schemaVersion: RUNTIME_STATE_SCHEMA_VERSION, services: {} }),
+    );
     const result = await handleKitStatusCommand({ projectRoot: workdir });
     expect(result.exitCode).toBe(1);
     expect(result.output).toContain("NOT RUNNING");
@@ -286,13 +278,9 @@ describe("QT-6 — kit:status reports per-service liveness with correct exit cod
     expect(result.report).toBeNull();
   });
 
-  it("--strict promotes stale entries to errors", async () => {
-    writeServiceEntry("mcp", {
-      port: 3002, pid: 999_999, parentpid: 1,
-      startedAt: new Date().toISOString(), cmd: "mcp",
-    }, workdir);
+  it("--strict promotes a stale gateway to an error", async () => {
     writeServiceEntry("gateway", {
-      port: 3003, pid: process.pid, parentpid: 1,
+      port: 3003, pid: 999_999, parentpid: 1,
       startedAt: new Date().toISOString(), cmd: "gw",
     }, workdir);
     const lenient = await handleKitStatusCommand({ projectRoot: workdir });
@@ -302,10 +290,6 @@ describe("QT-6 — kit:status reports per-service liveness with correct exit cod
   });
 
   it("--format json output validates against the documented schema", async () => {
-    writeServiceEntry("mcp", {
-      port: 3002, pid: process.pid, parentpid: 1,
-      startedAt: new Date().toISOString(), cmd: "mcp",
-    }, workdir);
     writeServiceEntry("gateway", {
       port: 3003, pid: process.pid, parentpid: 1,
       startedAt: new Date().toISOString(), cmd: "gw",
@@ -313,7 +297,6 @@ describe("QT-6 — kit:status reports per-service liveness with correct exit cod
     const result = await handleKitStatusCommand({ projectRoot: workdir, format: "json" });
     const parsed = JSON.parse(result.output);
     expect(parsed.schemaVersion).toBe(1);
-    expect(parsed.services.mcp).toBeDefined();
     expect(parsed.services.gateway).toBeDefined();
     expect(parsed.summary).toBeDefined();
   });
@@ -327,28 +310,28 @@ describe("QT-7 — Two concurrent kit instances in separate repos coexist withou
     const dirA = mkdtempSync(join(tmpdir(), "spec027-qt7-A-"));
     const dirB = mkdtempSync(join(tmpdir(), "spec027-qt7-B-"));
     try {
-      writeServiceEntry("mcp", {
-        port: 3002, pid: 1111, parentpid: 9000,
-        startedAt: "2026-05-13T00:00:00.000Z", cmd: "A-mcp",
+      writeServiceEntry("gateway", {
+        port: 3003, pid: 1111, parentpid: 9000,
+        startedAt: "2026-05-13T00:00:00.000Z", cmd: "A-gw",
       }, dirA);
-      writeServiceEntry("mcp", {
+      writeServiceEntry("gateway", {
         port: 3050, pid: 2222, parentpid: 9001,
-        startedAt: "2026-05-13T00:00:00.000Z", cmd: "B-mcp",
+        startedAt: "2026-05-13T00:00:00.000Z", cmd: "B-gw",
       }, dirB);
 
       const stateA = readRuntimeState(dirA);
       const stateB = readRuntimeState(dirB);
-      expect(stateA!.services.mcp?.port).toBe(3002);
-      expect(stateB!.services.mcp?.port).toBe(3050);
-      expect(stateA!.services.mcp?.parentpid).toBe(9000);
-      expect(stateB!.services.mcp?.parentpid).toBe(9001);
+      expect(stateA!.services.gateway?.port).toBe(3003);
+      expect(stateB!.services.gateway?.port).toBe(3050);
+      expect(stateA!.services.gateway?.parentpid).toBe(9000);
+      expect(stateB!.services.gateway?.parentpid).toBe(9001);
 
       // Repo A's resolver picks up only A's entry; B's resolver picks up only B's.
-      const urlA = resolveServiceUrl("mcp", { projectRoot: dirA, env: {} });
-      const urlB = resolveServiceUrl("mcp", { projectRoot: dirB, env: {} });
-      // PIDs are dead so resolver falls through to default for both — that's expected.
-      expect(urlA).toBe("http://localhost:3002");
-      expect(urlB).toBe("http://localhost:3002");
+      const urlA = resolveServiceUrl("gateway", { projectRoot: dirA, env: {} });
+      const urlB = resolveServiceUrl("gateway", { projectRoot: dirB, env: {} });
+      // PIDs are dead so resolver falls through to the gateway default for both.
+      expect(urlA).toBe("http://localhost:3003");
+      expect(urlB).toBe("http://localhost:3003");
     } finally {
       try { rmSync(dirA, { recursive: true, force: true }); } catch { /* ignore */ }
       try { rmSync(dirB, { recursive: true, force: true }); } catch { /* ignore */ }
@@ -359,18 +342,18 @@ describe("QT-7 — Two concurrent kit instances in separate repos coexist withou
     const dirA = mkdtempSync(join(tmpdir(), "spec027-qt7-live-A-"));
     const dirB = mkdtempSync(join(tmpdir(), "spec027-qt7-live-B-"));
     try {
-      writeServiceEntry("mcp", {
-        port: 3002, pid: process.pid, parentpid: 1,
-        startedAt: new Date().toISOString(), cmd: "A-mcp",
+      writeServiceEntry("gateway", {
+        port: 3003, pid: process.pid, parentpid: 1,
+        startedAt: new Date().toISOString(), cmd: "A-gw",
       }, dirA);
-      writeServiceEntry("mcp", {
+      writeServiceEntry("gateway", {
         port: 3050, pid: process.pid, parentpid: 1,
-        startedAt: new Date().toISOString(), cmd: "B-mcp",
+        startedAt: new Date().toISOString(), cmd: "B-gw",
       }, dirB);
 
-      const urlA = resolveServiceUrl("mcp", { projectRoot: dirA, env: {} });
-      const urlB = resolveServiceUrl("mcp", { projectRoot: dirB, env: {} });
-      expect(urlA).toBe("http://localhost:3002");
+      const urlA = resolveServiceUrl("gateway", { projectRoot: dirA, env: {} });
+      const urlB = resolveServiceUrl("gateway", { projectRoot: dirB, env: {} });
+      expect(urlA).toBe("http://localhost:3003");
       expect(urlB).toBe("http://localhost:3050");
     } finally {
       try { rmSync(dirA, { recursive: true, force: true }); } catch { /* ignore */ }

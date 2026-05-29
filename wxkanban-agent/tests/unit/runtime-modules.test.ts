@@ -43,23 +43,25 @@ describe("state-file — FR-003 / FR-004 / FR-011", () => {
     expect(readRuntimeState(workdir)).toBeNull();
   });
 
+  // Spec 042 cleanup — the gateway is the only locally-tracked service now
+  // (MCP is hosted). Multi-service coexistence cases were removed with `mcp`.
   it("writes and reads back a service entry", () => {
     writeServiceEntry(
-      "mcp",
+      "gateway",
       {
-        port: 3002,
+        port: 3003,
         pid: 12345,
         parentpid: 6789,
         startedAt: "2026-05-13T14:23:10.000Z",
-        cmd: "node mcp-server/dist/index-http.js",
+        cmd: "node wxkanban-agent/apps/command-gateway/bin/wxai-http.mjs",
       },
       workdir,
     );
     const state = readRuntimeState(workdir);
     expect(state).not.toBeNull();
     expect(state!.schemaVersion).toBe(RUNTIME_STATE_SCHEMA_VERSION);
-    expect(state!.services.mcp?.port).toBe(3002);
-    expect(state!.services.mcp?.pid).toBe(12345);
+    expect(state!.services.gateway?.port).toBe(3003);
+    expect(state!.services.gateway?.pid).toBe(12345);
   });
 
   it("writes are atomic — tmp file does not linger", () => {
@@ -79,47 +81,14 @@ describe("state-file — FR-003 / FR-004 / FR-011", () => {
     expect(remnant).toBeUndefined();
   });
 
-  it("preserves other services' entries on partial write", () => {
-    writeServiceEntry(
-      "mcp",
-      { port: 3002, pid: 11, parentpid: 1, startedAt: "x", cmd: "x" },
-      workdir,
-    );
-    writeServiceEntry(
-      "gateway",
-      { port: 3003, pid: 22, parentpid: 1, startedAt: "x", cmd: "x" },
-      workdir,
-    );
-    const state = readRuntimeState(workdir);
-    expect(state!.services.mcp).toBeDefined();
-    expect(state!.services.gateway).toBeDefined();
-  });
-
   it("removeServiceEntry deletes the file when the last service is removed", () => {
     writeServiceEntry(
-      "mcp",
-      { port: 3002, pid: 11, parentpid: 1, startedAt: "x", cmd: "x" },
-      workdir,
-    );
-    removeServiceEntry("mcp", workdir);
-    expect(existsSync(join(workdir, RUNTIME_STATE_PATH))).toBe(false);
-  });
-
-  it("removeServiceEntry preserves the file when other services remain", () => {
-    writeServiceEntry(
-      "mcp",
-      { port: 3002, pid: 11, parentpid: 1, startedAt: "x", cmd: "x" },
-      workdir,
-    );
-    writeServiceEntry(
       "gateway",
-      { port: 3003, pid: 22, parentpid: 1, startedAt: "x", cmd: "x" },
+      { port: 3003, pid: 11, parentpid: 1, startedAt: "x", cmd: "x" },
       workdir,
     );
-    removeServiceEntry("mcp", workdir);
-    const state = readRuntimeState(workdir);
-    expect(state!.services.mcp).toBeUndefined();
-    expect(state!.services.gateway).toBeDefined();
+    removeServiceEntry("gateway", workdir);
+    expect(existsSync(join(workdir, RUNTIME_STATE_PATH))).toBe(false);
   });
 
   it("rejects malformed JSON gracefully", () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { mkdtempSync, rmSync, existsSync } from "fs";
+import { mkdtempSync, rmSync, existsSync, mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, dirname } from "path";
 import {
   handleKitStatusCommand,
   renderText,
@@ -11,7 +11,11 @@ import {
 import {
   writeServiceEntry,
   RUNTIME_STATE_PATH,
+  RUNTIME_STATE_SCHEMA_VERSION,
 } from "../../core/runtime/state-file";
+
+// Spec 042 cleanup — MCP is hosted, so the gateway is the only expected local
+// service. kit:status no longer tracks an `mcp` service.
 
 let workdir: string;
 
@@ -28,6 +32,12 @@ beforeEach(() => {
   if (existsSync(file)) rmSync(file, { force: true });
 });
 
+function writeRawState(services: Record<string, unknown>): void {
+  const file = join(workdir, RUNTIME_STATE_PATH);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify({ schemaVersion: RUNTIME_STATE_SCHEMA_VERSION, services }));
+}
+
 describe("kit:status — FR-009 exit codes", () => {
   it("returns exit 2 when runtime-state file is absent", async () => {
     const result = await handleKitStatusCommand({ projectRoot: workdir });
@@ -36,83 +46,35 @@ describe("kit:status — FR-009 exit codes", () => {
     expect(result.output).toContain("runtime-state file not found");
   });
 
-  it("returns exit 1 when at least one expected service is missing", async () => {
-    writeServiceEntry(
-      "mcp",
-      {
-        port: 3002,
-        pid: process.pid,
-        parentpid: 1,
-        startedAt: new Date().toISOString(),
-        cmd: "mcp",
-      },
-      workdir,
-    );
+  it("returns exit 1 when the gateway service is missing (file present, empty services)", async () => {
+    writeRawState({});
     const result = await handleKitStatusCommand({ projectRoot: workdir });
     expect(result.exitCode).toBe(1);
     expect(result.report?.summary.missing).toBe(1);
-    expect(result.report?.summary.healthy).toBe(1);
     expect(result.output).toContain("NOT RUNNING");
   });
 
-  it("returns exit 0 when both expected services are alive", async () => {
-    writeServiceEntry(
-      "mcp",
-      {
-        port: 3002,
-        pid: process.pid,
-        parentpid: 1,
-        startedAt: new Date().toISOString(),
-        cmd: "mcp",
-      },
-      workdir,
-    );
+  it("returns exit 0 when the gateway is alive", async () => {
     writeServiceEntry(
       "gateway",
-      {
-        port: 3003,
-        pid: process.pid,
-        parentpid: 1,
-        startedAt: new Date().toISOString(),
-        cmd: "gw",
-      },
+      { port: 3003, pid: process.pid, parentpid: 1, startedAt: new Date().toISOString(), cmd: "gw" },
       workdir,
     );
     const result = await handleKitStatusCommand({ projectRoot: workdir });
     expect(result.exitCode).toBe(0);
-    expect(result.report?.summary.healthy).toBe(2);
+    expect(result.report?.summary.healthy).toBe(1);
   });
 
-  it("--strict promotes stale entries to errors (exit 1)", async () => {
-    writeServiceEntry(
-      "mcp",
-      {
-        port: 3002,
-        pid: 999_999,
-        parentpid: 1,
-        startedAt: new Date().toISOString(),
-        cmd: "mcp",
-      },
-      workdir,
-    );
+  it("--strict promotes a stale gateway to an error (exit 1)", async () => {
     writeServiceEntry(
       "gateway",
-      {
-        port: 3003,
-        pid: process.pid,
-        parentpid: 1,
-        startedAt: new Date().toISOString(),
-        cmd: "gw",
-      },
+      { port: 3003, pid: 999_999, parentpid: 1, startedAt: new Date().toISOString(), cmd: "gw" },
       workdir,
     );
     const lenient = await handleKitStatusCommand({ projectRoot: workdir });
     expect(lenient.exitCode).toBe(0);
 
-    const strict = await handleKitStatusCommand({
-      projectRoot: workdir,
-      strict: true,
-    });
+    const strict = await handleKitStatusCommand({ projectRoot: workdir, strict: true });
     expect(strict.exitCode).toBe(1);
     expect(strict.report?.summary.stale).toBe(1);
   });
@@ -121,43 +83,19 @@ describe("kit:status — FR-009 exit codes", () => {
 describe("kit:status — JSON output", () => {
   it("produces parseable JSON matching the report schema", async () => {
     writeServiceEntry(
-      "mcp",
-      {
-        port: 3002,
-        pid: process.pid,
-        parentpid: 1,
-        startedAt: new Date().toISOString(),
-        cmd: "mcp",
-      },
-      workdir,
-    );
-    writeServiceEntry(
       "gateway",
-      {
-        port: 3003,
-        pid: process.pid,
-        parentpid: 1,
-        startedAt: new Date().toISOString(),
-        cmd: "gw",
-      },
+      { port: 3003, pid: process.pid, parentpid: 1, startedAt: new Date().toISOString(), cmd: "gw" },
       workdir,
     );
-    const result = await handleKitStatusCommand({
-      projectRoot: workdir,
-      format: "json",
-    });
+    const result = await handleKitStatusCommand({ projectRoot: workdir, format: "json" });
     const parsed = JSON.parse(result.output);
     expect(parsed.schemaVersion).toBe(1);
-    expect(parsed.services.mcp.alive).toBe(true);
     expect(parsed.services.gateway.alive).toBe(true);
-    expect(parsed.summary.healthy).toBe(2);
+    expect(parsed.summary.healthy).toBe(1);
   });
 
   it("missing-file JSON shape includes the error field", async () => {
-    const result = await handleKitStatusCommand({
-      projectRoot: workdir,
-      format: "json",
-    });
+    const result = await handleKitStatusCommand({ projectRoot: workdir, format: "json" });
     const parsed = JSON.parse(result.output);
     expect(parsed.error).toMatch(/missing|unreadable/);
     expect(parsed.summary.missing).toBe(EXPECTED_SERVICES.length);
@@ -169,15 +107,6 @@ describe("renderText", () => {
     const text = renderText({
       schemaVersion: 1,
       services: {
-        mcp: {
-          port: 3002,
-          pid: 1234,
-          parentpid: 5678,
-          alive: true,
-          parentAlive: true,
-          uptimeSec: 125,
-          health: "alive",
-        },
         gateway: {
           port: 3003,
           pid: 1235,
@@ -188,20 +117,20 @@ describe("renderText", () => {
           health: "alive",
         },
       },
-      summary: { healthy: 2, stale: 0, missing: 0 },
+      summary: { healthy: 1, stale: 0, missing: 0 },
     });
-    expect(text).toContain("mcp");
-    expect(text).toContain("port=3002");
+    expect(text).toContain("gateway");
+    expect(text).toContain("port=3003");
     expect(text).toContain("parent alive");
-    expect(text).toContain("2 healthy");
+    expect(text).toContain("1 healthy");
   });
 
-  it("renders stale entry distinctly", () => {
+  it("renders a stale entry distinctly", () => {
     const text = renderText({
       schemaVersion: 1,
       services: {
-        mcp: {
-          port: 3002,
+        gateway: {
+          port: 3003,
           pid: 1234,
           parentpid: 5678,
           alive: false,
@@ -209,6 +138,17 @@ describe("renderText", () => {
           uptimeSec: 60,
           health: "stale",
         },
+      },
+      summary: { healthy: 0, stale: 1, missing: 0 },
+    });
+    expect(text).toContain("STALE");
+    expect(text).toContain("1 stale");
+  });
+
+  it("renders a missing entry as NOT RUNNING", () => {
+    const text = renderText({
+      schemaVersion: 1,
+      services: {
         gateway: {
           port: null,
           pid: null,
@@ -219,11 +159,9 @@ describe("renderText", () => {
           health: "missing",
         },
       },
-      summary: { healthy: 0, stale: 1, missing: 1 },
+      summary: { healthy: 0, stale: 0, missing: 1 },
     });
-    expect(text).toContain("STALE");
     expect(text).toContain("NOT RUNNING");
-    expect(text).toContain("1 stale");
     expect(text).toContain("1 missing");
   });
 });

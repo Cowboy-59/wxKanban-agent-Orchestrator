@@ -36,16 +36,15 @@ WXKANBAN_PROJECT_ID=01926a90-…
 Pass `--write-to=.env` to `kit:configure` to use this form. Env vars always
 take precedence over the `kit` block.
 
-### Resolution precedence (`resolveServiceUrl('mcp')`)
+### Resolution precedence (`resolveMcpBaseUrl()`)
 
-1. Live local MCP runtime-state file (only if PID is alive)
-2. `MCP_BASE_URL` / `MCP_HTTP_URL` env vars
-3. `.wxai/project.json` `kit.mcpBaseUrl`
-4. `MCP_HTTP_PORT` env var (legacy local)
-5. `http://localhost:3002` (legacy default)
+The MCP is hosted-only. There is **no local MCP** and **no localhost
+fallback** — resolution always yields a hosted URL:
 
-The hosted endpoint is **only** picked up via 2 or 3 — there is no
-auto-discovery.
+1. `WXKANBAN_MCP_BASE_URL` / `MCP_BASE_URL` / `MCP_HTTP_URL` env var (staging override)
+2. `.wxai/project.json` `kit.mcpBaseUrl`
+3. `.wxkanban-project.json` `mcpBaseUrl` (written by `init.mjs`)
+4. `https://mcp.wxperts.com` (hosted default)
 
 ---
 

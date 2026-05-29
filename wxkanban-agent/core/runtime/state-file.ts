@@ -4,7 +4,10 @@ import { join, dirname } from "path";
 export const RUNTIME_STATE_SCHEMA_VERSION = 1;
 export const RUNTIME_STATE_PATH = ".wxai/kit-runtime.json";
 
-export type ServiceName = "mcp" | "gateway";
+// Hosted-MCP only (spec 028 / 042 cleanup): the MCP is never a locally-tracked
+// service — it lives at mcp.wxperts.com and is resolved via resolveMcpBaseUrl().
+// The only service the kit starts/tracks locally is the orchestrator gateway.
+export type ServiceName = "gateway";
 
 export interface ServiceEntry {
   port: number;

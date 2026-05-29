@@ -11,7 +11,7 @@
 // envelope use callMcpToolWithEnvelope (introduced for T003's pushNewSpec /
 // pushExistingSpec rewrite).
 
-import { resolveServiceUrl } from '../context/runtime-state';
+import { resolveMcpBaseUrl } from '../context/runtime-state';
 import {
   parseEnvelope,
   McpEnvelopeError,
@@ -43,7 +43,7 @@ async function sendMcpRequest(
   args: Record<string, unknown>,
   options: McpCallOptions,
 ): Promise<Response> {
-  const mcpUrl = options.baseUrl ?? resolveServiceUrl('mcp');
+  const mcpUrl = options.baseUrl ?? resolveMcpBaseUrl();
   const token = options.apiToken ?? process.env['WXKANBAN_API_TOKEN'];
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

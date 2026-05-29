@@ -2,7 +2,7 @@
 
 **Source**: spec 027 (Kit Runtime Hygiene). Ships in `wxkanban-agent` v0.3.0.
 
-The wxkanban-agent kit spawns two long-running HTTP services in every consumer project: the **MCP server** (default `:3002`) and the **Orchestrator HTTP gateway** (default `:3003`). This document covers how those services manage their ports, where they record their runtime state, and how they clean themselves up when the editor closes.
+The wxkanban-agent kit spawns one long-running HTTP service in every consumer project: the **Orchestrator HTTP gateway** (default `:3003`). (The MCP is hosted at `mcp.wxperts.com` — nothing MCP-related runs locally; see `docs/hosted-mcp.md`.) This document covers how the gateway manages its port, where it records its runtime state, and how it cleans itself up when the editor closes.
 
 ## The runtime-state file
 
@@ -12,19 +12,12 @@ Path: `<consumer repo root>/.wxai/kit-runtime.json`
 {
   "schemaVersion": 1,
   "services": {
-    "mcp": {
-      "port": 3002,
-      "pid": 12345,
-      "parentpid": 6789,
-      "startedAt": "2026-05-13T14:23:10.000Z",
-      "cmd": "node mcp-server/dist/index-http.js"
-    },
     "gateway": {
       "port": 3003,
       "pid": 12346,
       "parentpid": 6789,
       "startedAt": "2026-05-13T14:23:11.000Z",
-      "cmd": "ts-node apps/command-gateway/src/http.ts"
+      "cmd": "node wxkanban-agent/apps/command-gateway/bin/wxai-http.mjs"
     }
   }
 }
@@ -83,20 +76,20 @@ If `KIT_PARENT_PID` is unset (someone runs the binary directly), the watcher fal
 
 ## Client-side discovery — `resolveServiceUrl` (FR-008)
 
-Code that needs to talk to MCP or the gateway resolves the URL via the kit's helper rather than hard-coding `localhost:3002/3003`:
+The hosted MCP URL is resolved by `resolveMcpBaseUrl()` (always a hosted URL — see `docs/hosted-mcp.md`). The **gateway** is the only locally-bound service, resolved via `resolveServiceUrl('gateway')`:
 
 ```ts
-import { resolveServiceUrl } from 'wxkanban-agent/core/context/runtime-state';
+import { resolveMcpBaseUrl, resolveServiceUrl } from 'wxkanban-agent/core/context/runtime-state';
 
-const url = resolveServiceUrl('mcp');     // e.g. "http://localhost:3047"
-const gwUrl = resolveServiceUrl('gateway'); // e.g. "http://localhost:3003"
+const mcpUrl = resolveMcpBaseUrl();          // e.g. "https://mcp.wxperts.com"
+const gwUrl = resolveServiceUrl('gateway');  // e.g. "http://localhost:3003"
 ```
 
-Precedence:
+Gateway precedence:
 
 1. **Runtime-state file** — read `.wxai/kit-runtime.json`, verify the recorded PID is alive, use the port from there.
-2. **Explicit env var** — `MCP_BASE_URL` / `MCP_HTTP_URL` / `MCP_HTTP_PORT` for MCP; `GATEWAY_HTTP_PORT` for gateway.
-3. **Default** — `http://localhost:3002` (MCP) or `http://localhost:3003` (gateway).
+2. **Explicit env var** — `GATEWAY_HTTP_PORT`.
+3. **Default** — `http://localhost:3003`.
 
 If the runtime-state file claims a PID but that PID is dead, the resolver skips the stale entry and falls through to env / default.
 

@@ -18,7 +18,7 @@
  */
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import { resolveServiceUrl } from "../context/runtime-state";
+import { resolveMcpBaseUrl } from "../context/runtime-state";
 import {
   unwrapMcpContent,
   classifyEnvelope,
@@ -91,7 +91,7 @@ export class McpClient {
   private readonly isHosted: boolean;
 
   constructor(opts: McpClientOptions = {}) {
-    this.baseUrl = (opts.baseUrl ?? resolveServiceUrl("mcp", { projectRoot: opts.projectRoot })).replace(/\/+$/, "");
+    this.baseUrl = (opts.baseUrl ?? resolveMcpBaseUrl({ projectRoot: opts.projectRoot })).replace(/\/+$/, "");
     this.token = opts.token ?? resolveApiToken({ projectRoot: opts.projectRoot });
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.isHosted = /^https:\/\//i.test(this.baseUrl);

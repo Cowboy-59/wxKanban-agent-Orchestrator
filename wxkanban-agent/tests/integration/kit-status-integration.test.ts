@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { mkdtempSync, rmSync, existsSync } from "fs";
+import { mkdtempSync, rmSync, existsSync, mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { WorkflowEngine } from "../../core/orchestrator/workflow-engine";
@@ -42,17 +42,7 @@ beforeEach(() => {
 
 describe("kit:status dispatched via WorkflowEngine — FR-009 integration", () => {
   it("kit:status is registered in CrossCuttingCommands and routes to the handler", async () => {
-    writeServiceEntry(
-      "mcp",
-      {
-        port: 3002,
-        pid: process.pid,
-        parentpid: 1,
-        startedAt: new Date().toISOString(),
-        cmd: "mcp",
-      },
-      workdir,
-    );
+    // Spec 042 cleanup — gateway is the only locally-tracked service (MCP is hosted).
     writeServiceEntry(
       "gateway",
       {
@@ -73,20 +63,14 @@ describe("kit:status dispatched via WorkflowEngine — FR-009 integration", () =
     expect(result.success).toBe(true);
     expect(audit.command).toBe("kit:status");
     const artifact = result.artifact as { summary: { healthy: number } };
-    expect(artifact.summary.healthy).toBe(2);
+    expect(artifact.summary.healthy).toBe(1);
   });
 
-  it("dispatch reports failure when expected service is missing", async () => {
-    writeServiceEntry(
-      "mcp",
-      {
-        port: 3002,
-        pid: process.pid,
-        parentpid: 1,
-        startedAt: new Date().toISOString(),
-        cmd: "mcp",
-      },
-      workdir,
+  it("dispatch reports failure when the gateway is missing", async () => {
+    mkdirSync(join(workdir, ".wxai"), { recursive: true });
+    writeFileSync(
+      join(workdir, RUNTIME_STATE_PATH),
+      JSON.stringify({ schemaVersion: 1, services: {} }),
     );
     const { result } = await WorkflowEngine.dispatch(
       makeContext(),

@@ -33,10 +33,17 @@ function track(root: string): string {
   return root;
 }
 
+let savedEnvOverride: string | undefined;
 beforeEach(() => {
   created.length = 0;
+  // Resolution checks WXKANBAN_MCP_BASE_URL first; clear it so default/file
+  // assertions are deterministic regardless of the shell that ran the tests.
+  savedEnvOverride = process.env.WXKANBAN_MCP_BASE_URL;
+  delete process.env.WXKANBAN_MCP_BASE_URL;
 });
 afterEach(() => {
+  if (savedEnvOverride === undefined) delete process.env.WXKANBAN_MCP_BASE_URL;
+  else process.env.WXKANBAN_MCP_BASE_URL = savedEnvOverride;
   for (const r of created) rmSync(r, { recursive: true, force: true });
 });
 
@@ -55,7 +62,7 @@ describe('resolveProjectContext', () => {
     expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('https://mcp.wxperts.com');
   });
 
-  it('mcpBaseUrl wins over legacy mcpHttpUrl/mcpHttpPort', () => {
+  it('uses mcpBaseUrl and ignores any legacy local-transport keys', () => {
     const root = track(makeProject({
       projectId: VALID_UUID,
       mcpBaseUrl: 'https://mcp.wxperts.com',
@@ -65,9 +72,20 @@ describe('resolveProjectContext', () => {
     expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('https://mcp.wxperts.com');
   });
 
-  it('falls back to legacy mcpHttpUrl when mcpBaseUrl absent (old project files)', () => {
-    const root = track(makeProject({ projectId: VALID_UUID, mcpHttpUrl: 'http://localhost:3002' }));
-    expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('http://localhost:3002');
+  it('defaults to the hosted MCP when mcpBaseUrl absent — legacy keys are NOT honoured (no local fallback)', () => {
+    const root = track(makeProject({ projectId: VALID_UUID, mcpHttpUrl: 'http://localhost:3002', mcpHttpPort: 3004 }));
+    expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('https://mcp.wxperts.com');
+  });
+
+  it('bare project file defaults to the hosted MCP (mcp.wxperts.com)', () => {
+    const root = track(makeProject({ projectId: VALID_UUID }));
+    expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('https://mcp.wxperts.com');
+  });
+
+  it('WXKANBAN_MCP_BASE_URL env override wins (staging)', () => {
+    process.env.WXKANBAN_MCP_BASE_URL = 'https://staging.mcp.wxperts.com';
+    const root = track(makeProject({ projectId: VALID_UUID, mcpBaseUrl: 'https://mcp.wxperts.com' }));
+    expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('https://staging.mcp.wxperts.com');
   });
 
   it('rejects the stale tools/ fixture (projectId test-project-123) as not linked', () => {
@@ -83,11 +101,6 @@ describe('resolveProjectContext', () => {
   it('returns null when no .wxkanban-project.json exists', () => {
     const empty = track(mkdtempSync(join(tmpdir(), 'wxk-empty-')));
     expect(resolveProjectContext([empty])).toBeNull();
-  });
-
-  it('derives mcpBaseUrl from mcpHttpPort when no explicit url', () => {
-    const root = track(makeProject({ projectId: VALID_UUID, mcpHttpPort: 3010 }));
-    expect(resolveProjectContext([root])!.mcpBaseUrl).toBe('http://localhost:3010');
   });
 
   it('multi-root: returns the first folder that carries a valid linked project', () => {

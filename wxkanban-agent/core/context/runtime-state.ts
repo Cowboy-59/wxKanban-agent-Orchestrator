@@ -7,9 +7,34 @@ import {
 } from "../runtime/state-file";
 
 export const DEFAULT_PORTS: Record<ServiceName, number> = {
-  mcp: 3002,
   gateway: 3003,
 };
+
+// Hosted MCP (spec 028) is the ONLY MCP. There is no local MCP — the kit and
+// extension always talk to this endpoint unless a staging override is set.
+export const HOSTED_MCP_BASE_URL = "https://mcp.wxperts.com";
+
+// [SCOPE 042 / T035] BEGIN — resolveMcpBaseUrl (hosted-only, no localhost)
+// MCP is never a locally-tracked service. Resolution: explicit env override
+// (staging) → kit.mcpBaseUrl (.wxai/project.json) → .wxkanban-project.json
+// mcpBaseUrl → hosted default. Never falls back to a local port.
+export function resolveMcpBaseUrl(opts: ResolveOptions = {}): string {
+  const projectRoot = opts.projectRoot ?? process.cwd();
+  const env = opts.env ?? process.env;
+
+  const explicit =
+    env["WXKANBAN_MCP_BASE_URL"] || env["MCP_BASE_URL"] || env["MCP_HTTP_URL"];
+  if (explicit && explicit.length > 0) return explicit;
+
+  const kitUrl = readKitMcpBaseUrl(projectRoot);
+  if (kitUrl) return kitUrl;
+
+  const projectFileUrl = readWxkanbanProjectMcpBaseUrl(projectRoot);
+  if (projectFileUrl) return projectFileUrl;
+
+  return HOSTED_MCP_BASE_URL;
+}
+// [SCOPE 042 / T035] END
 
 // [SCOPE 028 / T019] BEGIN — Read `.wxai/project.json` kit block for hosted-MCP base URL
 function readKitMcpBaseUrl(projectRoot: string): string | null {
@@ -27,6 +52,7 @@ function readKitMcpBaseUrl(projectRoot: string): string | null {
 }
 // [SCOPE 028 / T019] END
 
+// [SCOPE 028 / T019] BEGIN — readWxkanbanProjectMcpBaseUrl (hosted-MCP URL fallback)
 // init.mjs (v1.2.x) writes the hosted-MCP URL to `.wxkanban-project.json`
 // at the project root rather than `.wxai/project.json`. Honour that file
 // as an additional fallback so dbpush and friends pick up the hosted
@@ -44,6 +70,7 @@ function readWxkanbanProjectMcpBaseUrl(projectRoot: string): string | null {
     return null;
   }
 }
+// [SCOPE 028 / T019] END
 
 export interface ResolveOptions {
   projectRoot?: string;
@@ -64,33 +91,8 @@ export function resolveServiceUrl(
     return `http://localhost:${entry.port}`;
   }
 
-  if (service === "mcp") {
-    const explicit =
-      env["MCP_BASE_URL"] ||
-      env["MCP_HTTP_URL"] ||
-      env["WXKANBAN_MCP_BASE_URL"];
-    if (explicit && explicit.length > 0) return explicit;
-
-    // Spec 028 / T019 — .wxai/project.json kit.mcpBaseUrl takes precedence
-    // over the legacy port-derived default. Runtime-state (live local MCP)
-    // and explicit env override it; everything else falls through to it.
-    const kitUrl = readKitMcpBaseUrl(projectRoot);
-    if (kitUrl) return kitUrl;
-
-    // init.mjs writes the URL here too (separate from .wxai/project.json).
-    // Final fallback before the legacy port-derived default.
-    const projectFileUrl = readWxkanbanProjectMcpBaseUrl(projectRoot);
-    if (projectFileUrl) return projectFileUrl;
-
-    const portEnv = env["MCP_HTTP_PORT"];
-    if (portEnv) {
-      const parsed = parseInt(portEnv, 10);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        return `http://localhost:${parsed}`;
-      }
-    }
-  }
-
+  // MCP is hosted-only — see resolveMcpBaseUrl(). resolveServiceUrl handles
+  // locally-started services (the gateway) exclusively.
   if (service === "gateway") {
     const portEnv = env["GATEWAY_HTTP_PORT"];
     if (portEnv) {

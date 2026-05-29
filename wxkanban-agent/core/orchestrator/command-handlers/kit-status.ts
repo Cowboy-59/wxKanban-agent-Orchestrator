@@ -30,7 +30,9 @@ export interface KitStatusHandlerResult {
   report: KitStatusReport | null;
 }
 
-export const EXPECTED_SERVICES: ServiceName[] = ["mcp", "gateway"];
+// MCP is hosted (mcp.wxperts.com) — not a locally-tracked service. The gateway
+// is the only service the kit starts locally.
+export const EXPECTED_SERVICES: ServiceName[] = ["gateway"];
 
 // [SCOPE 027 / T015] BEGIN — kit-status command handler
 export async function handleKitStatusCommand(
@@ -52,7 +54,7 @@ export async function handleKitStatusCommand(
             2,
           )
         : "kit:status: runtime-state file not found (.wxai/kit-runtime.json)\n" +
-          "Run `npm run kit:start` to start MCP + gateway.";
+          "Run `npm run kit:start` to start the orchestrator gateway. (MCP is hosted at mcp.wxperts.com — nothing to start locally.)";
     return { exitCode: 2, output, report: null };
   }
 
