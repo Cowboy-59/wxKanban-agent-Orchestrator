@@ -24,6 +24,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import tls from 'node:tls';
 import crypto from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +57,24 @@ function log(level, msg) {
 function die(msg) {
   log('err', msg);
   process.exit(1);
+}
+
+// Trust the OS certificate store in addition to Node's bundled CA list, so the
+// upgrade reaches wxKanban behind a corporate TLS-inspection proxy (Cisco
+// Secure Access, Zscaler, …) instead of failing the handshake and falling back
+// to GitHub. In-process equivalent of --use-system-ca (Node 24+); feature-
+// detected, never throws. See BUG-REPORT-kit-dbpush-tls-and-packaging.md.
+function trustSystemCertificates() {
+  try {
+    if (typeof tls.setDefaultCACertificates !== 'function' ||
+        typeof tls.getCACertificates !== 'function') return;
+    const system = tls.getCACertificates('system');
+    if (Array.isArray(system) && system.length > 0) {
+      tls.setDefaultCACertificates([...tls.getCACertificates('bundled'), ...system]);
+    }
+  } catch {
+    /* fall back to default trust silently */
+  }
 }
 
 function readProjectConfig() {
@@ -302,6 +321,7 @@ function runInit() {
 }
 
 async function main() {
+  trustSystemCertificates();
   const args = process.argv.slice(2);
   const allowDowngrade = args.includes('--allow-downgrade');
   const confirmOverwrite = args.includes('--confirm-overwrite');
@@ -374,5 +394,5 @@ async function main() {
 main().catch(err => {
   console.log('');
   log('err', err.message);
-  process.exit(1);
+  process.exitCode = 1;
 });

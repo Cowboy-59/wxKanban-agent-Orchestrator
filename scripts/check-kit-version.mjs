@@ -19,6 +19,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import tls from 'node:tls';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -103,18 +104,37 @@ function printUpgradeNotice({ currentVersion, latestVersion, releaseUrl }) {
   console.log('');
 }
 
+// Trust the OS certificate store in addition to Node's bundled CA list, so the
+// check works behind a corporate TLS-inspection proxy (Cisco Secure Access,
+// Zscaler, …) whose root CA is in the OS store but not Node's bundled list.
+// In-process equivalent of --use-system-ca (Node 24+); feature-detected, never
+// throws. See BUG-REPORT-kit-dbpush-tls-and-packaging.md.
+function trustSystemCertificates() {
+  try {
+    if (typeof tls.setDefaultCACertificates !== 'function' ||
+        typeof tls.getCACertificates !== 'function') return;
+    const system = tls.getCACertificates('system');
+    if (Array.isArray(system) && system.length > 0) {
+      tls.setDefaultCACertificates([...tls.getCACertificates('bundled'), ...system]);
+    }
+  } catch {
+    /* fall back to default trust silently */
+  }
+}
+
 async function main() {
+  trustSystemCertificates();
   const config = readProjectConfig();
   if (!config?.projectId) {
     console.log(`${colors.dim}check-kit-version: no .wxkanban-project.json — skipping${colors.reset}`);
-    process.exit(0);
+    return;
   }
 
   const env = readEnvFile();
   const apiToken = process.env.WXKANBAN_API_TOKEN || env.WXKANBAN_API_TOKEN;
   if (!apiToken) {
     console.log(`${colors.dim}check-kit-version: no WXKANBAN_API_TOKEN — skipping${colors.reset}`);
-    process.exit(0);
+    return;
   }
 
   const apiUrl = resolveApiUrl(config);
@@ -130,13 +150,14 @@ async function main() {
       },
     });
   } catch (err) {
-    console.log(`${colors.dim}check-kit-version: ${apiUrl} unreachable (${err.message}) — skipping${colors.reset}`);
-    process.exit(0);
+    const code = err?.cause?.code ?? err?.code;
+    console.log(`${colors.dim}check-kit-version: ${apiUrl} unreachable (${code ? code + ': ' : ''}${err.message}) — skipping${colors.reset}`);
+    return;
   }
 
   if (!response.ok) {
     console.log(`${colors.dim}check-kit-version: HTTP ${response.status} from ${apiUrl} — skipping${colors.reset}`);
-    process.exit(0);
+    return;
   }
 
   let payload;
@@ -144,14 +165,14 @@ async function main() {
     payload = await response.json();
   } catch {
     console.log(`${colors.dim}check-kit-version: response was not JSON — skipping${colors.reset}`);
-    process.exit(0);
+    return;
   }
 
   const latestVersion = payload.latestVersion;
   const releaseUrl = payload.releaseUrl;
   if (!latestVersion) {
     console.log(`${colors.dim}check-kit-version: response missing latestVersion — skipping${colors.reset}`);
-    process.exit(0);
+    return;
   }
 
   // The server's own upgradeAvailable flag uses projectkits.kitversion which
@@ -161,14 +182,14 @@ async function main() {
 
   if (!upgradeAvailable) {
     console.log(`${colors.green}wxKanban kit ${currentVersion} — up to date${colors.reset}`);
-    process.exit(0);
+    return;
   }
 
   printUpgradeNotice({ currentVersion, latestVersion, releaseUrl });
-  process.exit(0);
+  return;
 }
 
 main().catch(err => {
   console.log(`${colors.dim}check-kit-version: ${err.message} — skipping${colors.reset}`);
-  process.exit(0);
+  return;
 });
