@@ -70,10 +70,10 @@ interface ParsedFence {
 
 const COMMENT_PREFIX = `(?:\\/\\/|--|<!--|#|\\/\\*|\\{\\/\\*)`;
 const FENCE_BEGIN_RE = new RegExp(
-  `^\\s*${COMMENT_PREFIX}\\s*\\[SCOPE\\s+(\\d{3})\\s*\\/\\s*(T\\d+)\\]\\s+BEGIN\\s+—\\s+(.+?)(?:\\s+\\(replaces\\s+(\\d{3})\\/(T\\d+)\\))?\\s*(?:\\*\\/|-->)?\\s*$`,
+  `^\\s*${COMMENT_PREFIX}\\s*\\[SCOPE\\s+(\\d{3})\\s*\\/\\s*(T\\d+)\\]\\s+BEGIN\\s+—\\s+(.+?)(?:\\s+\\(replaces\\s+(\\d{3})\\/(T\\d+)\\))?\\s*(?:\\*\\/|-->)?\\s*\\}?\\s*$`,
 );
 const FENCE_END_RE = new RegExp(
-  `^\\s*${COMMENT_PREFIX}\\s*\\[SCOPE\\s+(\\d{3})\\s*\\/\\s*(T\\d+)\\]\\s+END\\s*(?:\\*\\/|-->)?\\s*$`,
+  `^\\s*${COMMENT_PREFIX}\\s*\\[SCOPE\\s+(\\d{3})\\s*\\/\\s*(T\\d+)\\]\\s+END\\s*(?:\\*\\/|-->)?\\s*\\}?\\s*$`,
 );
 const MODIFIED_BY_RE = new RegExp(
   `^\\s*${COMMENT_PREFIX}\\s*\\[SCOPE\\s+(\\d{3})\\s*\\/\\s*(T\\d+)\\]\\s+MODIFIED-BY\\s+—\\s+(.+?)\\s*(?:\\*\\/|-->)?\\s*$`,

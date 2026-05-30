@@ -57,7 +57,7 @@ export class CockpitMcpClient {
   }
 
   cockpitSummary(projectId: string): Promise<CockpitSummary> {
-    return this.callTool<CockpitSummary>('project.cockpit_summary', { projectId });
+    return this.callTool<CockpitSummary>('project.cockpit_summary', { projectid: projectId });
   }
 }
 // [SCOPE 042 / T014] END
