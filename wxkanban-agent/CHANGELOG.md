@@ -2,6 +2,56 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## Unreleased
+
+### Fixed — kit unusable behind a corporate TLS proxy + packaging gaps (BUG-REPORT-kit-dbpush-tls-and-packaging.md)
+
+`dbpush`, `createspecs`, `check-kit-version`, and the gateway all failed
+out-of-the-box on a developer machine behind a corporate TLS-inspection proxy
+(Cisco Secure Access). Four fixes:
+
++ **System-CA trust** (`core/bootstrap/system-ca.ts`) —
+  `trustSystemCertificates()` merges the OS certificate store into Node's
+  bundled list in-process (Node 24 `tls.setDefaultCACertificates`), the
+  equivalent of `--use-system-ca` with no `NODE_OPTIONS` flag. Called at every
+  entry point (gateway `cli.ts`, `dbpush`, and on import of `mcp-client.ts`,
+  covering all hub callers), fixing `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`
+  mis-reported as "MCP unreachable". `mcp-client` now distinguishes a TLS-trust
+  failure from a real network error and drops the stale "start setup-mcp.mjs"
+  hint (hosted-only since spec 028). Same fix applied to
+  `scripts/check-kit-version.mjs`.
++ **No `process.exit()` mid-teardown** — replaced `process.exit()` after
+  `fetch` with `process.exitCode` + natural drain in `check-kit-version.mjs`,
+  `dbpush`, and `cli.ts`, fixing the Windows/Node 24 libuv `UV_HANDLE_CLOSING`
+  crash (exit `-1073740791`) that broke the folderOpen task.
++ **`@wxkanban/preflight` resolves on clean install** — added
+  `@wxkanban/preflight: file:shared/preflight` to root `package.json` and
+  `shared/` to `upgrade-kit.mjs` `KIT_DIRS`, so `npm install` links the package
+  instead of `dbpush`/`createspecs` crashing at import.
++ **`dbpush` CLI honours its flags + loads `.env`** —
+  `core/bootstrap/load-env.ts` `loadProjectEnv()` is wired into both the
+  `dbpush` runner and the gateway, and the CLI now parses
+  `--dry-run/--spec/--force/--skip-lifecycle` instead of hardcoding
+  `dbpush({})`.
+
+### Fixed — Dev Cockpit remaining counts never dropped (spec 042 FR-006 / SC-3)
+
+The cockpit's refresh ping (T021) shipped, but the write-back it pings for was
+never implemented — `implement` never wrote `projecttasks.status` and `dbpush`
+explicitly deferred task-status sync — so tasks marked done in tasks.md stayed
+`todo` in the DB and the remaining count never moved.
+
++ **`syncTaskStatuses()`** (`core/orchestrator/sync-task-status.ts`, T037) —
+  resolves DB task UUIDs via `project.cockpit_summary` (no markdown T-ID needed)
+  and flips completed tasks to `done` via `project.update_task_status`. Wired
+  into `dbpush` (`pushExistingSpec`, replacing the deferred stub) and into
+  `implement` batch-completion, so completing tasks auto-dbpushes the status.
+  Best-effort: a missing token / unreachable MCP never fails the command.
++ **`project.update_task_status` scope-bound** (mcp-server, T036) — was a raw
+  `db.update(...).where(eq(id))` with no project filter (within-customer
+  write-side leak + spec-028 T011 violation); now routes through
+  `scoped.updateScoped`, so a cross-project `taskId` matches nothing.
+
 ## v1.3.0 — 2026-05-28
 
 ### Added — VS Code Dev Cockpit extension shipped in the kit (spec 042)

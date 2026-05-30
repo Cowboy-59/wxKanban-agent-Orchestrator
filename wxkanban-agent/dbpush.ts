@@ -20,6 +20,9 @@ import { callMcpTool, callMcpToolWithEnvelope, McpClientError } from './core/orc
 import { classifyBlockingIssues } from './core/orchestrator/heading-classifier';
 import { rewriteHeadings } from './core/orchestrator/spec-heading-rewriter';
 import { emitCockpitRefresh } from './core/orchestrator/cockpit-refresh';
+import { syncTaskStatuses, buildDoneTitles } from './core/orchestrator/sync-task-status';
+import { trustSystemCertificates } from './core/bootstrap/system-ca';
+import { loadProjectEnv } from './core/bootstrap/load-env';
 
 // ---------------------------------------------------------------------------
 // Zod schema for lifecycle.json — lenient by design.
@@ -676,8 +679,22 @@ async function pushExistingSpec(
     }
   }
 
-  // Task status sync deferred — needs T-ID → UUID resolution on the MCP
-  // side. For now dbpush keeps existing tasks in DB untouched on re-runs.
+  // [SCOPE 042 / T037] BEGIN — task-status sync (the previously-deferred half)
+  // The "T-ID → UUID resolution" the stub punted on is done by syncTaskStatuses
+  // via project.cockpit_summary (which returns each incomplete task's UUID).
+  // Forward-only: tasks now marked done in tasks.md are flipped to 'done' in
+  // the DB, so the cockpit's remaining count actually drops (spec 042 FR-006 /
+  // SC-3). Best-effort — failures are surfaced as errors, never thrown.
+  if (!dryRun) {
+    const sync = await syncTaskStatuses({
+      projectId,
+      scope: artifact.scope,
+      doneTitles: buildDoneTitles(artifact.tasks),
+    });
+    r.taskStatusUpdated += sync.updated;
+    r.errors.push(...sync.errors);
+  }
+  // [SCOPE 042 / T037] END
   return r;
 }
 // [SCOPE 029 / T003] END
@@ -917,8 +934,39 @@ function promptYesNo(question: string): Promise<boolean> {
 // CLI entry point (preserved for backwards-compat with `node dbpush.js`)
 // ---------------------------------------------------------------------------
 
+// Map the documented dbpush flags (_wxAI/commands/dbpush.md) to DbPushOptions.
+// The CLI previously hardcoded `dbpush({})`, so --dry-run/--spec/--force/
+// --skip-lifecycle were silently ignored (Issue 4).
+function parseDbPushArgv(argv: string[]): DbPushOptions {
+  const opts: DbPushOptions = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--dry-run' || a === '--dryRun') opts.dryRun = true;
+    else if (a === '--force') opts.force = true;
+    else if (a === '--skip-lifecycle' || a === '--skipLifecycle') opts.skipLifecycle = true;
+    else if (a === '--spec' || a === '--scope') {
+      const next = argv[i + 1];
+      if (next !== undefined && !next.startsWith('--')) {
+        opts.spec = next;
+        i++;
+      }
+    } else if (a.startsWith('--spec=')) opts.spec = a.slice('--spec='.length);
+    else if (a.startsWith('--scope=')) opts.spec = a.slice('--scope='.length);
+  }
+  return opts;
+}
+
 if (require.main === module) {
-  dbpush({})
+  // BUG-REPORT-kit-dbpush-tls-and-packaging.md fixes:
+  //  - Issue 1: trust the OS cert store (also covered transitively via the
+  //    mcp-client import, but explicit here keeps the entry point self-contained).
+  //  - Issue 4: load .env so the push is authenticated, and honour CLI flags.
+  trustSystemCertificates();
+  loadProjectEnv();
+
+  const options = parseDbPushArgv(process.argv.slice(2));
+
+  dbpush(options)
     .then((report) => {
       console.log('dbpush Report (MCP Project Hub)');
       console.log('===============================');
@@ -952,6 +1000,8 @@ if (require.main === module) {
     })
     .catch((err) => {
       console.error('Error:', (err as Error).message);
-      process.exit(1);
+      // Issue 2: set the exit code and let the loop drain rather than
+      // process.exit() mid-socket-teardown (libuv crash on Windows/Node 24).
+      process.exitCode = 1;
     });
 }

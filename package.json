@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -43,6 +43,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "@wxkanban/preflight": "file:shared/preflight",
     "archiver": "^7.0.1",
     "autoprefixer": "^10.4.27",
     "axios": "^1.14.0",

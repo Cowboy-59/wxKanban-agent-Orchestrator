@@ -17,6 +17,14 @@ import {
   McpEnvelopeError,
   type McpEnvelope as McpEnvelopeShape,
 } from './mcp-envelope';
+import { trustSystemCertificates } from '../bootstrap/system-ca';
+
+// Trust the OS cert store before the first hub fetch, no matter which entry
+// point imported us (covers dbpush, createspecs, and every other hub caller).
+// Behind a corporate TLS-inspection proxy this is the difference between a
+// working push and UNABLE_TO_GET_ISSUER_CERT_LOCALLY. Idempotent + feature-
+// detected; no-ops on Node < 24.
+trustSystemCertificates();
 
 export interface McpCallOptions {
   baseUrl?: string;
@@ -67,10 +75,25 @@ async function sendMcpRequest(
     });
   } catch (err) {
     if (timer) clearTimeout(timer);
-    throw new McpClientError(
-      `MCP not reachable at ${mcpUrl}/call (${(err as Error).message}). Start the kit runtime with \`node scripts/setup-mcp.mjs\`.`,
-      name,
-    );
+    // Distinguish a TLS-trust failure (corporate inspection proxy whose root CA
+    // isn't trusted) from a genuine network/unreachable error — the former is a
+    // local trust-store problem, not a server problem, and the old "start
+    // setup-mcp.mjs" hint is wrong in the hosted-only architecture (spec 028).
+    const e = err as Error & { code?: string; cause?: { code?: string } };
+    const code = e.cause?.code ?? e.code;
+    const certErrorCodes = [
+      'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+      'SELF_SIGNED_CERT_IN_CHAIN',
+      'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+      'DEPTH_ZERO_SELF_SIGNED_CERT',
+      'CERT_HAS_EXPIRED',
+    ];
+    const message =
+      code && certErrorCodes.includes(code)
+        ? `TLS trust failure talking to ${mcpUrl}/call (${code}): the proxy/root CA is not in Node's trust store. ` +
+          `System-CA trust is applied automatically on Node 24+; on older Node set NODE_EXTRA_CA_CERTS to your corporate root CA.`
+        : `MCP not reachable at ${mcpUrl}/call (${e.message ?? String(err)}).`;
+    throw new McpClientError(message, name);
   }
   if (timer) clearTimeout(timer);
   return response;

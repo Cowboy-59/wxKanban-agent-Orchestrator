@@ -29,6 +29,7 @@ import {
   TaskFenceRow,
 } from "../fence-emitter";
 import { emitCockpitRefresh } from "../cockpit-refresh";
+import { syncTaskStatuses } from "../sync-task-status";
 import { isSuppressed } from "../language-matrix";
 import { isDriftDetected } from "../content-hash";
 import { markTaskDone } from "../tasks-md-writer";
@@ -61,6 +62,9 @@ export interface ImplementOptions {
   // Used by callers that want to feed the prompt to an editor AI manually.
   printPromptOnly?: boolean;
   dbClient?: FenceDbClient;
+  // [SCOPE 042 / T037] — set by the batch runner so per-task calls don't each
+  // sync; the batch does one cockpit sync + refresh after the whole run.
+  suppressCockpitSync?: boolean;
 }
 
 export interface ImplementResult {
@@ -352,6 +356,31 @@ export async function handleImplementCommand(
       markTaskDone(bundle.tasksMdPath, task.id);
     }
 
+    // [SCOPE 042 / T037] BEGIN — auto-dbpush a single completed task, then refresh
+    // Covers the surgical `implement <scope>/<task>` path (WorkflowEngine →
+    // here), which never went through the batch runner's end-of-run sync. The
+    // task was just marked done in tasks.md; push that to the DB so the cockpit
+    // count drops (FR-006 / SC-3). Suppressed when invoked from the batch runner
+    // (it syncs once for the whole run). Best-effort — never fails the implement.
+    if (!options.dryRun && !options.suppressCockpitSync && options.projectId) {
+      try {
+        const sync = await syncTaskStatuses({
+          projectId: options.projectId,
+          scope: options.scope,
+          specsRoot,
+        });
+        for (const e of sync.errors) {
+          console.warn(`implement: task-status sync (non-fatal): ${e}`);
+        }
+      } catch (err) {
+        console.warn(
+          `implement: task-status sync failed (non-fatal): ${(err as Error).message}`,
+        );
+      }
+      emitCockpitRefresh();
+    }
+    // [SCOPE 042 / T037] END
+
     return {
       exitCode: 0,
       message:
@@ -499,6 +528,8 @@ export async function handleImplementBatchCommand(
         acceptDrift: options.acceptDrift,
         dbClient: options.dbClient,
         proposalJson,
+        // [SCOPE 042 / T037] batch syncs once after the whole run (below).
+        suppressCockpitSync: true,
       });
       outcomes.push({ taskId: task.id, result });
     } catch (err) {
@@ -534,13 +565,35 @@ export async function handleImplementBatchCommand(
     }
   }
 
-  // [SCOPE 042 / T021] BEGIN — ping the VS Code Dev Cockpit when a batch
-  // completed real work so the affected scope's remaining count drops without a
-  // manual refresh (spec 042 FR-006 / SC-3). Best-effort; skipped on dry-run.
+  // [SCOPE 042 / T037] BEGIN — auto-dbpush completed task statuses, then refresh
+  // Each completed task was already marked done in tasks.md (markTaskDone above);
+  // push that completion to the DB so the cockpit's remaining count actually
+  // drops (spec 042 FR-006 / SC-3 — the write-back T021's ping depended on but
+  // that was left deferred). Best-effort: a missing token / unreachable MCP must
+  // never fail the implement that produced real code. The refresh ping follows
+  // so the cockpit re-queries the now-updated DB.
   if (!options.dryRun && summary.succeeded > 0) {
+    if (options.projectId) {
+      try {
+        const sync = await syncTaskStatuses({
+          projectId: options.projectId,
+          scope: options.scope,
+          specsRoot,
+        });
+        if (sync.errors.length > 0) {
+          for (const e of sync.errors) {
+            console.warn(`implement: task-status sync (non-fatal): ${e}`);
+          }
+        }
+      } catch (err) {
+        console.warn(
+          `implement: task-status sync failed (non-fatal): ${(err as Error).message}`,
+        );
+      }
+    }
     emitCockpitRefresh();
   }
-  // [SCOPE 042 / T021] END
+  // [SCOPE 042 / T037] END
 
   return {
     exitCode: highestExitCode,

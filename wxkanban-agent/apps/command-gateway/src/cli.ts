@@ -16,6 +16,11 @@ import {
 	handleImplementBatchCommand,
 	formatBatchSummaryTable,
 } from '../../../core/orchestrator/command-handlers/implement';
+// BUG-REPORT-kit-dbpush-tls-and-packaging.md — trust the OS cert store so the
+// gateway works behind a corporate TLS-inspection proxy (Issue 1), and load
+// .env so every gateway command (dbpush etc.) is authenticated (Issue 4).
+import { trustSystemCertificates } from '../../../core/bootstrap/system-ca';
+import { loadProjectEnv } from '../../../core/bootstrap/load-env';
 
 interface ProjectConfig {
 	projectId: string;
@@ -189,6 +194,8 @@ function createFileBasedProposalSource(
 }
 
 async function main(): Promise<void> {
+	trustSystemCertificates();
+	loadProjectEnv();
 	const args = process.argv.slice(2);
 	const config = loadProjectConfig();
 	const context = resolveProjectContext(config);
@@ -272,7 +279,7 @@ async function main(): Promise<void> {
 			});
 			const verbose = rawOptions['verbose'] === true;
 			console.log(formatBatchSummaryTable(batchResult, { verbose }));
-			process.exit(batchResult.exitCode);
+			process.exitCode = batchResult.exitCode; return; // Issue 2: drain, don't hard-exit after hub fetch
 		} else if (!/^[0-9]{3}\/T[0-9]+$/.test(positional)) {
 			console.error(
 				`Fatal: invalid <scope> or <scope>/<task> argument: ${positional}`,
@@ -286,6 +293,13 @@ async function main(): Promise<void> {
 	// SpecVerification in DispatchOptions or evaluateSpecFirst hard-blocks them.
 	// Build it from the local filesystem — implement.ts reads the same artifacts
 	// via loadSpecBundle, so disk presence is the right gate.
+	// [SCOPE 042 / T037] default project-id for surgical `implement <scope>/<task>`
+	// so the single-task cockpit sync (FR-006/SC-3) fires without the user having
+	// to pass --project-id. Batch mode already uses config.projectId above.
+	if (command === 'implement' && rawOptions['project-id'] === undefined && config.projectId) {
+		rawOptions['project-id'] = config.projectId;
+	}
+
 	const scopeNum = extractScopeNumber(command, rawOptions);
 	const specVerification: SpecVerification | undefined = scopeNum
 		? buildSpecVerification(scopeNum, process.cwd())
@@ -300,11 +314,12 @@ async function main(): Promise<void> {
 		console.log(JSON.stringify({ status: 'success', artifact: result.artifact, audit }, null, 2));
 	} else {
 		console.error(JSON.stringify({ status: 'error', error: result.error, audit }, null, 2));
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 }
 
 main().catch((err: Error) => {
 	console.error(`Fatal: ${err.message}`);
-	process.exit(1);
+	process.exitCode = 1;
 });
