@@ -26,6 +26,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import tls from 'node:tls';
 
 function parseEnvFile(filePath) {
   const out = {};
@@ -111,7 +112,24 @@ async function probe(label, url) {
   }
 }
 
+// Trust the OS cert store so the health check works behind a corporate TLS-
+// inspection proxy without a NODE_OPTIONS flag (runs as its own process,
+// spawned by init.mjs). Feature-detected (Node 24+); never throws.
+function trustSystemCertificates() {
+  try {
+    if (typeof tls.setDefaultCACertificates !== 'function' ||
+        typeof tls.getCACertificates !== 'function') return;
+    const system = tls.getCACertificates('system');
+    if (Array.isArray(system) && system.length > 0) {
+      tls.setDefaultCACertificates([...tls.getCACertificates('bundled'), ...system]);
+    }
+  } catch {
+    /* fall back to default trust silently */
+  }
+}
+
 async function main() {
+  trustSystemCertificates();
   console.log('wxKanban kit health check');
   console.log('─────────────────────────');
   console.log(`  stage: ${lifecycleStage} (gateway ${gatewayRequired ? 'required' : 'optional'})`);

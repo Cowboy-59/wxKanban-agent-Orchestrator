@@ -21,6 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
+import tls from 'node:tls';
 // Spec 042 — single source of truth for the Dev Cockpit install (also run by
 // the .vscode/tasks.json folderOpen task so a fresh download installs it too).
 import { installCockpitExtension } from './install-cockpit-extension.mjs';
@@ -242,7 +243,27 @@ async function ensureDepsInstalled() {
   console.log('[init] ✓ dependencies installed');
 }
 
+// Trust the OS cert store so install runs behind a corporate TLS-inspection
+// proxy (Cisco Secure Access, Zscaler, …) without a NODE_OPTIONS=--use-system-ca
+// prefix. init.mjs is spawned by upgrade-kit as its own process, so it needs the
+// in-process trust independently (this is what caused the init /health + /call
+// fetches to fail and retry). Feature-detected (Node 24+); no-ops on older Node,
+// never throws. See BUG-REPORT-kit-dbpush-tls-and-packaging.md.
+function trustSystemCertificates() {
+  try {
+    if (typeof tls.setDefaultCACertificates !== 'function' ||
+        typeof tls.getCACertificates !== 'function') return;
+    const system = tls.getCACertificates('system');
+    if (Array.isArray(system) && system.length > 0) {
+      tls.setDefaultCACertificates([...tls.getCACertificates('bundled'), ...system]);
+    }
+  } catch {
+    /* fall back to default trust silently */
+  }
+}
+
 async function main() {
+  trustSystemCertificates();
   console.log('\nwxKanban kit — install\n──────────────────────');
 
   await ensureDepsInstalled();
