@@ -93,10 +93,11 @@ export function handleWxConversionCommand(
       "  1. Invoke /wxConversion (or open the installed skill) to start the guided conversion.",
       "  2. Part A — switch the WinDev app to text saves, then let the skill turn",
       "     .wdw/.wdg/.wdc into Markdown under pre-convert/ and capture screen images.",
-      "  3. Part B — export the HFSQL schema + data, pick a target DB, and let the skill",
-      "     convert the SQL, create the schema, and load the data.",
+      "  3. Scope — the skill drafts the Scope-of-Project Markdown from the converted source.",
+      "  4. Part B (optional) — the skill asks whether to document the DB conversion; on yes",
+      "     it writes only pre-convert/schema-mapping.md (HFSQL → target mapping + proposed DDL).",
       "",
-      "This command scaffolds and hands off only — it runs no AI and touches no database.",
+      "This command produces Markdown only — it runs no AI, builds no database, and loads no data.",
       "",
     ].join("\n");
 
