@@ -1,7 +1,11 @@
 import * as vscode from 'vscode';
 import { CockpitTreeProvider, CockpitNode } from './providers/cockpitTreeProvider.js';
 import { showTaskDetail } from './providers/detailPanel.js';
+import { showFeedbackDetail } from './providers/feedbackDetailPanel.js'; // [SCOPE 043 / T011]
 import { openRelatedSpec } from './commands/openSpec.js';
+import { myFeedback, answerFeedbackItem } from './commands/feedback.js'; // [SCOPE 043 / T004, T010]
+import { openFeedbackPanel } from './providers/feedbackPanel.js'; // [SCOPE 043 / T009]
+import type { MyFeedbackItem } from './types.js';
 import { storeToken } from './services/auth.js';
 import { resolveProjectContext } from './services/projectContext.js';
 import type { CockpitScope, CockpitTask } from './types.js';
@@ -56,6 +60,21 @@ export function activate(context: vscode.ExtensionContext): void {
       } else {
         void vscode.window.showInformationMessage('wxKanban: select a scope to open its spec/file.');
       }
+    }),
+
+    // [SCOPE 043 / T004] BEGIN — feedback commands
+    vscode.commands.registerCommand('wxkanban.cockpit.submitFeedback', () => openFeedbackPanel(context.secrets)),
+    vscode.commands.registerCommand('wxkanban.cockpit.myFeedback', () => myFeedback(context.secrets)),
+    // [SCOPE 043 / T004] END
+
+    // [SCOPE 043 / T010] answer a needs-info item clicked in the cockpit tree
+    vscode.commands.registerCommand('wxkanban.cockpit.answerFeedback', (item?: MyFeedbackItem) => {
+      if (item) void answerFeedbackItem(context.secrets, item);
+    }),
+
+    // [SCOPE 043 / T011] open the read-only detail view for a submitted item
+    vscode.commands.registerCommand('wxkanban.cockpit.showFeedbackDetail', (item?: MyFeedbackItem) => {
+      if (item) showFeedbackDetail(item);
     }),
 
     vscode.commands.registerCommand('wxkanban.cockpit.signIn', async () => {

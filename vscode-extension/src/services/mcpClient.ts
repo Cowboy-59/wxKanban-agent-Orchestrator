@@ -1,4 +1,4 @@
-import type { CockpitSummary } from '../types.js';
+import type { CockpitSummary, MyFeedbackItem } from '../types.js';
 
 // Thin MCP HTTP client for the cockpit. Deliberately NOT reusing
 // wxkanban-agent/core/http/mcp-client.ts:
@@ -58,6 +58,14 @@ export class CockpitMcpClient {
 
   cockpitSummary(projectId: string): Promise<CockpitSummary> {
     return this.callTool<CockpitSummary>('project.cockpit_summary', { projectid: projectId });
+  }
+
+  // [SCOPE 043 / T010] the submitter's own feedback + status (for the cockpit section)
+  async listMyFeedback(projectId: string): Promise<MyFeedbackItem[]> {
+    const res = await this.callTool<{ items: MyFeedbackItem[] }>('project.list_my_feedback', {
+      projectId,
+    });
+    return res.items ?? [];
   }
 }
 // [SCOPE 042 / T014] END

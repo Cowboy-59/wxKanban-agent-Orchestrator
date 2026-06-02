@@ -29,8 +29,8 @@ export interface PolicyEvaluation {
 // an import-path swap.
 export type { SpecVerification, ForceOverride } from "../policy";
 
-// Spec 030 FR-005 — exhaustive 12-row mapping. Every Capability has exactly
-// one CLI command name.
+// Spec 030 FR-005 — exhaustive mapping. Every Capability has exactly one CLI
+// command name. (Spec 036 added scaffold:frontend; spec 044 added wxconversion.)
 const CLI_COMMAND_TO_CAPABILITY: Readonly<Record<string, Capability>> = {
   buildscope: Capability.BuildScope,
   createspecs: Capability.CreateSpecs,
@@ -45,6 +45,8 @@ const CLI_COMMAND_TO_CAPABILITY: Readonly<Record<string, Capability>> = {
   auditfences: Capability.AuditFences,
   "kit:status": Capability.KitStatus,
   "scaffold:frontend": Capability.ScaffoldFrontend,
+  // Spec 044 — WinDev conversion entry point (Design-only).
+  wxconversion: Capability.WxConversion,
 };
 
 // Reverse map for computing `allowedCommands` per stage in the

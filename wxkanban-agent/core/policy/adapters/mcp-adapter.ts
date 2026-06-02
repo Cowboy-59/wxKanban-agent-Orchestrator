@@ -95,6 +95,11 @@ const MCP_TOOL_MAP: Readonly<
     capability: Capability.KitStatus,
     displayName: "kit:status",
   },
+  // Spec 044 — WinDev conversion entry point, Design-gated like the CLI surface.
+  "project.wxconversion": {
+    capability: Capability.WxConversion,
+    displayName: "wxconversion",
+  },
 };
 
 export async function enforceTool(

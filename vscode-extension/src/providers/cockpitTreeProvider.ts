@@ -2,15 +2,17 @@ import * as vscode from 'vscode';
 import { resolveProjectContext } from '../services/projectContext.js';
 import { resolveToken } from '../services/auth.js';
 import { CockpitMcpClient } from '../services/mcpClient.js';
-import type { CockpitScope, CockpitSummary, CockpitTask } from '../types.js';
+import type { CockpitScope, CockpitSummary, CockpitTask, MyFeedbackItem } from '../types.js';
 
-type NodeKind = 'scope' | 'task' | 'message';
+type NodeKind = 'scope' | 'task' | 'message' | 'feedback-group' | 'feedback';
 type LoadState = 'unloaded' | 'ok' | 'empty' | 'no-project' | 'no-token' | 'error';
 
 interface ComputedState {
   state: Exclude<LoadState, 'unloaded'>;
   summary: CockpitSummary | null;
   activeScope: string | undefined;
+  // [SCOPE 043 / T010] the submitter's own feedback (best-effort; null when unfetched)
+  feedback: MyFeedbackItem[];
   errorMsg: string;
   signature: string;
 }
@@ -23,6 +25,7 @@ export class CockpitNode extends vscode.TreeItem {
     collapsibleState: vscode.TreeItemCollapsibleState,
     public readonly scope?: CockpitScope,
     public readonly task?: CockpitTask,
+    public readonly feedbackItem?: MyFeedbackItem, // [SCOPE 043 / T010]
   ) {
     super(label, collapsibleState);
   }
@@ -36,6 +39,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
 
   private summary: CockpitSummary | null = null;
   private activeScope: string | undefined;
+  private feedback: MyFeedbackItem[] = []; // [SCOPE 043 / T010]
   private state: LoadState = 'unloaded';
   private errorMsg = '';
   private signature = '';
@@ -70,9 +74,14 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
 
   async getChildren(element?: CockpitNode): Promise<CockpitNode[]> {
     if (element) {
-      return element.kind === 'scope' && element.scope
-        ? element.scope.tasks.map((t) => taskNode(t, element.scope!))
-        : [];
+      if (element.kind === 'scope' && element.scope) {
+        return element.scope.tasks.map((t) => taskNode(t, element.scope!));
+      }
+      // [SCOPE 043 / T010] expand the My Feedback group into item nodes.
+      if (element.kind === 'feedback-group') {
+        return this.feedback.map((f) => feedbackItemNode(f));
+      }
+      return [];
     }
     if (this.state === 'unloaded') {
       this.applyState(await this.computeState());
@@ -84,6 +93,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     this.state = s.state;
     this.summary = s.summary;
     this.activeScope = s.activeScope;
+    this.feedback = s.feedback;
     this.errorMsg = s.errorMsg;
     this.signature = s.signature;
   }
@@ -94,7 +104,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
     const ctx = resolveProjectContext(folders);
     if (!ctx) {
-      return { state: 'no-project', summary: null, activeScope: undefined, errorMsg: '', signature: 'no-project' };
+      return { state: 'no-project', summary: null, activeScope: undefined, feedback: [], errorMsg: '', signature: 'no-project' };
     }
 
     let token: string | null = null;
@@ -104,25 +114,34 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
       token = null;
     }
     if (!token) {
-      return { state: 'no-token', summary: null, activeScope: ctx.activeScope, errorMsg: '', signature: 'no-token' };
+      return { state: 'no-token', summary: null, activeScope: ctx.activeScope, feedback: [], errorMsg: '', signature: 'no-token' };
     }
 
     try {
       const client = new CockpitMcpClient({ baseUrl: ctx.mcpBaseUrl, token });
       const summary = await client.cockpitSummary(ctx.projectId);
+      // [SCOPE 043 / T010] feedback is a secondary surface — never let it fail
+      // the cockpit's primary remaining-work view.
+      let feedback: MyFeedbackItem[] = [];
+      try {
+        feedback = await client.listMyFeedback(ctx.projectId);
+      } catch {
+        feedback = [];
+      }
       const withWork = summary.scopes.filter((s) => s.remainingCount > 0);
       return {
         state: withWork.length === 0 ? 'empty' : 'ok',
         summary,
         activeScope: ctx.activeScope,
+        feedback,
         errorMsg: '',
-        signature: `${ctx.activeScope ?? ''}|${signatureOf(summary)}`,
+        signature: `${ctx.activeScope ?? ''}|${signatureOf(summary)}|${feedbackSignatureOf(feedback)}`,
       };
     } catch (err) {
       // Surface the resolved endpoint so a misconfig (e.g. falling back to
       // localhost when the hosted URL key is missing) is self-diagnosing.
       const msg = `Tried ${ctx.mcpBaseUrl} — ${(err as Error).message}`;
-      return { state: 'error', summary: null, activeScope: ctx.activeScope, errorMsg: msg, signature: `error:${msg}` };
+      return { state: 'error', summary: null, activeScope: ctx.activeScope, feedback: [], errorMsg: msg, signature: `error:${msg}` };
     }
   }
 
@@ -135,7 +154,9 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
       case 'error':
         return [messageNode('Cannot reach wxKanban — click to retry', 'error', this.errorMsg, 'wxkanban.cockpit.refresh')];
       case 'empty':
-        return [messageNode('All caught up — no remaining work', 'check', 'No incomplete tasks in this project.')];
+        return this.withFeedbackSection([
+          messageNode('All caught up — no remaining work', 'check', 'No incomplete tasks in this project.'),
+        ]);
       case 'ok': {
         const withWork = (this.summary?.scopes ?? []).filter((s) => s.remainingCount > 0);
         const sorted = [...withWork].sort((a, b) => {
@@ -143,12 +164,21 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
           const bActive = b.specNumber === this.activeScope ? 0 : 1;
           return aActive - bActive || a.specNumber.localeCompare(b.specNumber);
         });
-        return sorted.map((s) => scopeNode(s, s.specNumber === this.activeScope));
+        return this.withFeedbackSection(sorted.map((s) => scopeNode(s, s.specNumber === this.activeScope)));
       }
       default:
         return [];
     }
   }
+
+  // [SCOPE 043 / T010] BEGIN — append the "My Feedback" group when the user has
+  // submitted any. Collapsed by default, but auto-expanded (and badged) when an
+  // item needs info, so the submitter notices without running a command.
+  private withFeedbackSection(base: CockpitNode[]): CockpitNode[] {
+    if (this.feedback.length === 0) return base;
+    return [...base, feedbackGroupNode(this.feedback)];
+  }
+  // [SCOPE 043 / T010] END
 }
 // [SCOPE 042 / T016] END
 
@@ -195,6 +225,70 @@ function statusIcon(status: string): vscode.ThemeIcon {
 }
 // [SCOPE 042 / T016] END
 
+// [SCOPE 043 / T010] BEGIN — feedback node factories
+function feedbackGroupNode(items: MyFeedbackItem[]): CockpitNode {
+  const needsInfo = items.filter((f) => f.status === 'needsinfo').length;
+  // Auto-expand when something needs the user's attention.
+  const node = new CockpitNode(
+    'feedback-group',
+    'My Feedback',
+    needsInfo > 0 ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
+  );
+  node.description = needsInfo > 0 ? `${needsInfo} need info` : `${items.length}`;
+  node.iconPath = new vscode.ThemeIcon(needsInfo > 0 ? 'warning' : 'comment-discussion');
+  node.tooltip = `Your bug reports & suggestions${needsInfo > 0 ? ` — ${needsInfo} awaiting your reply` : ''}`;
+  node.contextValue = 'wxkanban.feedbackGroup';
+  return node;
+}
+
+function feedbackItemNode(item: MyFeedbackItem): CockpitNode {
+  const needsInfo = item.status === 'needsinfo';
+  const node = new CockpitNode('feedback', item.title, vscode.TreeItemCollapsibleState.None, undefined, undefined, item);
+  node.description = needsInfo ? 'needs info — click to reply' : item.status;
+  node.iconPath = feedbackStatusIcon(item);
+  node.contextValue = 'wxkanban.feedback';
+  const lines = [
+    `${item.type} · ${item.status}${item.severity ? ` · ${item.severity}` : ''}`,
+    `ref ${item.referenceId.slice(0, 8)}`,
+  ];
+  if (item.duplicateOfId) lines.push('already received (linked to an existing report)');
+  if (needsInfo && item.clarificationQuestion) lines.push(`\nwxperts asked: ${item.clarificationQuestion}`);
+  if (item.status === 'declined' && item.declineReason) lines.push(`\ndeclined: ${item.declineReason}`);
+  node.tooltip = lines.join('\n');
+  // Needs-info items open the single-round reply; every other item opens a
+  // read-only detail view of the body the submitter entered. [SCOPE 043 / T011]
+  if (needsInfo) {
+    node.command = {
+      command: 'wxkanban.cockpit.answerFeedback',
+      title: 'Answer',
+      arguments: [item],
+    };
+  } else {
+    node.command = {
+      command: 'wxkanban.cockpit.showFeedbackDetail',
+      title: 'View detail',
+      arguments: [item],
+    };
+  }
+  return node;
+}
+
+function feedbackStatusIcon(item: MyFeedbackItem): vscode.ThemeIcon {
+  switch (item.status) {
+    case 'needsinfo':
+      return new vscode.ThemeIcon('question');
+    case 'inprogress':
+      return new vscode.ThemeIcon('sync');
+    case 'resolved':
+      return new vscode.ThemeIcon('pass');
+    case 'declined':
+      return new vscode.ThemeIcon('circle-slash');
+    default:
+      return new vscode.ThemeIcon(item.duplicateOfId ? 'copy' : 'comment');
+  }
+}
+// [SCOPE 043 / T010] END
+
 // [SCOPE 042 / T020] BEGIN — signatureOf (stable fingerprint of the remaining-work payload)
 // Captures everything the view renders — scope identity, remaining counts, and
 // each task's id+status — so poll() can tell a real change from a no-op without
@@ -205,3 +299,9 @@ function signatureOf(summary: CockpitSummary): string {
     .join('|');
 }
 // [SCOPE 042 / T020] END
+
+// [SCOPE 043 / T010] BEGIN — feedbackSignatureOf (so poll repaints on status changes)
+function feedbackSignatureOf(items: MyFeedbackItem[]): string {
+  return items.map((f) => `${f.id}=${f.status}`).join(',');
+}
+// [SCOPE 043 / T010] END

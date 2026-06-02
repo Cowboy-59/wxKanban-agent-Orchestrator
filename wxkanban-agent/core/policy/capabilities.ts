@@ -22,6 +22,8 @@ export enum Capability {
   AuditFences = "AuditFences",
   KitStatus = "KitStatus",
   ScaffoldFrontend = "ScaffoldFrontend",
+  // Spec 044 — WinDev conversion entry point (Design-only, no spec required).
+  WxConversion = "WxConversion",
 }
 
 export interface CapabilityGate {
@@ -95,6 +97,13 @@ export const gateTable: Readonly<Record<Capability, CapabilityGate>> = {
   },
   [Capability.ScaffoldFrontend]: {
     allowedPhases: "all",
+    requiresVerifiedSpec: false,
+    allowsEscalation: false,
+  },
+  // Spec 044 — gated to Design (it produces the conversion scope, so it
+  // cannot itself require a verified spec).
+  [Capability.WxConversion]: {
+    allowedPhases: [LifecycleStage.Design],
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },

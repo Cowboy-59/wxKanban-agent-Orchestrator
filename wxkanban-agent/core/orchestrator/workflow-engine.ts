@@ -287,6 +287,35 @@ export class WorkflowEngine {
 		return { result, audit };
 	}
 
+	// Spec 044 — wxConversion: scaffold the conversion workspace + install the
+	// skill, then hand off to the editor AI. Runs no kit-internal AI.
+	static async runWxConversion(
+		context: ProjectContext,
+		options: Record<string, unknown>,
+		user?: string,
+	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
+		const timestamp = new Date().toISOString();
+		const policy = evaluateStageOnly(
+			context.lifecycleStage, 'wxconversion', context.customCommands,
+		);
+		if (!policy.allowed) {
+			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
+			const audit: AuditRecord = { timestamp, command: 'wxconversion', input: options, result: result as unknown as Record<string, unknown>, user };
+			return { result, audit };
+		}
+		const { handleWxConversionCommand } = await import('./command-handlers/wxconversion');
+		const handlerResult = handleWxConversionCommand({
+			force: options['force'] === true,
+		});
+		console.log(handlerResult.output);
+		const success = handlerResult.exitCode === 0;
+		const result: CommandResult<Record<string, unknown>> = success
+			? { success: true, artifact: { exitCode: handlerResult.exitCode, actions: handlerResult.actions } }
+			: { success: false, error: `wxconversion exited with code ${handlerResult.exitCode}` };
+		const audit: AuditRecord = { timestamp, command: 'wxconversion', input: options, result: result as unknown as Record<string, unknown>, user };
+		return { result, audit };
+	}
+
 	static async runAuditFences(
 		context: ProjectContext,
 		options: Record<string, unknown>,
@@ -384,6 +413,8 @@ export class WorkflowEngine {
 				return WorkflowEngine.runKitStatus(context, input, user);
 			case 'scaffold:frontend':
 				return WorkflowEngine.runScaffoldFrontend(context, input, user);
+			case 'wxconversion':
+				return WorkflowEngine.runWxConversion(context, input, user);
 			default: {
 				const result: CommandResult<unknown> = {
 					success: false,

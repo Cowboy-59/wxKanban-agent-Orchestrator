@@ -300,7 +300,7 @@ describe("gateTable consistency (spec 030 FR-010 module-load assert)", () => {
     ].sort());
   });
 
-  it("the 4 cross-cutting capabilities have allowedPhases: 'all'", () => {
+  it("the 5 cross-cutting capabilities have allowedPhases: 'all'", () => {
     const crossCutting = (Object.values(Capability) as Capability[]).filter(
       (c) => gateTable[c].allowedPhases === "all",
     );
@@ -309,6 +309,9 @@ describe("gateTable consistency (spec 030 FR-010 module-load assert)", () => {
       Capability.DbPush,
       Capability.KitStatus,
       Capability.PipelineAgent,
+      // Spec 036 — scaffold:frontend is cross-cutting (added after this
+      // assertion was first written; spec 044 corrected the list).
+      Capability.ScaffoldFrontend,
     ].sort());
   });
 });

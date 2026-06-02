@@ -51,6 +51,10 @@ flowchart TD
     subgraph Architecture
         analyzecode["analyzecode"]
     end
+    subgraph Conversion
+        wxconversion["wxConversion"]
+    end
+    wxconversion --> buildscope
     buildscope --> createspecs --> implement --> dbpush
     auditrun --> auditreport --> auditcheck --> audittasks
     kitstatus --> downloadkit --> regeneratekit --> importproject --> newproject
@@ -70,5 +74,6 @@ flowchart TD
 - kitstatus, downloadkit, regeneratekit, importproject, new-project — Project Kit
 - scope-check, todo-import, training, session-start, validatescope, checkupdates, upgrade — AI Governance
 - analyzecode — Architecture (wxICA drift audit + deepening exploration)
+- wxConversion — Conversion (WinDev/WLanguage → scope doc + HFSQL→target DB migration; Design stage)
 
 > For details on each command, see the full help.md or run `wxHelp <command>`.

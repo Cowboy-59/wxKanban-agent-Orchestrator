@@ -24,3 +24,26 @@ export interface CockpitSummary {
   unlinkedTasks: CockpitTask[];
 }
 // [SCOPE 042 / T011] END
+
+// [SCOPE 043 / T010] BEGIN — list_my_feedback wire shape
+export interface MyFeedbackItem {
+  id: string;
+  referenceId: string;
+  type: string;
+  title: string;
+  // [SCOPE 043 / T011] body the submitter entered + auto-captured context (for the read-only detail view)
+  details: Record<string, unknown> | null;
+  context: Record<string, unknown> | null;
+  status: string;
+  severity: string | null;
+  classification: string | null;
+  duplicateOfId: string | null;
+  clarificationQuestion: string | null;
+  clarificationAnswer: string | null;
+  declineReason: string | null;
+  artifactStatus: string;
+  notificationChannel: string;
+  createdAt: string;
+  firstTriagedAt: string | null;
+}
+// [SCOPE 043 / T010] END
