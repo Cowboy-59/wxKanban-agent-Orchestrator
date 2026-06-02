@@ -1,5 +1,5 @@
 ---
-description: Interactive agent for building Scope of Project markdown files with proper structure and wxKanban integration
+description: Interactive agent for building Scope of Project markdown files with proper structure and wxKanban integration. Accepts either a typed feature description or an existing Markdown file (--from-md) to convert into a scope.
 args: "{{args}}"
 ai-compat: universal
 claude-code: true
@@ -29,7 +29,12 @@ When run through CLI bridge, this command must map to:
 - `wxkanban buildscope --feature-description="..."` for guided mode
 - `wxkanban buildscope --feature-description="..." --quick` only on explicit quick requests
 
-If required scope inputs are missing, return clarification questions from `project.buildscope` and continue the interview. Do not write a placeholder scope unless quick mode was explicitly requested.
+There are **two ways to supply the source material** for a scope:
+
+1. **Feature description** (default) — a free-text description typed by the user (`/BuildScope "..."`).
+2. **MD file** (`--from-md <path>`) — read an existing Markdown file and use **its content** as the authoritative source material instead of (or in addition to) a typed description. This is the path for converting a document — e.g. the `pre-convert/*.md` files produced by `/wxConversion`, meeting notes, a PRD, or a legacy spec — into a structured Scope-of-Project document. See **MD File Conversion Mode** below.
+
+Either way, the scope is still written by `project.buildscope` — never hand-write it here. If required scope inputs are missing, return clarification questions from `project.buildscope` and continue the interview. Do not write a placeholder scope unless quick mode was explicitly requested.
 
 ## Scope Builder — Interactive Scope Document Creator
 
@@ -46,18 +51,27 @@ This command guides you through creating a well-structured Scope of Project mark
 Check `{{args}}` for:
 - **Feature description** — The high-level description of what this scope covers
 - **Flags** (optional):
+  - `--from-md <path>` — Read the Markdown file at `<path>` and use its content as the source material for the scope (MD File Conversion Mode). May be combined with a short description for extra framing.
   - `--quick` — Skip interactive questions, use defaults
   - `--template-only` — Just create the file from template, don't populate
   - `--edit NNN` — Edit existing scope file instead of creating new
 
-If `{{args}}` is empty (and not editing):
+If `{{args}}` is empty (and not editing, and no `--from-md`):
 ```
-ERROR: No scope description provided.
+ERROR: No scope source provided.
 
 Usage: /BuildScope <scope description>
+       /BuildScope --from-md <path-to-markdown-file>
 
 Example: /BuildScope "Time tracking and billing system for consultants"
+         /BuildScope --from-md pre-convert/WIN_Invoice.md
          /BuildScope --edit 005 "Update time tracking requirements"
+```
+
+If `--from-md <path>` is present, resolve and read that file **before** anything else. If it does not exist or is empty, stop with:
+
+```text
+ERROR: --from-md file not found or empty: <path>
 ```
 
 ### 2. Determine Scope Number
@@ -73,7 +87,7 @@ Otherwise, for new scope:
 
 ### 3. Generate Short Name
 
-From feature description:
+From the feature description (or, in MD File Conversion Mode, from the MD file's first `#` heading, falling back to its filename):
 - Extract 2-5 keywords
 - Convert to kebab-case
 - Remove articles (a, an, the)
@@ -81,6 +95,24 @@ From feature description:
   - "Time tracking and billing" → `time-billing`
   - "Consultant management system" → `consultant-mgmt`
   - "New project setup workflow" → `new-project-setup`
+  - `pre-convert/WIN_Invoice.md` → `win-invoice`
+
+---
+
+## MD File Conversion Mode (`--from-md <path>`)
+
+When `--from-md <path>` is supplied, the **content of that Markdown file is the source material** for the scope — you are *converting an existing document into a Scope-of-Project*, not interviewing from a blank slate. This is the hand-off target for `/wxConversion` output (`pre-convert/*.md`), but any Markdown works (PRD, meeting notes, a legacy spec, an email export).
+
+**Procedure:**
+
+1. **Read the file fully.** Treat its content as the primary evidence. If a short description was *also* passed alongside `--from-md`, use it only as extra framing — the file is authoritative.
+2. **Extract, don't invent.** Mine the document for: the feature's purpose, actors, workflows/scenarios, rules and constraints, data/entities, and anything explicitly out of scope. Everything you put in the scope must trace back to a line in the source (or to an answer the user gives you). Do **not** add requirements the document doesn't support.
+3. **Pre-populate the draft from the file**, then run the **same Phase 3 section-by-section adversarial review** as normal — present each section, cite where in the MD it came from, and get explicit `[A]pprove`. The file replaces the open-ended Phase 1 discovery, but it does **not** replace the review gates.
+4. **Surface gaps as questions.** Where the document is silent, vague, or contradictory, ask — one question at a time — exactly as in normal mode. A converted document almost always has holes; find them before drafting.
+5. **Flag conflicts** with `CONTEXT.md`, existing scopes, and ADRs just as in normal mode.
+6. **Write via `project.buildscope`** as always. Map the extracted material into the tool's fields: a concise `feature-description` derived from the document, plus `businessProblem`, `scopeBoundary`, `outOfScope`, `integrationContext`, and `constraintsAndRisks` populated from the source. Note the source path in the scope's Constraints & Notes ("Converted from `<path>`").
+
+**Do not** copy the MD file verbatim into the scope — convert it: turn narrative/source into testable Functional Requirements and measurable Success Criteria, in the standard scope structure. `--quick` may be combined with `--from-md` to skip the interview and draft directly from the file (use only when the user asks).
 
 ---
 
@@ -149,6 +181,16 @@ Based on your description: "{{args}}"
 [If no description provided, ask]: 
 "What functionality or feature would you like to define in this scope? 
  Describe it as you would to a stakeholder."
+
+[If --from-md <path> was provided, SKIP the open-ended discovery and instead]:
+"I've read <path>. Here's what I extracted as the source for this scope:
+ — Purpose: ...
+ — Actors: ...
+ — Key workflows: ...
+ — Stated constraints / out-of-scope: ...
+ — Gaps I'll need you to fill: ...
+ Confirm this matches your intent, then I'll draft the scope section by section."
+(Everything must trace back to a line in the file; ask about each gap one at a time.)
 ```
 
 **Deep-dive questions** — ask one at a time, wait for the answer, then push back if the answer is vague. Do not move on until you have a concrete, testable response.
@@ -721,6 +763,7 @@ Or type "review" to see current content.
 | File already exists | Warn, suggest `--edit` flag |
 | Invalid edit number | Error: "Scope NNN not found" |
 | Empty description | Error with usage example |
+| `--from-md` file missing/empty | Error: "--from-md file not found or empty: `<path>`" |
 
 ---
 
@@ -752,3 +795,12 @@ Or type "review" to see current content.
 ```
 
 **Output**: Updated `specs/Project-Scope/005-scope-timeandBilling.md`
+
+### Example 4: Convert a Markdown file into a scope
+
+**Input**:
+```
+/BuildScope --from-md pre-convert/WIN_Invoice.md
+```
+
+**Output**: `specs/Project-Scope/0NN-win-invoice.md` — drafted from the file's content (the typical hand-off after `/wxConversion` produces the `pre-convert/*.md` source), reviewed section by section, with "Converted from `pre-convert/WIN_Invoice.md`" noted in Constraints & Notes.
