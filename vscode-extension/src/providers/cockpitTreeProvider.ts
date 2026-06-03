@@ -2,9 +2,19 @@ import * as vscode from 'vscode';
 import { resolveProjectContext } from '../services/projectContext.js';
 import { resolveToken } from '../services/auth.js';
 import { CockpitMcpClient } from '../services/mcpClient.js';
+import { loadCommandCatalog, type HelpCatalog, type HelpCommand, type HelpParam } from '../services/helpCatalog.js';
 import type { CockpitScope, CockpitSummary, CockpitTask, MyFeedbackItem } from '../types.js';
 
-type NodeKind = 'scope' | 'task' | 'message' | 'feedback-group' | 'feedback';
+type NodeKind =
+  | 'scope'
+  | 'task'
+  | 'message'
+  | 'feedback-group'
+  | 'feedback'
+  | 'help-group'
+  | 'help-category'
+  | 'help-item'
+  | 'help-param';
 type LoadState = 'unloaded' | 'ok' | 'empty' | 'no-project' | 'no-token' | 'error';
 
 interface ComputedState {
@@ -26,6 +36,8 @@ export class CockpitNode extends vscode.TreeItem {
     public readonly scope?: CockpitScope,
     public readonly task?: CockpitTask,
     public readonly feedbackItem?: MyFeedbackItem, // [SCOPE 043 / T010]
+    public readonly helpCommand?: HelpCommand, // [SCOPE 042 / Help]
+    public readonly helpItems?: HelpCommand[], // [SCOPE 042 / Help] — a category's commands
   ) {
     super(label, collapsibleState);
   }
@@ -40,6 +52,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   private summary: CockpitSummary | null = null;
   private activeScope: string | undefined;
   private feedback: MyFeedbackItem[] = []; // [SCOPE 043 / T010]
+  private helpCatalog: HelpCatalog = { standard: [], extended: [] }; // [SCOPE 042 / Help]
   private state: LoadState = 'unloaded';
   private errorMsg = '';
   private signature = '';
@@ -81,12 +94,30 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
       if (element.kind === 'feedback-group') {
         return this.feedback.map((f) => feedbackItemNode(f));
       }
+      // [SCOPE 042 / Help] expand the Help group into Standard/Extended categories.
+      if (element.kind === 'help-group') {
+        const cats: CockpitNode[] = [];
+        if (this.helpCatalog.standard.length > 0) cats.push(helpCategoryNode('Standard', this.helpCatalog.standard));
+        if (this.helpCatalog.extended.length > 0) cats.push(helpCategoryNode('Extended', this.helpCatalog.extended));
+        return cats;
+      }
+      // [SCOPE 042 / Help] expand a category into command items.
+      if (element.kind === 'help-category') {
+        return (element.helpItems ?? []).map(helpItemNode);
+      }
+      // [SCOPE 042 / Help] expand a command into its optional parameters.
+      if (element.kind === 'help-item') {
+        return (element.helpCommand?.params ?? []).map(helpParamNode);
+      }
       return [];
     }
     if (this.state === 'unloaded') {
       this.applyState(await this.computeState());
     }
-    return this.rootNodes();
+    // [SCOPE 042 / Help] catalog is local-file based — load it independently of
+    // the MCP load path so Help works in every state (incl. offline / no token).
+    this.helpCatalog = loadCommandCatalog();
+    return this.withHelpSection(this.rootNodes());
   }
 
   private applyState(s: ComputedState): void {
@@ -179,6 +210,14 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     return [...base, feedbackGroupNode(this.feedback)];
   }
   // [SCOPE 043 / T010] END
+
+  // [SCOPE 042 / Help] BEGIN — append the "Help — Commands" section in every
+  // state. Omitted only when no _wxAI/commands directory was found.
+  private withHelpSection(base: CockpitNode[]): CockpitNode[] {
+    if (this.helpCatalog.standard.length === 0 && this.helpCatalog.extended.length === 0) return base;
+    return [...base, helpGroupNode()];
+  }
+  // [SCOPE 042 / Help] END
 }
 // [SCOPE 042 / T016] END
 
@@ -288,6 +327,68 @@ function feedbackStatusIcon(item: MyFeedbackItem): vscode.ThemeIcon {
   }
 }
 // [SCOPE 043 / T010] END
+
+// [SCOPE 042 / Help] BEGIN — help node factories
+function helpGroupNode(): CockpitNode {
+  const node = new CockpitNode('help-group', 'Help — Commands', vscode.TreeItemCollapsibleState.Collapsed);
+  node.iconPath = new vscode.ThemeIcon('book');
+  node.tooltip = 'wxKanban kit commands — what each one does';
+  node.contextValue = 'wxkanban.helpGroup';
+  return node;
+}
+
+function helpCategoryNode(label: string, items: HelpCommand[]): CockpitNode {
+  const node = new CockpitNode(
+    'help-category',
+    label,
+    vscode.TreeItemCollapsibleState.Collapsed,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    items,
+  );
+  node.description = `${items.length}`;
+  node.iconPath = new vscode.ThemeIcon('list-unordered');
+  node.tooltip = label === 'Standard' ? 'Core lifecycle commands' : 'Additional _wxAI commands';
+  node.contextValue = 'wxkanban.helpCategory';
+  return node;
+}
+
+function helpItemNode(cmd: HelpCommand): CockpitNode {
+  // Commands with documented optional params expand into a param list; the rest
+  // stay as leaves. Clicking the label still opens the full command help.
+  const hasParams = cmd.params.length > 0;
+  const node = new CockpitNode(
+    'help-item',
+    `/${cmd.name}`,
+    hasParams ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+    undefined,
+    undefined,
+    undefined,
+    cmd,
+  );
+  node.description = cmd.blurb;
+  node.tooltip = cmd.blurb || `/${cmd.name}`;
+  node.iconPath = new vscode.ThemeIcon('terminal');
+  node.contextValue = 'wxkanban.helpItem';
+  node.command = {
+    command: 'wxkanban.cockpit.openCommandHelp',
+    title: 'Open command help',
+    arguments: [cmd],
+  };
+  return node;
+}
+
+function helpParamNode(param: HelpParam): CockpitNode {
+  const node = new CockpitNode('help-param', param.name, vscode.TreeItemCollapsibleState.None);
+  node.description = param.blurb;
+  node.tooltip = param.blurb ? `${param.name} (optional) — ${param.blurb}` : `${param.name} (optional)`;
+  node.iconPath = new vscode.ThemeIcon('symbol-parameter');
+  node.contextValue = 'wxkanban.helpParam';
+  return node;
+}
+// [SCOPE 042 / Help] END
 
 // [SCOPE 042 / T020] BEGIN — signatureOf (stable fingerprint of the remaining-work payload)
 // Captures everything the view renders — scope identity, remaining counts, and

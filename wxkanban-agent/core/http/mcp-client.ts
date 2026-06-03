@@ -29,6 +29,7 @@ import {
 export interface McpClientOptions {
   baseUrl?: string;
   token?: string;
+  projectId?: string;
   projectRoot?: string;
   fetchImpl?: typeof fetch;
 }
@@ -65,18 +66,52 @@ function readLegacyTokenFile(projectRoot: string): string | null {
   }
 }
 
+// [SCOPE 028 / Phase 12 — FR-022] Workspace-local FIRST, env as fallback.
+// Two VS Code windows open on different projects on one machine must each use
+// THEIR workspace's token. A global/user-level WXKANBAN_API_TOKEN must not
+// override a workspace-local token (it only fills in when the workspace has
+// none). This reverses the original env-first precedence (FR-005).
 export function resolveApiToken(opts: { projectRoot?: string; env?: NodeJS.ProcessEnv } = {}): string | null {
-  const env = opts.env ?? process.env;
-  if (env["WXKANBAN_API_TOKEN"]) return env["WXKANBAN_API_TOKEN"];
-
   const root = opts.projectRoot ?? process.cwd();
+
   const kit = readKitBlock(root);
   if (kit?.apiToken) return kit.apiToken;
 
   const legacy = readLegacyTokenFile(root);
   if (legacy) return legacy;
 
+  const env = opts.env ?? process.env;
+  if (env["WXKANBAN_API_TOKEN"]) return env["WXKANBAN_API_TOKEN"];
+
   return null;
+}
+
+// [SCOPE 028 / Phase 12 — FR-022] Resolve the workspace's projectId so it can be
+// sent on every MCP call (the server validates it against the token's project).
+function readProjectIdFile(projectRoot: string): string | null {
+  const legacy = join(projectRoot, ".wxkanban-project.json");
+  if (existsSync(legacy)) {
+    try {
+      const json = JSON.parse(readFileSync(legacy, "utf-8")) as { projectId?: unknown };
+      if (typeof json?.projectId === "string") return json.projectId;
+    } catch {
+      /* fall through */
+    }
+  }
+  const wxai = join(projectRoot, ".wxai", "project.json");
+  if (existsSync(wxai)) {
+    try {
+      const json = JSON.parse(readFileSync(wxai, "utf-8")) as { projectId?: unknown };
+      if (typeof json?.projectId === "string") return json.projectId;
+    } catch {
+      /* fall through */
+    }
+  }
+  return null;
+}
+
+export function resolveProjectId(opts: { projectRoot?: string } = {}): string | null {
+  return readProjectIdFile(opts.projectRoot ?? process.cwd());
 }
 
 function maskToken(token: string): string {
@@ -87,12 +122,15 @@ function maskToken(token: string): string {
 export class McpClient {
   private readonly baseUrl: string;
   private readonly token: string | null;
+  private readonly projectId: string | null;
   private readonly fetchImpl: typeof fetch;
   private readonly isHosted: boolean;
 
   constructor(opts: McpClientOptions = {}) {
     this.baseUrl = (opts.baseUrl ?? resolveMcpBaseUrl({ projectRoot: opts.projectRoot })).replace(/\/+$/, "");
     this.token = opts.token ?? resolveApiToken({ projectRoot: opts.projectRoot });
+    // [SCOPE 028 / Phase 12 — FR-022] resolved once per client (per workspace).
+    this.projectId = opts.projectId ?? resolveProjectId({ projectRoot: opts.projectRoot });
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.isHosted = /^https:\/\//i.test(this.baseUrl);
 
@@ -124,7 +162,21 @@ export class McpClient {
     const url = `${this.baseUrl}/call`;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
-    const body = JSON.stringify({ tool, args });
+
+    // [SCOPE 028 / Phase 12 — FR-022] Send the workspace's projectId on every
+    // call so data lands in the correct project even with multiple concurrent
+    // windows. The server validates it against the token's project (scope
+    // backstop). Never override a projectId the caller already supplied (either
+    // casing); unknown keys are stripped by the server's non-strict schemas.
+    const finalArgs: Record<string, unknown> = { ...args };
+    if (
+      this.projectId &&
+      finalArgs["projectId"] === undefined &&
+      finalArgs["projectid"] === undefined
+    ) {
+      finalArgs["projectId"] = this.projectId;
+    }
+    const body = JSON.stringify({ tool, args: finalArgs });
 
     const first = await this.fetchImpl(url, { method: "POST", headers, body });
 
@@ -194,11 +246,20 @@ export class McpClient {
   // [SCOPE 029 / T002] END
 }
 
-let defaultInstance: McpClient | null = null;
-export function getDefaultMcpClient(): McpClient {
-  if (!defaultInstance) defaultInstance = new McpClient();
-  return defaultInstance;
+// [SCOPE 028 / Phase 12 — FR-022] Key the cached client by workspace root so a
+// single process never serves two different workspaces with one cached
+// token/projectId. Each root gets its own client (token + projectId resolved
+// from that root). getDefaultMcpClient() with no arg keeps the cwd default.
+const defaultInstances = new Map<string, McpClient>();
+export function getDefaultMcpClient(projectRoot?: string): McpClient {
+  const key = projectRoot ?? process.cwd();
+  let inst = defaultInstances.get(key);
+  if (!inst) {
+    inst = new McpClient({ projectRoot: key });
+    defaultInstances.set(key, inst);
+  }
+  return inst;
 }
 export function resetDefaultMcpClientForTests(): void {
-  defaultInstance = null;
+  defaultInstances.clear();
 }

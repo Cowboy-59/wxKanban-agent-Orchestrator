@@ -6,6 +6,7 @@ import { openRelatedSpec } from './commands/openSpec.js';
 import { myFeedback, answerFeedbackItem } from './commands/feedback.js'; // [SCOPE 043 / T004, T010]
 import { openFeedbackPanel } from './providers/feedbackPanel.js'; // [SCOPE 043 / T009]
 import type { MyFeedbackItem } from './types.js';
+import type { HelpCommand } from './services/helpCatalog.js'; // [SCOPE 042 / Help]
 import { storeToken } from './services/auth.js';
 import { resolveProjectContext } from './services/projectContext.js';
 import type { CockpitScope, CockpitTask } from './types.js';
@@ -75,6 +76,21 @@ export function activate(context: vscode.ExtensionContext): void {
     // [SCOPE 043 / T011] open the read-only detail view for a submitted item
     vscode.commands.registerCommand('wxkanban.cockpit.showFeedbackDetail', (item?: MyFeedbackItem) => {
       if (item) showFeedbackDetail(item);
+    }),
+
+    // [SCOPE 042 / Help] open a command's doc from the Help section, or show its
+    // excerpt if the doc can't be opened. Read-only.
+    vscode.commands.registerCommand('wxkanban.cockpit.openCommandHelp', async (cmd?: HelpCommand) => {
+      if (!cmd) return;
+      if (cmd.docPath) {
+        try {
+          await vscode.window.showTextDocument(vscode.Uri.file(cmd.docPath));
+          return;
+        } catch {
+          /* fall through to the info message */
+        }
+      }
+      void vscode.window.showInformationMessage(`/${cmd.name} — ${cmd.blurb || 'no description available'}`);
     }),
 
     vscode.commands.registerCommand('wxkanban.cockpit.signIn', async () => {

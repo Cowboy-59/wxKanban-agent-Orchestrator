@@ -6,6 +6,8 @@
 // wrote no spec file. The MCP tool writes a real
 // specs/Project-Scope/NNN-<shortName>.md via project-kit's buildScope().
 
+import { mkdirSync, writeFileSync } from 'fs';
+import { dirname, resolve } from 'path';
 import { ScopeDraft } from '../../core/schemas/artifacts';
 import { McpClient } from '../../core/http/mcp-client';
 
@@ -65,6 +67,11 @@ export class BuildScopeWorker {
 			blockingIssues?: string[];
 			canProceedToCreateSpecs?: boolean;
 			message?: string;
+			// [SCOPE 028 / Phase 12 — FR-021] content the client writes locally.
+			filePath?: string;
+			scopeContent?: string;
+			checklistPath?: string;
+			checklistContent?: string;
 		};
 		if (mcpResult.success === false) {
 			throw new Error(mcpResult.error || 'buildscope: project.buildscope returned success=false');
@@ -86,9 +93,26 @@ export class BuildScopeWorker {
 			throw new Error(parts.join('\n\n'));
 		}
 
+		// [SCOPE 028 / Phase 12 — FR-021] Write-first: the server no longer writes
+		// files (on the hosted MCP those writes hit the server container, not the
+		// developer's machine). The client authors the scope + checklist files in
+		// the local workspace from the returned content, then the DB is the
+		// source of truth for cross-host pull.
+		const root = process.cwd();
+		if (typeof mcpResult.filePath === 'string' && typeof mcpResult.scopeContent === 'string') {
+			const abs = resolve(root, mcpResult.filePath);
+			mkdirSync(dirname(abs), { recursive: true });
+			writeFileSync(abs, mcpResult.scopeContent, 'utf8');
+		}
+		if (typeof mcpResult.checklistPath === 'string' && typeof mcpResult.checklistContent === 'string') {
+			const absChecklist = resolve(root, mcpResult.checklistPath);
+			mkdirSync(dirname(absChecklist), { recursive: true });
+			writeFileSync(absChecklist, mcpResult.checklistContent, 'utf8');
+		}
+
 		// Map BuildScopeResult → ScopeDraft so WorkflowEngine.runBuildScope's
-		// return contract holds. The real spec file was written server-side
-		// by project.buildscope; this object is just the CLI confirmation.
+		// return contract holds. The scope file is now written above by the
+		// client; this object is just the CLI confirmation.
 		const title =
 			(typeof mcpResult.shortName === 'string' && mcpResult.shortName) ||
 			(typeof args['featureDescription'] === 'string' && (args['featureDescription'] as string)) ||

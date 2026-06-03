@@ -1,0 +1,126 @@
+// [SCOPE 042 / Help] Command catalog for the Dev Cockpit "Help — Commands"
+// section. Sourced dynamically from the project's _wxAI/commands/*.md so it
+// reflects the slash commands actually shipped to the workspace and never drifts
+// from a hand-maintained list. Read-only; local files only (works offline).
+import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+
+export interface HelpParam {
+  name: string;
+  blurb: string;
+}
+
+export interface HelpCommand {
+  name: string;
+  blurb: string;
+  docPath?: string;
+  // [SCOPE 042 / Help] optional flags/arguments documented for this command.
+  params: HelpParam[];
+}
+
+export interface HelpCatalog {
+  standard: HelpCommand[];
+  extended: HelpCommand[];
+}
+
+// The core lifecycle set (matched case-insensitively against the file basename).
+// Everything else under _wxAI/commands falls into "Extended".
+const STANDARD = new Set<string>([
+  'buildscope',
+  'createspecs',
+  'implement',
+  'wxconversion',
+  'dbpush',
+  'validatescope',
+  'createtesttasks',
+  'runqa',
+  'runhuman',
+  'preparerelease',
+  'finalizerelease',
+]);
+
+// Non-command docs that live alongside the commands but aren't slash commands.
+const SKIP = /^(ENFORCEMENT_SUMMARY|README)$/i;
+
+function clean(s: string): string {
+  return s
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 200);
+}
+
+/** Best-effort one-line excerpt: front-matter description → ## Purpose → first body line. */
+export function extractBlurb(input: string): string {
+  // Strip a leading UTF-8 BOM — several command files start with one, which
+  // otherwise defeats the ^--- front-matter match.
+  const md = input.charCodeAt(0) === 0xFEFF ? input.slice(1) : input;
+  const fm = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (fm) {
+    const d = fm[1].match(/^description:\s*(.+)$/m);
+    if (d) return clean(d[1]);
+  }
+  const purpose = md.match(/##\s+Purpose\s*\r?\n+([^\r\n]+)/i);
+  if (purpose) return clean(purpose[1]);
+  const body = md.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
+  for (const line of body.split(/\r?\n/)) {
+    const t = line.trim();
+    if (t && !t.startsWith('#') && !t.startsWith('---') && !t.startsWith('|')) return clean(t);
+  }
+  return '';
+}
+
+/**
+ * Best-effort extraction of the OPTIONAL parameters documented for a command.
+ * Scans the first `## Arguments | Options | Parameters | Flags` section and
+ * returns the top-level bullets flagged `(optional)`, e.g.
+ *   - `--dry-run` (optional): Validate without making changes
+ * Nested sub-bullets (Options:/default:) and required args are ignored.
+ */
+export function extractParams(input: string): HelpParam[] {
+  const md = input.charCodeAt(0) === 0xFEFF ? input.slice(1) : input;
+  const section = md.match(/^##\s+(?:Arguments|Options|Parameters|Flags)\s*\r?\n([\s\S]*?)(?:\r?\n##\s|$)/im);
+  if (!section) return [];
+  const params: HelpParam[] = [];
+  for (const line of section[1].split(/\r?\n/)) {
+    // Top-level bullets only (no leading indent) → skip nested detail lines.
+    const m = line.match(/^-\s+`([^`]+)`\s*\(optional\)\s*:?\s*(.*)$/i);
+    if (m) params.push({ name: m[1].trim(), blurb: clean(m[2]) });
+  }
+  return params;
+}
+
+/**
+ * Load the command catalog from the first workspace folder that has an
+ * `_wxAI/commands` directory. Returns empty arrays when none is found (the
+ * caller then omits the Help section).
+ */
+export function loadCommandCatalog(): HelpCatalog {
+  const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+  for (const root of folders) {
+    const dir = path.join(root, '_wxAI', 'commands');
+    let files: string[];
+    try {
+      files = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.md'));
+    } catch {
+      continue;
+    }
+    const standard: HelpCommand[] = [];
+    const extended: HelpCommand[] = [];
+    for (const file of files.sort((a, b) => a.localeCompare(b))) {
+      const name = file.replace(/\.md$/i, '');
+      if (SKIP.test(name)) continue;
+      let md = '';
+      try {
+        md = fs.readFileSync(path.join(dir, file), 'utf8');
+      } catch {
+        continue;
+      }
+      const cmd: HelpCommand = { name, blurb: extractBlurb(md), docPath: path.join(dir, file), params: extractParams(md) };
+      (STANDARD.has(name.toLowerCase()) ? standard : extended).push(cmd);
+    }
+    return { standard, extended };
+  }
+  return { standard: [], extended: [] };
+}
