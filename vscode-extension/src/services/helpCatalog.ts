@@ -31,6 +31,7 @@ const STANDARD = new Set<string>([
   'createspecs',
   'implement',
   'wxconversion',
+  'wxconversionscope',
   'dbpush',
   'validatescope',
   'createtesttasks',
