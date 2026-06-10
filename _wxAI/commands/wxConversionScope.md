@@ -61,6 +61,7 @@ Question discipline for both: **one question at a time**, explain *why* you're a
    - `<window.wdw.md>` → that one window (must exist under `pre-convert/`; if it's still binary or absent, send the developer back to `/wxConversion` and stop).
    - `--all` → list **every `*.wdw.md`** under `pre-convert/`, show the developer the full list and the order you'll take them, and confirm before starting.
 3. Load `CONTEXT.md`, `docs/adr/`, and existing `specs/Project-Scope/` for overlap — exactly as BuildScope's Domain Awareness step requires — **once**, up front, so it carries across every window in the sweep.
+4. **Resume check — never redo finished work.** Before scoping anything, scan `specs/Project-Scope/` for existing `<NNNN>-<stem>.md` files. Read the **numbers** already present: every window whose `<stem>` already has a scope file is **done** — skip it and do **not** regenerate it. New scopes **continue from the highest existing `<NNNN>`** (never reuse or rewind a number). State, up front, which windows you're skipping as already-done and which remain, so an interrupted run picks up exactly where it stopped.
 
 ### Per window — do these in order, then move to the next window
 
