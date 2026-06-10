@@ -6,7 +6,11 @@ import * as path from 'path';
 import { WorkflowEngine } from '../../../core/orchestrator/workflow-engine';
 import { ProjectContext } from '../../../core/context/project-context';
 import { LifecycleStage } from '../../../core/schemas/lifecycle';
-import { AllowedCommandsByStage, CrossCuttingCommands } from '../../../core/schemas/lifecycle';
+// Spec 030 FR-007 — AllowedCommandsByStage + CrossCuttingCommands were removed
+// from lifecycle.ts; the canonical per-stage command set comes from the
+// cli-adapter (same path cli.ts and the MCP server use). This handler was the
+// straggler that never migrated.
+import { getAllowedCommandsForStage } from '../../../core/policy/adapters/cli-adapter';
 import { bindWithAutoselect, PortRangeExhaustedError } from '../../../core/runtime/port-autoselect';
 import { startParentWatcher, resolveParentPid } from '../../../core/runtime/parent-watcher';
 import { writeServiceEntry, removeServiceEntry } from '../../../core/runtime/state-file';
@@ -78,8 +82,7 @@ app.get('/health', (_req, res) => {
 // List available commands for current stage
 app.get('/commands', (_req, res) => {
 	const context = resolveProjectContext();
-	const stageCommands = AllowedCommandsByStage[context.lifecycleStage] || [];
-	const allCommands = [...stageCommands, ...CrossCuttingCommands, ...(context.customCommands || [])];
+	const allCommands = getAllowedCommandsForStage(context.lifecycleStage, context.customCommands);
 	res.json({
 		stage: context.lifecycleStage,
 		commands: allCommands,

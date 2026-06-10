@@ -32,7 +32,7 @@ When run through CLI bridge, this command must map to:
 There are **two ways to supply the source material** for a scope:
 
 1. **Feature description** (default) — a free-text description typed by the user (`/BuildScope "..."`).
-2. **MD file** (`--from-md <path>`) — read an existing Markdown file and use **its content** as the authoritative source material instead of (or in addition to) a typed description. This is the path for converting a document — e.g. the `pre-convert/*.md` files produced by `/wxConversion`, meeting notes, a PRD, or a legacy spec — into a structured Scope-of-Project document. See **MD File Conversion Mode** below.
+2. **MD file** (`--from-md <path>`) — read an existing Markdown file and use **its content** as the authoritative source material instead of (or in addition to) a typed description. This is the path for converting a document — e.g. the `pre-convert/*.wdw.md` files produced by `/wxConversion`, meeting notes, a PRD, or a legacy spec — into a structured Scope-of-Project document. See **MD File Conversion Mode** below.
 
 Either way, the scope is still written by `project.buildscope` — never hand-write it here. If required scope inputs are missing, return clarification questions from `project.buildscope` and continue the interview. Do not write a placeholder scope unless quick mode was explicitly requested.
 
@@ -64,7 +64,7 @@ Usage: /BuildScope <scope description>
        /BuildScope --from-md <path-to-markdown-file>
 
 Example: /BuildScope "Time tracking and billing system for consultants"
-         /BuildScope --from-md pre-convert/WIN_Invoice.md
+         /BuildScope --from-md pre-convert/WIN_Invoice.wdw.md
          /BuildScope --edit 005 "Update time tracking requirements"
 ```
 
@@ -95,13 +95,13 @@ From the feature description (or, in MD File Conversion Mode, from the MD file's
   - "Time tracking and billing" → `time-billing`
   - "Consultant management system" → `consultant-mgmt`
   - "New project setup workflow" → `new-project-setup`
-  - `pre-convert/WIN_Invoice.md` → `win-invoice`
+  - `pre-convert/WIN_Invoice.wdw.md` → `win-invoice`
 
 ---
 
 ## MD File Conversion Mode (`--from-md <path>`)
 
-When `--from-md <path>` is supplied, the **content of that Markdown file is the source material** for the scope — you are *converting an existing document into a Scope-of-Project*, not interviewing from a blank slate. This is the hand-off target for `/wxConversion` output (`pre-convert/*.md`), but any Markdown works (PRD, meeting notes, a legacy spec, an email export).
+When `--from-md <path>` is supplied, the **content of that Markdown file is the source material** for the scope — you are *converting an existing document into a Scope-of-Project*, not interviewing from a blank slate. This is the hand-off target for `/wxConversion` output (`pre-convert/*.wdw.md`), but any Markdown works (PRD, meeting notes, a legacy spec, an email export).
 
 **Procedure:**
 
@@ -800,7 +800,7 @@ Or type "review" to see current content.
 
 **Input**:
 ```
-/BuildScope --from-md pre-convert/WIN_Invoice.md
+/BuildScope --from-md pre-convert/WIN_Invoice.wdw.md
 ```
 
-**Output**: `specs/Project-Scope/0NN-win-invoice.md` — drafted from the file's content (the typical hand-off after `/wxConversion` produces the `pre-convert/*.md` source), reviewed section by section, with "Converted from `pre-convert/WIN_Invoice.md`" noted in Constraints & Notes.
+**Output**: `specs/Project-Scope/0NN-win-invoice.md` — drafted from the file's content (the typical hand-off after `/wxConversion` produces the `pre-convert/*.wdw.md` source), reviewed section by section, with "Converted from `pre-convert/WIN_Invoice.wdw.md`" noted in Constraints & Notes.

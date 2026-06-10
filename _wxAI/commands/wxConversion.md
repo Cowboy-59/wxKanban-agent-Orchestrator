@@ -1,5 +1,5 @@
 ---
-description: Reverse-engineer a PCSoft WinDev / WLanguage application into Markdown — readable source, scope docs, and (optionally) an HFSQL → target-DB mapping document.
+description: Convert a legacy PCSoft WinDev / WLanguage application into readable Markdown — switch the project to text saves, process .wdw/.wdg/.wdc into Markdown, and capture per-window screenshots. Scoping is a separate stage (/wxConversionScope).
 args: "{{args}}"
 ai-compat: universal
 claude-code: true
@@ -7,59 +7,52 @@ cursor: true
 blackboxai: true
 ---
 
-# wxConversion — WinDev Conversion Analyst
+# wxConversion — WinDev Source → Markdown
 
 ## Purpose
 
-Invoke the **wxConversion** skill (WinDev Conversion Analyst) on a legacy PCSoft **WinDev / WLanguage** application. The skill ships with the kit and lives at `_wxAI/skills/wxConversion-analyst.md`.
+Run the **source-conversion stage** of a PCSoft **WinDev / WLanguage** rebuild: turn the legacy app's binary elements into readable Markdown so they can be analyzed and scoped. The skill ships with the kit and lives at `_wxAI/skills/wxConversion-analyst.md`.
 
-**The only output is Markdown files.** In the senior-analyst persona it:
+**The only output is Markdown files (and screenshots).** This command performs **Part A** of the skill's workflow:
 
-1. **Converts the source to Markdown** — switch WinDev to text-format saves, process `.wdw/.wdg/.wdc` into readable Markdown, capture per-window screenshots.
-2. **Scopes** the legacy app — translate its *behavior* (not its implementation) into a business-language Scope-of-Project document.
-3. **Optionally documents the database conversion** — the skill **asks first**; if you say yes, it writes a Markdown HFSQL → target-DB mapping (`pre-convert/schema-mapping.md`) with the proposed DDL and migration notes. It **never** builds a database, runs DDL, exports, or loads data — that is implementation work for later. If you say no, it skips the database entirely.
+1. **Switch WinDev to text-format saves** — binary `.wdw/.wdg/.wdc` can't be read or diffed; the developer re-saves the project as text.
+2. **Process the source to Markdown** — one `.md` per WinDev element under `pre-convert/`, **keeping the element extension** (`<name>.wdw.md` / `.wdg.md` / `.wdc.md`) so the scoping stage can tell windows from procedures/classes.
+3. **Capture per-window screenshots** — one image per `.wdw`, named to match, under `pre-convert/screens/`.
+
+**Scoping is a separate stage.** Once the Markdown exists, run **`/wxConversionScope <entry-file.md>`** to read the code, follow its calls into the procedures/classes it reaches, and build the Scope-of-Project document. This keeps the mechanical one-shot conversion apart from the slow, gated, judgment-heavy scoping pass.
+
+The **optional HFSQL → target-DB mapping** is also produced during scoping (`/wxConversionScope --db`), not here.
 
 Use this when:
 
-- A WinDev application is being rewritten in a new stack and you need a spec built from the existing code.
-- You want the legacy windows captured as readable Markdown + named screenshots before scoping.
-- You want a documented plan for migrating an HFSQL database to PostgreSQL (or another target) — as Markdown, not an executed migration.
+- A WinDev application is being rewritten in a new stack and you need its source as readable Markdown before any scoping.
+- You want the legacy windows captured as named screenshots paired with their converted source.
 
 ## Usage
 
 ```bash
-/wxConversion <file-or-dir>        # source → Markdown + scope drafting; asks before documenting the DB
-/wxConversion --source-only        # Part A only — text-save, .wdw/.wdg/.wdc → Markdown, screenshots
-/wxConversion --target <db>        # preset the target DB for the optional mapping doc (postgres | sqlserver | mysql | sqlite)
+/wxConversion <file-or-dir>        # switch to text saves, process .wdw/.wdg/.wdc → Markdown, capture screenshots
 ```
 
-`<file-or-dir>` is the WinDev source element(s) or a directory of them.
-
-## Arguments
-
-- `--source-only` — Run **Part A** of Step 2 only (A1 text-save → A2 Markdown → A3 screenshots), then continue with the scoping steps. Skips the optional database documentation without asking.
-- `--target <db>` — Preset the target database used in the optional DB mapping document (default recommendation: `postgres`, the wxKanban stack). The wxKanban naming/key conventions apply **only** when the target is `postgres`; any other target follows that DB's own idioms and preserves legacy names by default.
+`<file-or-dir>` is the WinDev source element(s) or a directory of them. (`--source-only` is the default and only behavior now; the scoping and DB stages have moved to `/wxConversionScope`.)
 
 ## Behavior
 
-1. **Preflight**: confirm the skill exists at `_wxAI/skills/wxConversion-analyst.md`. If missing, tell the user the skill isn't installed and stop.
-2. **Load the skill** and follow it literally — persona, Operating Principles, and the Analysis Workflow (Steps 0–6). Honor the BuildScope question discipline: one gate at a time, explicit `[A]pprove` before advancing, never run two steps ahead of the developer.
-3. **The only output is Markdown files.** No code porting, no refactoring, and no live database work.
-4. **The database conversion is optional and documentation-only.** At Step 2 Part B the skill asks "do you also want me to document the database conversion?" — on **no**, it skips the DB entirely; on **yes**, it writes only `pre-convert/schema-mapping.md`. It never creates a connection, runs DDL, exports, or loads data.
-5. **Working files** land under `pre-convert/` (Markdown source, `pre-convert/screens/` images, and — only if opted in — `pre-convert/schema-mapping.md`). Scope artifacts land under `specs/Project-Scope/<NNN>-<short-name>/`.
+1. **Preflight**: confirm the skill exists at `_wxAI/skills/wxConversion-analyst.md`. If missing, tell the user the skill isn't installed and stop. **Create the working directories** if they don't already exist: `pre-convert/` (for the converted `.md`) and `pre-convert/screens/` (for the per-window images).
+2. **Load the skill** and follow **Step 2 / Part A only** (A1 text-save → A2 source→Markdown → A3 screenshots) literally — persona, Operating Principles, one gate at a time, explicit `[A]pprove` before advancing, never run two steps ahead of the developer.
+3. **The only output is Markdown files and screenshots.** No code porting, no refactoring, no scoping, no database work.
+4. **Working files** land under `pre-convert/` (one `.md` per source element with the extension kept — `<name>.wdw.md` / `.wdg.md` / `.wdc.md` — plus `pre-convert/screens/` images named with each window's stem, e.g. `WIN_Invoice.png`). **Write each `.md` to disk the moment its element is processed — one at a time, never batched** — so an interrupted run keeps every file already converted and a re-run can skip the ones that already exist.
+5. **Hand off to scoping.** When Part A is complete, point the developer at `/wxConversionScope <entry-file.md>` to begin scoping from a chosen entry point.
 
 ## Operating Constraints
 
-- **WinDev only.** Source elements are `.wdw` (windows), `.wdg` (global procedures), `.wdc` (classes/procedures); database source is HFSQL. Only text-saved elements can be processed.
-- **Markdown output only.** The skill documents the legacy system; it does not port application code or build/load any database.
-- **wxKanban DB rules are Postgres-only.** In the mapping doc, never impose plural/lowercase/no-underscore naming or UUID-v7 PKs on a non-Postgres target.
-- **Surface, don't decide.** Flag dead code, hardcoded values, and KEEP/MODERNIZE/DROP calls; let the developer choose.
+- **WinDev only.** Source elements are `.wdw` (windows), `.wdg` (global procedures), `.wdc` (classes/procedures). Only text-saved elements can be processed — flag any element still in binary and send the developer back to A1.
+- **Markdown output only.** This command documents the legacy source; it does not port application code, scope the app, or build/load any database.
+- **Surface, don't decide.** Note dead code, hardcoded values, and anything odd in the converted Markdown; the KEEP/MODERNIZE/DROP decisions happen later, during `/wxConversionScope`.
 
 ## Exit conditions
 
-- `--source-only` → Markdown + screenshots produced, then scope drafting; database documentation skipped.
-- Default flow, DB declined → Markdown source + screenshots + scope doc(s) under `specs/Project-Scope/`; no database artifacts.
-- Default flow, DB accepted → as above, plus `pre-convert/schema-mapping.md` (and `schema-mapping.md` folded into the scope) documenting the HFSQL → target mapping with proposed DDL and migration notes. No database is built or loaded.
+- Markdown source produced under `pre-convert/` (one `.md` per WinDev element, extension kept — `<name>.wdw.md` / `.wdg.md` / `.wdc.md`) plus matching per-window screenshots under `pre-convert/screens/`, every window paired to an image by stem. Ready for `/wxConversionScope <window.wdw.md>` (or `--all`).
 
 ## Context
 

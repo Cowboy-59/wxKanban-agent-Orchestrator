@@ -76,6 +76,17 @@ if [ -d node_modules ]; then
 fi
 
 if command -v npm >/dev/null 2>&1; then
+  # Remove any stale tarballs first so the repo root only ever holds the
+  # tarball for the CURRENT version — a lingering older-version .tgz is
+  # exactly how a kit change goes unnoticed by consumers.
+  for old in ../${NAME}-v*.tgz ../${NAME}-[0-9]*.tgz; do
+    [ -e "$old" ] || continue
+    case "$old" in
+      "../${NAME}-v${VERSION}.tgz") ;;  # keep the one we're about to (re)create
+      *) echo "Removing stale tarball: $old"; rm -f "$old" ;;
+    esac
+  done
+
   npm pack --pack-destination ..
   mv "../${TARBALL}" "../${NAME}-v${VERSION}.tgz"
   echo ""

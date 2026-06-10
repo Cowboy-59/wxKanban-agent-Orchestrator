@@ -19,7 +19,7 @@ import * as readline from 'readline';
 import { callMcpTool, callMcpToolWithEnvelope, McpClientError } from './core/orchestrator/mcp-client';
 import { classifyBlockingIssues } from './core/orchestrator/heading-classifier';
 import { rewriteHeadings } from './core/orchestrator/spec-heading-rewriter';
-import { emitCockpitRefresh } from './core/orchestrator/cockpit-refresh';
+import { emitCockpitRefresh, ensureCockpitUpToDate } from './core/orchestrator/cockpit-refresh';
 import { syncTaskStatuses, buildDoneTitles } from './core/orchestrator/sync-task-status';
 import { trustSystemCertificates } from './core/bootstrap/system-ca';
 import { loadProjectEnv } from './core/bootstrap/load-env';
@@ -836,10 +836,12 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
   // [SCOPE 029 / T012] END
 
   // [SCOPE 042 / T021] BEGIN — ping the VS Code Dev Cockpit after a real push
+  // [SCOPE 042 / T038] MODIFIED-BY — also self-heal a stale cockpit (FR-012)
   // so newly created scopes/specs/tasks surface without a manual refresh
   // (spec 042 FR-006 / SC-2). Best-effort; skipped for dry-run / DB-unreachable.
   if (!options.dryRun && !dbState.unreachable) {
     emitCockpitRefresh();
+    ensureCockpitUpToDate();
   }
   // [SCOPE 042 / T021] END
 

@@ -7,6 +7,7 @@ import { myFeedback, answerFeedbackItem } from './commands/feedback.js'; // [SCO
 import { openFeedbackPanel } from './providers/feedbackPanel.js'; // [SCOPE 043 / T009]
 import type { MyFeedbackItem } from './types.js';
 import type { HelpCommand } from './services/helpCatalog.js'; // [SCOPE 042 / Help]
+import type { DocVideo } from './services/videosCatalog.js'; // [SCOPE 042 / Videos]
 import { storeToken } from './services/auth.js';
 import { resolveProjectContext } from './services/projectContext.js';
 import type { CockpitScope, CockpitTask } from './types.js';
@@ -91,6 +92,11 @@ export function activate(context: vscode.ExtensionContext): void {
         }
       }
       void vscode.window.showInformationMessage(`/${cmd.name} — ${cmd.blurb || 'no description available'}`);
+    }),
+
+    // [SCOPE 042 / Videos] open a docs how-to video page in the external browser.
+    vscode.commands.registerCommand('wxkanban.cockpit.openVideo', (v?: DocVideo) => {
+      if (v?.pageUrl) void vscode.env.openExternal(vscode.Uri.parse(v.pageUrl));
     }),
 
     vscode.commands.registerCommand('wxkanban.cockpit.signIn', async () => {

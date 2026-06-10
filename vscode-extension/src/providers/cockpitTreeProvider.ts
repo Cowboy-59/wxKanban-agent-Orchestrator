@@ -3,6 +3,7 @@ import { resolveProjectContext } from '../services/projectContext.js';
 import { resolveToken } from '../services/auth.js';
 import { CockpitMcpClient } from '../services/mcpClient.js';
 import { loadCommandCatalog, type HelpCatalog, type HelpCommand, type HelpParam } from '../services/helpCatalog.js';
+import { loadVideoCatalog, type DocVideo } from '../services/videosCatalog.js'; // [SCOPE 042 / Videos]
 import type { CockpitScope, CockpitSummary, CockpitTask, MyFeedbackItem } from '../types.js';
 
 type NodeKind =
@@ -14,7 +15,9 @@ type NodeKind =
   | 'help-group'
   | 'help-category'
   | 'help-item'
-  | 'help-param';
+  | 'help-param'
+  | 'videos-group' // [SCOPE 042 / Videos]
+  | 'video-item'; // [SCOPE 042 / Videos]
 type LoadState = 'unloaded' | 'ok' | 'empty' | 'no-project' | 'no-token' | 'error';
 
 interface ComputedState {
@@ -38,6 +41,7 @@ export class CockpitNode extends vscode.TreeItem {
     public readonly feedbackItem?: MyFeedbackItem, // [SCOPE 043 / T010]
     public readonly helpCommand?: HelpCommand, // [SCOPE 042 / Help]
     public readonly helpItems?: HelpCommand[], // [SCOPE 042 / Help] — a category's commands
+    public readonly video?: DocVideo, // [SCOPE 042 / Videos]
   ) {
     super(label, collapsibleState);
   }
@@ -53,6 +57,8 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   private activeScope: string | undefined;
   private feedback: MyFeedbackItem[] = []; // [SCOPE 043 / T010]
   private helpCatalog: HelpCatalog = { standard: [], extended: [] }; // [SCOPE 042 / Help]
+  private videos: DocVideo[] = []; // [SCOPE 042 / Videos]
+  private videosLoaded = false; // [SCOPE 042 / Videos] — cache the network fetch until refresh
   private state: LoadState = 'unloaded';
   private errorMsg = '';
   private signature = '';
@@ -65,6 +71,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     this.summary = null;
     this.state = 'unloaded';
     this.signature = '';
+    this.videosLoaded = false; // [SCOPE 042 / Videos] — re-fetch the catalog on refresh
     this._onDidChangeTreeData.fire();
   }
 
@@ -109,6 +116,10 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
       if (element.kind === 'help-item') {
         return (element.helpCommand?.params ?? []).map(helpParamNode);
       }
+      // [SCOPE 042 / Videos] expand the Videos group into per-video items.
+      if (element.kind === 'videos-group') {
+        return this.videos.map(videoItemNode);
+      }
       return [];
     }
     if (this.state === 'unloaded') {
@@ -117,7 +128,13 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     // [SCOPE 042 / Help] catalog is local-file based — load it independently of
     // the MCP load path so Help works in every state (incl. offline / no token).
     this.helpCatalog = loadCommandCatalog();
-    return this.withHelpSection(this.rootNodes());
+    // [SCOPE 042 / Videos] the docs index is public — load it independently of
+    // the MCP load path (works without a token), best-effort and cached.
+    if (!this.videosLoaded) {
+      this.videos = await loadVideoCatalog();
+      this.videosLoaded = true;
+    }
+    return this.withVideosSection(this.withHelpSection(this.rootNodes()));
   }
 
   private applyState(s: ComputedState): void {
@@ -218,6 +235,14 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     return [...base, helpGroupNode()];
   }
   // [SCOPE 042 / Help] END
+
+  // [SCOPE 042 / Videos] BEGIN — append the "Help — Videos" section when the docs
+  // index has at least one video. Omitted entirely when offline / none found.
+  private withVideosSection(base: CockpitNode[]): CockpitNode[] {
+    if (this.videos.length === 0) return base;
+    return [...base, videosGroupNode(this.videos.length)];
+  }
+  // [SCOPE 042 / Videos] END
 }
 // [SCOPE 042 / T016] END
 
@@ -389,6 +414,41 @@ function helpParamNode(param: HelpParam): CockpitNode {
   return node;
 }
 // [SCOPE 042 / Help] END
+
+// [SCOPE 042 / Videos] BEGIN — video node factories
+function videosGroupNode(count: number): CockpitNode {
+  const node = new CockpitNode('videos-group', 'Help — Videos', vscode.TreeItemCollapsibleState.Collapsed);
+  node.description = `${count}`;
+  node.iconPath = new vscode.ThemeIcon('device-camera-video');
+  node.tooltip = 'How-to videos from the wxKanban docs — click to watch in your browser';
+  node.contextValue = 'wxkanban.videosGroup';
+  return node;
+}
+
+function videoItemNode(v: DocVideo): CockpitNode {
+  const node = new CockpitNode(
+    'video-item',
+    v.title,
+    vscode.TreeItemCollapsibleState.None,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    v,
+  );
+  node.description = v.summary;
+  node.tooltip = v.summary ? `${v.title} — ${v.summary}\n${v.pageUrl}` : v.pageUrl;
+  node.iconPath = new vscode.ThemeIcon('play-circle');
+  node.contextValue = 'wxkanban.video';
+  node.command = {
+    command: 'wxkanban.cockpit.openVideo',
+    title: 'Watch video',
+    arguments: [v],
+  };
+  return node;
+}
+// [SCOPE 042 / Videos] END
 
 // [SCOPE 042 / T020] BEGIN — signatureOf (stable fingerprint of the remaining-work payload)
 // Captures everything the view renders — scope identity, remaining counts, and

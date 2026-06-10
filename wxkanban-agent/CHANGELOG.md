@@ -2,7 +2,47 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.5.0 — 2026-06-09
+
+### Added — `/wxConversionScope`: window-seeded scoping stage for WinDev conversion
+
+Split the WinDev conversion workflow into two stages so the mechanical
+source→Markdown pass is separate from the gated, judgment-heavy scoping pass:
+
+- **`/wxConversion`** is trimmed to **Part A only** — switch the WinDev app to
+  text saves, process `.wdw/.wdg/.wdc` into `pre-convert/` (now **keeping the
+  element extension**: `<name>.wdw.md` / `.wdg.md` / `.wdc.md`), and capture
+  per-window screenshots. Each `.md` is written **incrementally** as its element
+  is processed (never batched); the handler scaffolds `pre-convert/` +
+  `pre-convert/screens/`.
+- **`/wxConversionScope`** (new consumer-side slash command) runs the scoping
+  stage: seed from one window's `*.wdw.md` (or `--all` to sweep every window,
+  one at a time), **follow each call** into the `.wdg.md` / `.wdc.md` it reaches,
+  **analyze the matching `<stem>` screenshot** for control→code→column field
+  mapping, then run the **BuildScope gated section-by-section method to
+  completion**, writing each scope (`specs/Project-Scope/<NNNN>-<stem>.md`) to
+  disk before advancing. Resumable: an interrupted sweep keeps finished scopes.
+
+No new orchestrator surface: the command gateway auto-discovers
+`_wxAI/commands/*.md`, and scoping is editor-AI-driven via the already-installed
+skill (kept consistent with "workflow engine, not AI client"). Kit changes are
+the synced `templates/skills/wxConversion-analyst.md` and the `wxconversion.ts`
+hand-off text. Documented in spec 044 (Amendment 2026-06-09; FR-008, FR-009).
+
 ## Unreleased
+
+### Added — opportunistic Dev Cockpit self-update (spec 042 FR-012 / T038)
+
+The kit now keeps the VS Code Dev Cockpit in sync with the bundled `.vsix` at
+everyday `dbpush`/`implement` moments, not only at kit init/upgrade (FR-009/010).
+`ensureCockpitUpToDate()` (`core/orchestrator/cockpit-refresh.ts`) reads the
+installed version via `code --list-extensions --show-versions`, compares it to
+the bundled `wxkanban-dev-cockpit-<version>.vsix`, and `code --install-extension
+… --force` when the installed copy is missing or older — a no-op when equal,
+never a downgrade when newer. Best-effort and once-per-process (same swallow-all
+contract as the refresh ping); disabled by `WXKANBAN_NO_COCKPIT_REFRESH` or the
+dedicated `WXKANBAN_NO_COCKPIT_UPDATE`. Called from the same dbpush/implement
+sites as `emitCockpitRefresh`.
 
 ### Fixed — kit unusable behind a corporate TLS proxy + packaging gaps (BUG-REPORT-kit-dbpush-tls-and-packaging.md)
 

@@ -28,7 +28,7 @@ import {
   NoDetectableUnitError,
   TaskFenceRow,
 } from "../fence-emitter";
-import { emitCockpitRefresh } from "../cockpit-refresh";
+import { emitCockpitRefresh, ensureCockpitUpToDate } from "../cockpit-refresh";
 import { syncTaskStatuses } from "../sync-task-status";
 import { isSuppressed } from "../language-matrix";
 import { isDriftDetected } from "../content-hash";
@@ -357,6 +357,7 @@ export async function handleImplementCommand(
     }
 
     // [SCOPE 042 / T037] BEGIN — auto-dbpush a single completed task, then refresh
+    // [SCOPE 042 / T038] MODIFIED-BY — also self-heal a stale cockpit (FR-012)
     // Covers the surgical `implement <scope>/<task>` path (WorkflowEngine →
     // here), which never went through the batch runner's end-of-run sync. The
     // task was just marked done in tasks.md; push that to the DB so the cockpit
@@ -378,6 +379,7 @@ export async function handleImplementCommand(
         );
       }
       emitCockpitRefresh();
+      ensureCockpitUpToDate();
     }
     // [SCOPE 042 / T037] END
 
@@ -566,6 +568,7 @@ export async function handleImplementBatchCommand(
   }
 
   // [SCOPE 042 / T037] BEGIN — auto-dbpush completed task statuses, then refresh
+  // [SCOPE 042 / T038] MODIFIED-BY — also self-heal a stale cockpit (FR-012)
   // Each completed task was already marked done in tasks.md (markTaskDone above);
   // push that completion to the DB so the cockpit's remaining count actually
   // drops (spec 042 FR-006 / SC-3 — the write-back T021's ping depended on but
@@ -592,6 +595,7 @@ export async function handleImplementBatchCommand(
       }
     }
     emitCockpitRefresh();
+    ensureCockpitUpToDate();
   }
   // [SCOPE 042 / T037] END
 

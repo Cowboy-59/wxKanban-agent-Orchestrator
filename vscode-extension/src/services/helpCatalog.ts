@@ -73,20 +73,51 @@ export function extractBlurb(input: string): string {
 
 /**
  * Best-effort extraction of the OPTIONAL parameters documented for a command.
- * Scans the first `## Arguments | Options | Parameters | Flags` section and
- * returns the top-level bullets flagged `(optional)`, e.g.
- *   - `--dry-run` (optional): Validate without making changes
- * Nested sub-bullets (Options:/default:) and required args are ignored.
+ *
+ * The command files document flags in several styles, so this scans the WHOLE
+ * document (not a single `## Arguments` section — buildscope/validatescope have
+ * none) for bullet lines that introduce an optional flag/argument:
+ *   - `--dry-run` (optional): Validate without making changes   (implement, dbpush)
+ *   - `phase` (optional): Current lifecycle phase               (createspecs)
+ *     - `--from-md <path>` — Read the Markdown file ...         (buildscope, indented)
+ *   - `--source-only` — Run Part A only ...                     (wxconversion, em-dash)
+ *   | `--fix` | Auto-fix minor issues ... |                      (validatescope, table row)
+ *
+ * A bullet or table cell whose backticked token looks like a flag (`-`/`--…`)
+ * OR is explicitly marked `(optional)` qualifies. Anything marked `(required)`,
+ * tool-name / related-command lists, and `key:`-style detail lines are ignored.
+ * Names are de-duplicated (first occurrence wins) so a flag referenced again in
+ * a "Behavior" note doesn't appear twice.
  */
 export function extractParams(input: string): HelpParam[] {
   const md = input.charCodeAt(0) === 0xFEFF ? input.slice(1) : input;
-  const section = md.match(/^##\s+(?:Arguments|Options|Parameters|Flags)\s*\r?\n([\s\S]*?)(?:\r?\n##\s|$)/im);
-  if (!section) return [];
   const params: HelpParam[] = [];
-  for (const line of section[1].split(/\r?\n/)) {
-    // Top-level bullets only (no leading indent) → skip nested detail lines.
-    const m = line.match(/^-\s+`([^`]+)`\s*\(optional\)\s*:?\s*(.*)$/i);
-    if (m) params.push({ name: m[1].trim(), blurb: clean(m[2]) });
+  const seen = new Set<string>();
+  const add = (name: string, rest: string): void => {
+    const isFlag = /^-/.test(name);
+    const optional = /\(optional\)/i.test(rest);
+    if (/\(required\)/i.test(rest)) return;
+    // Keep only genuine flags or items explicitly tagged optional; this drops
+    // example commands, MCP-tool lists, and `key:`-style nested detail lines.
+    if (!isFlag && !optional) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    // Strip the leading `(optional)` marker and any separator (: — – - →).
+    const blurb = rest.replace(/^\(optional\)/i, '').replace(/^\s*[:—–\-→]\s*/, '').trim();
+    params.push({ name, blurb: clean(blurb) });
+  };
+  for (const line of md.split(/\r?\n/)) {
+    // Bullet form: `- `--flag` — desc` (any indent), including createspecs `name` (optional).
+    const bullet = line.match(/^\s*-\s+`([^`]+)`\s*(.*)$/);
+    if (bullet) {
+      add(bullet[1].trim(), bullet[2].trim());
+      continue;
+    }
+    // Table form: `| `--flag` | desc |` (validatescope). Skip header/divider rows
+    // (no backticked first cell).
+    const row = line.match(/^\s*\|\s*`([^`]+)`\s*\|\s*([^|]*?)\s*\|/);
+    if (row) add(row[1].trim(), row[2].trim());
   }
   return params;
 }
