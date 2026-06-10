@@ -140,6 +140,15 @@ export function ensureCockpitUpToDate(): void {
     // silent no-op via the error handler.
     if (installed !== null && compareVersions(installed, bundled.version) >= 0) return;
 
+    // Make the update VISIBLE — a silently-swallowed stale cockpit is how a
+    // developer ends up several versions behind the bundled help without any
+    // signal (FR-012 follow-up). One stderr line; never blocks or fails the
+    // caller.
+    console.error(
+      `[cockpit] updating Dev Cockpit ${installed ?? "(not installed)"} -> ${bundled.version} ` +
+        `(force-installing ${path.basename(bundled.vsixPath)})`,
+    );
+
     const isWindows = process.platform === "win32";
     // Quote the path (may contain spaces) for the Windows shell form.
     const child = isWindows

@@ -4,6 +4,7 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import { WorkflowEngine } from '../../../core/orchestrator/workflow-engine';
+import { ensureCockpitUpToDate } from '../../../core/orchestrator/cockpit-refresh';
 import { ProjectContext } from '../../../core/context/project-context';
 import { LifecycleStage } from '../../../core/schemas/lifecycle';
 // Spec 030 FR-007 — AllowedCommandsByStage + CrossCuttingCommands were removed
@@ -166,6 +167,15 @@ async function startGateway(): Promise<void> {
 		watcher = startParentWatcher(resolveParentPid(), () => {
 			void shutdown('parent-gone');
 		});
+
+		// Phase-agnostic cockpit self-heal. The dbpush/implement triggers only
+		// fire in the Implementation phase; a Design-phase developer (the WinDev
+		// conversion beachhead lives here) could run for weeks without ever
+		// hitting them and stay stranded on an old cockpit. Boot is the one moment
+		// every project-open passes through regardless of phase. Best-effort: any
+		// failure is swallowed inside ensureCockpitUpToDate and never affects the
+		// gateway. WXKANBAN_NO_COCKPIT_UPDATE / _REFRESH disable it.
+		try { ensureCockpitUpToDate(); } catch { /* never block gateway boot */ }
 	} catch (err) {
 		if (err instanceof PortRangeExhaustedError) {
 			console.error(
