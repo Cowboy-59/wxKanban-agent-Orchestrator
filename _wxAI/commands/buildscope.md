@@ -15,6 +15,12 @@ blackboxai: true
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Stack & Style targeting (SPEC-056)
+
+**Before generating scope content, read `stack.md` at the repo root if it exists.** When present, frame the scope against the project's captured stack and design/CSS style — backend, frontend framework, database, styling/component library, testing, hosting, and the design tokens (colors, typography, spacing/radius) — so the scope targets the project's real stack rather than wxKanban's own Express/React/Postgres/Tailwind defaults.
+
+If `stack.md` does **not** exist, proceed exactly as today — no change in behavior, and never emit a placeholder or block on the missing file. `stack.md` is materialized from the project's Stack & Style document by the kit; do not hand-edit it here — use `/buildstack` to change it.
+
 ## Canonical Execution Rule
 
 `/BuildScope` is a thin wrapper around the canonical MCP tool path.

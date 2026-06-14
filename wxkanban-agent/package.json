@@ -1,6 +1,6 @@
 {
   "name": "wxkanban-agent",
-  "version": "1.5.5",
+  "version": "1.5.7",
   "description": "wxKanban Agent Orchestrator Kit — lifecycle-aware command gateway, code fencing, implement/auditfences.",
   "main": "dist/index.js",
   "files": [

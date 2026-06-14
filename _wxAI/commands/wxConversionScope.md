@@ -40,7 +40,7 @@ This is the **second half** of `/wxConversion`. If the Markdown doesn't exist ye
 ## Arguments
 
 - `--all` — sweep mode (see above). Mutually exclusive with naming a single window. Only `.wdw.md` files seed a scope; `.wdg.md` / `.wdc.md` are followed *into*, never seeded on their own.
-- `--db` — after the code walk for a window, run **Part B** of the skill (HFSQL → target-DB documentation) **scoped to the tables that window's call graph touches**. Without it the database is skipped (the skill still asks before any DB work; `--db` pre-answers "yes").
+- `--db` — after the code walk for a window, run **Part B** of the skill (HFSQL → target-DB documentation) **scoped to the tables that window's call graph touches**. Without it the database is skipped (the skill still asks before any DB work; `--db` pre-answers "yes"). The mapping is **faithful by default** — no schema or field-name changes unless the developer specifies them — and Part B first runs a short interview: it asks whether any **data types** need changing (listing the distinct HFSQL types in use) and, for any table with **no primary key** in the source DDL, asks for one or accepts none. Postgres/house-style renames are offered as opt-in suggestions, never auto-applied.
 - `--target <db>` — preset the target database for the optional mapping (default recommendation `postgres`, the wxKanban stack). wxKanban naming/key conventions apply **only** when the target is `postgres`; any other target follows that DB's own idioms and preserves legacy names by default.
 
 ## Persona (carried throughout)
@@ -101,7 +101,7 @@ Using the gathered material as the authoritative source — *extract, don't inve
 - **One window at a time.** In `--all`, fully finish and approve one window's scope before starting the next. Never batch windows or run two ahead of the developer.
 - **Cite your source.** Every observation references `file:line` or `procedure/method-name`, traceable back to the original element by name.
 - **Surface, don't decide.** Flag dead code, hardcoded values, unresolved calls, and KEEP/MODERNIZE/DROP; the developer chooses.
-- **wxKanban DB rules are Postgres-only.** In any mapping doc, never impose plural/lowercase/no-underscore naming or UUID-v7 PKs on a non-Postgres target.
+- **Faithful by default; preserve unless specified.** The `--db` mapping keeps the legacy schema and table/column names **verbatim** for every target (Rules 1 & 2). Schema changes, field renames, data-type changes, and added primary keys happen **only** when the developer specifies them in the Part B interview. The wxKanban Postgres conventions (plural/lowercase/no-underscores, UUID-v7 PKs) are **opt-in suggestions**, never auto-applied — and never imposed on a non-Postgres target.
 
 ## Output (per window)
 
@@ -111,7 +111,7 @@ Using the gathered material as the authoritative source — *extract, don't inve
 - `specs/Project-Scope/<NNNN>-<stem>/checklists/requirements.md` — quality checklist.
 - `specs/Project-Scope/<NNNN>-<stem>/source-references.md` — every scoped requirement mapped back to the converted `.md` (and through it to the original `.wdw/.wdg/.wdc`) by name + line range, **plus the list of unresolved / out-of-scope call edges**.
 - `specs/Project-Scope/<NNNN>-<stem>/screens/*` — UI images copied from `pre-convert/screens/`, when present.
-- `pre-convert/schema-mapping.md` — *(only with `--db`, or on explicit opt-in)* HFSQL → target-DB mapping for the tables this window's graph touches, with KEEP/MODERNIZE/DROP verdicts and migration notes. **A planning document only — no database is built or loaded.**
+- `pre-convert/schema-mapping.md` — *(only with `--db`, or on explicit opt-in)* HFSQL → target-DB mapping for the tables this window's graph touches — **legacy names/schema preserved verbatim by default**, with the data-type, primary-key, and any rename decisions from the Part B interview, plus KEEP/MODERNIZE/DROP verdicts and migration notes. **A planning document only — no database is built or loaded.**
 
 ## Exit conditions
 

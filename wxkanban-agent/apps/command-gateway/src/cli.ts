@@ -16,6 +16,9 @@ import {
 	handleImplementBatchCommand,
 	formatBatchSummaryTable,
 } from '../../../core/orchestrator/command-handlers/implement';
+// [SCOPE 043 / T017] materialize accepted-to-scope feedback seeds into draft files
+import { materializeScopeSeeds } from '../../../core/orchestrator/command-handlers/materialize-seeds';
+import { materializeStack } from '../../../core/orchestrator/command-handlers/materialize-stack';
 // BUG-REPORT-kit-dbpush-tls-and-packaging.md — trust the OS cert store so the
 // gateway works behind a corporate TLS-inspection proxy (Issue 1), and load
 // .env so every gateway command (dbpush etc.) is authenticated (Issue 4).
@@ -288,6 +291,42 @@ async function main(): Promise<void> {
 		}
 		// else: surgical mode, falls through to WorkflowEngine.dispatch below.
 	}
+
+	// [SCOPE 043 / T017] BEGIN — materialize accepted-to-scope feedback seeds.
+	// Pulls seeds for the sink project, writes draft specs/Project-Scope/NNN-*.md
+	// with a collision-safe number, and reports each number back to the server.
+	if (command === 'materialize-seeds') {
+		const results = await materializeScopeSeeds({ projectRoot: process.cwd() });
+		if (results.length === 0) {
+			console.log('No pending scope seeds to materialize.');
+		} else {
+			for (const r of results) {
+				const label =
+					r.status === 'written'
+						? `✓ ${r.scopeNumber}  ${r.file}`
+						: r.status === 'skipped-exists'
+							? `• skipped (exists): ${r.file}`
+							: `✗ error: ${r.error}`;
+				console.log(`${label}   [feedback ${r.feedbackId.slice(0, 8)}]`);
+			}
+		}
+		return;
+	}
+	// [SCOPE 043 / T017] END
+
+	// [SCOPE 055] BEGIN — materialize the project's stack.md from the ProjectStack doc.
+	if (command === 'materialize-stack') {
+		const r = await materializeStack({ projectRoot: process.cwd() });
+		const label =
+			r.status === 'written' ? `✓ wrote ${r.file}`
+			: r.status === 'unchanged' ? `• ${r.file} already up to date`
+			: r.status === 'conflict' ? `! ${r.file} differs from the saved Stack & Style — run /buildstack to reconcile (not overwritten)`
+			: r.status === 'none' ? 'No Stack & Style set for this project yet.'
+			: `✗ error: ${r.error}`;
+		console.log(label);
+		return;
+	}
+	// [SCOPE 055] END
 
 	// BUG-11: spec-gated commands (`implement`, `createtesttasks`, etc.) need
 	// SpecVerification in DispatchOptions or evaluateSpecFirst hard-blocks them.

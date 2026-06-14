@@ -10,6 +10,7 @@ import type { HelpCommand } from './services/helpCatalog.js'; // [SCOPE 042 / He
 import type { DocVideo } from './services/videosCatalog.js'; // [SCOPE 042 / Videos]
 import { storeToken } from './services/auth.js';
 import { resolveProjectContext } from './services/projectContext.js';
+import { materializeStackOnOpen } from './services/materializeStack.js'; // [SCOPE 055]
 import type { CockpitScope, CockpitTask } from './types.js';
 
 // Fallback poll cadence — the kit's emitted refresh URI (T021) is the primary,
@@ -21,6 +22,10 @@ const POLL_INTERVAL_MS = 30_000;
 export function activate(context: vscode.ExtensionContext): void {
   const treeProvider = new CockpitTreeProvider(context.secrets);
   const treeView = vscode.window.createTreeView('wxkanban.cockpit', { treeDataProvider: treeProvider });
+
+  // [SCOPE 055] On open, materialize stack.md from the project's ProjectStack doc
+  // (DB source of truth). Best-effort and non-destructive; never blocks activation.
+  void materializeStackOnOpen(context.secrets);
 
   // [SCOPE 042 / T021] BEGIN — emitted-command refresh: the kit pings
   // vscode://wxperts.wxkanban-dev-cockpit/refresh after dbpush/implement so the

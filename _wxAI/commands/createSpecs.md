@@ -3,6 +3,11 @@
 ## Purpose
 Execute the complete wxKanban spec workflow using the MCP Project Hub `project.create_specs` tool. This single tool orchestrates the entire pipeline: capture → specify → clarify → plan → tasks → lifecycle, and automatically generates `lifecycle.md` and updates `projectlifecycle.md`.
 
+## Stack & Style targeting (SPEC-056)
+**Before generating spec content, read `stack.md` at the repo root if it exists.** When present, write the generated spec's technical sections (plan, architecture, tasks) against the project's captured stack and design/CSS style — backend, frontend framework, database, styling/component library, testing, hosting, and the design tokens (colors, typography, spacing/radius) — **not** wxKanban's own Express/React/Postgres/Tailwind defaults.
+
+If `stack.md` does **not** exist, proceed exactly as today — no change in behavior, and never emit a placeholder or block on the missing file. `stack.md` is materialized from the project's Stack & Style document by the kit; do not hand-edit it here — use `/buildstack` to change it.
+
 ## Usage
 ```bash
 # Via MCP Tool Call

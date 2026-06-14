@@ -144,23 +144,41 @@ Process every `*.wdw` (windows), `*.wdg` (global procedures), and `*.wdc` (class
 
 When the developer opts in, your **only deliverable is a Markdown file**, `pre-convert/schema-mapping.md`. You do **not** export data, create connections, run DDL, or load rows — that is implementation work for later.
 
+**Conversion-safety rules — the mapping is faithful by default.** The `schema-mapping.md` defaults to a **verbatim, 1:1 translation** of the legacy schema. Any deviation is **opt-in, per item, and traceable to a developer answer**. Two rules govern the mapping for **every** target (including PostgreSQL):
+
+- **Rule 1 — No schema changes unless specified.** Tables, columns, relationships, and structure are preserved exactly as found in the source DDL. Do not add, drop, split, merge, or restructure anything on your own.
+- **Rule 2 — No field-name changes unless specified.** Table and column names are kept **verbatim** (including French names). French→English renames and the wxKanban Postgres conventions are **not auto-applied** — they are surfaced as *opt-in suggestions* the developer may accept per table/column, never imposed.
+
 ##### B1 — Read the SQL schema from the analysis
 
-Prompt the developer to generate the SQL DDL from the WinDev **analysis** (the data model) and **give you the exported filename and location**. Do not continue until they give you the path. Read the file and confirm back: number of tables, procedures, and any parse warnings.
+Prompt the developer to generate the SQL DDL from the WinDev **analysis** (the data model) and **give you the exported filename and location**. Do not continue until they give you the path. Read the file and confirm back: number of tables, procedures, and any parse warnings. Also extract, for the in-scope tables, two things you'll need for the B2 interview: the **distinct HFSQL data types in use** (deduplicated across all in-scope tables) and **which tables have no primary key** declared in the DDL.
 
-##### B2 — Choose the target DB and document the mapping
+##### B2 — Conversion-safety interview (run BEFORE writing the mapping)
+
+Restate Rules 1 & 2, then ask the following **one question at a time** (BuildScope discipline — explain why, wait for the answer). Default to faithful preservation; apply only what the developer specifies.
+
+1. **Data types.** Present the **actual list of distinct HFSQL types** observed in the in-scope tables (from B1), then ask: *"Do any of these need to change for the target, or should I map them faithfully?"* The default is the type cheat-sheet (below) with **no alteration**. If the developer wants changes, capture the desired target type **per source type to change** and apply **only those** — leave every other type on its faithful default.
+
+2. **Missing primary key.** For **each** in-scope table whose source DDL declares **no primary key**, ask: *"Table `<name>` has no primary key in the source — what should its primary key be, or should it remain keyless?"* Accept a named PK **or** accept **none** (map the table keyless and record that explicitly). **Never invent or auto-add a surrogate key.**
+
+3. **Optional modernizations (only if you have suggestions).** You MAY surface rename/convention suggestions (e.g. the Postgres house style) as an explicit, opt-in list — but the mapping uses legacy names verbatim unless the developer approves a specific rename here.
+
+Record each answer; these decisions drive B3.
+
+##### B3 — Choose the target DB and document the mapping
 
 Prompt the developer for the **target database** (default recommendation: **PostgreSQL**, the wxKanban stack — but honor their choice: e.g. SQL Server, MySQL/MariaDB, SQLite). Then write `pre-convert/schema-mapping.md` describing — **on paper only** — how the HFSQL schema maps to that target:
 
-- a table-by-table, column-by-column mapping with the chosen types;
-- French → English rename suggestions (`Clients`→`clients`, `LigneFacture`→`invoicelines`, `Montant`→`amount`) **surfaced for approval, never applied silently**;
+- a table-by-table, column-by-column mapping that **keeps legacy names verbatim by default** (Rule 2) and uses the **types decided in the B2 interview** (faithful cheat-sheet unless the developer specified changes);
+- French → English rename suggestions (`Clients`→`clients`, `LigneFacture`→`invoicelines`, `Montant`→`amount`) listed **only as opt-in suggestions** the developer accepted in B2 — never applied unless explicitly approved per item;
+- the **primary-key decision per table** from B2 (the named PK, or explicitly *keyless* where the developer accepted none — never an invented surrogate);
 - a KEEP / MODERNIZE / DROP verdict on each legacy column, with the developer's reason;
 - the proposed target DDL embedded in a fenced ```sql block (a reference for the later implementation step — you do not execute it);
 - data-migration notes the eventual implementer will need (encoding Windows-1252→UTF-8, HFSQL empty-date sentinels `0000-00-00`/`18991230` → `NULL`, boolean string forms, French decimal-comma normalization, referential load order, and any ID-remapping/crosswalk strategy if the target key type differs).
 
-**Apply the wxKanban naming/key conventions in the mapping ONLY when the chosen target is PostgreSQL.** They are house rules for the wxKanban Postgres stack, not universal — never impose them on another destination DB. When the target is PostgreSQL (see `CLAUDE.md`): tables plural/lowercase/concatenated with **no underscores**, PK `id` as **UUID v7**, FKs named `<parenttable>id`, fields lowercase/concatenated/no-underscores.
+**Preserve legacy names and structure by default for EVERY target — including PostgreSQL** (Rules 1 & 2). The wxKanban Postgres conventions are **opt-in suggestions, never auto-applied.** When the target is PostgreSQL you MAY *offer* the house style (see `CLAUDE.md`): tables plural/lowercase/concatenated with **no underscores**, PK `id` as **UUID v7**, FKs named `<parenttable>id`, fields lowercase/concatenated/no-underscores — but the mapping keeps the legacy names verbatim unless the developer approved specific renames in the B2 interview. Never impose these on any target.
 
-For **any other target** (SQL Server, MySQL/MariaDB, SQLite, etc.): follow **that DB's own idioms** and, by default, **preserve the legacy table/column names and key strategy** unless the developer asks to rename. Ask the developer for their naming preference before documenting.
+For **any other target** (SQL Server, MySQL/MariaDB, SQLite, etc.): follow **that DB's own idioms** and **preserve the legacy table/column names and key strategy** unless the developer asked to rename in B2.
 
 HFSQL → PostgreSQL type cheat-sheet (adapt to the chosen dialect; confirm edge cases):
 
@@ -223,7 +241,7 @@ Generated by the `/wxConversionScope` command flow. **One scope per window**, na
 - `specs/Project-Scope/<NNNN>-<stem>/checklists/requirements.md` — quality checklist
 - `specs/Project-Scope/<NNNN>-<stem>/screens/*` — copied UI images
 - `specs/Project-Scope/<NNNN>-<stem>/source-references.md` — function-by-function map back to original code (filename + line ranges) so the rebuild team can always check "what did the old version do here?", plus the list of unresolved / out-of-scope call edges
-- `specs/Project-Scope/<NNNN>-<stem>/schema-mapping.md` — *(only when the developer opted into Part B)* the HFSQL→target-DB table & column mapping documented in Step 2 Part B, with KEEP/MODERNIZE/DROP verdicts, the type cheat-sheet applied, the proposed DDL, the ID-crosswalk strategy, and data-conversion notes for the later migration. **This is a planning document, not an executed migration** — no database is built or loaded by this skill.
+- `specs/Project-Scope/<NNNN>-<stem>/schema-mapping.md` — *(only when the developer opted into Part B)* the HFSQL→target-DB table & column mapping documented in Step 2 Part B — **legacy names/schema preserved verbatim by default**, reflecting the B2 interview decisions (data-type changes, per-table primary key or keyless, any approved renames), with KEEP/MODERNIZE/DROP verdicts, the proposed DDL, the ID-crosswalk strategy, and data-conversion notes for the later migration. **This is a planning document, not an executed migration** — no database is built or loaded by this skill.
 
 ---
 

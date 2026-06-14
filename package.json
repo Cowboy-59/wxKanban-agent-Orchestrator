@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.5.5",
+  "version": "1.5.7",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -12,6 +12,7 @@
     "start:server": "node dist/server.cjs",
     "start:client": "vite preview --config vite.config.ts",
     "test": "vitest run",
+    "lint:i18n": "node scripts/check-hardcoded-strings.mjs",
     "test:unit": "vitest run tests/unit",
     "test:watch": "vitest",
     "kit:build": "cd mcp-server && npx tsc",
