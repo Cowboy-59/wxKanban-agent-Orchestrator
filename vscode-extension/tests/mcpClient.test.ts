@@ -24,7 +24,7 @@ describe('CockpitMcpClient', () => {
     const [url, init] = (fetchImpl as unknown as vi.Mock).mock.calls[0];
     expect(url).toBe('https://mcp.wxperts.com/call'); // trailing slash trimmed
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
-    expect(JSON.parse(init.body as string)).toEqual({ tool: 'project.cockpit_summary', args: { projectId: 'p1' } });
+    expect(JSON.parse(init.body as string)).toEqual({ tool: 'project.cockpit_summary', args: { projectid: 'p1' } });
   });
 
   it('retries once on 429 then succeeds', async () => {

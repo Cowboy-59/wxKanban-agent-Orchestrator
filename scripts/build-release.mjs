@@ -63,7 +63,10 @@ if (!version.startsWith('v')) version = `v${version}`;
 // after extract. Without this, dbpush crashes on a freshly upgraded kit
 // with "Cannot find module '@wxkanban/preflight'".
 const KIT_INCLUDE_DIRS  = ['bin', 'wxkanban-agent', 'mcp-server', '_wxAI', 'scripts', '.vscode', '.claude', 'shared'];
-const KIT_INCLUDE_FILES = ['package.json', 'package-lock.json'];
+// SPEC-058 Amendment B / FR-010 — the wxAIGit launchers ship at project root so
+// the Cockpit's scope check-out can create the branch. Backing scripts live under
+// scripts/wxaigit/ (scripts/ is already in KIT_INCLUDE_DIRS).
+const KIT_INCLUDE_FILES = ['package.json', 'package-lock.json', 'wxAIGit', 'wxAIGit.cmd'];
 
 // Files at exactly .claude/<name> (top-level of .claude/) that must never be
 // packed — they hold per-machine state, not kit content.

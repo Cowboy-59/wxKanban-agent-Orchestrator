@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# [SCOPE 058 / T025] POSIX launcher for wxAIGit (scope-branch lifecycle).
+# macOS/Linux counterpart of wxAIGit.cmd. Only `branch` and `merge` are
+# supported (SPEC-058 Amendment B / FR-009). Backing scripts live beside this
+# launcher in scripts/wxaigit/, resolved relative to the launcher's own path.
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS="$DIR/scripts/wxaigit"
+
+usage() {
+  cat >&2 <<'EOF'
+wxAIGit - scope-branch lifecycle (SPEC-058)
+
+Usage:
+  wxAIGit branch --create <name>            Create (if absent) + switch to branch
+  wxAIGit merge  --source-branch <branch>   Merge a scope/* branch into integration (local)
+EOF
+  exit 1
+}
+
+sub="${1:-}"
+[[ -n "$sub" ]] || usage
+shift
+
+case "$sub" in
+  branch) target="$SCRIPTS/gitbranch.sh" ;;
+  merge)  target="$SCRIPTS/gitmerge.sh" ;;
+  *) echo "wxAIGit: unsupported subcommand '$sub' (only 'branch' and 'merge')." >&2; usage ;;
+esac
+
+if [[ ! -f "$target" ]]; then
+  echo "wxAIGit: backing script not found: '$target'" >&2
+  exit 1
+fi
+
+exec bash "$target" "$@"

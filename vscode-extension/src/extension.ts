@@ -11,6 +11,8 @@ import type { DocVideo } from './services/videosCatalog.js'; // [SCOPE 042 / Vid
 import { storeToken } from './services/auth.js';
 import { resolveProjectContext } from './services/projectContext.js';
 import { materializeStackOnOpen } from './services/materializeStack.js'; // [SCOPE 055]
+import { ScopeClaimProvider } from './providers/scopeDecorations.js'; // [SCOPE 058 / T013]
+import { checkoutScope, checkinScope } from './commands/scopeCheckout.js'; // [SCOPE 058 / T010]
 import type { CockpitScope, CockpitTask } from './types.js';
 
 // Fallback poll cadence — the kit's emitted refresh URI (T021) is the primary,
@@ -20,7 +22,10 @@ const POLL_INTERVAL_MS = 30_000;
 
 // [SCOPE 042 / T009] BEGIN — extension activation: wire the Dev Cockpit view, detail panel, and commands
 export function activate(context: vscode.ExtensionContext): void {
-  const treeProvider = new CockpitTreeProvider(context.secrets);
+  // [SCOPE 058 / T013] scope claim decorations + FR-008 editor read-only, fed each
+  // refresh by the tree provider's claim sink.
+  const claimProvider = new ScopeClaimProvider();
+  const treeProvider = new CockpitTreeProvider(context.secrets, (summary) => claimProvider.update(summary));
   const treeView = vscode.window.createTreeView('wxkanban.cockpit', { treeDataProvider: treeProvider });
 
   // [SCOPE 055] On open, materialize stack.md from the project's ProjectStack doc
@@ -51,6 +56,17 @@ export function activate(context: vscode.ExtensionContext): void {
     treeView,
     uriHandler,
     { dispose: () => clearInterval(pollTimer) },
+
+    // [SCOPE 058 / T013] register the scope claim decoration provider
+    vscode.window.registerFileDecorationProvider(claimProvider),
+
+    // [SCOPE 058 / T010] scope check-out / check-in (refresh re-queries claim state)
+    vscode.commands.registerCommand('wxkanban.cockpit.checkoutScope', (node?: CockpitNode) =>
+      checkoutScope(context.secrets, node, () => treeProvider.refresh()),
+    ),
+    vscode.commands.registerCommand('wxkanban.cockpit.checkinScope', (node?: CockpitNode) =>
+      checkinScope(context.secrets, node, () => treeProvider.refresh()),
+    ),
 
     vscode.commands.registerCommand('wxkanban.cockpit.refresh', () => treeProvider.refresh()),
 

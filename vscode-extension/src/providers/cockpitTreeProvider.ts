@@ -5,6 +5,7 @@ import { CockpitMcpClient } from '../services/mcpClient.js';
 import { loadCommandCatalog, type HelpCatalog, type HelpCommand, type HelpParam } from '../services/helpCatalog.js';
 import { loadVideoCatalog, type DocVideo } from '../services/videosCatalog.js'; // [SCOPE 042 / Videos]
 import type { CockpitScope, CockpitSummary, CockpitTask, MyFeedbackItem } from '../types.js';
+import { scopeResourceUri } from './scopeDecorations.js'; // [SCOPE 058 / T013]
 
 type NodeKind =
   | 'scope'
@@ -63,7 +64,12 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   private errorMsg = '';
   private signature = '';
 
-  constructor(private readonly secrets: vscode.SecretStorage) {}
+  // [SCOPE 058 / T013] claimSink receives each fresh summary to drive scope
+  // decorations + the FR-008 editor read-only.
+  constructor(
+    private readonly secrets: vscode.SecretStorage,
+    private readonly claimSink?: (summary: CockpitSummary | null) => void,
+  ) {}
 
   // Hard refresh: drop cached data and show the load path again. Used by the
   // manual command, the sign-in flow, and the kit's emitted refresh URI.
@@ -144,6 +150,8 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     this.feedback = s.feedback;
     this.errorMsg = s.errorMsg;
     this.signature = s.signature;
+    // [SCOPE 058 / T013] push claim state to the decoration + read-only provider.
+    this.claimSink?.(s.summary);
   }
 
   // Resolve project + token + MCP read into a self-contained state snapshot.
@@ -212,7 +220,8 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
           const bActive = b.specNumber === this.activeScope ? 0 : 1;
           return aActive - bActive || a.specNumber.localeCompare(b.specNumber);
         });
-        return this.withFeedbackSection(sorted.map((s) => scopeNode(s, s.specNumber === this.activeScope)));
+        const viewer = this.summary?.viewerUserId ?? null;
+        return this.withFeedbackSection(sorted.map((s) => scopeNode(s, s.specNumber === this.activeScope, viewer)));
       }
       default:
         return [];
@@ -247,12 +256,21 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
 // [SCOPE 042 / T016] END
 
 // [SCOPE 042 / T016] BEGIN — node factories
-function scopeNode(scope: CockpitScope, isActive: boolean): CockpitNode {
+function scopeNode(scope: CockpitScope, isActive: boolean, viewerUserId: string | null): CockpitNode {
   const node = new CockpitNode('scope', `#${scope.specNumber}  ${scope.title}`, vscode.TreeItemCollapsibleState.Collapsed, scope);
-  node.description = `${scope.remainingCount} left`;
-  node.tooltip = `Scope ${scope.specNumber} — ${scope.title}\nstatus: ${scope.status}${isActive ? '\n(active scope)' : ''}`;
+  // [SCOPE 058 / T013] claim state: a synthetic resourceUri lets ScopeClaimProvider
+  // color/badge the row; the holder also shows inline + in the tooltip + context value
+  // (so the right-click menu offers Check out vs Check in).
+  const claim = scope.claimedBy ?? null;
+  const byMe = !!claim && !!viewerUserId && claim.userId === viewerUserId;
+  node.resourceUri = scopeResourceUri(scope.specNumber);
+  node.description = claim ? `${scope.remainingCount} left · ${byMe ? 'you' : claim.name}` : `${scope.remainingCount} left`;
+  node.tooltip =
+    `Scope ${scope.specNumber} — ${scope.title}\nstatus: ${scope.status}` +
+    (isActive ? '\n(active scope)' : '') +
+    (claim ? `\nchecked out by ${byMe ? 'you' : claim.name}` : '');
   node.iconPath = new vscode.ThemeIcon(isActive ? 'star-full' : 'layers');
-  node.contextValue = 'wxkanban.scope';
+  node.contextValue = claim ? (byMe ? 'wxkanban.scope.mine' : 'wxkanban.scope.held') : 'wxkanban.scope.free';
   return node;
 }
 
