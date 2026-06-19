@@ -13,6 +13,7 @@ import { resolveProjectContext } from './services/projectContext.js';
 import { materializeStackOnOpen } from './services/materializeStack.js'; // [SCOPE 055]
 import { ScopeClaimProvider } from './providers/scopeDecorations.js'; // [SCOPE 058 / T013]
 import { checkoutScope, checkinScope } from './commands/scopeCheckout.js'; // [SCOPE 058 / T010]
+import { checkCommands, installCommands } from './services/commandsInstall.js'; // [SCOPE 060 / Cockpit]
 import type { CockpitScope, CockpitTask } from './types.js';
 
 // Fallback poll cadence — the kit's emitted refresh URI (T021) is the primary,
@@ -31,6 +32,23 @@ export function activate(context: vscode.ExtensionContext): void {
   // [SCOPE 055] On open, materialize stack.md from the project's ProjectStack doc
   // (DB source of truth). Best-effort and non-destructive; never blocks activation.
   void materializeStackOnOpen(context.secrets);
+
+  // [SCOPE 060 / Cockpit] One-time nudge on activation: if the kit's slash
+  // commands aren't in .claude/commands/, offer to install them so / commands
+  // work in Claude Code. The Cockpit tree also shows a persistent click-to-install
+  // row while any are missing.
+  {
+    const s = checkCommands();
+    if (s.root && s.actionNeeded) {
+      const n = s.missing.length;
+      const msg = n > 0
+        ? `${n} wxKanban slash command${n === 1 ? '' : 's'} aren't installed for Claude Code.`
+        : 'wxKanban slash commands are outdated.';
+      void vscode.window.showInformationMessage(msg, 'Install').then((pick) => {
+        if (pick === 'Install') void vscode.commands.executeCommand('wxkanban.cockpit.installCommands');
+      });
+    }
+  }
 
   // [SCOPE 042 / T021] BEGIN — emitted-command refresh: the kit pings
   // vscode://wxperts.wxkanban-dev-cockpit/refresh after dbpush/implement so the
@@ -69,6 +87,23 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
 
     vscode.commands.registerCommand('wxkanban.cockpit.refresh', () => treeProvider.refresh()),
+
+    // [SCOPE 060 / Cockpit] Copy _wxAI/commands/ → .claude/commands/ so the kit's
+    // slash commands work in Claude Code. Idempotent; reports what changed.
+    vscode.commands.registerCommand('wxkanban.cockpit.installCommands', () => {
+      const r = installCommands();
+      if (!r.ok) {
+        void vscode.window.showWarningMessage(`wxKanban: ${r.error}`);
+        return;
+      }
+      const changed = r.installed.length + r.updated.length;
+      void vscode.window.showInformationMessage(
+        changed
+          ? `wxKanban: ${r.installed.length} installed, ${r.updated.length} updated in .claude/commands/. Reload to pick up new / commands.`
+          : 'wxKanban: slash commands already up to date.',
+      );
+      treeProvider.refresh();
+    }),
 
     vscode.commands.registerCommand('wxkanban.cockpit.openDetail', (arg?: { task: CockpitTask; scope: CockpitScope }) => {
       if (arg?.task && arg?.scope) {

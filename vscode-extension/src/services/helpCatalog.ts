@@ -34,6 +34,7 @@ const STANDARD = new Set<string>([
   'wxconversionscope',
   'dbpush',
   'validatescope',
+  'analyzescope',
   'createtesttasks',
   'runqa',
   'runhuman',

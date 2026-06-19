@@ -4,6 +4,7 @@ import { resolveToken } from '../services/auth.js';
 import { CockpitMcpClient } from '../services/mcpClient.js';
 import { loadCommandCatalog, type HelpCatalog, type HelpCommand, type HelpParam } from '../services/helpCatalog.js';
 import { loadVideoCatalog, type DocVideo } from '../services/videosCatalog.js'; // [SCOPE 042 / Videos]
+import { checkCommands, type CommandsStatus } from '../services/commandsInstall.js'; // [SCOPE 060 / Cockpit]
 import type { CockpitScope, CockpitSummary, CockpitTask, MyFeedbackItem } from '../types.js';
 import { scopeResourceUri } from './scopeDecorations.js'; // [SCOPE 058 / T013]
 
@@ -18,7 +19,8 @@ type NodeKind =
   | 'help-item'
   | 'help-param'
   | 'videos-group' // [SCOPE 042 / Videos]
-  | 'video-item'; // [SCOPE 042 / Videos]
+  | 'video-item' // [SCOPE 042 / Videos]
+  | 'commands-setup'; // [SCOPE 060 / Cockpit]
 type LoadState = 'unloaded' | 'ok' | 'empty' | 'no-project' | 'no-token' | 'error';
 
 interface ComputedState {
@@ -60,6 +62,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   private helpCatalog: HelpCatalog = { standard: [], extended: [] }; // [SCOPE 042 / Help]
   private videos: DocVideo[] = []; // [SCOPE 042 / Videos]
   private videosLoaded = false; // [SCOPE 042 / Videos] — cache the network fetch until refresh
+  private commandsStatus: CommandsStatus | null = null; // [SCOPE 060 / Cockpit]
   private state: LoadState = 'unloaded';
   private errorMsg = '';
   private signature = '';
@@ -140,7 +143,11 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
       this.videos = await loadVideoCatalog();
       this.videosLoaded = true;
     }
-    return this.withVideosSection(this.withHelpSection(this.rootNodes()));
+    // [SCOPE 060 / Cockpit] cheap local-fs check: are the kit's slash commands
+    // installed into .claude/commands so Claude Code sees them? Independent of
+    // the MCP load path (works offline / no token).
+    this.commandsStatus = checkCommands();
+    return this.withVideosSection(this.withHelpSection(this.withCommandsSection(this.rootNodes())));
   }
 
   private applyState(s: ComputedState): void {
@@ -245,6 +252,17 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   }
   // [SCOPE 042 / Help] END
 
+  // [SCOPE 060 / Cockpit] BEGIN — append a "slash commands not installed" prompt
+  // when _wxAI/commands/ hasn't been copied into .claude/commands/ (so / commands
+  // work in Claude Code). Shown only when an install would change something —
+  // clicking it runs the install. Silent when everything's current.
+  private withCommandsSection(base: CockpitNode[]): CockpitNode[] {
+    const s = this.commandsStatus;
+    if (!s || !s.root || !s.actionNeeded) return base;
+    return [commandsSetupNode(s), ...base];
+  }
+  // [SCOPE 060 / Cockpit] END
+
   // [SCOPE 042 / Videos] BEGIN — append the "Help — Videos" section when the docs
   // index has at least one video. Omitted entirely when offline / none found.
   private withVideosSection(base: CockpitNode[]): CockpitNode[] {
@@ -284,6 +302,23 @@ function taskNode(task: CockpitTask, scope: CockpitScope): CockpitNode {
     title: 'Open Detail',
     arguments: [{ task, scope }],
   };
+  return node;
+}
+
+// [SCOPE 060 / Cockpit] "slash commands not installed" prompt — click to install.
+function commandsSetupNode(s: CommandsStatus): CockpitNode {
+  const missing = s.missing.length;
+  const stale = s.stale.length;
+  const label = missing > 0 ? 'Install wxKanban slash commands' : 'Update wxKanban slash commands';
+  const node = new CockpitNode('commands-setup', label, vscode.TreeItemCollapsibleState.None);
+  node.description = missing > 0 ? `${missing} not installed — click to install` : `${stale} outdated — click to update`;
+  node.iconPath = new vscode.ThemeIcon('cloud-download', new vscode.ThemeColor('notificationsWarningIcon.foreground'));
+  node.tooltip =
+    `Copy the kit's commands from _wxAI/commands/ into .claude/commands/ so they work as / commands in Claude Code.` +
+    (s.standardMissing.length ? `\nStandard commands missing: ${s.standardMissing.join(', ')}` : '') +
+    `\nTarget: ${s.targetDir}`;
+  node.contextValue = 'wxkanban.commandsSetup';
+  node.command = { command: 'wxkanban.cockpit.installCommands', title: 'Install slash commands' };
   return node;
 }
 
