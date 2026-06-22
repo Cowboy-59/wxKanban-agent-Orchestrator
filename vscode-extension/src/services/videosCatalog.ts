@@ -61,3 +61,47 @@ export async function loadVideoCatalog(fetchImpl: typeof fetch = fetch): Promise
   }
 }
 // [SCOPE 042 / Videos] END
+
+// [SCOPE 066 / T008] BEGIN — categorized marketing videos (Open / Training)
+interface MarketingVideoRow {
+  id: string;
+  title: string;
+  fileurl: string | null;
+  category: string;
+  locale: string;
+}
+
+/** Open + Training marketing videos, shaped like DocVideo (pageUrl = the video URL). */
+export interface MarketingVideoGroups {
+  open: DocVideo[];
+  training: DocVideo[];
+}
+
+/**
+ * Load published marketingassets videos grouped by category for the cockpit's
+ * Videos section (SCOPE-066 FR-011). Empty groups on any error — caller omits the
+ * subtrees. Distinct from loadVideoCatalog (the docs how-to videos), which stays.
+ */
+export async function loadMarketingVideoCatalog(
+  fetchImpl: typeof fetch = fetch,
+): Promise<MarketingVideoGroups> {
+  const base = docsBase();
+  const empty: MarketingVideoGroups = { open: [], training: [] };
+  try {
+    const res = await fetchImpl(`${base}/api/help/marketing-videos`);
+    if (!res.ok) return empty;
+    const body = (await res.json()) as { data?: MarketingVideoRow[] };
+    const rows = body.data ?? [];
+    const groups: MarketingVideoGroups = { open: [], training: [] };
+    for (const r of rows) {
+      if (!r.fileurl) continue;
+      const item: DocVideo = { slug: r.id, title: r.title, summary: '', pageUrl: r.fileurl };
+      if (r.category === 'training') groups.training.push(item);
+      else groups.open.push(item);
+    }
+    return groups;
+  } catch {
+    return empty;
+  }
+}
+// [SCOPE 066 / T008] END

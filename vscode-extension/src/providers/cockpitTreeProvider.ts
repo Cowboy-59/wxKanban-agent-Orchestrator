@@ -3,7 +3,8 @@ import { resolveProjectContext } from '../services/projectContext.js';
 import { resolveToken } from '../services/auth.js';
 import { CockpitMcpClient } from '../services/mcpClient.js';
 import { loadCommandCatalog, type HelpCatalog, type HelpCommand, type HelpParam } from '../services/helpCatalog.js';
-import { loadVideoCatalog, type DocVideo } from '../services/videosCatalog.js'; // [SCOPE 042 / Videos]
+import { loadVideoCatalog, loadMarketingVideoCatalog, type DocVideo, type MarketingVideoGroups } from '../services/videosCatalog.js'; // [SCOPE 042 / Videos] + [SCOPE 066 / T008]
+import { loadFaqCatalog, type FaqEntry } from '../services/faqCatalog.js'; // [SCOPE 066 / T008]
 import { checkCommands, type CommandsStatus } from '../services/commandsInstall.js'; // [SCOPE 060 / Cockpit]
 import type { CockpitScope, CockpitSummary, CockpitTask, MyFeedbackItem } from '../types.js';
 import { scopeResourceUri } from './scopeDecorations.js'; // [SCOPE 058 / T013]
@@ -20,6 +21,9 @@ type NodeKind =
   | 'help-param'
   | 'videos-group' // [SCOPE 042 / Videos]
   | 'video-item' // [SCOPE 042 / Videos]
+  | 'video-category' // [SCOPE 066 / T008] — Open / Training marketing-video subtree
+  | 'faq-group' // [SCOPE 066 / T008]
+  | 'faq-item' // [SCOPE 066 / T008]
   | 'commands-setup'; // [SCOPE 060 / Cockpit]
 type LoadState = 'unloaded' | 'ok' | 'empty' | 'no-project' | 'no-token' | 'error';
 
@@ -45,6 +49,8 @@ export class CockpitNode extends vscode.TreeItem {
     public readonly helpCommand?: HelpCommand, // [SCOPE 042 / Help]
     public readonly helpItems?: HelpCommand[], // [SCOPE 042 / Help] — a category's commands
     public readonly video?: DocVideo, // [SCOPE 042 / Videos]
+    public readonly faq?: FaqEntry, // [SCOPE 066 / T008]
+    public readonly videoItems?: DocVideo[], // [SCOPE 066 / T008] — a category's videos
   ) {
     super(label, collapsibleState);
   }
@@ -62,6 +68,8 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   private helpCatalog: HelpCatalog = { standard: [], extended: [] }; // [SCOPE 042 / Help]
   private videos: DocVideo[] = []; // [SCOPE 042 / Videos]
   private videosLoaded = false; // [SCOPE 042 / Videos] — cache the network fetch until refresh
+  private marketingVideos: MarketingVideoGroups = { open: [], training: [] }; // [SCOPE 066 / T008]
+  private faqs: FaqEntry[] = []; // [SCOPE 066 / T008]
   private commandsStatus: CommandsStatus | null = null; // [SCOPE 060 / Cockpit]
   private state: LoadState = 'unloaded';
   private errorMsg = '';
@@ -80,7 +88,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     this.summary = null;
     this.state = 'unloaded';
     this.signature = '';
-    this.videosLoaded = false; // [SCOPE 042 / Videos] — re-fetch the catalog on refresh
+    this.videosLoaded = false; // [SCOPE 042 / Videos] + [SCOPE 066] — re-fetch catalogs on refresh
     this._onDidChangeTreeData.fire();
   }
 
@@ -125,9 +133,21 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
       if (element.kind === 'help-item') {
         return (element.helpCommand?.params ?? []).map(helpParamNode);
       }
-      // [SCOPE 042 / Videos] expand the Videos group into per-video items.
+      // [SCOPE 042 / Videos] expand the Videos group into the docs how-to videos,
+      // then (SCOPE-066 FR-011) Open / Training marketing-video subtrees.
       if (element.kind === 'videos-group') {
-        return this.videos.map(videoItemNode);
+        const children = this.videos.map(videoItemNode);
+        if (this.marketingVideos.open.length > 0) children.push(videoCategoryNode('Open', this.marketingVideos.open));
+        if (this.marketingVideos.training.length > 0) children.push(videoCategoryNode('Training', this.marketingVideos.training));
+        return children;
+      }
+      // [SCOPE 066 / T008] expand an Open/Training subtree into its videos.
+      if (element.kind === 'video-category') {
+        return (element.videoItems ?? []).map(videoItemNode);
+      }
+      // [SCOPE 066 / T008] expand the FAQ group into per-question items.
+      if (element.kind === 'faq-group') {
+        return this.faqs.map(faqItemNode);
       }
       return [];
     }
@@ -140,14 +160,23 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     // [SCOPE 042 / Videos] the docs index is public — load it independently of
     // the MCP load path (works without a token), best-effort and cached.
     if (!this.videosLoaded) {
-      this.videos = await loadVideoCatalog();
+      // [SCOPE 042 / Videos] + [SCOPE 066 / T008] — public catalogs, loaded together,
+      // independent of the MCP path (work without a token), best-effort and cached.
+      const [vids, mvids, faqs] = await Promise.all([
+        loadVideoCatalog(),
+        loadMarketingVideoCatalog(),
+        loadFaqCatalog(),
+      ]);
+      this.videos = vids;
+      this.marketingVideos = mvids;
+      this.faqs = faqs;
       this.videosLoaded = true;
     }
     // [SCOPE 060 / Cockpit] cheap local-fs check: are the kit's slash commands
     // installed into .claude/commands so Claude Code sees them? Independent of
     // the MCP load path (works offline / no token).
     this.commandsStatus = checkCommands();
-    return this.withVideosSection(this.withHelpSection(this.withCommandsSection(this.rootNodes())));
+    return this.withFaqSection(this.withVideosSection(this.withHelpSection(this.withCommandsSection(this.rootNodes()))));
   }
 
   private applyState(s: ComputedState): void {
@@ -266,10 +295,19 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   // [SCOPE 042 / Videos] BEGIN — append the "Help — Videos" section when the docs
   // index has at least one video. Omitted entirely when offline / none found.
   private withVideosSection(base: CockpitNode[]): CockpitNode[] {
-    if (this.videos.length === 0) return base;
-    return [...base, videosGroupNode(this.videos.length)];
+    const total = this.videos.length + this.marketingVideos.open.length + this.marketingVideos.training.length;
+    if (total === 0) return base;
+    return [...base, videosGroupNode(total)];
   }
   // [SCOPE 042 / Videos] END
+
+  // [SCOPE 066 / T008] BEGIN — append the "FAQ" section when any published FAQ
+  // exists. Read-only; omitted entirely when offline / none found.
+  private withFaqSection(base: CockpitNode[]): CockpitNode[] {
+    if (this.faqs.length === 0) return base;
+    return [...base, faqGroupNode(this.faqs.length)];
+  }
+  // [SCOPE 066 / T008] END
 }
 // [SCOPE 042 / T016] END
 
@@ -502,6 +540,45 @@ function videoItemNode(v: DocVideo): CockpitNode {
   return node;
 }
 // [SCOPE 042 / Videos] END
+
+// [SCOPE 066 / T008] BEGIN — Open/Training video subtree + FAQ node factories
+function videoCategoryNode(label: string, items: DocVideo[]): CockpitNode {
+  const node = new CockpitNode(
+    'video-category', label, vscode.TreeItemCollapsibleState.Collapsed,
+    undefined, undefined, undefined, undefined, undefined, undefined, undefined, items,
+  );
+  node.description = `${items.length}`;
+  node.iconPath = new vscode.ThemeIcon('folder');
+  node.tooltip = `${label} marketing videos`;
+  node.contextValue = 'wxkanban.videoCategory';
+  return node;
+}
+
+function faqGroupNode(count: number): CockpitNode {
+  const node = new CockpitNode('faq-group', 'FAQ', vscode.TreeItemCollapsibleState.Collapsed);
+  node.description = `${count}`;
+  node.iconPath = new vscode.ThemeIcon('question');
+  node.tooltip = 'Frequently asked questions — click one to read the answer';
+  node.contextValue = 'wxkanban.faqGroup';
+  return node;
+}
+
+function faqItemNode(f: FaqEntry): CockpitNode {
+  const node = new CockpitNode(
+    'faq-item', f.question, vscode.TreeItemCollapsibleState.None,
+    undefined, undefined, undefined, undefined, undefined, undefined, f,
+  );
+  node.iconPath = new vscode.ThemeIcon(f.videoUrl ? 'play-circle' : 'comment');
+  node.tooltip = f.answer.length > 300 ? `${f.answer.slice(0, 299)}…` : f.answer;
+  node.contextValue = 'wxkanban.faq';
+  node.command = {
+    command: 'wxkanban.cockpit.openFaq',
+    title: 'Read answer',
+    arguments: [f],
+  };
+  return node;
+}
+// [SCOPE 066 / T008] END
 
 // [SCOPE 042 / T020] BEGIN — signatureOf (stable fingerprint of the remaining-work payload)
 // Captures everything the view renders — scope identity, remaining counts, and

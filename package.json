@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.6.1",
+  "version": "1.6.3",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -20,7 +20,7 @@
     "kit:start:legacy": "node scripts/setup-mcp.mjs && node scripts/setup-gateway.mjs",
     "kit:start:mcp": "node scripts/setup-mcp.mjs",
     "kit:start:gateway": "node scripts/setup-gateway.mjs",
-    "kit:health": "node scripts/mcp-health-check.mjs",
+    "kit:health": "node scripts/orchestrator-health-check.mjs",
     "kit:status": "node scripts/kit-status.mjs",
     "kit:stop": "node scripts/kit-stop.mjs",
     "kit:stop:legacy": "node -e \"const fs=require('fs');const p=fs.readFileSync('.mcp-server.pid','utf8').trim();try{process.kill(+p)}catch(e){};fs.unlinkSync('.mcp-server.pid')\" 2>/dev/null || echo 'MCP not running'",
@@ -32,6 +32,7 @@
   "type": "module",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1063.0",
+    "@aws-sdk/client-ses": "^3.1073.0",
     "@aws-sdk/s3-request-presigner": "^3.1063.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",

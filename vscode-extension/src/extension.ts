@@ -8,6 +8,7 @@ import { openFeedbackPanel } from './providers/feedbackPanel.js'; // [SCOPE 043 
 import type { MyFeedbackItem } from './types.js';
 import type { HelpCommand } from './services/helpCatalog.js'; // [SCOPE 042 / Help]
 import type { DocVideo } from './services/videosCatalog.js'; // [SCOPE 042 / Videos]
+import type { FaqEntry } from './services/faqCatalog.js'; // [SCOPE 066 / T008]
 import { storeToken } from './services/auth.js';
 import { resolveProjectContext } from './services/projectContext.js';
 import { materializeStackOnOpen } from './services/materializeStack.js'; // [SCOPE 055]
@@ -153,6 +154,20 @@ export function activate(context: vscode.ExtensionContext): void {
     // [SCOPE 042 / Videos] open a docs how-to video page in the external browser.
     vscode.commands.registerCommand('wxkanban.cockpit.openVideo', (v?: DocVideo) => {
       if (v?.pageUrl) void vscode.env.openExternal(vscode.Uri.parse(v.pageUrl));
+    }),
+
+    // [SCOPE 066 / T008] read a FAQ answer (modal); offer its video if present.
+    vscode.commands.registerCommand('wxkanban.cockpit.openFaq', async (f?: FaqEntry) => {
+      if (!f) return;
+      const actions = f.videoUrl ? ['Watch video'] : [];
+      const pick = await vscode.window.showInformationMessage(
+        f.question,
+        { modal: true, detail: f.answer },
+        ...actions,
+      );
+      if (pick === 'Watch video' && f.videoUrl) {
+        void vscode.env.openExternal(vscode.Uri.parse(f.videoUrl));
+      }
     }),
 
     vscode.commands.registerCommand('wxkanban.cockpit.signIn', async () => {
