@@ -166,6 +166,60 @@ function cleanupLegacyMcpIfNeeded(currentVersion) {
   }
 }
 
+// Post-extract cleanup of files the new kit RENAMED or REMOVED. The upgrade
+// overlays the archive (it never deletes), so stale files linger without this.
+// Run AFTER extraction so the replacements are already in place.
+function cleanupStaleAfterExtract() {
+  // (1) Renamed/removed in the from-PDF cutover: the source-based wxConversion
+  // analyst skill and the interim wxConversion*FromPDF docs/dirs (the from-PDF
+  // flow is now plain /wxConversion + /wxConversionScope).
+  const renamed = [
+    '_wxAI/skills/wxConversion-analyst.md',
+    'wxkanban-agent/templates/skills/wxConversion-analyst.md',
+    '_wxAI/commands/wxConversionFromPDF.md',
+    '_wxAI/commands/wxConversionScopeFromPDF.md',
+    '.claude/commands/wxConversionFromPDF.md',
+    '.claude/commands/wxConversionScopeFromPDF.md',
+    '_wxAI/skills/wxConversionFromPDF',
+    '_wxAI/skills/wxConversionScopeFromPDF',
+    '.claude/skills/wxConversionFromPDF',
+    '.claude/skills/wxConversionScopeFromPDF',
+    'wxkanban-agent/templates/skills/wxConversionFromPDF',
+    'wxkanban-agent/templates/skills/wxConversionScopeFromPDF',
+  ];
+
+  // (2) Raw TypeScript source — only prune once the kit actually ships the
+  // compiled bundle (dist/cli.cjs present after extract). Until distribution
+  // flips to dist-only this stays a no-op, so it's safe to ship now.
+  const distPresent = fs.existsSync(path.join(root, 'wxkanban-agent', 'dist', 'cli.cjs'));
+  const sourceTrees = distPresent
+    ? [
+        'wxkanban-agent/core',
+        'wxkanban-agent/services',
+        'wxkanban-agent/workers',
+        'wxkanban-agent/adapters',
+        'wxkanban-agent/apps/command-gateway/src',
+        'wxkanban-agent/dbpush.ts',
+      ]
+    : [];
+
+  let removed = 0;
+  for (const rel of [...renamed, ...sourceTrees]) {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) continue;
+    try {
+      fs.rmSync(abs, { recursive: true, force: true });
+      log('ok', `  removed stale ${rel}`);
+      removed++;
+    } catch (err) {
+      log('warn', `  could not remove ${rel}: ${err.message}`);
+    }
+  }
+  if (removed > 0) {
+    log('ok', `Stale-file cleanup complete: ${removed} path(s) removed${distPresent ? ' (incl. raw source — kit now runs from dist/)' : ''}`);
+  }
+}
+
 function platform() {
   return process.platform === 'win32' ? 'windows' : 'unix';
 }
@@ -379,6 +433,9 @@ async function main() {
   } finally {
     try { fs.unlinkSync(download.archivePath); } catch { /* ignore */ }
   }
+
+  // Remove files the new kit renamed/removed (overlay-extract never deletes).
+  cleanupStaleAfterExtract();
 
   updateProjectConfigVersion(download.toVersion);
 
