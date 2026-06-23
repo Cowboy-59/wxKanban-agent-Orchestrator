@@ -184,6 +184,8 @@ function cleanupStaleAfterExtract() {
     '_wxAI/skills/wxConversionScopeFromPDF',
     '.claude/skills/wxConversionFromPDF',
     '.claude/skills/wxConversionScopeFromPDF',
+    '.claude/skills/wxConversion',
+    '.claude/skills/wxConversionScope',
     'wxkanban-agent/templates/skills/wxConversionFromPDF',
     'wxkanban-agent/templates/skills/wxConversionScopeFromPDF',
   ];

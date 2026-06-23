@@ -278,6 +278,9 @@ function cleanupStaleKitFiles() {
     '_wxAI/skills/wxConversionScopeFromPDF',
     '.claude/skills/wxConversionFromPDF',
     '.claude/skills/wxConversionScopeFromPDF',
+    // earlier handler mistakenly used .claude/skills/<name>; correct home is .claude/<name>
+    '.claude/skills/wxConversion',
+    '.claude/skills/wxConversionScope',
     'wxkanban-agent/templates/skills/wxConversionFromPDF',
     'wxkanban-agent/templates/skills/wxConversionScopeFromPDF',
   ];
