@@ -1,16 +1,17 @@
-import { existsSync, mkdirSync } from "fs";
+import { cpSync, existsSync, mkdirSync } from "fs";
 import { join, resolve } from "path";
 
 import { findConsumerRoot } from "../../scaffold/consumer-detect";
-import { copyTemplate, type CopyResult } from "../../scaffold/template-copy";
+import { findTemplatesDir } from "../../scaffold/kit-root";
 
-// Spec 044 — wxConversion orchestrator command handler.
+// wxConversion orchestrator command handler.
 //
 // "Workflow engine, not AI client": this handler runs NO AI. It scaffolds the
-// conversion workspace (`pre-convert/` + `pre-convert/screens/`), installs the
-// wxConversion-analyst skill into the consumer's `.claude/skills/`, prints the
-// next steps, and hands off. The actual WinDev → target conversion is driven
-// interactively by the developer's editor AI following the installed skill.
+// from-PDF rebuild workspace (`pre-convert/` + `rebuild/{pages,db,scopes}`),
+// installs the wxConversion skill DIRECTORY into the consumer's
+// `.claude/skills/`, prints the next steps, and hands off. The actual PDF →
+// modern-stack rebuild is driven interactively by the developer's editor AI
+// following the installed skill.
 
 export interface WxConversionOptions {
   /** Override the detected consumer project root (tests / explicit target). */
@@ -19,13 +20,11 @@ export interface WxConversionOptions {
   templatesDir?: string;
   /** Re-install the skill even if the consumer already has an (edited) copy. */
   force?: boolean;
-  /** Suppress nothing here, but reserved to mirror scaffold-frontend's shape. */
-  silent?: boolean;
 }
 
 export interface WxConversionAction {
   path: string;
-  action: CopyResult | "created-dir" | "exists";
+  action: "created-dir" | "exists" | "created" | "skipped";
 }
 
 export interface WxConversionResult {
@@ -34,9 +33,8 @@ export interface WxConversionResult {
   actions: WxConversionAction[];
 }
 
-const SKILL_FILENAME = "wxConversion-analyst.md";
+const SKILL_DIRNAME = "wxConversion";
 
-// [SCOPE 044 / T004] BEGIN — wxConversion scaffold-and-handoff handler
 export function handleWxConversionCommand(
   opts: WxConversionOptions = {},
 ): WxConversionResult {
@@ -53,8 +51,8 @@ export function handleWxConversionCommand(
   }
 
   const templatesDir = resolve(opts.templatesDir ?? defaultSkillsTemplatesDir());
-  const skillSrc = join(templatesDir, SKILL_FILENAME);
-  if (!existsSync(skillSrc)) {
+  const skillSrc = join(templatesDir, SKILL_DIRNAME);
+  if (!existsSync(join(skillSrc, "SKILL.md"))) {
     return {
       exitCode: 1,
       output: `ERROR: wxConversion skill template not found at ${skillSrc}\n`,
@@ -63,71 +61,71 @@ export function handleWxConversionCommand(
   }
 
   const actions: WxConversionAction[] = [];
+  const rel = (abs: string) =>
+    (abs.startsWith(consumerRoot) ? abs.slice(consumerRoot.length + 1) : abs)
+      .split("\\")
+      .join("/");
+  const ensureDir = (abs: string) => {
+    const existed = existsSync(abs);
+    if (!existed) mkdirSync(abs, { recursive: true });
+    actions.push({ path: rel(abs), action: existed ? "exists" : "created-dir" });
+  };
 
-  // 1) Conversion workspace.
-  const preConvert = join(consumerRoot, "pre-convert");
-  const screens = join(preConvert, "screens");
-  actions.push(ensureDir(preConvert, consumerRoot));
-  actions.push(ensureDir(screens, consumerRoot));
+  // 1) Workspace: pre-convert/ + rebuild/{pages,db,scopes}
+  ensureDir(join(consumerRoot, "pre-convert"));
+  for (const d of ["pages", "db", "scopes"]) {
+    ensureDir(join(consumerRoot, "rebuild", d));
+  }
 
-  // 2) Install the skill (consumer-owned: skipped if present unless --force).
-  const skillDest = join(consumerRoot, ".claude", "skills", SKILL_FILENAME);
-  const copyResult = copyTemplate(skillSrc, skillDest, { overwrite: opts.force === true });
-  actions.push({ path: rel(skillDest, consumerRoot), action: copyResult });
+  // 2) Install the skill directory (consumer-owned: skip if present unless --force).
+  //    The AI-agnostic home is _wxAI/skills/; Claude Code also reads
+  //    .claude/skills/, so install there too when the consumer uses Claude.
+  const installTargets = [join(consumerRoot, "_wxAI", "skills", SKILL_DIRNAME)];
+  if (existsSync(join(consumerRoot, ".claude"))) {
+    installTargets.push(join(consumerRoot, ".claude", "skills", SKILL_DIRNAME));
+  }
+  const installedAt: string[] = [];
+  for (const dest of installTargets) {
+    const present = existsSync(dest);
+    if (!present || opts.force === true) {
+      cpSync(skillSrc, dest, { recursive: true });
+      actions.push({ path: rel(dest), action: "created" });
+      installedAt.push(rel(dest));
+    } else {
+      actions.push({ path: rel(dest), action: "skipped" });
+    }
+  }
 
-  // 3) Next steps for the editor AI (the handler itself does no analysis).
   const installedNote =
-    copyResult === "skipped"
-      ? `Skill already installed at .claude/skills/${SKILL_FILENAME} (kept your copy; pass --force to re-install).`
-      : `Skill installed at .claude/skills/${SKILL_FILENAME}.`;
+    installedAt.length > 0
+      ? `Skill installed at: ${installedAt.join(", ")}.`
+      : `Skill already installed (kept your copy; pass --force to re-install).`;
 
-  const output =
-    [
-      "wxConversion workspace ready.",
-      "",
-      `  pre-convert/          ${dirState(actions, "pre-convert")}`,
-      `  pre-convert/screens/  ${dirState(actions, "pre-convert/screens")}`,
-      `  ${installedNote}`,
-      "",
-      "Next steps (run in your editor AI):",
-      "  1. Invoke /wxConversion (or open the installed skill) to start the guided conversion.",
-      "  2. Part A (this command's stage) — switch the WinDev app to text saves, then let the",
-      "     skill turn .wdw/.wdg/.wdc into Markdown under pre-convert/, keeping the element",
-      "     extension (<name>.wdw.md / .wdg.md / .wdc.md), and capture per-window screen images.",
-      "  3. Scope — run /wxConversionScope <window.wdw.md> (or --all) to seed from a window,",
-      "     follow its calls into the procedures/classes it reaches, analyze the matching screen,",
-      "     and draft the Scope-of-Project Markdown via the BuildScope gated method.",
-      "  4. Part B (optional, during scope) — the skill asks whether to document the DB conversion;",
-      "     on yes it writes only pre-convert/schema-mapping.md (HFSQL → target mapping + proposed DDL).",
-      "",
-      "This command produces Markdown only — it runs no AI, builds no database, and loads no data.",
-      "",
-    ].join("\n");
+  const output = [
+    "wxConversion workspace ready.",
+    "",
+    "  pre-convert/        (per-element Markdown lands here)",
+    "  rebuild/pages/      (regenerated React/shadcn components)",
+    "  rebuild/db/         (DDL + ER diagram)",
+    "  rebuild/scopes/     (queries scope + reports stub)",
+    `  ${installedNote}`,
+    "",
+    "Next steps (run in your editor AI):",
+    "  1. Invoke /wxConversion <doc.pdf> (or open the installed skill).",
+    "  2. Stage 1 — split the PDF into pre-convert/ Markdown.",
+    "  3. Stage 2 — regenerate pages as modern stack components (behavior wired).",
+    "  4. Stage 3 — answer the target-DB question; generate schema + ER (HFSQL -> JSON note).",
+    "  5. Stages 4-5 — queries scope + reports stub.",
+    "",
+    "Requires Python + PyMuPDF and Node + puppeteer. Produces Markdown/TSX/SQL only — runs no DB.",
+    "",
+  ].join("\n");
 
   return { exitCode: 0, output, actions };
-}
-// [SCOPE 044 / T004] END
-
-// [SCOPE 044 / T004] BEGIN — helpers
-function ensureDir(absPath: string, root: string): WxConversionAction {
-  const existed = existsSync(absPath);
-  if (!existed) mkdirSync(absPath, { recursive: true });
-  return { path: rel(absPath, root), action: existed ? "exists" : "created-dir" };
-}
-
-function dirState(actions: WxConversionAction[], relPath: string): string {
-  const a = actions.find((x) => x.path === relPath);
-  return a?.action === "created-dir" ? "created" : "exists";
-}
-
-function rel(abs: string, root: string): string {
-  const r = abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-  return r.split("\\").join("/");
 }
 
 function defaultSkillsTemplatesDir(): string {
   const fromEnv = process.env.WXKANBAN_SCAFFOLD_TEMPLATES_DIR;
   if (fromEnv) return resolve(fromEnv, "skills");
-  return resolve(__dirname, "..", "..", "..", "templates", "skills");
+  return findTemplatesDir(__dirname, "skills");
 }
-// [SCOPE 044 / T004] END

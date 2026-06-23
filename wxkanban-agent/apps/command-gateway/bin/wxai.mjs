@@ -6,6 +6,9 @@ import path from 'node:path';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cli = path.resolve(here, '..', 'src', 'cli.ts');
+// Phase 3 — prefer the compiled, minified bundle when present (shipped builds);
+// fall back to running the TypeScript source via tsx (source checkouts / dev).
+const distCli = path.resolve(here, '..', '..', '..', 'dist', 'cli.cjs');
 
 // Load .env from the consumer's project root (CWD) so init.mjs-written
 // values like WXKANBAN_API_TOKEN are available to the spawned tsx child
@@ -30,6 +33,20 @@ if (existsSync(envPath)) {
   }
 }
 
+// Shipped build: run the compiled bundle directly with node (no tsx needed).
+if (existsSync(distCli)) {
+  const proc = spawn(process.execPath, [distCli, ...process.argv.slice(2)], { stdio: 'inherit' });
+  proc.on('exit', (code) => process.exit(code ?? 0));
+  proc.on('error', (err) => {
+    console.error(`wxai: failed to launch ${distCli}`);
+    console.error(err.message);
+    process.exit(1);
+  });
+} else {
+  runViaTsx();
+}
+
+function runViaTsx() {
 // tsx can live in wxkanban-agent/node_modules/ (installed by the kit's
 // release workflow) OR at the kit root (installed by `npm install` at root).
 // Probe candidates in order of preference.
@@ -56,3 +73,4 @@ proc.on('error', (err) => {
   console.error(err.message);
   process.exit(1);
 });
+}

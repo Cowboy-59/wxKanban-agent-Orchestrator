@@ -1,6 +1,6 @@
 {
   "name": "wxkanban-agent",
-  "version": "1.6.5",
+  "version": "1.7.0",
   "description": "wxKanban Agent Orchestrator Kit — lifecycle-aware command gateway, code fencing, implement/auditfences.",
   "main": "dist/index.js",
   "files": [
@@ -18,6 +18,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
+    "build": "node esbuild.mjs",
     "test": "vitest run --config vitest.config.ts",
     "verify": "ts-node scripts/verify-install.ts",
     "gateway:cli": "ts-node apps/command-gateway/src/cli.ts",
@@ -30,7 +31,8 @@
     "uuid": "^11.0.0"
   },
   "devDependencies": {
-    "@types/uuid": "^10.0.0"
+    "@types/uuid": "^10.0.0",
+    "esbuild": "^0.28.0"
   },
   "keywords": [
     "wxkanban",

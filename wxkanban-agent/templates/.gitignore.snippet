@@ -5,6 +5,10 @@
 # Cleared automatically by the parent-watcher when VS Code exits.
 .wxai/kit-runtime.json
 
+# Phase 1B — cached, signed entitlement token (per-developer license state).
+# Machine-local; never commit. Refreshed automatically from wxKanban when online.
+.wxai/.entitlement
+
 # Spec 028 — kit:configure writes an API token into the `kit` block of
 # .wxai/project.json. Treat the whole file as a secret-bearing artifact;
 # either ignore it (default below) and re-run kit:configure per checkout,

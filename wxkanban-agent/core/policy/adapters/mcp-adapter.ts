@@ -95,10 +95,14 @@ const MCP_TOOL_MAP: Readonly<
     capability: Capability.KitStatus,
     displayName: "kit:status",
   },
-  // Spec 044 — WinDev conversion entry point, Design-gated like the CLI surface.
+  // WinDev/WebDev conversion entry points, Design-gated like the CLI surface.
   "project.wxconversion": {
     capability: Capability.WxConversion,
     displayName: "wxconversion",
+  },
+  "project.wxconversionscope": {
+    capability: Capability.WxConversionScope,
+    displayName: "wxconversionscope",
   },
 };
 

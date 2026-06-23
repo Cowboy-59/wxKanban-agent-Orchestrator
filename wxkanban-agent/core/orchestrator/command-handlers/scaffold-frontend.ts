@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, readFileSync } from "fs";
 import { join, resolve } from "path";
 
 import { findConsumerRoot } from "../../scaffold/consumer-detect";
+import { findTemplatesDir } from "../../scaffold/kit-root";
 import {
   copyTemplate,
   planCopies,
@@ -329,6 +330,6 @@ function relativePath(abs: string, root: string): string {
 function defaultTemplatesDir(): string {
   const fromEnv = process.env.WXKANBAN_SCAFFOLD_TEMPLATES_DIR;
   if (fromEnv) return resolve(fromEnv);
-  return resolve(__dirname, "..", "..", "..", "templates", "frontend");
+  return findTemplatesDir(__dirname, "frontend");
 }
 // [SCOPE 036 / T025] END

@@ -45,8 +45,9 @@ const CLI_COMMAND_TO_CAPABILITY: Readonly<Record<string, Capability>> = {
   auditfences: Capability.AuditFences,
   "kit:status": Capability.KitStatus,
   "scaffold:frontend": Capability.ScaffoldFrontend,
-  // Spec 044 — WinDev conversion entry point (Design-only).
+  // WinDev/WebDev conversion entry points (Design-only).
   wxconversion: Capability.WxConversion,
+  wxconversionscope: Capability.WxConversionScope,
 };
 
 // Reverse map for computing `allowedCommands` per stage in the

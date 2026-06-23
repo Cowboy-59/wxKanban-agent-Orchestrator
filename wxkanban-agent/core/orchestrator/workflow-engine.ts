@@ -16,6 +16,7 @@ import { ProjectContext } from '../context/project-context';
 import { LifecycleStage } from '../schemas/lifecycle';
 import { CommandResult } from '../schemas/commands';
 import { AuditRecord, ScopeDraft } from '../schemas/artifacts';
+import { assertEntitled } from '../license/preflight';
 
 export type BuildScopeInput = Partial<ScopeDraft>;
 
@@ -287,8 +288,8 @@ export class WorkflowEngine {
 		return { result, audit };
 	}
 
-	// Spec 044 — wxConversion: scaffold the conversion workspace + install the
-	// skill, then hand off to the editor AI. Runs no kit-internal AI.
+	// wxConversion: scaffold the from-PDF conversion workspace (pre-convert/ +
+	// rebuild/) + install the skill, then hand off to the editor AI. Runs no AI.
 	static async runWxConversion(
 		context: ProjectContext,
 		options: Record<string, unknown>,
@@ -313,6 +314,35 @@ export class WorkflowEngine {
 			? { success: true, artifact: { exitCode: handlerResult.exitCode, actions: handlerResult.actions } }
 			: { success: false, error: `wxconversion exited with code ${handlerResult.exitCode}` };
 		const audit: AuditRecord = { timestamp, command: 'wxconversion', input: options, result: result as unknown as Record<string, unknown>, user };
+		return { result, audit };
+	}
+
+	// wxConversionScope: install the scope-generator skill and verify the
+	// conversion artifacts exist (pre-convert/), then hand off. Runs no AI.
+	static async runWxConversionScope(
+		context: ProjectContext,
+		options: Record<string, unknown>,
+		user?: string,
+	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
+		const timestamp = new Date().toISOString();
+		const policy = evaluateStageOnly(
+			context.lifecycleStage, 'wxconversionscope', context.customCommands,
+		);
+		if (!policy.allowed) {
+			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
+			const audit: AuditRecord = { timestamp, command: 'wxconversionscope', input: options, result: result as unknown as Record<string, unknown>, user };
+			return { result, audit };
+		}
+		const { handleWxConversionScopeCommand } = await import('./command-handlers/wxconversionscope');
+		const handlerResult = handleWxConversionScopeCommand({
+			force: options['force'] === true,
+		});
+		console.log(handlerResult.output);
+		const success = handlerResult.exitCode === 0;
+		const result: CommandResult<Record<string, unknown>> = success
+			? { success: true, artifact: { exitCode: handlerResult.exitCode, actions: handlerResult.actions } }
+			: { success: false, error: `wxconversionscope exited with code ${handlerResult.exitCode}` };
+		const audit: AuditRecord = { timestamp, command: 'wxconversionscope', input: options, result: result as unknown as Record<string, unknown>, user };
 		return { result, audit };
 	}
 
@@ -357,6 +387,25 @@ export class WorkflowEngine {
 		options?: DispatchOptions,
 	): Promise<{ result: CommandResult<unknown>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
+
+		// Phase 1B — entitlement preflight. Fails local-only commands closed when
+		// the wxKanban subscription has lapsed (server-side Phase 1A covers the
+		// MCP-backed commands). Exempts kit:status/help so a lapsed customer can
+		// still diagnose and recover. Fails open on indeterminate cases.
+		const license = await assertEntitled({ command });
+		if (!license.allowed) {
+			const result: CommandResult<unknown> = { success: false, error: license.reason };
+			const audit: AuditRecord = {
+				timestamp, command, input,
+				result: {
+					...result as unknown as Record<string, unknown>,
+					entitlementBlocked: true,
+					entitlementSource: license.source,
+				},
+				user,
+			};
+			return { result, audit };
+		}
 
 		// Spec-first enforcement: use evaluateSpecFirst for spec-gated commands
 		const policy = isSpecGatedCommand(command)
@@ -415,6 +464,8 @@ export class WorkflowEngine {
 				return WorkflowEngine.runScaffoldFrontend(context, input, user);
 			case 'wxconversion':
 				return WorkflowEngine.runWxConversion(context, input, user);
+			case 'wxconversionscope':
+				return WorkflowEngine.runWxConversionScope(context, input, user);
 			default: {
 				const result: CommandResult<unknown> = {
 					success: false,

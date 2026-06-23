@@ -1,6 +1,48 @@
 import { readRuntimeState, isPidAlive, ServiceName } from "../../runtime/state-file";
+import { readEntitlementToken } from "../../license/entitlement-cache";
+import { verifyEntitlementToken } from "../../license/entitlement-token";
 
 export type ServiceHealth = "alive" | "stale" | "missing";
+
+export type EntitlementState = "active" | "grace" | "expired" | "inactive" | "unknown";
+
+export interface EntitlementSummary {
+  state: EntitlementState;
+  status: string | null;
+  detail: string;
+}
+
+const ENTITLEMENT_ALLOWED = new Set(["ACTIVE", "TRIAL"]);
+
+// Read-only summary of the cached, signed entitlement token so a developer can
+// see their license state (and any offline grace window) from kit:status. Never
+// throws and never blocks — kit:status must always run.
+export function summarizeEntitlement(
+  projectRoot: string,
+  nowSec: number = Math.floor(Date.now() / 1000),
+  publicKeyPem?: string,
+): EntitlementSummary {
+  const token = readEntitlementToken(projectRoot);
+  if (!token) {
+    return { state: "unknown", status: null, detail: "no entitlement cached yet (verified on first MCP call)" };
+  }
+  const claims = verifyEntitlementToken(token, publicKeyPem);
+  if (!claims) {
+    return { state: "unknown", status: null, detail: "cached entitlement is unreadable; will re-verify when online" };
+  }
+  const status = (claims.status ?? "").toUpperCase() || null;
+  const allowed = status !== null && ENTITLEMENT_ALLOWED.has(status);
+  if (!allowed) {
+    return { state: "inactive", status, detail: `subscription is '${status ?? "unknown"}' — renew at https://wxperts.com/account/billing` };
+  }
+  const daysLeft = Math.floor((claims.exp - nowSec) / 86400);
+  if (nowSec > claims.exp) {
+    return { state: "expired", status, detail: "offline grace expired — reconnect to wxKanban to refresh" };
+  }
+  // Within the validity window; if close to exp and offline, it's the grace tail.
+  const state: EntitlementState = daysLeft <= 2 ? "grace" : "active";
+  return { state, status, detail: `${status}, valid ${daysLeft} more day(s) offline` };
+}
 
 export interface ServiceStatus {
   port: number | null;
@@ -16,6 +58,7 @@ export interface KitStatusReport {
   schemaVersion: number | null;
   services: Record<ServiceName, ServiceStatus>;
   summary: { healthy: number; stale: number; missing: number };
+  entitlement?: EntitlementSummary;
 }
 
 export interface KitStatusOptions {
@@ -63,6 +106,7 @@ export async function handleKitStatusCommand(
     schemaVersion: state.schemaVersion,
     services: {} as Record<ServiceName, ServiceStatus>,
     summary: { healthy: 0, stale: 0, missing: 0 },
+    entitlement: summarizeEntitlement(options.projectRoot ?? process.cwd()),
   };
 
   for (const name of EXPECTED_SERVICES) {
@@ -138,6 +182,10 @@ export function renderText(report: KitStatusReport): string {
   lines.push(
     `${report.summary.healthy} healthy, ${report.summary.stale} stale, ${report.summary.missing} missing`,
   );
+  if (report.entitlement) {
+    const e = report.entitlement;
+    lines.push(`entitlement ${e.state}${e.status ? ` (${e.status})` : ""} — ${e.detail}`);
+  }
   return lines.join("\n");
 }
 // [SCOPE 027 / T015] END
