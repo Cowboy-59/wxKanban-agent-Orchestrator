@@ -78,11 +78,12 @@ export function handleWxConversionCommand(
   }
 
   // 2) Install the skill directory (consumer-owned: skip if present unless --force).
-  //    The AI-agnostic home is _wxAI/skills/; Claude Code also reads
-  //    .claude/skills/, so install there too when the consumer uses Claude.
+  //    The AI-agnostic home is _wxAI/skills/; Claude Code discovers skills at
+  //    .claude/<name>/ (top-level, like wxICA), so install there too when the
+  //    consumer uses Claude.
   const installTargets = [join(consumerRoot, "_wxAI", "skills", SKILL_DIRNAME)];
   if (existsSync(join(consumerRoot, ".claude"))) {
-    installTargets.push(join(consumerRoot, ".claude", "skills", SKILL_DIRNAME));
+    installTargets.push(join(consumerRoot, ".claude", SKILL_DIRNAME));
   }
   const installedAt: string[] = [];
   for (const dest of installTargets) {

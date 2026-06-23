@@ -52,7 +52,7 @@ afterEach(() => {
 });
 
 const agnostic = (root: string, name: string) => join(root, "_wxAI", "skills", name);
-const claude = (root: string, name: string) => join(root, ".claude", "skills", name);
+const claude = (root: string, name: string) => join(root, ".claude", name);
 
 describe("wxconversion handler", () => {
   it("scaffolds the workspace and installs the skill to both locations (Claude consumer)", () => {
