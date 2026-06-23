@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import {
   readRuntimeState,
+  reapDeadEntries,
   isPidAlive,
   ServiceName,
 } from "../runtime/state-file";
@@ -9,6 +10,27 @@ import {
 export const DEFAULT_PORTS: Record<ServiceName, number> = {
   gateway: 3003,
 };
+
+// [SCOPE 068 / FR-005] BEGIN — deterministic per-project preferred port
+// Two projects on one machine must not prefer the same port. Derive a stable
+// per-project port from the projectId (FNV-1a hash) within a band above the
+// base, so collisions are deterministic and rare; bindWithAutoselect still
+// scans on an actual collision, and GATEWAY_HTTP_PORT still overrides.
+const GATEWAY_PORT_RANGE = 1000;
+export function derivePreferredPort(
+  projectId: string | null | undefined,
+  base: number = DEFAULT_PORTS.gateway,
+  range: number = GATEWAY_PORT_RANGE,
+): number {
+  if (!projectId) return base;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < projectId.length; i++) {
+    h ^= projectId.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return base + (Math.abs(h) % range);
+}
+// [SCOPE 068 / FR-005] END
 
 // Hosted MCP (spec 028) is the ONLY MCP. There is no local MCP — the kit and
 // extension always talk to this endpoint unless a staging override is set.
@@ -78,21 +100,31 @@ export interface ResolveOptions {
 }
 
 // [SCOPE 027 / T005] BEGIN — core/context/runtime-state.ts — resolveServiceUrl
+// MODIFIED-BY: [SCOPE 068 / FR-001] — fail closed (null) instead of falling
+// back to a shared default port; reap dead entries on read.
+/**
+ * Resolve the URL of a locally-started service (the gateway) for THIS project.
+ * Returns null when no gateway is running for `projectRoot` (and no explicit
+ * GATEWAY_HTTP_PORT override) — callers must treat null as "no gateway running
+ * — start one" and MUST NOT fall back to a shared default port, which on a
+ * multi-project machine belongs to an unrelated project (SCOPE-068 D1).
+ */
 export function resolveServiceUrl(
   service: ServiceName,
   opts: ResolveOptions = {},
-): string {
+): string | null {
   const projectRoot = opts.projectRoot ?? process.cwd();
   const env = opts.env ?? process.env;
 
-  const state = readRuntimeState(projectRoot);
+  // [SCOPE 068 / FR-004] reap dead entries on read so a crashed gateway is
+  // never trusted as running.
+  const state = reapDeadEntries(projectRoot);
   const entry = state?.services[service];
   if (entry && isPidAlive(entry.pid)) {
     return `http://localhost:${entry.port}`;
   }
 
-  // MCP is hosted-only — see resolveMcpBaseUrl(). resolveServiceUrl handles
-  // locally-started services (the gateway) exclusively.
+  // Explicit override remains an escape hatch (e.g. a manually-started gateway).
   if (service === "gateway") {
     const portEnv = env["GATEWAY_HTTP_PORT"];
     if (portEnv) {
@@ -103,21 +135,24 @@ export function resolveServiceUrl(
     }
   }
 
-  return `http://localhost:${DEFAULT_PORTS[service]}`;
+  // [SCOPE 068 / FR-001] fail closed — no shared-default-port fallback.
+  return null;
 }
 // [SCOPE 027 / T005] END
 
-// [SCOPE 027 / T005] BEGIN — core/context/runtime-state.ts — resolveServiceUrl
+// [SCOPE 027 / T005] BEGIN — core/context/runtime-state.ts — resolveServicePort
+// MODIFIED-BY: [SCOPE 068 / FR-001] — returns null when no gateway is running.
 export function resolveServicePort(
   service: ServiceName,
   opts: ResolveOptions = {},
-): number {
+): number | null {
   const url = resolveServiceUrl(service, opts);
+  if (!url) return null;
   const match = url.match(/:(\d+)(?:\/|$)/);
   if (match && match[1]) {
     const parsed = parseInt(match[1], 10);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
-  return DEFAULT_PORTS[service];
+  return null;
 }
 // [SCOPE 027 / T005] END

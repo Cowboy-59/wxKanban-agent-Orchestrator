@@ -15,6 +15,9 @@ export interface ServiceEntry {
   parentpid: number;
   startedAt: string;
   cmd: string;
+  // [SCOPE 068] Project that owns this gateway — recorded so dead/foreign
+  // entries can be cross-checked. Optional for back-compat with older files.
+  projectId?: string;
 }
 
 export interface RuntimeState {
@@ -106,3 +109,44 @@ export function isPidAlive(pid: number): boolean {
   }
 }
 // [SCOPE 027 / T001] END
+
+// [SCOPE 068 / FR-004] BEGIN — reap dead service entries
+/**
+ * Drop any service entry whose pid is no longer alive, persisting the cleaned
+ * state atomically (or deleting the file when nothing remains). Returns the
+ * cleaned state. Best-effort: a write failure leaves the file untouched and
+ * returns the in-memory cleaned view. Called on gateway start and on client
+ * read so a crashed/`kill -9`'d gateway is never treated as "running".
+ */
+export function reapDeadEntries(
+  projectRoot: string = process.cwd(),
+): RuntimeState | null {
+  const current = readRuntimeState(projectRoot);
+  if (!current) return null;
+
+  const live: RuntimeState["services"] = {};
+  let removed = false;
+  for (const [name, entry] of Object.entries(current.services)) {
+    if (entry && isPidAlive(entry.pid)) {
+      live[name as ServiceName] = entry;
+    } else {
+      removed = true;
+    }
+  }
+  if (!removed) return current;
+
+  const absPath = join(projectRoot, RUNTIME_STATE_PATH);
+  try {
+    if (Object.keys(live).length === 0) {
+      if (existsSync(absPath)) unlinkSync(absPath);
+    } else {
+      const tmp = `${absPath}.tmp.${process.pid}`;
+      writeFileSync(tmp, JSON.stringify({ schemaVersion: RUNTIME_STATE_SCHEMA_VERSION, services: live }, null, 2));
+      renameSync(tmp, absPath);
+    }
+  } catch {
+    // best effort — return the cleaned view even if persistence failed
+  }
+  return { schemaVersion: RUNTIME_STATE_SCHEMA_VERSION, services: live };
+}
+// [SCOPE 068 / FR-004] END

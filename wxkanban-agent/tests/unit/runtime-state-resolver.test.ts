@@ -6,11 +6,14 @@ import {
   resolveServiceUrl,
   resolveServicePort,
   resolveMcpBaseUrl,
+  derivePreferredPort,
   DEFAULT_PORTS,
   HOSTED_MCP_BASE_URL,
 } from "../../core/context/runtime-state";
 import {
   writeServiceEntry,
+  readRuntimeState,
+  reapDeadEntries,
   RUNTIME_STATE_PATH,
   RUNTIME_STATE_SCHEMA_VERSION,
 } from "../../core/runtime/state-file";
@@ -73,8 +76,10 @@ describe("resolveMcpBaseUrl — hosted-only", () => {
 });
 
 describe("resolveServiceUrl — gateway (the only locally-started service)", () => {
-  it("falls back to default localhost:3003 for gateway", () => {
-    expect(resolveServiceUrl("gateway", { projectRoot: workdir, env: {} })).toBe("http://localhost:3003");
+  // [SCOPE 068 / FR-001] No alive gateway → fail closed (null), never a shared
+  // default port that on a multi-project machine belongs to another project.
+  it("returns null when no gateway is running (no shared :3003 fallback)", () => {
+    expect(resolveServiceUrl("gateway", { projectRoot: workdir, env: {} })).toBeNull();
   });
 
   it("honors GATEWAY_HTTP_PORT for gateway", () => {
@@ -94,13 +99,15 @@ describe("resolveServiceUrl — gateway (the only locally-started service)", () 
     ).toBe("http://localhost:3050");
   });
 
-  it("runtime-state file with stale PID falls through to default", () => {
+  it("runtime-state file with stale PID returns null and reaps the entry", () => {
     writeServiceEntry(
       "gateway",
       { port: 4040, pid: 999_999, parentpid: 1, startedAt: "2026-05-13T00:00:00.000Z", cmd: "gw" },
       workdir,
     );
-    expect(resolveServiceUrl("gateway", { projectRoot: workdir, env: {} })).toBe("http://localhost:3003");
+    expect(resolveServiceUrl("gateway", { projectRoot: workdir, env: {} })).toBeNull();
+    // [SCOPE 068 / FR-004] dead entry reaped on read → file gone
+    expect(readRuntimeState(workdir)).toBeNull();
   });
 });
 
@@ -114,8 +121,8 @@ describe("resolveServicePort", () => {
     expect(resolveServicePort("gateway", { projectRoot: workdir, env: {} })).toBe(3777);
   });
 
-  it("returns default gateway port when no resolution available", () => {
-    expect(resolveServicePort("gateway", { projectRoot: workdir, env: {} })).toBe(DEFAULT_PORTS.gateway);
+  it("returns null when no gateway is running", () => {
+    expect(resolveServicePort("gateway", { projectRoot: workdir, env: {} })).toBeNull();
   });
 
   it("DEFAULT_PORTS has gateway 3003 and no mcp entry (hosted-only)", () => {
@@ -125,5 +132,44 @@ describe("resolveServicePort", () => {
 
   it("RUNTIME_STATE_SCHEMA_VERSION is 1", () => {
     expect(RUNTIME_STATE_SCHEMA_VERSION).toBe(1);
+  });
+});
+
+// [SCOPE 068 / FR-005] deterministic per-project preferred port
+describe("derivePreferredPort", () => {
+  it("returns the base when no projectId", () => {
+    expect(derivePreferredPort(undefined)).toBe(DEFAULT_PORTS.gateway);
+    expect(derivePreferredPort(null)).toBe(DEFAULT_PORTS.gateway);
+  });
+
+  it("is stable for the same projectId", () => {
+    expect(derivePreferredPort("proj-a")).toBe(derivePreferredPort("proj-a"));
+  });
+
+  it("differs for different projectIds (two projects don't prefer the same port)", () => {
+    expect(derivePreferredPort("proj-a")).not.toBe(derivePreferredPort("proj-b"));
+  });
+
+  it("stays within base..base+range", () => {
+    const p = derivePreferredPort("some-project-id");
+    expect(p).toBeGreaterThanOrEqual(DEFAULT_PORTS.gateway);
+    expect(p).toBeLessThan(DEFAULT_PORTS.gateway + 1000);
+  });
+});
+
+// [SCOPE 068 / FR-004] reaping
+describe("reapDeadEntries", () => {
+  it("removes a dead entry and keeps a live one", () => {
+    writeServiceEntry(
+      "gateway",
+      { port: 4040, pid: 999_999, parentpid: 1, startedAt: "2026-05-13T00:00:00.000Z", cmd: "gw" },
+      workdir,
+    );
+    const after = reapDeadEntries(workdir);
+    expect(after?.services.gateway).toBeUndefined();
+  });
+
+  it("is a no-op when there is no state file", () => {
+    expect(reapDeadEntries(workdir)).toBeNull();
   });
 });

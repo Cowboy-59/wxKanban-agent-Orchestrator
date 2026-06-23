@@ -180,13 +180,22 @@ Your role is to:
 ║  I'm your Business Analyst partner for defining this scope.    ║
 ╚════════════════════════════════════════════════════════════════╝
 
-Let's start by understanding what we're building and why.
+We start from the PROBLEM, not the feature. Before we describe what to
+build, we need to be crystal clear on the problem it solves — everything
+in the scope is built from that problem. We'll come back to your original
+description at the end to review and reconcile it with what we built.
 
-Based on your description: "{{args}}"
+[Set the original description aside as raw input — do NOT treat it as the
+ agreed framing yet]:
+"You described this as: '{{args}}'. I'm going to hold that aside for now.
+ First, let's nail the problem. We'll revisit your description at the end
+ to make sure it still says what you mean."
 
-[If no description provided, ask]: 
-"What functionality or feature would you like to define in this scope? 
- Describe it as you would to a stakeholder."
+[If no description was provided, that's fine — we lead with the problem anyway.]
+
+OPENING QUESTION (ask this first, before anything else):
+"What problem are we solving? Who has this problem, what does it cost them
+ today, and why does it need solving now?"
 
 [If --from-md <path> was provided, SKIP the open-ended discovery and instead]:
 "I've read <path>. Here's what I extracted as the source for this scope:
@@ -201,9 +210,13 @@ Based on your description: "{{args}}"
 
 **Deep-dive questions** — ask one at a time, wait for the answer, then push back if the answer is vague. Do not move on until you have a concrete, testable response.
 
-1. **Business Context**
+1. **Problem to be Solved (START HERE — this is the anchor)**
+   - This is the foundation of the whole scope. Do not move past it until the
+     problem is concrete and testable. Everything that follows — scenarios,
+     requirements, success criteria — must trace back to this problem.
    - "What business problem does this solve? Who requested it and why now?"
    - "What happens today without this feature? Walk me through the exact workaround step by step."
+   - "If this problem were solved, what specifically changes for the person who has it?"
    - *If the answer is vague* — help the user make it concrete with an example:
      ```
      Let me show you what I'm looking for:
@@ -552,7 +565,45 @@ Your response: [A]pprove / [C]hange [FR-00X] / [E]xplain / [A]dd / [R]emove
 
 ### Phase 4: Final Review & Refinement
 
-**After all sections are approved:**
+**Step 4a — Revisit the original description (REQUIRED before the summary).**
+
+We started from the problem and built the scope from there. Now circle back
+to the description the user originally gave and reconcile it with what we
+actually built. The original wording almost always drifts from the final scope.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ REVISITING YOUR ORIGINAL DESCRIPTION                             │
+├─────────────────────────────────────────────────────────────────┤
+│ You originally described this as:                                │
+│   "{{args}}"                                                      │
+│                                                                   │
+│ Based on the problem we anchored on and the scope we built,      │
+│ here's how I'd now describe it:                                  │
+│   "[Revised one-paragraph description, derived from the          │
+│    approved problem + scope]"                                     │
+│                                                                   │
+│ WHAT CHANGED AND WHY:                                            │
+│ [Call out where the original drifted from what we built —        │
+│  narrowed, broadened, reframed around the real problem, etc.]    │
+│                                                                   │
+│ QUESTIONS FOR YOU:                                              │
+│ 1. Does the revised description match what we actually built?    │
+│ 2. Did we drift from your original intent, or sharpen it?        │
+│ 3. Keep the revised wording, or change either the description    │
+│    or the scope to bring them back in line?                      │
+└─────────────────────────────────────────────────────────────────┘
+
+Your response: [A]pprove revised description / [C]hange description /
+               [B]ack — a section needs to change to match intent
+```
+
+If the user picks **[B]ack**, return to the relevant Phase 3 section, change
+it, then return here. Do not proceed to the summary until the description and
+the built scope agree. Use the approved revised description as the scope's
+`feature-description` when writing via `project.buildscope`.
+
+**After the description is reconciled and all sections are approved:**
 
 ```
 ╔════════════════════════════════════════════════════════════════╗

@@ -326,12 +326,13 @@ describe("QT-7 — Two concurrent kit instances in separate repos coexist withou
       expect(stateA!.services.gateway?.parentpid).toBe(9000);
       expect(stateB!.services.gateway?.parentpid).toBe(9001);
 
-      // Repo A's resolver picks up only A's entry; B's resolver picks up only B's.
+      // [SCOPE 068 / FR-001] Both PIDs are dead → the resolver fails closed
+      // (null) for each project. It MUST NOT fall back to the shared :3003,
+      // which would make one project's client target the other's gateway.
       const urlA = resolveServiceUrl("gateway", { projectRoot: dirA, env: {} });
       const urlB = resolveServiceUrl("gateway", { projectRoot: dirB, env: {} });
-      // PIDs are dead so resolver falls through to the gateway default for both.
-      expect(urlA).toBe("http://localhost:3003");
-      expect(urlB).toBe("http://localhost:3003");
+      expect(urlA).toBeNull();
+      expect(urlB).toBeNull();
     } finally {
       try { rmSync(dirA, { recursive: true, force: true }); } catch { /* ignore */ }
       try { rmSync(dirB, { recursive: true, force: true }); } catch { /* ignore */ }

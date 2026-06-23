@@ -14,11 +14,14 @@ import { LifecycleStage } from '../../../core/schemas/lifecycle';
 import { getAllowedCommandsForStage } from '../../../core/policy/adapters/cli-adapter';
 import { bindWithAutoselect, PortRangeExhaustedError } from '../../../core/runtime/port-autoselect';
 import { startParentWatcher, resolveParentPid } from '../../../core/runtime/parent-watcher';
-import { writeServiceEntry, removeServiceEntry } from '../../../core/runtime/state-file';
+import { writeServiceEntry, removeServiceEntry, reapDeadEntries } from '../../../core/runtime/state-file';
+import { derivePreferredPort } from '../../../core/context/runtime-state';
 
-const PREFERRED_PORT = parseInt(process.env['GATEWAY_HTTP_PORT'] || '3003', 10);
+// [SCOPE 068 / FR-005] Preferred port: explicit override wins; otherwise a
+// deterministic per-project port (computed in startGateway from the project id).
 const SHUTDOWN_GRACE_MS = parseInt(process.env['KIT_SHUTDOWN_GRACE_MS'] || '5000', 10);
-let BOUND_PORT = PREFERRED_PORT;
+const PROJECT_ROOT = process.cwd();
+let BOUND_PORT = parseInt(process.env['GATEWAY_HTTP_PORT'] || '3003', 10);
 
 function resolveProjectContext(): ProjectContext {
 	const configPath = path.resolve(process.cwd(), '.wxkanban-project.json');
@@ -75,9 +78,17 @@ function resolveProjectContext(): ProjectContext {
 const app = express();
 app.use(express.json());
 
-// Health check
+// Health check — [SCOPE 068 / FR-002] echo project identity so a client can
+// verify it's talking to its OWN project's gateway.
 app.get('/health', (_req, res) => {
-	res.json({ status: 'ok', service: 'command-gateway', port: BOUND_PORT });
+	const context = resolveProjectContext();
+	res.json({
+		status: 'ok',
+		service: 'command-gateway',
+		port: BOUND_PORT,
+		projectId: context.projectId,
+		projectRoot: PROJECT_ROOT,
+	});
 });
 
 // List available commands for current stage
@@ -87,20 +98,35 @@ app.get('/commands', (_req, res) => {
 	res.json({
 		stage: context.lifecycleStage,
 		commands: allCommands,
+		projectId: context.projectId, // [SCOPE 068 / FR-002]
+		projectRoot: PROJECT_ROOT,
 	});
 });
 
 // Dispatch a command
 app.post('/dispatch', async (req, res) => {
 	const context = resolveProjectContext();
-	const { command, input, user } = req.body as {
+	const { command, input, user, projectId } = req.body as {
 		command: string;
 		input?: Record<string, unknown>;
 		user?: string;
+		projectId?: string;
 	};
 
 	if (!command) {
 		res.status(400).json({ error: 'Missing required field: command' });
+		return;
+	}
+
+	// [SCOPE 068 / FR-003] If the caller asserts a projectId, it MUST match this
+	// gateway's project — otherwise we'd execute against the wrong repo. Absent
+	// projectId stays back-compatible with older clients.
+	if (projectId && context.projectId && projectId !== context.projectId) {
+		res.status(409).json({
+			error: 'projectId mismatch — this gateway belongs to a different project',
+			gatewayProjectId: context.projectId,
+			requestedProjectId: projectId,
+		});
 		return;
 	}
 
@@ -149,20 +175,31 @@ async function startGateway(): Promise<void> {
 	process.on('SIGINT', () => { void shutdown('SIGINT'); });
 
 	try {
+		// [SCOPE 068] Reap any stale entry left by a crashed gateway before we
+		// bind/write, and pick a deterministic per-project preferred port (env
+		// override wins) so two projects never prefer the same one.
+		const context = resolveProjectContext();
+		try { reapDeadEntries(PROJECT_ROOT); } catch { /* best effort */ }
+		const envPort = process.env['GATEWAY_HTTP_PORT'];
+		const preferredPort = envPort
+			? parseInt(envPort, 10)
+			: derivePreferredPort(context.projectId);
+
 		const { server, port } = await bindWithAutoselect({
-			preferredPort: PREFERRED_PORT,
+			preferredPort,
 			buildServer: () => http.createServer(app) as unknown as import('net').Server,
 			onListen: () => undefined,
 		});
 		httpServer = server as unknown as http.Server;
 		BOUND_PORT = port;
-		console.log(`Command gateway HTTP server listening on port ${port}`);
+		console.log(`Command gateway HTTP server listening on port ${port} (project ${context.projectId || '?'})`);
 		writeServiceEntry('gateway', {
 			port,
 			pid: process.pid,
 			parentpid: resolveParentPid(),
 			startedAt: new Date().toISOString(),
 			cmd: 'ts-node apps/command-gateway/src/http.ts',
+			projectId: context.projectId || undefined,
 		});
 		watcher = startParentWatcher(resolveParentPid(), () => {
 			void shutdown('parent-gone');
