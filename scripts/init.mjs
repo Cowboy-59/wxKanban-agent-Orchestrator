@@ -262,9 +262,57 @@ function trustSystemCertificates() {
   }
 }
 
+// Remove files that newer kit versions RENAMED or REMOVED. init.mjs runs after
+// every extract (upgrade-kit calls runInit()), and it's the FRESHLY-EXTRACTED
+// copy that runs — so unlike upgrade-kit's own cleanup, this also fires on the
+// bootstrap upgrade INTO the version that ships it. Idempotent; safe to re-run.
+function cleanupStaleKitFiles() {
+  const renamed = [
+    '_wxAI/skills/wxConversion-analyst.md',
+    'wxkanban-agent/templates/skills/wxConversion-analyst.md',
+    '_wxAI/commands/wxConversionFromPDF.md',
+    '_wxAI/commands/wxConversionScopeFromPDF.md',
+    '.claude/commands/wxConversionFromPDF.md',
+    '.claude/commands/wxConversionScopeFromPDF.md',
+    '_wxAI/skills/wxConversionFromPDF',
+    '_wxAI/skills/wxConversionScopeFromPDF',
+    '.claude/skills/wxConversionFromPDF',
+    '.claude/skills/wxConversionScopeFromPDF',
+    'wxkanban-agent/templates/skills/wxConversionFromPDF',
+    'wxkanban-agent/templates/skills/wxConversionScopeFromPDF',
+  ];
+  // Raw TS source — only once the kit actually ships the compiled bundle.
+  const distPresent = fs.existsSync(path.join(root, 'wxkanban-agent', 'dist', 'cli.cjs'));
+  const sourceTrees = distPresent
+    ? [
+        'wxkanban-agent/core',
+        'wxkanban-agent/services',
+        'wxkanban-agent/workers',
+        'wxkanban-agent/adapters',
+        'wxkanban-agent/apps/command-gateway/src',
+        'wxkanban-agent/dbpush.ts',
+      ]
+    : [];
+  let removed = 0;
+  for (const rel of [...renamed, ...sourceTrees]) {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) continue;
+    try {
+      fs.rmSync(abs, { recursive: true, force: true });
+      console.log(`[init] removed stale ${rel}`);
+      removed++;
+    } catch (err) {
+      console.log(`[init] could not remove ${rel}: ${err?.message ?? err}`);
+    }
+  }
+  if (removed > 0) console.log(`[init] stale-file cleanup: ${removed} path(s) removed`);
+}
+
 async function main() {
   trustSystemCertificates();
   console.log('\nwxKanban kit — install\n──────────────────────');
+
+  cleanupStaleKitFiles();
 
   await ensureDepsInstalled();
 
