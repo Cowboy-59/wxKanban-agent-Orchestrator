@@ -2,6 +2,23 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.7.4 — 2026-06-26
+
+### Fixed — orchestrator self-installs dependencies on first run
+
+The kit ships without `node_modules` (platform-specific binaries), but the
+VS Code `folderOpen` task launches the gateway bin **directly** — never through
+`init.mjs`'s install guard. On a fresh download the bin fell through to `tsx`,
+which wasn't installed yet, and exited with "tsx not found": the orchestrator
+died on first open.
+
+Both launcher bins (`apps/command-gateway/bin/wxai.mjs` and `wxai-http.mjs`) now
+bootstrap dependencies in place when `tsx` is missing — `npm install` (fatal on
+failure) followed by `npm audit fix` (best-effort) at the kit root — then
+re-probe and continue. This makes every entry point (folderOpen gateway task,
+CLI commands, upgrade flow) self-heal. `scripts/init.mjs` gained the matching
+`npm audit fix` step so the manual install path runs both commands too.
+
 ## v1.5.0 — 2026-06-09
 
 ### Added — `/wxConversionScope`: window-seeded scoping stage for WinDev conversion

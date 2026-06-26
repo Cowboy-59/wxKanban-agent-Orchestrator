@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -37,6 +37,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@resvg/resvg-js": "^2.6.2",
     "@shadcn/ui": "^0.0.4",
     "@sparticuz/chromium": "^149.0.0",
     "@stripe/react-stripe-js": "^6.2.0",
