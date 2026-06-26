@@ -241,6 +241,21 @@ async function ensureDepsInstalled() {
     bail(`npm install succeeded but tsx is still missing at ${tsxPath}. Inspect package.json for the tsx dep.`);
   }
   console.log('[init] ✓ dependencies installed');
+  // Best-effort: clear advisories pulled in transitively. Never blocks startup —
+  // a transient or unfixable advisory must not wedge a fresh install.
+  console.log('[init] running `npm audit fix`…');
+  await new Promise((resolve) => {
+    const c = spawn(npmCmd, ['audit', 'fix'], {
+      cwd: root,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+    });
+    c.on('exit', () => resolve());
+    c.on('error', (err) => {
+      console.error(`[init] npm audit fix skipped: ${err.message}`);
+      resolve();
+    });
+  });
 }
 
 // Trust the OS cert store so install runs behind a corporate TLS-inspection
