@@ -6,7 +6,7 @@
 // at a fixture skill dir and projectRoot at a temp consumer root.
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, readFileSync } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, readFileSync, utimesSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -98,6 +98,66 @@ describe("wxconversion handler", () => {
     const r = handleWxConversionCommand({ projectRoot: tmp, templatesDir: join(tmp, "nope") });
     expect(r.exitCode).toBe(1);
     expect(r.output).toMatch(/skill template not found/);
+  });
+});
+
+describe("wxconversion --review", () => {
+  it("errors with exit 2 when pre-convert/ is missing (run conversion first)", () => {
+    const r = handleWxConversionCommand({ projectRoot: tmp, review: true });
+    expect(r.exitCode).toBe(2);
+    expect(r.output).toMatch(/no pre-convert/i);
+  });
+
+  it("reports a page that has source (.controls.md) but no generated .tsx", () => {
+    mkdirSync(join(tmp, "pre-convert"));
+    writeFileSync(join(tmp, "pre-convert", "PAGE_Home.page.md"), "# Home\n");
+    writeFileSync(join(tmp, "pre-convert", "PAGE_Home.controls.md"), "# Home controls\n");
+
+    const r = handleWxConversionCommand({ projectRoot: tmp, review: true });
+    expect(r.exitCode).toBe(0);
+    expect(r.findings?.some((f) => f.kind === "missing" && f.item.includes("PAGE_Home"))).toBe(true);
+    expect(r.output).toMatch(/MISSING/);
+  });
+
+  it("flags a stale aggregate scope and the _discarded.md review item", () => {
+    const pre = join(tmp, "pre-convert");
+    const scopes = join(tmp, "rebuild", "scopes");
+    mkdirSync(pre, { recursive: true });
+    mkdirSync(scopes, { recursive: true });
+    // queries scope exists but a .qry.md source is newer → stale
+    writeFileSync(join(scopes, "QRY-queries-scope.md"), "# queries\n");
+    writeFileSync(join(pre, "QRY_Orders.qry.md"), "# QRY_Orders\n");
+    const old = new Date(Date.now() - 60_000);
+    const recent = new Date();
+    utimesSync(join(scopes, "QRY-queries-scope.md"), old, old);
+    utimesSync(join(pre, "QRY_Orders.qry.md"), recent, recent);
+    // a split that dropped pages
+    writeFileSync(join(pre, "_discarded.md"), "# not captured\n");
+
+    const r = handleWxConversionCommand({ projectRoot: tmp, review: true });
+    expect(r.exitCode).toBe(0);
+    expect(r.findings?.some((f) => f.kind === "stale" && f.item.includes("queries scope"))).toBe(true);
+    expect(r.findings?.some((f) => f.kind === "review" && f.item.includes("_discarded.md"))).toBe(true);
+  });
+
+  it("reports in-sync when every generated artifact is newer than its source", () => {
+    const pre = join(tmp, "pre-convert");
+    const pages = join(tmp, "rebuild", "pages");
+    mkdirSync(pre, { recursive: true });
+    mkdirSync(pages, { recursive: true });
+    writeFileSync(join(pre, "PAGE_Home.page.md"), "# Home\n");
+    writeFileSync(join(pre, "PAGE_Home.controls.md"), "# controls\n");
+    writeFileSync(join(pages, "PAGE_Home.tsx"), "export default function Home(){return null}\n");
+    const old = new Date(Date.now() - 60_000);
+    const recent = new Date();
+    utimesSync(join(pre, "PAGE_Home.page.md"), old, old);
+    utimesSync(join(pre, "PAGE_Home.controls.md"), old, old);
+    utimesSync(join(pages, "PAGE_Home.tsx"), recent, recent);
+
+    const r = handleWxConversionCommand({ projectRoot: tmp, review: true });
+    expect(r.exitCode).toBe(0);
+    expect(r.findings).toEqual([]);
+    expect(r.output).toMatch(/in sync/i);
   });
 });
 

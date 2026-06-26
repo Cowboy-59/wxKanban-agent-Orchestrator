@@ -307,6 +307,7 @@ export class WorkflowEngine {
 		const { handleWxConversionCommand } = await import('./command-handlers/wxconversion');
 		const handlerResult = handleWxConversionCommand({
 			force: options['force'] === true,
+			review: options['review'] === true,
 		});
 		console.log(handlerResult.output);
 		const success = handlerResult.exitCode === 0;

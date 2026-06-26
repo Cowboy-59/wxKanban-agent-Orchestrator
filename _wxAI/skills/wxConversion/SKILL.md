@@ -18,15 +18,40 @@ description: >-
 > `{ "command": "wxconversion" }`, then follow the returned instructions exactly. They drive the
 > deterministic conversion scripts bundled locally in this skill's **`scripts/`** directory
 > (`pcsoft-doc-split.py`, `pcsoft-page-to-react.py`, `pcsoft-schema-to-sql.py`,
-> `pcsoft-queries-to-scope.py`, `render.mjs`) and reference **`references/library-gaps.md`**.
+> `pcsoft-queries-to-scope.py`, `pcsoft-procs-to-scope.py`, `pcsoft-reports-to-stub.py`,
+> `render.mjs`) and reference **`references/library-gaps.md`**.
+>
+> **`pcsoft-doc-split.py` classifies elements by the breadcrumb _Type_ segment, not the Part
+> number** — PCSoft part numbering is not stable across exports (queries can be Part 4 or Part 6,
+> procedure sets Part 5 or Part 7). Keying on the number silently dropped whole sections (the
+> real `QRY_*` queries and the entire server/global procedure layer, including HFSQL trigger
+> procedures). After splitting, you MUST run, in addition to the page/schema/queries steps:
+> `pcsoft-procs-to-scope.py` (server/global procedures, incl. triggers) and
+> `pcsoft-reports-to-stub.py` (reports).
+>
+> **Review what was _not_ captured.** When any page fails to group into an element, the splitter
+> writes **`pre-convert/_discarded.md`** (grouped by breadcrumb Type, with page ranges) and warns
+> on the console. Most entries are the cover, table of contents, and section dividers — but if any
+> Type there names a real element kind, that element was not converted. Open `_discarded.md`,
+> surface it to the developer, and ask whether they want to keep any of it before moving on — do
+> not silently discard.
+>
+> **Re-sync review.** After a conversion (or whenever the source PDF changes), run
+> **`wxkanban-agent wxconversion --review`** to compare `pre-convert/` (source) against `rebuild/`
+> (generated) and list what is **missing**, **stale** (a source changed since it was generated),
+> **orphaned** (generated with no source), or flagged for review (`_discarded.md`). It changes
+> nothing — present the findings to the developer as choices (regenerate / keep / delete) and act on
+> their selection.
 >
 > This requires an active wxKanban subscription. If the fetch returns a subscription error,
 > renew at https://wxperts.com/account/billing and retry.
 
 ## What this skill produces (summary)
 
-From one PCSoft Technical-Documentation PDF: per-element Markdown under `pre-convert/`, regenerated
-React/Tailwind/shadcn pages under `rebuild/pages/` (WLanguage behavior wired as handler stubs), a
-target-DB schema + Mermaid ER diagram under `rebuild/db/`, a queries scope and reports stub under
-`rebuild/scopes/`. When conversion is done, hand off to **`/wxConversionScope`** to generate
-Scope-of-Project documents from the result.
+From one PCSoft Technical-Documentation PDF: per-element Markdown under `pre-convert/` (plus
+`_discarded.md` listing anything not captured, for review), regenerated React/Tailwind/shadcn pages
+under `rebuild/pages/` (WLanguage behavior wired as handler stubs), a target-DB schema + Mermaid ER
+diagram under `rebuild/db/`, and under `rebuild/scopes/` a queries scope, a **server/global
+procedures scope** (the backend WLanguage business-logic layer, including HFSQL trigger procedures —
+these have no UI and are NOT scaffolded as pages), and a reports stub. When conversion is done, hand
+off to **`/wxConversionScope`** to generate Scope-of-Project documents from the result.
