@@ -326,6 +326,58 @@ function cleanupStaleKitFiles() {
   if (removed > 0) console.log(`[init] stale-file cleanup: ${removed} path(s) removed`);
 }
 
+// Register the hosted MCP with Claude Code so its tools (project.get_command_prompt,
+// buildscope, etc.) actually load. Claude Code reads project-scoped MCP servers from
+// `.mcp.json` at the repo root (NOT .claude/settings.json). The hosted server speaks
+// the MCP SSE transport (GET /sse -> POST /messages) and authenticates via a bearer
+// header — project scope is derived from the token, so no project-id header is needed.
+// The token is written literally (Claude Code does not load .env), so the file is a
+// per-project secret and must be gitignored. Other servers already present are kept.
+function writeClaudeMcpRegistration(cfg) {
+  const mcpJsonPath = path.join(root, '.mcp.json');
+  const url = `${cfg.mcpBaseUrl.replace(/\/$/, '')}/sse`;
+  const entry = { type: 'sse', url, headers: { Authorization: `Bearer ${cfg.apiToken}` } };
+
+  let doc = {};
+  if (fs.existsSync(mcpJsonPath)) {
+    try {
+      doc = JSON.parse(fs.readFileSync(mcpJsonPath, 'utf8')) || {};
+    } catch {
+      console.log('[init] .mcp.json was unparseable — rewriting it');
+      doc = {};
+    }
+  }
+  if (!doc.mcpServers || typeof doc.mcpServers !== 'object') doc.mcpServers = {};
+
+  const prev = doc.mcpServers.wxkanban;
+  const unchanged =
+    prev && prev.type === entry.type && prev.url === entry.url &&
+    prev.headers?.Authorization === entry.headers.Authorization;
+
+  doc.mcpServers.wxkanban = entry;
+  const tmp = `${mcpJsonPath}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(doc, null, 2) + '\n', 'utf8');
+  fs.renameSync(tmp, mcpJsonPath);
+  ensureGitignored('.mcp.json');
+
+  if (unchanged) {
+    console.log('[init] Claude Code MCP already registered (.mcp.json)');
+  } else {
+    console.log(`[init] ✓ registered hosted MCP with Claude Code → .mcp.json (${url})`);
+    console.log('[init]   Restart Claude Code, then approve "wxkanban" via /mcp (project MCP servers need one-time approval).');
+  }
+}
+
+// Ensure a path is gitignored (.mcp.json carries the bearer token).
+function ensureGitignored(rel) {
+  const giPath = path.join(root, '.gitignore');
+  const content = fs.existsSync(giPath) ? fs.readFileSync(giPath, 'utf8') : '';
+  if (content.split(/\r?\n/).map((l) => l.trim()).includes(rel)) return;
+  const sep = content.length && !content.endsWith('\n') ? '\n' : '';
+  fs.appendFileSync(giPath, `${sep}# wxKanban MCP registration (contains a project API token)\n${rel}\n`);
+  console.log(`[init] added ${rel} to .gitignore`);
+}
+
 async function main() {
   trustSystemCertificates();
   console.log('\nwxKanban kit — install\n──────────────────────');
@@ -351,6 +403,14 @@ async function main() {
 
   await checkHostedMcp(cfg.mcpBaseUrl);
   await checkToken(cfg.mcpBaseUrl, cfg.apiToken, cfg.projectId);
+
+  // Register the hosted MCP with Claude Code (.mcp.json) so MCP-delivered commands
+  // load. Best-effort: a write failure must not block the rest of the install.
+  try {
+    writeClaudeMcpRegistration(cfg);
+  } catch (err) {
+    console.log(`[init] Claude Code MCP registration skipped (${err?.message ?? err}).`);
+  }
 
   startGateway(cfg);
 
