@@ -2,6 +2,32 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.7.5 — 2026-06-26
+
+### Fixed — Claude Code never connected to the hosted MCP (BUG-REPORT-wxkanban-mcp-registration)
+
+Two defects left every MCP-delivered slash command (buildscope, createSpecs,
+wxConversionScope, analyzescope, …) dead for Claude Code users:
+
+- **Registration gap (kit).** `init.mjs` wrote the wxperts-agent config but never
+  registered the MCP with **Claude Code**, which loads project-scoped servers from
+  `.mcp.json` at the repo root. `init.mjs` now writes `.mcp.json` after token
+  validation, in the correct remote **SSE** form (`type: "sse"`, `url: <base>/sse`,
+  `Authorization: Bearer <token>` header — scope is derived from the token, so no
+  project-id header), merging any existing servers and gitignoring the file (it
+  holds the token). The stale hardcoded local-process entry
+  (`cwd: e:\AI_Development\…`) was removed from `_wxAI/settings.json`, and
+  `/wxAI-project-init` §2.1 corrected (the old `transport: "https"` + `env` block
+  was invalid for a remote server).
+
+- **Server body-parsing (mcp-server, deployed separately).** The hosted `/messages`
+  route returned `400 stream is not readable` for every client because the global
+  `express.json()` drained the request stream before
+  `SSEServerTransport.handlePostMessage` re-read it. Fixed by passing the parsed
+  body: `handlePostMessage(req, res, req.body)`.
+
+After upgrading, restart Claude Code and approve the `wxkanban` server via `/mcp`.
+
 ## v1.7.4 — 2026-06-26
 
 ### Fixed — orchestrator self-installs dependencies on first run
