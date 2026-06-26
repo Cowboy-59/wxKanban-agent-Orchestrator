@@ -52,6 +52,37 @@ AI:      Blackbox AI / Claude / Cursor / Gemini / Mistral
 
 ---
 
+### Step 1.5 — wxKanban MCP Connectivity Check
+
+The methodology for `buildscope`, `createSpecs`, `analyzescope`, `validateScope`, `research`, and the wxConversion skills is delivered at runtime by the **`project.get_command_prompt`** MCP tool. Confirm the wxKanban MCP is connected to your AI client before relying on it.
+
+Check whether `project.get_command_prompt` (or `project.mcp_health`) is available as a tool.
+
+**If it is NOT available**, the MCP is not registered/connected — a setup issue, **not** a subscription problem:
+
+```
+⚠️  wxKanban MCP NOT CONNECTED
+    MCP-delivered commands (buildscope, createSpecs, analyzescope, …) will not work.
+
+    Fix:
+      1. Register it:  /wxAI-project-init  (writes .mcp.json)  — or  node scripts/init.mjs
+      2. Restart your AI client            (MCP servers connect only at startup)
+      3. Approve the `wxkanban` server     (Claude Code: run /mcp)
+
+    Only an explicit 401 / subscription error from a tool call is a token/billing issue —
+    re-run kit-configure or renew at https://wxperts.com/account/billing.
+```
+
+Continue the session (non-blocking), but treat MCP-delivered commands as unavailable until this is fixed.
+
+**If it IS available:**
+
+```
+✅ wxKanban MCP connected
+```
+
+---
+
 ### Step 2 — Governance Version Check
 
 Run the version check:

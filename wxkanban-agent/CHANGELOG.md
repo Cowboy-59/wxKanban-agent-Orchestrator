@@ -2,6 +2,29 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## v1.7.6 — 2026-06-26
+
+### Fixed — MCP-unavailable guidance no longer blames the subscription
+
+Follow-up to v1.7.5 (BUG-REPORT-wxkanban-mcp-registration §4). When
+`project.get_command_prompt` was unavailable, every MCP-delivered command/skill
+(buildscope, createSpecs, analyzescope, validateScope, research, wxConversion,
+wxConversionScope) told the user to "renew your wxKanban subscription" — masking
+the real cause (MCP not registered with the AI client) and sending users with a
+valid subscription to billing.
+
+- **Corrected fallback text** in all 16 command/skill copies (`_wxAI/commands`,
+  `_wxAI/skills`, `.claude/*`, `wxkanban-agent/templates/skills`): "tool not
+  available" now means "MCP not connected — register via `/wxAI-project-init`
+  (`.mcp.json`) and restart", and only an explicit **401 / subscription error**
+  points at the token or billing.
+- **Connectivity gate** added to `/wxAI-session-start` (Step 1.5): checks whether
+  `project.get_command_prompt` / `project.mcp_health` is available and, if not,
+  prints the exact register-and-restart steps and warns that MCP-delivered
+  commands won't work until fixed. Non-blocking.
+
+(The legitimate JWT-entitlement renew message in `kit-status.ts` is unchanged.)
+
 ## v1.7.5 — 2026-06-26
 
 ### Fixed — Claude Code never connected to the hosted MCP (BUG-REPORT-wxkanban-mcp-registration)
