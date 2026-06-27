@@ -70,6 +70,22 @@ export class CockpitMcpClient {
   }
   // [SCOPE 058 / T009] END
 
+  // [SCOPE 073 / T010] BEGIN — editor capture: push a scope's dependency edges on file save
+  setScopeDependencies(
+    projectId: string,
+    scopeNumber: number,
+    dependsOnRaw: string,
+    relatedRaw: string,
+  ): Promise<{ scope: number; edgesCaptured: number; warnings: unknown[] }> {
+    return this.callTool('project.set_scope_dependencies', {
+      projectId,
+      scopeNumber,
+      dependsOnRaw,
+      relatedRaw,
+    });
+  }
+  // [SCOPE 073 / T010] END
+
   // [SCOPE 043 / T010] the submitter's own feedback + status (for the cockpit section)
   async listMyFeedback(projectId: string): Promise<MyFeedbackItem[]> {
     const res = await this.callTool<{ items: MyFeedbackItem[] }>('project.list_my_feedback', {

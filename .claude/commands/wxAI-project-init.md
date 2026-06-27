@@ -50,31 +50,31 @@ Before fetching project data, verify and configure the developer environment. Ru
 
 #### 2.1 — MCP: wxKanban Server
 
-Check `.claude/settings.json` (workspace root) for the `wxkanban-mcp` entry.
+Claude Code loads project-scoped MCP servers from **`.mcp.json` at the workspace root** — **not** `.claude/settings.json`. The MCP is **hosted** (spec 028); there is no local server to spawn. It speaks the MCP **SSE transport** (`GET /sse` → `POST /messages`) and authenticates with a bearer token. The server derives your project scope **from the token**, so no project-id header is needed.
 
-**If missing**, add it. The MCP is **hosted** (spec 028) — there is no local MCP server to spawn. Read the endpoint from `.wxkanban-project.json` `mcpBaseUrl` (written by `init.mjs`; defaults to `https://mcp.wxperts.com`) and authenticate with the bearer token from `.env`:
+**`scripts/init.mjs` writes this automatically** after validating your token, reading the endpoint from `.wxai/project.json` `kit.mcpBaseUrl` (defaults to `https://mcp.wxperts.com`) and the token from `kit.apiToken` / `.env`. It also **gitignores `.mcp.json`**, because the file holds the token. To write it by hand, the block is:
 
 ```json
 {
   "mcpServers": {
     "wxkanban": {
-      "transport": "https",
-      "url": "<mcpBaseUrl from .wxkanban-project.json>",
-      "env": {
-        "WXKANBAN_MCP_BASE_URL": "<mcpBaseUrl from .wxkanban-project.json>",
-        "WXKANBAN_API_TOKEN": "<from .env>",
-        "WXKANBAN_PROJECT_ID": "<from .env>"
+      "type": "sse",
+      "url": "<mcpBaseUrl>/sse",
+      "headers": {
+        "Authorization": "Bearer <WXKANBAN_API_TOKEN from .env>"
       }
     }
   }
 }
 ```
 
-> Legacy note: pre-028 kits ran a local MCP on an auto-allocated port via `mcpHttpUrl` / `MCP_HTTP_PORT`. That model is retired — the hosted MCP uses `mcpBaseUrl` + a project-scoped bearer token, and nothing is started locally.
+**After it is written, restart Claude Code and approve the `wxkanban` server** — project-scoped MCP servers prompt for a one-time approval (run `/mcp` to approve if you miss it). MCP servers connect only at startup, never mid-session.
 
-If `.claude/settings.json` exists but has other entries, merge — do not overwrite the file.
+> Legacy note: pre-028 kits ran a local MCP on an auto-allocated port, and older docs showed `transport: "https"` + an `env` block — **both are wrong** for a remote SSE server. Env vars apply to stdio/spawned servers, not remote HTTP auth; the hosted MCP uses `.mcp.json` `type: "sse"` + an `Authorization` header.
 
-Report: `✓ MCP wxKanban registered (<mcpBaseUrl>)` or `⚠ Already present`.
+If `.mcp.json` exists with other entries, merge — do not overwrite the file.
+
+Report: `✓ MCP wxKanban registered (<mcpBaseUrl>/sse)` or `⚠ Already present`.
 
 ---
 

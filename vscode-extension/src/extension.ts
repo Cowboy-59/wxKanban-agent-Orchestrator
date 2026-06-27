@@ -12,6 +12,7 @@ import type { FaqEntry } from './services/faqCatalog.js'; // [SCOPE 066 / T008]
 import { storeToken } from './services/auth.js';
 import { resolveProjectContext } from './services/projectContext.js';
 import { materializeStackOnOpen } from './services/materializeStack.js'; // [SCOPE 055]
+import { registerScopeDepsWatcher } from './services/scopeDepsWatcher.js'; // [SCOPE 073 / T010]
 import { ScopeClaimProvider } from './providers/scopeDecorations.js'; // [SCOPE 058 / T013]
 import { checkoutScope, checkinScope } from './commands/scopeCheckout.js'; // [SCOPE 058 / T010]
 import { checkCommands, installCommands } from './services/commandsInstall.js'; // [SCOPE 060 / Cockpit]
@@ -33,6 +34,10 @@ export function activate(context: vscode.ExtensionContext): void {
   // [SCOPE 055] On open, materialize stack.md from the project's ProjectStack doc
   // (DB source of truth). Best-effort and non-destructive; never blocks activation.
   void materializeStackOnOpen(context.secrets);
+
+  // [SCOPE 073 / T010] Editor capture: push scope dependency edges to the scope-flow
+  // graph whenever a specs/Project-Scope/*.md is saved. Best-effort; never blocks.
+  registerScopeDepsWatcher(context, context.secrets);
 
   // [SCOPE 060 / Cockpit] One-time nudge on activation: if the kit's slash
   // commands aren't in .claude/commands/, offer to install them so / commands
