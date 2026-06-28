@@ -72,6 +72,9 @@ export class BuildScopeWorker {
 			scopeContent?: string;
 			checklistPath?: string;
 			checklistContent?: string;
+			// [SCOPE 077 / FR-008] orchestrator in-chat reuse check — surfaced inline.
+			reuseWarning?: string;
+			reuseMatches?: Array<{ owner: string; name: string; capabilityType: string; score: number }>;
 		};
 		if (mcpResult.success === false) {
 			throw new Error(mcpResult.error || 'buildscope: project.buildscope returned success=false');
@@ -121,7 +124,10 @@ export class BuildScopeWorker {
 			typeof args['businessProblem'] === 'string' ? (args['businessProblem'] as string) : 'See generated spec file.';
 		const objectives = pickSuccessMetrics(args['successMetrics']);
 		const verb = mcpResult.status === 'updated' ? 'updated' : mcpResult.status === 'template_only' ? 'scaffolded from template' : 'created';
-		const notes = `Spec ${mcpResult.specNumber ?? '?'} ${verb} via project.buildscope (mode: ${mcpResult.mode ?? 'unknown'}).`;
+		// [SCOPE 077 / FR-008] Surface the orchestrator reuse check inline so the
+		// developer sees overlapping existing scopes while authoring (warn-only).
+		const reuseNote = mcpResult.reuseWarning ? `\n\n${mcpResult.reuseWarning}` : '';
+		const notes = `Spec ${mcpResult.specNumber ?? '?'} ${verb} via project.buildscope (mode: ${mcpResult.mode ?? 'unknown'}).${reuseNote}`;
 
 		return {
 			title,
