@@ -24,6 +24,12 @@ import { materializeStack } from '../../../core/orchestrator/command-handlers/ma
 // .env so every gateway command (dbpush etc.) is authenticated (Issue 4).
 import { trustSystemCertificates } from '../../../core/bootstrap/system-ca';
 import { loadProjectEnv } from '../../../core/bootstrap/load-env';
+// Dogfood the cockpit self-update from the kit's own startup path: the
+// SessionStart hook runs `cli.ts --help`, which is the closest thing wxKanban
+// has to a "terminal process that runs at startup". Without this the self-heal
+// only fired on dbpush/implement/gateway-boot — none of which run in a setup
+// that dogfoods the hosted MCP — so a hand-installed cockpit drifts stale.
+import { ensureCockpitUpToDate } from '../../../core/orchestrator/cockpit-refresh';
 
 interface ProjectConfig {
 	projectId: string;
@@ -204,6 +210,10 @@ async function main(): Promise<void> {
 	const context = resolveProjectContext(config);
 
 	if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
+		// Startup self-heal: force-install the bundled cockpit .vsix when the
+		// installed copy is missing/older. Best-effort, detached, throttled once
+		// per process — never blocks or fails the help output.
+		ensureCockpitUpToDate();
 		printAvailableCommands(context.lifecycleStage, context.customCommands);
 		return;
 	}

@@ -2,6 +2,35 @@ import { spawn, spawnSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
+// Resolve the VS Code CLI across platforms. On Windows it's `code.cmd`, which
+// Node can only spawn through the shell. On macOS/Linux `code` is frequently NOT
+// on PATH (VS Code requires the manual "Shell Command: Install 'code' command in
+// PATH"), so probe the standard install locations before falling back to bare
+// `code`. Returns the launch command plus whether it needs a shell.
+// WXKANBAN_CODE_BIN overrides everything (escape hatch for non-standard installs).
+function resolveCodeCli(): { cmd: string; shell: boolean } {
+  if (process.env.WXKANBAN_CODE_BIN) {
+    return { cmd: process.env.WXKANBAN_CODE_BIN, shell: process.platform === "win32" };
+  }
+  if (process.platform === "win32") return { cmd: "code.cmd", shell: true };
+  const candidates = [
+    "code",
+    "/usr/local/bin/code",
+    "/opt/homebrew/bin/code",
+    "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+    "/Applications/VSCodium.app/Contents/Resources/app/bin/codium",
+  ];
+  for (const cmd of candidates) {
+    try {
+      const probe = spawnSync(cmd, ["--version"], { stdio: "ignore", timeout: 3000 });
+      if (!probe.error && probe.status === 0) return { cmd, shell: false };
+    } catch {
+      /* try the next candidate */
+    }
+  }
+  return { cmd: "code", shell: false }; // best-effort; the spawn error handler swallows ENOENT
+}
+
 // [SCOPE 042 / T021] BEGIN — emitCockpitRefresh (best-effort IDE refresh ping)
 // The VS Code Dev Cockpit (spec 042) registers a URI handler at
 // vscode://wxperts.wxkanban-dev-cockpit/refresh. After dbpush or implement
@@ -17,13 +46,13 @@ const COCKPIT_REFRESH_URI = "vscode://wxperts.wxkanban-dev-cockpit/refresh";
 export function emitCockpitRefresh(): void {
   if (process.env.WXKANBAN_NO_COCKPIT_REFRESH) return;
   try {
-    const isWindows = process.platform === "win32";
-    // On Windows `code` is a .cmd that Node can only spawn via the shell; pass
-    // ONE command string (the URI is a fixed constant) to avoid the DEP0190
-    // warning that shell:true + an args array emits. Non-Windows uses no shell.
-    const child = isWindows
-      ? spawn(`code.cmd --open-url "${COCKPIT_REFRESH_URI}"`, { stdio: "ignore", detached: true, shell: true })
-      : spawn("code", ["--open-url", COCKPIT_REFRESH_URI], { stdio: "ignore", detached: true, shell: false });
+    const { cmd, shell } = resolveCodeCli();
+    // On Windows `code.cmd` must run via the shell; pass ONE command string (the
+    // URI is a fixed constant) to avoid the DEP0190 warning that shell:true + an
+    // args array emits. macOS/Linux use the resolved binary with no shell.
+    const child = shell
+      ? spawn(`${cmd} --open-url "${COCKPIT_REFRESH_URI}"`, { stdio: "ignore", detached: true, shell: true })
+      : spawn(cmd, ["--open-url", COCKPIT_REFRESH_URI], { stdio: "ignore", detached: true, shell: false });
     // Never let a missing `code` binary surface as an unhandled error.
     child.on("error", () => undefined);
     child.unref();
@@ -111,10 +140,10 @@ export function findBundledVsix(): { vsixPath: string; version: string } | null 
 // --show-versions` (line `wxperts.wxkanban-dev-cockpit@x.y.z`). Returns the
 // version string, or null when not installed / `code` unavailable.
 function readInstalledCockpitVersion(): string | null {
-  const isWindows = process.platform === "win32";
-  const res = isWindows
-    ? spawnSync("code.cmd --list-extensions --show-versions", { encoding: "utf8", shell: true, timeout: 15000 })
-    : spawnSync("code", ["--list-extensions", "--show-versions"], { encoding: "utf8", shell: false, timeout: 15000 });
+  const { cmd, shell } = resolveCodeCli();
+  const res = shell
+    ? spawnSync(`${cmd} --list-extensions --show-versions`, { encoding: "utf8", shell: true, timeout: 15000 })
+    : spawnSync(cmd, ["--list-extensions", "--show-versions"], { encoding: "utf8", shell: false, timeout: 15000 });
   if (res.error || res.status !== 0 || typeof res.stdout !== "string") return null;
   for (const line of res.stdout.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -149,11 +178,11 @@ export function ensureCockpitUpToDate(): void {
         `(force-installing ${path.basename(bundled.vsixPath)})`,
     );
 
-    const isWindows = process.platform === "win32";
+    const { cmd, shell } = resolveCodeCli();
     // Quote the path (may contain spaces) for the Windows shell form.
-    const child = isWindows
-      ? spawn(`code.cmd --install-extension "${bundled.vsixPath}" --force`, { stdio: "ignore", detached: true, shell: true })
-      : spawn("code", ["--install-extension", bundled.vsixPath, "--force"], { stdio: "ignore", detached: true, shell: false });
+    const child = shell
+      ? spawn(`${cmd} --install-extension "${bundled.vsixPath}" --force`, { stdio: "ignore", detached: true, shell: true })
+      : spawn(cmd, ["--install-extension", bundled.vsixPath, "--force"], { stdio: "ignore", detached: true, shell: false });
     child.on("error", () => undefined); // missing `code` must never surface
     child.unref();
   } catch {

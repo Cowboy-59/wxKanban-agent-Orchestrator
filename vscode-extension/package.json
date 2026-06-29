@@ -2,7 +2,7 @@
   "name": "wxkanban-dev-cockpit",
   "displayName": "wxKanban Dev Cockpit",
   "description": "See the current wxKanban project's remaining work per scope, without leaving the editor.",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "publisher": "wxperts",
   "icon": "media/wxPerts_icon.png",
   "private": true,
