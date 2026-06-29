@@ -26,6 +26,14 @@ export enum Capability {
   WxConversion = "WxConversion",
   // Scope generation over the converted artifacts (Design-only, no spec).
   WxConversionScope = "WxConversionScope",
+  // Clarion (SoftVelocity/PCSoft) conversion FROM TXA/TXD/.clw source (Design-only, no spec).
+  CwConversion = "CwConversion",
+  // Scope generation over the converted Clarion artifacts (Design-only, no spec).
+  CwConversionScope = "CwConversionScope",
+  // Visual Basic 6 conversion FROM .vbp/.frm/.bas/.cls source (Design-only, no spec).
+  VbConversion = "VbConversion",
+  // Scope generation over the converted VB6 artifacts (Design-only, no spec).
+  VbConversionScope = "VbConversionScope",
 }
 
 export interface CapabilityGate {
@@ -111,6 +119,30 @@ export const gateTable: Readonly<Record<Capability, CapabilityGate>> = {
   },
   // Design-only scope generator over the converted artifacts.
   [Capability.WxConversionScope]: {
+    allowedPhases: [LifecycleStage.Design],
+    requiresVerifiedSpec: false,
+    allowsEscalation: false,
+  },
+  // Design-only — Clarion conversion produces the rebuild scaffold, no spec.
+  [Capability.CwConversion]: {
+    allowedPhases: [LifecycleStage.Design],
+    requiresVerifiedSpec: false,
+    allowsEscalation: false,
+  },
+  // Design-only scope generator over the converted Clarion artifacts.
+  [Capability.CwConversionScope]: {
+    allowedPhases: [LifecycleStage.Design],
+    requiresVerifiedSpec: false,
+    allowsEscalation: false,
+  },
+  // Design-only — VB6 conversion produces the rebuild scaffold, no spec.
+  [Capability.VbConversion]: {
+    allowedPhases: [LifecycleStage.Design],
+    requiresVerifiedSpec: false,
+    allowsEscalation: false,
+  },
+  // Design-only scope generator over the converted VB6 artifacts.
+  [Capability.VbConversionScope]: {
     allowedPhases: [LifecycleStage.Design],
     requiresVerifiedSpec: false,
     allowsEscalation: false,

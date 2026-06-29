@@ -48,6 +48,12 @@ const CLI_COMMAND_TO_CAPABILITY: Readonly<Record<string, Capability>> = {
   // WinDev/WebDev conversion entry points (Design-only).
   wxconversion: Capability.WxConversion,
   wxconversionscope: Capability.WxConversionScope,
+  // Clarion conversion entry points (Design-only).
+  cwconversion: Capability.CwConversion,
+  cwconversionscope: Capability.CwConversionScope,
+  // Visual Basic 6 conversion entry points (Design-only).
+  vbconversion: Capability.VbConversion,
+  vbconversionscope: Capability.VbConversionScope,
 };
 
 // Reverse map for computing `allowedCommands` per stage in the

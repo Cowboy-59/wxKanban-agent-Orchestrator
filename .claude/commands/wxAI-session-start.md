@@ -54,7 +54,7 @@ AI:      Blackbox AI / Claude / Cursor / Gemini / Mistral
 
 ### Step 1.5 — wxKanban MCP Connectivity Check
 
-The methodology for `buildscope`, `createSpecs`, `analyzescope`, `validateScope`, `research`, and the wxConversion skills is delivered at runtime by the **`project.get_command_prompt`** MCP tool. Confirm the wxKanban MCP is connected to your AI client before relying on it.
+The methodology for `buildscope`, `createSpecs`, `analyzescope`, `validateScope`, `research`, and the wxConversion / cwConversion / vbConversion skills (WinDev, Clarion, and VB6 conversion + their scope generators) is delivered at runtime by the **`project.get_command_prompt`** MCP tool. Confirm the wxKanban MCP is connected to your AI client before relying on it.
 
 Check whether `project.get_command_prompt` (or `project.mcp_health`) is available as a tool.
 

@@ -1,6 +1,6 @@
 // Kit-side entitlement preflight (Phase 1B).
 //
-// Local-only commands (wxconversion, auditfences, scaffold:frontend, ...) never
+// Local-only commands (wxconversion, cwconversion, vbconversion, auditfences, scaffold:frontend, ...) never
 // touch the hosted MCP, so the server-side entitlement gate (Phase 1A) can't see
 // them. This module fails them closed when the customer's wxKanban subscription
 // has lapsed, using a short-lived Ed25519-signed token cached in .wxai/.

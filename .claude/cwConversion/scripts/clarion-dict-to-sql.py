@@ -99,21 +99,42 @@ def parse_table_md(path):
     return dict(name=name, prefix=prefix or None, pk=pk, fields=fields)
 
 
+REL_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(.*?)\s*\|\s*(.+?)\s*\|\s*(.*?)\s*\|\s*$")
+
+
 def parse_relations(text):
-    """Return list of (parent, child) from the _schema.md relation fence."""
-    out, parent = [], None
+    """Return list of dict(parent, child, parent_field, child_field) from `_schema.md`.
+
+    Prefers the `| Parent | Parent key | Child | Child key |` table (field-level links recovered
+    from generated ABC `AddRelationLink`); falls back to the older FILE-pair fence (file-level only,
+    fields = None) for dictionaries that carried only `[RELATION]`/`FILE` pairs."""
+    rels = []
     for ln in text.split("\n"):
+        m = REL_ROW_RE.match(ln)
+        if not m:
+            continue
+        parent, pkey, child, ckey = (g.strip() for g in m.groups())
+        low = parent.lower()
+        if low in ("parent", "field") or set(parent) <= {"-"} or low == "---":
+            continue
+        rels.append(dict(parent=parent, child=child,
+                         parent_field=pkey or None, child_field=ckey or None))
+    if rels:
+        return rels
+    # legacy fence fallback: consecutive FILE lines inside a [RELATION] block
+    parent = None
+    for ln in text.split("\n"):
+        if ln.strip().upper().startswith("[RELATION]"):
+            parent = None
         m = re.match(r"\s*FILE\b[\s(']*([^)'\n]+)", ln)
         if m:
             v = m.group(1).strip().strip("'\")")
             if parent is None:
                 parent = v
             else:
-                out.append((parent, v))
+                rels.append(dict(parent=parent, child=v, parent_field=None, child_field=None))
                 parent = None
-        if ln.strip().upper().startswith("[RELATION]"):
-            parent = None
-    return out
+    return rels
 
 
 def col_type(f, dialect):
@@ -157,9 +178,21 @@ def emit_ddl(tables, links, dialect, keep_prefix):
             lines.append(f"  {c}{comma}{cmt}")
         out.append("\n".join(lines))
         out.append(");\n")
-    out.append("-- ---- Foreign keys (from dictionary [RELATION]) ----")
-    for parent, child in links:
-        if parent in valid and child in valid:
+    out.append("-- ---- Foreign keys (from the dictionary relation graph) ----")
+    prefix_of = {t["name"]: t["prefix"] for t in tables}
+    for r in links:
+        parent, child = r["parent"], r["child"]
+        if parent not in valid or child not in valid:
+            continue
+        pf = [strip_prefix(c.strip(), prefix_of.get(parent)) for c in (r.get("parent_field") or "").split(",") if c.strip()]
+        cf = [strip_prefix(c.strip(), prefix_of.get(child)) for c in (r.get("child_field") or "").split(",") if c.strip()]
+        if keep_prefix:
+            pf = [c.strip() for c in (r.get("parent_field") or "").split(",") if c.strip()]
+            cf = [c.strip() for c in (r.get("child_field") or "").split(",") if c.strip()]
+        if pf and cf and len(pf) == len(cf):
+            out.append(f"ALTER TABLE {child} ADD CONSTRAINT FK_{child}_{parent} "
+                       f"FOREIGN KEY ({', '.join(cf)}) REFERENCES {parent} ({', '.join(pf)});")
+        else:
             out.append(f"-- {child} -> {parent}: add FK once the join columns are confirmed")
             out.append(f"-- ALTER TABLE {child} ADD CONSTRAINT FK_{child}_{parent} "
                        f"FOREIGN KEY (<{parent}id>) REFERENCES {parent} (<id>);")
@@ -172,9 +205,9 @@ def emit_er(tables, links, dialect, keep_prefix):
            f"Field names/types faithful (1:1)._", "",
            "## Entity-relationship diagram", "", "```mermaid", "erDiagram"]
     valid = {t["name"] for t in tables}
-    for parent, child in links:
-        if parent in valid and child in valid:
-            out.append(f"    {parent} ||--o{{ {child} : has")
+    for r in links:
+        if r["parent"] in valid and r["child"] in valid:
+            out.append(f"    {r['parent']} ||--o{{ {r['child']} : has")
     out.append("```")
     out.append("\n## Tables\n")
     for t in tables:
@@ -227,7 +260,7 @@ def main():
         if t["fields"] or t["name"]:
             tables.append(t)
     schema_path = os.path.join(args.src, "_schema.md")
-    links = parse_relations(fence_body(schema_path)) if os.path.exists(schema_path) else []
+    links = parse_relations(open(schema_path, encoding="utf-8").read()) if os.path.exists(schema_path) else []
 
     os.makedirs(args.out, exist_ok=True)
     sql_path = os.path.join(args.out, f"schema.{args.dialect}.sql")

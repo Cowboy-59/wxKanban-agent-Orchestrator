@@ -11,6 +11,7 @@ import * as path from 'path';
 // Kept in sync with helpCatalog STANDARD and scripts/install-claude-commands.mjs.
 const STANDARD_COMMANDS = [
   'buildscope', 'createspecs', 'implement', 'wxconversion', 'wxconversionscope',
+  'cwconversion', 'cwconversionscope', 'vbconversion', 'vbconversionscope',
   'dbpush', 'validatescope', 'analyzescope', 'createtesttasks', 'runqa',
   'runhuman', 'preparerelease', 'finalizerelease',
 ];

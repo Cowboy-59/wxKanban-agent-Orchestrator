@@ -61,8 +61,14 @@ flowchart TD
     subgraph Conversion
         wxconversion["wxConversion"]
         wxconversionscope["wxConversionScope"]
+        cwconversion["cwConversion"]
+        cwconversionscope["cwConversionScope"]
+        vbconversion["vbConversion"]
+        vbconversionscope["vbConversionScope"]
     end
     wxconversion --> wxconversionscope --> createspecs
+    cwconversion --> cwconversionscope --> createspecs
+    vbconversion --> vbconversionscope --> createspecs
     buildscope --> createspecs --> implement --> dbpush
     auditrun --> auditreport --> auditcheck --> audittasks
     kitstatus --> downloadkit --> regeneratekit --> importproject --> newproject
@@ -83,7 +89,11 @@ flowchart TD
 - kitstatus, downloadkit, regeneratekit, importproject, new-project — Project Kit
 - scope-check, todo-import, training, sync-global, session-start, validatescope, checkupdates, upgrade — AI Governance
 - analyzecode — Architecture (wxICA drift audit + deepening exploration)
-- wxConversion — Conversion stage 1 (WinDev/WLanguage source → readable Markdown under pre-convert/ + screenshots; Design stage)
-- wxConversionScope — Conversion stage 2 (seed from a window .wdw.md or --all, follow its calls, analyze the screen, run BuildScope to a scope doc; optional HFSQL→target DB mapping; Design stage)
+- wxConversion — WinDev/WebDev conversion stage 1 (PCSoft technical-doc PDF → readable Markdown under pre-convert/ + regenerated pages; Design stage)
+- wxConversionScope — WinDev/WebDev conversion stage 2 (turn the converted artifacts into Scope-of-Project docs, BuildScope-style + resumable; Design stage)
+- cwConversion — Clarion conversion stage 1 (SoftVelocity/PCSoft TXA/TXD/.clw source → readable Markdown under pre-convert/ + regenerated windows + DB schema with real FKs; Design stage)
+- cwConversionScope — Clarion conversion stage 2 (turn the converted artifacts into Scope-of-Project docs, BuildScope-style + resumable, Clarion-aware gap-pass; Design stage)
+- vbConversion — Visual Basic 6 conversion stage 1 (.vbp/.frm/.bas/.cls source → readable Markdown under pre-convert/ + regenerated forms + reconstructed DB model; Design stage)
+- vbConversionScope — Visual Basic 6 conversion stage 2 (turn the converted artifacts into Scope-of-Project docs, BuildScope-style + resumable, VB6-aware gap-pass; Design stage)
 
 > For details on each command, see the full help.md or run `wxai help <command>`.

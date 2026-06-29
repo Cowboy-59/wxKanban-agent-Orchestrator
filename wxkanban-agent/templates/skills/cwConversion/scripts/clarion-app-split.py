@@ -174,6 +174,44 @@ def parse_file_body(blines, prefix):
     return dict(pk=pk, fields=fields)
 
 
+RELLINK_RE = re.compile(
+    r"AddRelationLink\s*\(\s*([A-Za-z0-9]+)\s*:\s*([A-Za-z0-9_]+)\s*,\s*"
+    r"([A-Za-z0-9]+)\s*:\s*([A-Za-z0-9_]+)\s*\)", re.I)
+
+
+def parse_clw_relations(texts, files):
+    """Recover the dictionary FK graph from generated ABC business-class modules (`*_BC*.clw`).
+    ABC wires relations as `SELF.AddRelationLink(PAR:field, CHILD:field)` inside each
+    RelationManager's `DeferedAddRelations` routine — the parent (the SELF / "one" side) is the
+    first argument, the child (the related / "many" side) the second. The Clarion field PREFIX
+    (`AUT:`, `JOB:`) maps back to its FILE via `PRE()`; a composite FK appears as several links
+    between the same file pair. Returns (relations, unresolved_prefixes) where each relation is the
+    unified model dict(parent, child, parent_field, child_field, raw) — field lists comma-joined.
+    The binary `.dct` is NOT needed: the generated `_BC` source carries the whole graph."""
+    pref2file = {f["prefix"].upper(): f["name"] for f in files if f.get("prefix")}
+    grouped, order, unresolved = {}, [], set()
+    for text in texts:
+        for m in RELLINK_RE.finditer(text):
+            ppre, pfld, cpre, cfld = m.group(1), m.group(2), m.group(3), m.group(4)
+            par, chi = pref2file.get(ppre.upper()), pref2file.get(cpre.upper())
+            if not par or not chi:
+                unresolved.add(ppre.upper() if not par else cpre.upper())
+                continue
+            key = (par, chi)
+            if key not in grouped:
+                grouped[key] = []
+                order.append(key)
+            if (pfld, cfld) not in grouped[key]:
+                grouped[key].append((pfld, cfld))
+    rels = []
+    for par, chi in order:
+        pairs = grouped[(par, chi)]
+        pf, cf = ",".join(p for p, _ in pairs), ",".join(c for _, c in pairs)
+        rels.append(dict(parent=par, child=chi, parent_field=pf, child_field=cf,
+                         raw=f"{par}({pf}) 1--* {chi}({cf})"))
+    return rels, sorted(unresolved)
+
+
 def parse_txd(text):
     """Bracket-format dictionary (.txd). Returns (files, relations) in the unified model."""
     lines = text.split("\n")
@@ -189,7 +227,7 @@ def parse_txd(text):
             continue
         if up.startswith("[RELATION]"):
             cur = None
-            pending_rel = dict(parent=None, child=None, raw=[ln])
+            pending_rel = dict(parent=None, child=None, parent_field=None, child_field=None, raw=[ln])
             relations.append(pending_rel)
             continue
         if up.startswith("[FIELD]") or up.startswith("[COLUMN]"):
@@ -369,12 +407,15 @@ def main():
     clw_files = sorted(glob.glob(args.clw)) if args.clw else []
 
     # ---- dictionary: prefer .txd; else inline FILE decls in the .clw set ----
-    files, relations = [], []
+    files, relations, rel_unresolved = [], [], []
     if args.txd and os.path.exists(args.txd):
         files, relations = parse_txd(read_text(args.txd))
     else:
-        for path in clw_files:
-            files.extend(parse_clw_dictionary(read_text(path)))
+        clw_texts = [read_text(path) for path in clw_files]
+        for text in clw_texts:
+            files.extend(parse_clw_dictionary(text))
+        # Recover the FK graph from generated ABC `*_BC*.clw` AddRelationLink calls.
+        relations, rel_unresolved = parse_clw_relations(clw_texts, files)
     seen_tbl = set()
     for f in files:
         if f["name"] in seen_tbl:
@@ -385,14 +426,24 @@ def main():
         manifest.append(f"- `{fname}.table.md` — FILE {f['name']} ({len(f['fields'])} fields, "
                         f"pk={', '.join(f.get('pk') or []) or 'none'})")
     if relations:
-        rel_rows = ["| Parent | Child |", "|---|---|"]
+        rel_rows = ["| Parent | Parent key | Child | Child key |", "|---|---|---|---|"]
         rel_raw = []
         for r in relations:
-            rel_rows.append(f"| {r['parent'] or '?'} | {r['child'] or '?'} |")
-            rel_raw.extend(r["raw"])
-        schema_md = "# Dictionary relations\n\n" + "\n".join(rel_rows) + "\n\n" + fence("\n".join(rel_raw))
+            rel_rows.append(f"| {r['parent'] or '?'} | {r.get('parent_field') or ''} "
+                            f"| {r['child'] or '?'} | {r.get('child_field') or ''} |")
+            raw = r.get("raw")
+            rel_raw.append(raw if isinstance(raw, str) else "\n".join(raw or []))
+        note = ("\n\n_Field-level links recovered from generated ABC `*_BC*.clw` `AddRelationLink` "
+                "calls (parent → child key pairs). Verify against the dictionary._"
+                if any(r.get("parent_field") for r in relations) else "")
+        schema_md = ("# Dictionary relations\n\n" + "\n".join(rel_rows) + note
+                     + "\n\n" + fence("\n".join(rel_raw)))
         write_if_new(os.path.join(args.out, "_schema.md"), schema_md, written, args.dry_run)
-        manifest.append(f"- `_schema.md` — {len(relations)} relations")
+        manifest.append(f"- `_schema.md` — {len(relations)} relations"
+                        + (" (field-level FKs)" if any(r.get("parent_field") for r in relations) else ""))
+    if rel_unresolved:
+        discarded.append("[RELATION] AddRelationLink prefixes with no matching FILE PRE() — FK "
+                         f"skipped: {', '.join(rel_unresolved)}")
 
     proc_names = []
 

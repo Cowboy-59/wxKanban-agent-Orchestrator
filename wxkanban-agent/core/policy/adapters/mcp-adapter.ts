@@ -104,6 +104,24 @@ const MCP_TOOL_MAP: Readonly<
     capability: Capability.WxConversionScope,
     displayName: "wxconversionscope",
   },
+  // Clarion conversion entry points, Design-gated like the CLI surface.
+  "project.cwconversion": {
+    capability: Capability.CwConversion,
+    displayName: "cwconversion",
+  },
+  "project.cwconversionscope": {
+    capability: Capability.CwConversionScope,
+    displayName: "cwconversionscope",
+  },
+  // Visual Basic 6 conversion entry points, Design-gated like the CLI surface.
+  "project.vbconversion": {
+    capability: Capability.VbConversion,
+    displayName: "vbconversion",
+  },
+  "project.vbconversionscope": {
+    capability: Capability.VbConversionScope,
+    displayName: "vbconversionscope",
+  },
 };
 
 export async function enforceTool(

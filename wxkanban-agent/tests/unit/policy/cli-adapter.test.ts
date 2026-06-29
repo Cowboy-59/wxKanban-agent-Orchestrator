@@ -31,6 +31,10 @@ describe("cli-adapter — name mapping table", () => {
     { command: "kit:status", allowedPhase: "all" },
     { command: "wxconversion", allowedPhase: LifecycleStage.Design },
     { command: "wxconversionscope", allowedPhase: LifecycleStage.Design },
+    { command: "cwconversion", allowedPhase: LifecycleStage.Design },
+    { command: "cwconversionscope", allowedPhase: LifecycleStage.Design },
+    { command: "vbconversion", allowedPhase: LifecycleStage.Design },
+    { command: "vbconversionscope", allowedPhase: LifecycleStage.Design },
   ];
 
   for (const { command, allowedPhase } of PAIRS) {

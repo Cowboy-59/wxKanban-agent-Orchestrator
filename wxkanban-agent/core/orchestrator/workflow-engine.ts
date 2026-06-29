@@ -347,6 +347,124 @@ export class WorkflowEngine {
 		return { result, audit };
 	}
 
+	// cwConversion: Clarion counterpart to runWxConversion — scaffold the rebuild
+	// workspace + install the skill from TXA/TXD/.clw source. Runs no AI.
+	static async runCwConversion(
+		context: ProjectContext,
+		options: Record<string, unknown>,
+		user?: string,
+	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
+		const timestamp = new Date().toISOString();
+		const policy = evaluateStageOnly(
+			context.lifecycleStage, 'cwconversion', context.customCommands,
+		);
+		if (!policy.allowed) {
+			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
+			const audit: AuditRecord = { timestamp, command: 'cwconversion', input: options, result: result as unknown as Record<string, unknown>, user };
+			return { result, audit };
+		}
+		const { handleCwConversionCommand } = await import('./command-handlers/cwconversion');
+		const handlerResult = handleCwConversionCommand({
+			force: options['force'] === true,
+			review: options['review'] === true,
+		});
+		console.log(handlerResult.output);
+		const success = handlerResult.exitCode === 0;
+		const result: CommandResult<Record<string, unknown>> = success
+			? { success: true, artifact: { exitCode: handlerResult.exitCode, actions: handlerResult.actions } }
+			: { success: false, error: `cwconversion exited with code ${handlerResult.exitCode}` };
+		const audit: AuditRecord = { timestamp, command: 'cwconversion', input: options, result: result as unknown as Record<string, unknown>, user };
+		return { result, audit };
+	}
+
+	// cwConversionScope: Clarion counterpart to runWxConversionScope — install the
+	// scope-generator skill and verify the conversion artifacts exist. Runs no AI.
+	static async runCwConversionScope(
+		context: ProjectContext,
+		options: Record<string, unknown>,
+		user?: string,
+	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
+		const timestamp = new Date().toISOString();
+		const policy = evaluateStageOnly(
+			context.lifecycleStage, 'cwconversionscope', context.customCommands,
+		);
+		if (!policy.allowed) {
+			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
+			const audit: AuditRecord = { timestamp, command: 'cwconversionscope', input: options, result: result as unknown as Record<string, unknown>, user };
+			return { result, audit };
+		}
+		const { handleCwConversionScopeCommand } = await import('./command-handlers/cwconversionscope');
+		const handlerResult = handleCwConversionScopeCommand({
+			force: options['force'] === true,
+		});
+		console.log(handlerResult.output);
+		const success = handlerResult.exitCode === 0;
+		const result: CommandResult<Record<string, unknown>> = success
+			? { success: true, artifact: { exitCode: handlerResult.exitCode, actions: handlerResult.actions } }
+			: { success: false, error: `cwconversionscope exited with code ${handlerResult.exitCode}` };
+		const audit: AuditRecord = { timestamp, command: 'cwconversionscope', input: options, result: result as unknown as Record<string, unknown>, user };
+		return { result, audit };
+	}
+
+	// vbConversion: VB6 counterpart to runCwConversion — scaffold the rebuild
+	// workspace + install the skill from .vbp/.frm/.bas/.cls source. Runs no AI.
+	static async runVbConversion(
+		context: ProjectContext,
+		options: Record<string, unknown>,
+		user?: string,
+	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
+		const timestamp = new Date().toISOString();
+		const policy = evaluateStageOnly(
+			context.lifecycleStage, 'vbconversion', context.customCommands,
+		);
+		if (!policy.allowed) {
+			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
+			const audit: AuditRecord = { timestamp, command: 'vbconversion', input: options, result: result as unknown as Record<string, unknown>, user };
+			return { result, audit };
+		}
+		const { handleVbConversionCommand } = await import('./command-handlers/vbconversion');
+		const handlerResult = handleVbConversionCommand({
+			force: options['force'] === true,
+			review: options['review'] === true,
+		});
+		console.log(handlerResult.output);
+		const success = handlerResult.exitCode === 0;
+		const result: CommandResult<Record<string, unknown>> = success
+			? { success: true, artifact: { exitCode: handlerResult.exitCode, actions: handlerResult.actions } }
+			: { success: false, error: `vbconversion exited with code ${handlerResult.exitCode}` };
+		const audit: AuditRecord = { timestamp, command: 'vbconversion', input: options, result: result as unknown as Record<string, unknown>, user };
+		return { result, audit };
+	}
+
+	// vbConversionScope: VB6 counterpart to runCwConversionScope — install the
+	// scope-generator skill and verify the conversion artifacts exist. Runs no AI.
+	static async runVbConversionScope(
+		context: ProjectContext,
+		options: Record<string, unknown>,
+		user?: string,
+	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
+		const timestamp = new Date().toISOString();
+		const policy = evaluateStageOnly(
+			context.lifecycleStage, 'vbconversionscope', context.customCommands,
+		);
+		if (!policy.allowed) {
+			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
+			const audit: AuditRecord = { timestamp, command: 'vbconversionscope', input: options, result: result as unknown as Record<string, unknown>, user };
+			return { result, audit };
+		}
+		const { handleVbConversionScopeCommand } = await import('./command-handlers/vbconversionscope');
+		const handlerResult = handleVbConversionScopeCommand({
+			force: options['force'] === true,
+		});
+		console.log(handlerResult.output);
+		const success = handlerResult.exitCode === 0;
+		const result: CommandResult<Record<string, unknown>> = success
+			? { success: true, artifact: { exitCode: handlerResult.exitCode, actions: handlerResult.actions } }
+			: { success: false, error: `vbconversionscope exited with code ${handlerResult.exitCode}` };
+		const audit: AuditRecord = { timestamp, command: 'vbconversionscope', input: options, result: result as unknown as Record<string, unknown>, user };
+		return { result, audit };
+	}
+
 	static async runAuditFences(
 		context: ProjectContext,
 		options: Record<string, unknown>,
@@ -467,6 +585,14 @@ export class WorkflowEngine {
 				return WorkflowEngine.runWxConversion(context, input, user);
 			case 'wxconversionscope':
 				return WorkflowEngine.runWxConversionScope(context, input, user);
+			case 'cwconversion':
+				return WorkflowEngine.runCwConversion(context, input, user);
+			case 'cwconversionscope':
+				return WorkflowEngine.runCwConversionScope(context, input, user);
+			case 'vbconversion':
+				return WorkflowEngine.runVbConversion(context, input, user);
+			case 'vbconversionscope':
+				return WorkflowEngine.runVbConversionScope(context, input, user);
 			default: {
 				const result: CommandResult<unknown> = {
 					success: false,

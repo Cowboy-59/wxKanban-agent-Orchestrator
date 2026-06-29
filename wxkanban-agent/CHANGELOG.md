@@ -2,6 +2,24 @@
 
 All notable changes to `wxkanban-agent` are documented in this file.
 
+## Unreleased
+
+### Added — `/cwConversion` + `/cwConversionScope`: Clarion conversion commands
+
+The Clarion (SoftVelocity / PCSoft) counterparts to `/wxConversion` and
+`/wxConversionScope`, promoted from self-contained skills to **full commands** on
+the same machinery: server-delivered methodology via `project.get_command_prompt`
+(`cwconversion` / `cwconversionscope` prompts), orchestrator handlers
+(`cwconversion.ts` / `cwconversionscope.ts` — scaffold + install + `--review`
+drift check, no AI), Design-gated capabilities, CLI + MCP policy adapters, and the
+help/install catalogs. `/cwConversion` converts a Clarion app from its TXA/TXD/.clw
+source (per-element Markdown → regenerated windows + DB schema with **real FK
+constraints** recovered from generated ABC `*_BC*.clw` `AddRelationLink` calls +
+queries/procedures/reports scopes); `/cwConversionScope` turns those artifacts into
+BuildScope-style, resumable Scope-of-Project documents with a Clarion-aware
+gap-pass. The bundled Python parsers gained `*_BC*.clw` FK recovery so the
+dictionary's foreign-key graph survives a binary-`.dct` handover.
+
 ## v1.7.6 — 2026-06-26
 
 ### Fixed — MCP-unavailable guidance no longer blames the subscription
