@@ -66,7 +66,7 @@ const KIT_INCLUDE_DIRS  = ['bin', 'wxkanban-agent', 'mcp-server', '_wxAI', 'scri
 // SPEC-058 Amendment B / FR-010 — the wxAIGit launchers ship at project root so
 // the Cockpit's scope check-out can create the branch. Backing scripts live under
 // scripts/wxaigit/ (scripts/ is already in KIT_INCLUDE_DIRS).
-const KIT_INCLUDE_FILES = ['package.json', 'package-lock.json', 'wxAIGit', 'wxAIGit.cmd'];
+const KIT_INCLUDE_FILES = ['package.json', 'package-lock.json', 'wxAIGit', 'wxAIGit.cmd', 'README_MAC_OS.md'];
 
 // Files at exactly .claude/<name> (top-level of .claude/) that must never be
 // packed — they hold per-machine state, not kit content.
