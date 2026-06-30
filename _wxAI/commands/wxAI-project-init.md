@@ -76,6 +76,24 @@ If `.mcp.json` exists with other entries, merge — do not overwrite the file.
 
 Report: `✓ MCP wxKanban registered (<mcpBaseUrl>/sse)` or `⚠ Already present`.
 
+**Behind a corporate proxy that blocks the connection?** Some networks (TLS-inspection / SSE-buffering proxies such as Cisco Secure Access) let short HTTPS requests through but break the long-lived `/sse` stream — so the SSE server above never connects. Quick test: if `curl <mcpBaseUrl>/health` returns **200** but `curl <mcpBaseUrl>/sse` **hangs**, use the **local stdio bridge** instead. It speaks MCP to Claude Code over stdio (no network on the editor side) and reaches the hosted MCP only via short request/response calls (`/tools` + `/call`) — the exact calls that already pass the proxy. No IT changes needed; it works wherever `/health` returns 200. `.mcp.json` block:
+
+```json
+{
+  "mcpServers": {
+    "wxkanban": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["wxkanban-agent/apps/command-gateway/bin/wxai-mcp-stdio.mjs"],
+      "env": {
+        "WXKANBAN_MCP_BASE_URL": "<mcpBaseUrl>",
+        "WXKANBAN_API_TOKEN": "<WXKANBAN_API_TOKEN from .env>"
+      }
+    }
+  }
+}
+```
+
 ---
 
 #### 2.2 — MCP: Claude in Chrome
