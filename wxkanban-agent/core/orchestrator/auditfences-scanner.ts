@@ -55,6 +55,11 @@ const DEFAULT_IGNORE = new Set([
   "drizzle",
   "src/db/migrations",
   ".wxai",
+  // [SCOPE 081 / T004] Skill-bundled scripts (.claude/skills/**) are tooling, not
+  // spec-traceable code units — exempt from fencing like JSON. Without this, a
+  // shipped JS skill script (e.g. dev-plan's build-devplan-pdf.mjs) would trip
+  // every consumer's `auditfences --strict`.
+  ".claude/skills",
 ]);
 
 export function scanTree(opts: ScanOptions): AuditResult {

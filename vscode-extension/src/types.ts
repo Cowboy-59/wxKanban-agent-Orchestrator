@@ -30,6 +30,8 @@ export interface CockpitSummary {
   viewerUserId?: string | null;
   // [SCOPE 058 / T014] false for single-member companies — skip claim visuals + editor read-only.
   claimsEnabled?: boolean;
+  // [SCOPE 081 / T005] deterministic build-roadmap checklist for the "Development Plan" panel.
+  devplan?: Array<{ scope: string; title: string; state: 'done' | 'partial' | 'todo' }>;
 }
 // [SCOPE 042 / T011] END
 

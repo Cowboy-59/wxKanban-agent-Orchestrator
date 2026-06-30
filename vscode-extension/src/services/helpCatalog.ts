@@ -44,6 +44,7 @@ const STANDARD = new Set<string>([
   'runhuman',
   'preparerelease',
   'finalizerelease',
+  'dev-plan', // [SCOPE 081 / T006]
 ]);
 
 // Non-command docs that live alongside the commands but aren't slash commands.

@@ -24,6 +24,8 @@ type NodeKind =
   | 'video-category' // [SCOPE 066 / T008] — Open / Training marketing-video subtree
   | 'faq-group' // [SCOPE 066 / T008]
   | 'faq-item' // [SCOPE 066 / T008]
+  | 'devplan-group' // [SCOPE 081 / T005]
+  | 'devplan-item' // [SCOPE 081 / T005]
   | 'commands-setup'; // [SCOPE 060 / Cockpit]
 type LoadState = 'unloaded' | 'ok' | 'empty' | 'no-project' | 'no-token' | 'error';
 
@@ -51,6 +53,7 @@ export class CockpitNode extends vscode.TreeItem {
     public readonly video?: DocVideo, // [SCOPE 042 / Videos]
     public readonly faq?: FaqEntry, // [SCOPE 066 / T008]
     public readonly videoItems?: DocVideo[], // [SCOPE 066 / T008] — a category's videos
+    public readonly devplanItems?: NonNullable<CockpitSummary['devplan']>, // [SCOPE 081 / T005]
   ) {
     super(label, collapsibleState);
   }
@@ -149,6 +152,10 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
       if (element.kind === 'faq-group') {
         return this.faqs.map(faqItemNode);
       }
+      // [SCOPE 081 / T005] expand the Development Plan group into checklist items.
+      if (element.kind === 'devplan-group') {
+        return (element.devplanItems ?? []).map(devplanItemNode);
+      }
       return [];
     }
     if (this.state === 'unloaded') {
@@ -176,7 +183,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     // installed into .claude/commands so Claude Code sees them? Independent of
     // the MCP load path (works offline / no token).
     this.commandsStatus = checkCommands();
-    return this.withFaqSection(this.withVideosSection(this.withHelpSection(this.withCommandsSection(this.rootNodes()))));
+    return this.withFaqSection(this.withDevplanSection(this.withVideosSection(this.withHelpSection(this.withCommandsSection(this.rootNodes())))));
   }
 
   private applyState(s: ComputedState): void {
@@ -308,6 +315,15 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     return [...base, faqGroupNode(this.faqs.length)];
   }
   // [SCOPE 066 / T008] END
+
+  // [SCOPE 081 / T005] BEGIN — append the "Development Plan" section (deterministic
+  // build-roadmap checklist) when the cockpit_summary carries devplan rows. Read-only.
+  private withDevplanSection(base: CockpitNode[]): CockpitNode[] {
+    const items = this.summary?.devplan ?? [];
+    if (items.length === 0) return base;
+    return [...base, devplanGroupNode(items)];
+  }
+  // [SCOPE 081 / T005] END
 }
 // [SCOPE 042 / T016] END
 
@@ -359,6 +375,33 @@ function commandsSetupNode(s: CommandsStatus): CockpitNode {
   node.command = { command: 'wxkanban.cockpit.installCommands', title: 'Install slash commands' };
   return node;
 }
+
+// [SCOPE 081 / T005] BEGIN — Development Plan group + checklist items.
+function devplanGroupNode(items: NonNullable<CockpitSummary['devplan']>): CockpitNode {
+  const done = items.filter((i) => i.state === 'done').length;
+  const node = new CockpitNode(
+    'devplan-group',
+    `Development Plan (${done}/${items.length})`,
+    vscode.TreeItemCollapsibleState.Collapsed,
+    undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+    items,
+  );
+  node.iconPath = new vscode.ThemeIcon('checklist');
+  node.tooltip = 'Foundation-up build roadmap — done / in progress / not started per scope.';
+  node.contextValue = 'wxkanban.devplan';
+  return node;
+}
+
+function devplanItemNode(item: { scope: string; title: string; state: string }): CockpitNode {
+  const mark = item.state === 'done' ? '✓' : item.state === 'partial' ? '◐' : '○';
+  const node = new CockpitNode('devplan-item', `${mark} ${item.scope} — ${item.title}`, vscode.TreeItemCollapsibleState.None);
+  node.description = item.state;
+  node.iconPath = new vscode.ThemeIcon(
+    item.state === 'done' ? 'pass-filled' : item.state === 'partial' ? 'circle-large-outline' : 'circle-outline',
+  );
+  return node;
+}
+// [SCOPE 081 / T005] END
 
 function messageNode(label: string, icon: string, tooltip?: string, command?: string): CockpitNode {
   const node = new CockpitNode('message', label, vscode.TreeItemCollapsibleState.None);
