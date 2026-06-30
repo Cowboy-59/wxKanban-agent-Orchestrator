@@ -6,11 +6,14 @@
  *   - Hosted MCP (default https://mcp.wxperts.com/health, per spec 028 v1.1.0+).
  *     The MCP runs only on wxKanban-operated infrastructure; consumers don't
  *     spawn a local one anymore (spec 019 Decision #1).
- *   - Orchestrator HTTP Gateway (default http://localhost:3003/health). Only
- *     required for stages that need local command dispatch (Implementation
- *     and later). In Design the kit's commands (buildscope, createspecs,
- *     dbpush, pipeline-agent) talk to the hosted MCP directly, so a missing
- *     gateway is informational rather than fatal.
+ *   - Orchestrator HTTP Gateway. The port is assigned per-project at startup
+ *     and recorded in .wxai/kit-runtime.json (services.gateway.port); this
+ *     check resolves that live port rather than assuming a constant (legacy
+ *     :3003 is only a last-resort fallback). Only required for stages that
+ *     need local command dispatch (Implementation and later). In Design the
+ *     kit's commands (buildscope, createspecs, dbpush, pipeline-agent) talk to
+ *     the hosted MCP directly, so a missing gateway is informational rather
+ *     than fatal.
  *
  * Exit codes:
  *   0 — MCP reachable, AND either the gateway is reachable OR the project
@@ -19,14 +22,16 @@
  *
  * Usage:
  *   node scripts/orchestrator-health-check.mjs
+ *   # GATEWAY_HTTP_URL overrides the runtime-resolved port only if you need to:
  *   MCP_HTTP_URL=https://staging.mcp.wxperts.com \
- *     GATEWAY_HTTP_URL=http://localhost:3003 \
+ *     GATEWAY_HTTP_URL=http://localhost:3865 \
  *     node scripts/orchestrator-health-check.mjs
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import tls from 'node:tls';
+import { fileURLToPath } from 'node:url';
 
 function parseEnvFile(filePath) {
   const out = {};
@@ -51,8 +56,32 @@ function readProjectJson() {
   }
 }
 
+// The gateway port is assigned per-project at start and recorded in
+// .wxai/kit-runtime.json. It is NOT a fixed default — assuming :3003 (or any
+// constant) probes the wrong process whenever this project's gateway bound a
+// different port. Always resolve the live port from runtime.
+export function readGatewayPort(cwd = process.cwd()) {
+  const p = path.join(cwd, '.wxai', 'kit-runtime.json');
+  if (!fs.existsSync(p)) return null;
+  try {
+    const rt = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return rt?.services?.gateway?.port ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Resolve order: explicit override env, then the live port from
+// .wxai/kit-runtime.json, then the legacy default only as a last resort.
+export function resolveGatewayUrl(envOverride, gatewayPort) {
+  if (envOverride) return envOverride;
+  if (gatewayPort) return `http://localhost:${gatewayPort}`;
+  return 'http://localhost:3003';
+}
+
 const envFromFile = parseEnvFile(path.join(process.cwd(), '.env'));
 const projectJson = readProjectJson();
+const gatewayPort = readGatewayPort();
 
 // v1.1.0+: the MCP is hosted. Falling back to localhost:3002 is wrong because
 // that port is guaranteed to be unbound on a v1.1.0 install. Resolve from
@@ -66,7 +95,7 @@ const MCP_URL =
   projectJson?.kit?.mcpBaseUrl ||
   'https://mcp.wxperts.com';
 
-const GATEWAY_URL = process.env.GATEWAY_HTTP_URL || 'http://localhost:3003';
+const GATEWAY_URL = resolveGatewayUrl(process.env.GATEWAY_HTTP_URL, gatewayPort);
 
 // Gateway is only required for stages that dispatch local commands. In Design
 // the kit talks to the hosted MCP directly, so an absent gateway is a warning,
@@ -173,7 +202,12 @@ async function main() {
   process.exitCode = 0;
 }
 
-main().catch((err) => {
-  console.error('unexpected failure:', err);
-  process.exitCode = 2;
-});
+// Only probe when run as a script — importing the module (e.g. from tests to
+// exercise resolveGatewayUrl/readGatewayPort) must not fire a network check.
+const isMainModule = path.resolve(process.argv[1] ?? '') === path.resolve(fileURLToPath(import.meta.url));
+if (isMainModule) {
+  main().catch((err) => {
+    console.error('unexpected failure:', err);
+    process.exitCode = 2;
+  });
+}

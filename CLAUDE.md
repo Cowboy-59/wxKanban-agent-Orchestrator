@@ -8,16 +8,22 @@ This file is the AI assistant's project primer. Rules are auto-discovered from `
 
 ---
 
-## SPEC-FIRST Development (MANDATORY)
+## SPEC-FIRST Development (MANDATORY — HARD GATE)
 
-Before any code changes, implementation, or build work:
+**Order is always: scope → specs → implement. Application development MUST have an approved spec before any code is written. If there is no spec, REFUSE to write the feature code — stop, say so, and produce/route the spec first. Do not proceed on chat direction alone, even when the path seems obvious.**
+
+For any application development:
 
 1. **Read the spec** for the feature (`specs/###-FeatureName/spec.md`)
 2. **Check the plan** for known issues, gates, constraints (`specs/###-FeatureName/plan.md`)
-3. **If NOT in spec** → STOP, ASK user, UPDATE spec first
+3. **If NOT in spec** → STOP. Draft the spec change → present diff/summary → wait for explicit approval. Do NOT implement first and document after.
 4. **Only then** → proceed with code changes
 
-Prevents recurring issues, surprises, and lost context. Every feature decision must be documented in the spec *before* implementation.
+**What the gate covers (refuse without a spec):** new features, endpoints, UI entry points, data models / schema changes, business logic, cross-host integrations — the actual development of the application.
+
+**What is exempt (no spec required):** trivial fixes (single-file bug fix, typo, version bump, comment), and operational AWS / infrastructure / deploy work. These can proceed directly.
+
+Prevents recurring issues, surprises, and lost context — including the exact failure this gate exists to stop: code built off-leash with no scope behind it. Every feature decision must be documented in the spec *before* implementation.
 
 ---
 
