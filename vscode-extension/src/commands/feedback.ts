@@ -181,3 +181,84 @@ export async function answerFeedbackItem(
   }
 }
 // [SCOPE 043 / T010] END
+
+// [SCOPE 043 / T011b] BEGIN — push a feedback item into the Claude chat + mark it triaged
+// Clicking a (non-needs-info) feedback item assembles its full text (the body the
+// submitter entered + auto-captured context) into a prompt and pushes it into the
+// Claude Code chat via the documented URI handler, then flags the item 'triaged'
+// (best-effort) so the cockpit reflects that it's being worked on.
+function humanizeKey(key: string): string {
+  const spaced = key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function recordToText(rec: Record<string, unknown> | null): string {
+  if (!rec || typeof rec !== 'object') return '_(nothing recorded)_';
+  const lines = Object.entries(rec)
+    .filter(([, v]) => v !== null && v !== undefined && `${v}`.trim() !== '')
+    .map(([k, v]) => `- **${humanizeKey(k)}:** ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`);
+  return lines.length ? lines.join('\n') : '_(nothing recorded)_';
+}
+
+export async function pushFeedbackToChat(
+  secrets: vscode.SecretStorage,
+  item: MyFeedbackItem,
+): Promise<void> {
+  const meta = [
+    `**Type:** ${item.type}`,
+    `**Status:** triaged (was ${item.status})`,
+    item.severity ? `**Severity:** ${item.severity}` : '',
+    `**Reference:** ${item.referenceId}`,
+  ].filter(Boolean).join(' · ');
+
+  const notes: string[] = [];
+  if (item.duplicateOfId) notes.push('> Already received — linked to an existing report.');
+  if (item.clarificationQuestion) notes.push(`> wxperts asked: ${item.clarificationQuestion}`);
+  if (item.clarificationAnswer) notes.push(`> Your reply: ${item.clarificationAnswer}`);
+  if (item.declineReason) notes.push(`> Declined: ${item.declineReason}`);
+
+  const prompt = [
+    `# wxKanban feedback: ${item.title}`,
+    meta,
+    notes.length ? notes.join('\n') : '',
+    '',
+    '## What I reported',
+    recordToText(item.details),
+    '',
+    '## Captured context',
+    recordToText(item.context),
+    '',
+    '---',
+    `Please help me address this wxKanban feedback (ref ${item.referenceId}).`,
+  ].join('\n');
+
+  // Push into the Claude Code chat (opens/focuses a Claude tab and pre-fills the prompt).
+  const uri = vscode.Uri.parse(
+    `vscode://anthropic.claude-code/open?prompt=${encodeURIComponent(prompt)}`,
+  );
+  try {
+    await vscode.env.openExternal(uri);
+  } catch (err) {
+    void vscode.window.showErrorMessage(
+      `wxKanban: could not open the Claude chat — ${(err as Error).message}. ` +
+        `Open the detail view and copy the text instead.`,
+    );
+    return;
+  }
+
+  // Mark the item triaged (best-effort) and refresh the tree so the status updates.
+  const resolved = await resolveClient(secrets);
+  if (!resolved) return;
+  try {
+    await resolved.client.callTool('project.triage_feedback', {
+      projectId: resolved.ctx.projectId,
+      feedbackId: item.id,
+    });
+    void vscode.commands.executeCommand('wxkanban.cockpit.refresh');
+  } catch (err) {
+    void vscode.window.showWarningMessage(
+      `wxKanban: pushed to chat, but couldn't mark it triaged — ${(err as Error).message}`,
+    );
+  }
+}
+// [SCOPE 043 / T011b] END

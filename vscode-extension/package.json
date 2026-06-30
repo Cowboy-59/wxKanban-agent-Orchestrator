@@ -2,7 +2,7 @@
   "name": "wxkanban-dev-cockpit",
   "displayName": "wxKanban Dev Cockpit",
   "description": "See the current wxKanban project's remaining work per scope, without leaving the editor.",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "publisher": "wxperts",
   "icon": "media/wxPerts_icon.png",
   "private": true,
@@ -72,6 +72,16 @@
         "command": "wxkanban.cockpit.installCommands",
         "title": "wxKanban: Install Slash Commands (.claude/commands)",
         "icon": "$(cloud-download)"
+      },
+      {
+        "command": "wxkanban.cockpit.pushFeedbackToChat",
+        "title": "wxKanban: Push Feedback to Claude Chat",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "wxkanban.cockpit.showFeedbackDetail",
+        "title": "wxKanban: View Feedback Detail",
+        "icon": "$(eye)"
       }
     ],
     "menus": {
@@ -102,6 +112,16 @@
           "command": "wxkanban.cockpit.checkinScope",
           "when": "view == wxkanban.cockpit && (viewItem == wxkanban.scope.mine || viewItem == wxkanban.scope.held)",
           "group": "1_wxkanban@2"
+        },
+        {
+          "command": "wxkanban.cockpit.pushFeedbackToChat",
+          "when": "view == wxkanban.cockpit && viewItem == wxkanban.feedback",
+          "group": "inline"
+        },
+        {
+          "command": "wxkanban.cockpit.showFeedbackDetail",
+          "when": "view == wxkanban.cockpit && viewItem == wxkanban.feedback",
+          "group": "1_wxkanban@1"
         }
       ]
     }

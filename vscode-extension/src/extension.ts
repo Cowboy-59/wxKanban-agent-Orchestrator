@@ -3,7 +3,7 @@ import { CockpitTreeProvider, CockpitNode } from './providers/cockpitTreeProvide
 import { showTaskDetail } from './providers/detailPanel.js';
 import { showFeedbackDetail } from './providers/feedbackDetailPanel.js'; // [SCOPE 043 / T011]
 import { openRelatedSpec } from './commands/openSpec.js';
-import { myFeedback, answerFeedbackItem } from './commands/feedback.js'; // [SCOPE 043 / T004, T010]
+import { myFeedback, answerFeedbackItem, pushFeedbackToChat } from './commands/feedback.js'; // [SCOPE 043 / T004, T010, T011b]
 import { openFeedbackPanel } from './providers/feedbackPanel.js'; // [SCOPE 043 / T009]
 import type { MyFeedbackItem } from './types.js';
 import type { HelpCommand } from './services/helpCatalog.js'; // [SCOPE 042 / Help]
@@ -139,6 +139,11 @@ export function activate(context: vscode.ExtensionContext): void {
     // [SCOPE 043 / T011] open the read-only detail view for a submitted item
     vscode.commands.registerCommand('wxkanban.cockpit.showFeedbackDetail', (item?: MyFeedbackItem) => {
       if (item) showFeedbackDetail(item);
+    }),
+
+    // [SCOPE 043 / T011b] push a feedback item's full text into the Claude chat + mark triaged
+    vscode.commands.registerCommand('wxkanban.cockpit.pushFeedbackToChat', (item?: MyFeedbackItem) => {
+      if (item) void pushFeedbackToChat(context.secrets, item);
     }),
 
     // [SCOPE 042 / Help] open a command's doc from the Help section, or show its

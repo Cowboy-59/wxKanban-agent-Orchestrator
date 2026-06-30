@@ -50,7 +50,7 @@ Before fetching project data, verify and configure the developer environment. Ru
 
 #### 2.1 — MCP: wxKanban Server
 
-Claude Code loads project-scoped MCP servers from **`.mcp.json` at the workspace root** — **not** `.claude/settings.json`. The MCP is **hosted** (spec 028); there is no local server to spawn. It speaks the MCP **SSE transport** (`GET /sse` → `POST /messages`) and authenticates with a bearer token. The server derives your project scope **from the token**, so no project-id header is needed.
+Claude Code loads project-scoped MCP servers from **`.mcp.json` at the workspace root** — **not** `.claude/settings.json`. The MCP is **hosted** (spec 028); there is no local server to spawn. It speaks the MCP **Streamable HTTP transport** (`POST /mcp`, plain-JSON request/response — proxy-friendly) and authenticates with a bearer token. The server derives your project scope **from the token**, so no project-id header is needed. (The older **SSE** transport at `/sse` still works for existing setups, but `/mcp` is the default — it survives TLS-inspection proxies that break long-lived SSE; see the proxy note below.)
 
 **`scripts/init.mjs` writes this automatically** after validating your token, reading the endpoint from `.wxai/project.json` `kit.mcpBaseUrl` (defaults to `https://mcp.wxperts.com`) and the token from `kit.apiToken` / `.env`. It also **gitignores `.mcp.json`**, because the file holds the token. To write it by hand, the block is:
 
@@ -58,8 +58,8 @@ Claude Code loads project-scoped MCP servers from **`.mcp.json` at the workspace
 {
   "mcpServers": {
     "wxkanban": {
-      "type": "sse",
-      "url": "<mcpBaseUrl>/sse",
+      "type": "http",
+      "url": "<mcpBaseUrl>/mcp",
       "headers": {
         "Authorization": "Bearer <WXKANBAN_API_TOKEN from .env>"
       }
@@ -70,11 +70,11 @@ Claude Code loads project-scoped MCP servers from **`.mcp.json` at the workspace
 
 **After it is written, restart Claude Code and approve the `wxkanban` server** — project-scoped MCP servers prompt for a one-time approval (run `/mcp` to approve if you miss it). MCP servers connect only at startup, never mid-session.
 
-> Legacy note: pre-028 kits ran a local MCP on an auto-allocated port, and older docs showed `transport: "https"` + an `env` block — **both are wrong** for a remote SSE server. Env vars apply to stdio/spawned servers, not remote HTTP auth; the hosted MCP uses `.mcp.json` `type: "sse"` + an `Authorization` header.
+> Transport options: **`type: "http"` → `/mcp`** is the default (proxy-friendly request/response). **`type: "sse"` → `/sse`** still works (legacy). For locked-down proxies that break both, use the **stdio bridge** below. Pre-028 kits ran a local MCP on a port and older docs showed `transport: "https"` + an `env` block — both are wrong for the hosted server.
 
 If `.mcp.json` exists with other entries, merge — do not overwrite the file.
 
-Report: `✓ MCP wxKanban registered (<mcpBaseUrl>/sse)` or `⚠ Already present`.
+Report: `✓ MCP wxKanban registered (<mcpBaseUrl>/mcp)` or `⚠ Already present`.
 
 **Behind a corporate proxy that blocks the connection?** Some networks (TLS-inspection / SSE-buffering proxies such as Cisco Secure Access) let short HTTPS requests through but break the long-lived `/sse` stream — so the SSE server above never connects. Quick test: if `curl <mcpBaseUrl>/health` returns **200** but `curl <mcpBaseUrl>/sse` **hangs**, use the **local stdio bridge** instead. It speaks MCP to Claude Code over stdio (no network on the editor side) and reaches the hosted MCP only via short request/response calls (`/tools` + `/call`) — the exact calls that already pass the proxy. No IT changes needed; it works wherever `/health` returns 200. `.mcp.json` block:
 

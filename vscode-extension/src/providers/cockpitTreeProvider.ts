@@ -399,7 +399,7 @@ function feedbackGroupNode(items: MyFeedbackItem[]): CockpitNode {
 function feedbackItemNode(item: MyFeedbackItem): CockpitNode {
   const needsInfo = item.status === 'needsinfo';
   const node = new CockpitNode('feedback', item.title, vscode.TreeItemCollapsibleState.None, undefined, undefined, item);
-  node.description = needsInfo ? 'needs info — click to reply' : item.status;
+  node.description = needsInfo ? 'needs info — click to reply' : `${item.status} — click to push to chat`;
   node.iconPath = feedbackStatusIcon(item);
   node.contextValue = 'wxkanban.feedback';
   const lines = [
@@ -410,8 +410,9 @@ function feedbackItemNode(item: MyFeedbackItem): CockpitNode {
   if (needsInfo && item.clarificationQuestion) lines.push(`\nwxperts asked: ${item.clarificationQuestion}`);
   if (item.status === 'declined' && item.declineReason) lines.push(`\ndeclined: ${item.declineReason}`);
   node.tooltip = lines.join('\n');
-  // Needs-info items open the single-round reply; every other item opens a
-  // read-only detail view of the body the submitter entered. [SCOPE 043 / T011]
+  // Needs-info items open the single-round reply; every other item pushes its full
+  // text into the Claude chat and marks it triaged. The read-only detail view stays
+  // available via the item's right-click context menu. [SCOPE 043 / T011, T011b]
   if (needsInfo) {
     node.command = {
       command: 'wxkanban.cockpit.answerFeedback',
@@ -420,8 +421,8 @@ function feedbackItemNode(item: MyFeedbackItem): CockpitNode {
     };
   } else {
     node.command = {
-      command: 'wxkanban.cockpit.showFeedbackDetail',
-      title: 'View detail',
+      command: 'wxkanban.cockpit.pushFeedbackToChat',
+      title: 'Push to Claude chat',
       arguments: [item],
     };
   }
