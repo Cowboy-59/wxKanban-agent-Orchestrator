@@ -34,6 +34,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 # Clarion structure keywords that open a block closed by a matching END.
 STRUCT_OPENERS = {
     "WINDOW", "REPORT", "SHEET", "TAB", "GROUP", "OPTION", "MENUBAR", "MENU",
@@ -374,6 +378,8 @@ def write_if_new(path, content, written, dry):
     written.append(os.path.basename(path))
     if dry or os.path.exists(path):
         return
+    if str(path).endswith('.md'):
+        content = stamp_markdown(content, kind='converted', generator='cwConversion')
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(content)
 

@@ -20,6 +20,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 FENCE_RE = re.compile(r"```clarion\n(.*?)```", re.S)
 BANDS = ["FORM", "PAGEHEADER", "HEADER", "DETAIL", "BREAK", "FOOTER", "PAGEFOOTER"]
 
@@ -75,7 +79,8 @@ def main():
 
     os.makedirs(args.out, exist_ok=True)
     dest = os.path.join(args.out, "RPT-reports-stub.md")
-    open(dest, "w", encoding="utf-8").write("\n".join(out) + "\n")
+    open(dest, "w", encoding="utf-8").write(
+        stamp_markdown("\n".join(out) + "\n", kind='converted', generator='cwConversion'))
     print(f"reports={len(reports)}")
     print(f"  -> {dest}")
 

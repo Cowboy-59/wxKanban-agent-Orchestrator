@@ -23,6 +23,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 PROC_RE = re.compile(r"^PROCEDURE\s+([A-Za-z_]\w*)\s*\(([^)]*)\)", re.M)
 SRVPROC_RE = re.compile(r'HExecuteProcedure\s*\([^,]*,\s*"([^"]+)"')
 QRY_RE = re.compile(r"\bQRY_\w+")
@@ -114,7 +118,8 @@ def main():
         md.append("\n---\n")
 
     out_path = os.path.join(args.out, "PROC-procedures-scope.md")
-    open(out_path, "w", encoding="utf-8").write("\n".join(md) + "\n")
+    open(out_path, "w", encoding="utf-8").write(
+        stamp_markdown("\n".join(md) + "\n", kind="converted", generator="wxConversion"))
     print(f"sets={len(sets)}  procedures={total_procs}  triggers={len(triggers)}  -> {out_path}")
     for s in sets:
         print(f"  {s['name']}: {len(s['procs'])} procs, {len(s['srv'])} server-procs, {len(s['qrys'])} qry refs")

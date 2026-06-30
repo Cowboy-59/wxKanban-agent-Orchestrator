@@ -32,6 +32,10 @@ import os
 import re
 import sys
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 try:
     import fitz  # PyMuPDF
 except ImportError:
@@ -229,6 +233,8 @@ def main():
     manifest = []
 
     def write(path, text):
+        if str(path).endswith(".md"):
+            text = stamp_markdown(text, kind="converted", generator="wxConversion")
         size = len(text.encode("utf-8"))
         if not args.dry_run:
             with open(path, "w", encoding="utf-8") as f:

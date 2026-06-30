@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.7.16",
+  "version": "1.7.17",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -24,7 +24,8 @@
     "kit:status": "node scripts/kit-status.mjs",
     "kit:stop": "node scripts/kit-stop.mjs",
     "kit:stop:legacy": "node -e \"const fs=require('fs');const p=fs.readFileSync('.mcp-server.pid','utf8').trim();try{process.kill(+p)}catch(e){};fs.unlinkSync('.mcp-server.pid')\" 2>/dev/null || echo 'MCP not running'",
-    "lifecycle:generate": "tsx scripts/generate-project-lifecycle.ts"
+    "lifecycle:generate": "tsx scripts/generate-project-lifecycle.ts",
+    "watermark": "node scripts/watermark.mjs"
   },
   "keywords": [],
   "author": "",
@@ -53,6 +54,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^6.0.1",
     "@wxkanban/preflight": "file:shared/preflight",
+    "@wxkanban/watermark": "file:shared/watermark",
     "archiver": "^7.0.1",
     "autoprefixer": "^10.4.27",
     "axios": "^1.14.0",
@@ -71,6 +73,7 @@
     "multer": "^2.1.1",
     "nodemailer": "^8.0.5",
     "papaparse": "^5.5.3",
+    "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pino": "^10.3.1",
     "puppeteer": "^24.40.0",

@@ -29,6 +29,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 FENCE_RE = re.compile(r"```(?:vb)?\n(.*?)```", re.S)
 BEGIN_RE = re.compile(r"^\s*Begin\s+(\S+)\s+(\S+)\s*$", re.I)
 END_RE = re.compile(r"^\s*End\s*$", re.I)
@@ -233,7 +237,7 @@ Notes for the loader:
 """)
 
     open(os.path.join(args.out, f"schema.{args.dialect}.sql"), "w", encoding="utf-8").write("\n".join(sql) + "\n")
-    open(os.path.join(args.out, "ER-diagram.md"), "w", encoding="utf-8").write("\n".join(er) + "\n")
+    open(os.path.join(args.out, "ER-diagram.md"), "w", encoding="utf-8").write(stamp_markdown("\n".join(er) + "\n", kind='converted', generator='vbConversion'))
 
     print(f"dialect={args.dialect}  data-controls={len(data_ctrls)}  tables={len(tables)}")
     for t in tables:

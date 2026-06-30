@@ -19,6 +19,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 COND_RE = re.compile(r"\b(is equal to|is different from|is greater|is less|is in the list|"
                      r"Contains|starts with|is between|is not)\b", re.I)
 
@@ -214,7 +218,8 @@ def main():
         md.append("\n---\n")
 
     out_path = os.path.join(args.out, "QRY-queries-scope.md")
-    open(out_path, "w", encoding="utf-8").write("\n".join(md) + "\n")
+    open(out_path, "w", encoding="utf-8").write(
+        stamp_markdown("\n".join(md) + "\n", kind="converted", generator="wxConversion"))
     print(f"queries={len(queries)}  -> {out_path}")
     for q in queries:
         print(f"  {q['name']}: {len(q['items'])} cols, {len(q['conds'])} conds, "

@@ -34,6 +34,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 BEGIN_RE = re.compile(r"^\s*Begin\s+(\S+)\s+(\S+)\s*$", re.I)
 BEGINPROP_RE = re.compile(r"^\s*BeginProperty\b", re.I)
 ENDPROP_RE = re.compile(r"^\s*EndProperty\b", re.I)
@@ -70,6 +74,8 @@ def write_if_new(path, content, written, dry):
     written.append(os.path.basename(path))
     if dry or os.path.exists(path):
         return
+    if str(path).endswith('.md'):
+        content = stamp_markdown(content, kind='converted', generator='vbConversion')
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(content)
 

@@ -18,6 +18,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 FENCE_RE = re.compile(r"```(?:vb)?\n(.*?)```", re.S)
 SIGNALS = re.compile(r"\b(CrystalReport|CRViewer|\.rpt\b|DataReport|rptText|Printer\.Print|"
                      r"PrintForm|Printer\.EndDoc)\b", re.I)
@@ -75,7 +79,7 @@ def main():
                 out.append(f"- `{f}`: {', '.join(hits)}")
             out.append("\n- Each indicates a print/report path — confirm the engine (Crystal vs "
                        "DataReport vs raw Printer) and rebuild via the API + React-PDF path above.")
-    open(os.path.join(args.out, "RPT-reports-stub.md"), "w", encoding="utf-8").write("\n".join(out) + "\n")
+    open(os.path.join(args.out, "RPT-reports-stub.md"), "w", encoding="utf-8").write(stamp_markdown("\n".join(out) + "\n", kind='converted', generator='vbConversion'))
     print(f"report-designers={len(reports)}  code-signals={len(signals)}  "
           f"-> {os.path.join(args.out, 'RPT-reports-stub.md')}")
 

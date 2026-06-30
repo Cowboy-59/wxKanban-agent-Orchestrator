@@ -19,6 +19,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 FENCE_RE = re.compile(r"```(?:vb)?\n(.*?)```", re.S)
 PROC_RE = re.compile(r"^\s*(?:Public\s+|Private\s+|Friend\s+|Static\s+)*"
                      r"(Sub|Function|Property\s+Get|Property\s+Let|Property\s+Set)\s+(\w+)\s*\(([^)]*)\)",
@@ -99,7 +103,7 @@ def main():
         out.append("")
         out.append("- Rebuild: port DB/logic procedures to the API/server layer; keep pure helpers as "
                    "shared utilities. Flag any Win32/`Declare` calls as non-portable.\n")
-    open(os.path.join(args.out, "PROC-procedures-scope.md"), "w", encoding="utf-8").write("\n".join(out) + "\n")
+    open(os.path.join(args.out, "PROC-procedures-scope.md"), "w", encoding="utf-8").write(stamp_markdown("\n".join(out) + "\n", kind='converted', generator='vbConversion'))
     print(f"modules={len(mods)}  procedures={total_proc}  win32-modules={len(win32)}  "
           f"-> {os.path.join(args.out, 'PROC-procedures-scope.md')}")
 

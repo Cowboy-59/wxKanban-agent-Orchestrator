@@ -659,6 +659,9 @@ async function pushExistingSpec(
           projectId,
           title: d.title,
           bodyMarkdown: d.body,
+          // doctype is required by the tool. spec/plan/tests share doctype 'specs'
+          // and stay distinct rows because the server matches by (doctype, title).
+          doctype: 'specs',
         },
       );
       if (envelope.success === false) {

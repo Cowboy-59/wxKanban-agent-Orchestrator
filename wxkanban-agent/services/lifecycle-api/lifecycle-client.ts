@@ -49,6 +49,8 @@ export class LifecycleClient {
 	async createArtifact(artifact: ScopeDraft): Promise<{ success: boolean; id?: string }> {
 		const result = await this.callMcpTool('project.upsert_document', {
 			projectId: this.projectId,
+			// doctype is required by the tool; scope-draft artifacts use 'ScopeDraft'.
+			doctype: 'ScopeDraft',
 			title: artifact.title,
 			bodyMarkdown: [
 				`# ${artifact.title}`,

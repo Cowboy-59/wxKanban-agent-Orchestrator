@@ -18,6 +18,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 FENCE_RE = re.compile(r"```clarion\n(.*?)```", re.S)
 PROTO_RE = re.compile(r"^\s*([A-Za-z_]\w*)\s+PROCEDURE\s*\(([^)]*)\)", re.I)
 ROUTINE_RE = re.compile(r"^\s*([A-Za-z_]\w*)\s+ROUTINE\b", re.I)
@@ -101,7 +105,8 @@ def main():
 
     os.makedirs(args.out, exist_ok=True)
     dest = os.path.join(args.out, "PROC-procedures-scope.md")
-    open(dest, "w", encoding="utf-8").write("\n".join(out) + "\n")
+    open(dest, "w", encoding="utf-8").write(
+        stamp_markdown("\n".join(out) + "\n", kind='converted', generator='cwConversion'))
     print(f"procedures={len(procs)}  with-validation={len(val)}")
     print(f"  -> {dest}")
 

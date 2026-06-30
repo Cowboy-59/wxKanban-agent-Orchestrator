@@ -18,6 +18,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 FENCE_RE = re.compile(r"```(?:vb)?\n(.*?)```", re.S)
 SQL_KW = re.compile(r"\b(SELECT|INSERT|UPDATE|DELETE)\b", re.I)
 RECSRC_RE = re.compile(r"(\w+)\.RecordSource\s*=\s*(.+)", re.I)
@@ -113,7 +117,7 @@ def main():
             out.append(f"- Operation: {SQL_KW.search(sql).group(1).upper() if SQL_KW.search(sql) else 'table bind'}")
             out.append("- Rebuild: expose as a REST endpoint / data-layer query; parameterize any "
                        "string-concatenated values (SQL-injection risk in the original).\n")
-    open(os.path.join(args.out, "QRY-queries-scope.md"), "w", encoding="utf-8").write("\n".join(out) + "\n")
+    open(os.path.join(args.out, "QRY-queries-scope.md"), "w", encoding="utf-8").write(stamp_markdown("\n".join(out) + "\n", kind='converted', generator='vbConversion'))
     print(f"queries={len(uniq)}  -> {os.path.join(args.out, 'QRY-queries-scope.md')}")
 
 

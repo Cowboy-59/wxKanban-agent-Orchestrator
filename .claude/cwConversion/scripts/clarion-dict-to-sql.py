@@ -20,6 +20,10 @@ import glob
 import os
 import re
 
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+from wxkanban_watermark import stamp_markdown
+
 # Clarion TYPE -> internal key.
 CLARION_TYPE = {
     "BYTE": "uint1", "SHORT": "int2", "USHORT": "int4", "SIGNED": "int4", "UNSIGNED": "int4",
@@ -266,7 +270,9 @@ def main():
     sql_path = os.path.join(args.out, f"schema.{args.dialect}.sql")
     er_path = os.path.join(args.out, "ER-diagram.md")
     open(sql_path, "w", encoding="utf-8").write(emit_ddl(tables, links, args.dialect, args.keep_prefix))
-    open(er_path, "w", encoding="utf-8").write(emit_er(tables, links, args.dialect, args.keep_prefix))
+    open(er_path, "w", encoding="utf-8").write(
+        stamp_markdown(emit_er(tables, links, args.dialect, args.keep_prefix),
+                       kind='converted', generator='cwConversion'))
 
     nfields = sum(len(t["fields"]) for t in tables)
     print(f"dialect={args.dialect}  tables={len(tables)}  fields={nfields}  relations={len(links)}")
