@@ -232,18 +232,23 @@ export async function pushFeedbackToChat(
     `Please help me address this wxKanban feedback (ref ${item.referenceId}).`,
   ].join('\n');
 
-  // Push into the Claude Code chat (opens/focuses a Claude tab and pre-fills the prompt).
+  // Push into the Claude Code chat (opens/focuses a Claude tab and pre-fills the
+  // prompt). If the URI handler isn't available (older/missing Claude Code), fall
+  // back to the clipboard so the text is one paste away.
   const uri = vscode.Uri.parse(
     `vscode://anthropic.claude-code/open?prompt=${encodeURIComponent(prompt)}`,
   );
+  let opened = false;
   try {
-    await vscode.env.openExternal(uri);
-  } catch (err) {
-    void vscode.window.showErrorMessage(
-      `wxKanban: could not open the Claude chat — ${(err as Error).message}. ` +
-        `Open the detail view and copy the text instead.`,
+    opened = await vscode.env.openExternal(uri);
+  } catch {
+    opened = false;
+  }
+  if (!opened) {
+    await vscode.env.clipboard.writeText(prompt);
+    void vscode.window.showWarningMessage(
+      "wxKanban: couldn't open the Claude chat automatically — the feedback is copied to your clipboard. Paste it into Claude Code.",
     );
-    return;
   }
 
   // Mark the item triaged (best-effort) and refresh the tree so the status updates.
@@ -257,7 +262,7 @@ export async function pushFeedbackToChat(
     void vscode.commands.executeCommand('wxkanban.cockpit.refresh');
   } catch (err) {
     void vscode.window.showWarningMessage(
-      `wxKanban: pushed to chat, but couldn't mark it triaged — ${(err as Error).message}`,
+      `wxKanban: couldn't mark the item triaged — ${(err as Error).message}`,
     );
   }
 }
