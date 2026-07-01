@@ -6,6 +6,7 @@ import { loadCommandCatalog, type HelpCatalog, type HelpCommand, type HelpParam 
 import { loadVideoCatalog, loadMarketingVideoCatalog, type DocVideo, type MarketingVideoGroups } from '../services/videosCatalog.js'; // [SCOPE 042 / Videos] + [SCOPE 066 / T008]
 import { loadFaqCatalog, type FaqEntry } from '../services/faqCatalog.js'; // [SCOPE 066 / T008]
 import { checkCommands, type CommandsStatus } from '../services/commandsInstall.js'; // [SCOPE 060 / Cockpit]
+import { checkKitUpdate, type KitUpdateStatus } from '../services/kitUpdate.js'; // [SCOPE 019 / R15]
 import type { CockpitScope, CockpitSummary, CockpitTask, MyFeedbackItem } from '../types.js';
 import { scopeResourceUri } from './scopeDecorations.js'; // [SCOPE 058 / T013]
 
@@ -26,7 +27,8 @@ type NodeKind =
   | 'faq-item' // [SCOPE 066 / T008]
   | 'devplan-group' // [SCOPE 081 / T005]
   | 'devplan-item' // [SCOPE 081 / T005]
-  | 'commands-setup'; // [SCOPE 060 / Cockpit]
+  | 'commands-setup' // [SCOPE 060 / Cockpit]
+  | 'kit-update'; // [SCOPE 019 / R15]
 type LoadState = 'unloaded' | 'ok' | 'empty' | 'no-project' | 'no-token' | 'error';
 
 interface ComputedState {
@@ -74,6 +76,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   private marketingVideos: MarketingVideoGroups = { open: [], training: [] }; // [SCOPE 066 / T008]
   private faqs: FaqEntry[] = []; // [SCOPE 066 / T008]
   private commandsStatus: CommandsStatus | null = null; // [SCOPE 060 / Cockpit]
+  private kitUpdate: KitUpdateStatus | null = null; // [SCOPE 019 / R15]
   private state: LoadState = 'unloaded';
   private errorMsg = '';
   private signature = '';
@@ -183,7 +186,9 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     // installed into .claude/commands so Claude Code sees them? Independent of
     // the MCP load path (works offline / no token).
     this.commandsStatus = checkCommands();
-    return this.withFaqSection(this.withDevplanSection(this.withVideosSection(this.withHelpSection(this.withCommandsSection(this.rootNodes())))));
+    // [SCOPE 019 / R15] cheap local-fs read of the kit's cached version check.
+    this.kitUpdate = checkKitUpdate();
+    return this.withKitUpdateSection(this.withFaqSection(this.withDevplanSection(this.withVideosSection(this.withHelpSection(this.withCommandsSection(this.rootNodes()))))));
   }
 
   private applyState(s: ComputedState): void {
@@ -299,6 +304,17 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   }
   // [SCOPE 060 / Cockpit] END
 
+  // [SCOPE 019 / R15] BEGIN — prepend a "Kit update available → Install" row when
+  // the kit's cached version check found a newer release (and this isn't the
+  // author repo). Clicking it runs the from-server upgrade in a terminal. Silent
+  // when up to date, in the source repo, or the check hasn't run yet.
+  private withKitUpdateSection(base: CockpitNode[]): CockpitNode[] {
+    const s = this.kitUpdate;
+    if (!s || !s.root || !s.updateAvailable) return base;
+    return [kitUpdateNode(s), ...base];
+  }
+  // [SCOPE 019 / R15] END
+
   // [SCOPE 042 / Videos] BEGIN — append the "Help — Videos" section when the docs
   // index has at least one video. Omitted entirely when offline / none found.
   private withVideosSection(base: CockpitNode[]): CockpitNode[] {
@@ -373,6 +389,22 @@ function commandsSetupNode(s: CommandsStatus): CockpitNode {
     `\nTarget: ${s.targetDir}`;
   node.contextValue = 'wxkanban.commandsSetup';
   node.command = { command: 'wxkanban.cockpit.installCommands', title: 'Install slash commands' };
+  return node;
+}
+
+// [SCOPE 019 / R15] "Kit update available" prompt — click to run the upgrade.
+function kitUpdateNode(s: KitUpdateStatus): CockpitNode {
+  const from = s.currentVersion ?? '?';
+  const to = s.latestVersion ?? 'latest';
+  const node = new CockpitNode('kit-update', 'Kit update available — Install', vscode.TreeItemCollapsibleState.None);
+  node.description = `${from} → ${to} · click to install`;
+  node.iconPath = new vscode.ThemeIcon('cloud-download', new vscode.ThemeColor('notificationsWarningIcon.foreground'));
+  node.tooltip =
+    `A newer wxKanban kit is available (${from} → ${to}).\n` +
+    `Click to download and apply it (you'll confirm in the terminal).` +
+    (s.releaseUrl ? `\nRelease notes: ${s.releaseUrl}` : '');
+  node.contextValue = 'wxkanban.kitUpdate';
+  node.command = { command: 'wxkanban.cockpit.upgradeKit', title: 'Install kit update' };
   return node;
 }
 

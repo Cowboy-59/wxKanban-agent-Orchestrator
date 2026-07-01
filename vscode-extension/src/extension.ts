@@ -16,6 +16,7 @@ import { registerScopeDepsWatcher } from './services/scopeDepsWatcher.js'; // [S
 import { ScopeClaimProvider } from './providers/scopeDecorations.js'; // [SCOPE 058 / T013]
 import { checkoutScope, checkinScope } from './commands/scopeCheckout.js'; // [SCOPE 058 / T010]
 import { checkCommands, installCommands } from './services/commandsInstall.js'; // [SCOPE 060 / Cockpit]
+import { checkKitUpdate, runKitUpgrade } from './services/kitUpdate.js'; // [SCOPE 019 / R15]
 import type { CockpitScope, CockpitTask } from './types.js';
 
 // Fallback poll cadence — the kit's emitted refresh URI (T021) is the primary,
@@ -109,6 +110,18 @@ export function activate(context: vscode.ExtensionContext): void {
           : 'wxKanban: slash commands already up to date.',
       );
       treeProvider.refresh();
+    }),
+
+    // [SCOPE 019 / R15] Apply a pending kit update in a terminal (notify + confirm).
+    // The kit's ensureKitUpToDate() writes .wxai/kit-update-check.json; the Cockpit
+    // shows a click-to-install row, and this command runs the from-server upgrade.
+    vscode.commands.registerCommand('wxkanban.cockpit.upgradeKit', () => {
+      const s = checkKitUpdate();
+      if (!s.root) {
+        void vscode.window.showWarningMessage('wxKanban: no kit project folder is open.');
+        return;
+      }
+      runKitUpgrade(s.root);
     }),
 
     vscode.commands.registerCommand('wxkanban.cockpit.openDetail', (arg?: { task: CockpitTask; scope: CockpitScope }) => {

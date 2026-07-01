@@ -30,6 +30,10 @@ import { loadProjectEnv } from '../../../core/bootstrap/load-env';
 // only fired on dbpush/implement/gateway-boot — none of which run in a setup
 // that dogfoods the hosted MCP — so a hand-installed cockpit drifts stale.
 import { ensureCockpitUpToDate } from '../../../core/orchestrator/cockpit-refresh';
+// Same startup moment self-surfaces a newer *kit* release (notify + confirm —
+// nothing is overwritten here). Best-effort, throttled, silent in the author
+// repo. See core/orchestrator/kit-update-check.ts.
+import { ensureKitUpToDate } from '../../../core/orchestrator/kit-update-check';
 
 interface ProjectConfig {
 	projectId: string;
@@ -214,6 +218,7 @@ async function main(): Promise<void> {
 		// installed copy is missing/older. Best-effort, detached, throttled once
 		// per process — never blocks or fails the help output.
 		ensureCockpitUpToDate();
+		ensureKitUpToDate();
 		printAvailableCommands(context.lifecycleStage, context.customCommands);
 		return;
 	}
