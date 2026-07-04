@@ -44,6 +44,36 @@ function runCode(args) {
   return { ok: res.status === 0 && !res.error, stdout: res.stdout || '' };
 }
 
+// SCOPE-086 FR-002 — visible manual-install help when `code` isn't on PATH.
+// Prints a boxed banner and writes INSTALL-DEV-COCKPIT.txt at the kit root so the
+// step is discoverable, not a swallowed log line. Best-effort; never throws.
+function writeManualInstallHelp(root, vsixPath, version) {
+  const rel = (() => { try { return path.relative(root, vsixPath) || vsixPath; } catch { return vsixPath; } })();
+  const lines = [
+    'wxKanban Dev Cockpit — one manual step needed',
+    '',
+    "VS Code's code command was not found on your PATH, so the Dev Cockpit",
+    'extension could not be installed automatically.',
+    '',
+    'To finish installing it, either:',
+    '  1. In VS Code: open the Command Palette (Ctrl/Cmd+Shift+P), run',
+    '     Extensions: Install from VSIX, and choose this file:',
+    `        ${rel}`,
+    '  2. Or add the code command to PATH first (Command Palette ->',
+    '     Shell Command: Install code command in PATH), then run:',
+    `        code --install-extension "${rel}"`,
+    '',
+    'Then reload: Command Palette -> Developer: Reload Window.',
+    `(Bundled Dev Cockpit version: ${version ?? 'unknown'})`,
+  ];
+  const bar = '='.repeat(66);
+  console.log('\n' + bar + '\n' + lines.map((l) => (l ? '  ' + l : '')).join('\n') + '\n' + bar + '\n');
+  try {
+    fs.writeFileSync(path.join(root, 'INSTALL-DEV-COCKPIT.txt'), lines.join('\n') + '\n', 'utf8');
+    console.log('[cockpit] Wrote INSTALL-DEV-COCKPIT.txt at the kit root with these steps.');
+  } catch { /* best-effort */ }
+}
+
 function installedCockpitVersion() {
   const res = runCode(['--list-extensions', '--show-versions']);
   if (!res.ok) return undefined; // `code` not available
@@ -60,12 +90,17 @@ export function installCockpitExtension(root = process.cwd()) {
   if (process.env.WXKANBAN_NO_COCKPIT_INSTALL) return 'skipped-disabled';
 
   const bundled = findBundledVsix(root);
-  if (!bundled) return 'no-vsix';
+  if (!bundled) {
+    console.log('[cockpit] No Dev Cockpit .vsix bundled in this kit — skipping (please report; the kit may be incomplete).');
+    return 'no-vsix';
+  }
 
   const installed = installedCockpitVersion();
   if (installed === undefined) {
-    console.log('[cockpit] VS Code `code` CLI not found on PATH; skipping Dev Cockpit install.');
-    console.log(`[cockpit]   To install manually: code --install-extension "${bundled.path}"`);
+    // SCOPE-086 FR-002 — `code` not on PATH. Do NOT fail silently: print a boxed
+    // banner AND drop a marker file at the kit root so the customer has a clear,
+    // visible next step instead of just a missing extension.
+    writeManualInstallHelp(root, bundled.path, bundled.version);
     return 'no-code';
   }
   if (installed && bundled.version && installed === bundled.version) {
