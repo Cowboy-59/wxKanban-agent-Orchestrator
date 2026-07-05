@@ -64,18 +64,21 @@ export function emitCockpitRefresh(): void {
 
 // [SCOPE 042 / T038] BEGIN — ensureCockpitUpToDate (opportunistic self-heal)
 // FR-009/FR-010 install/update the cockpit only at kit init and at an accepted
-// kit upgrade. That leaves a developer who hand-installed an older .vsix (or
-// skipped the upgrade re-run) on a stale cockpit indefinitely. FR-012 closes
-// the gap: at the same dbpush/implement refresh moments, compare the installed
-// cockpit version to the .vsix bundled with this kit and `--force` install the
-// bundle when the installed copy is missing or older. Equal → no-op; a
-// newer-installed cockpit is left untouched (never downgrade).
+// kit upgrade. FR-012 closes the gap for a stale hand-installed copy: at the
+// same dbpush/implement refresh moments, ensure the cockpit is current.
+//
+// SCOPE-086 FR-004 changes HOW: the cockpit is now published to the public VS
+// Code Marketplace (`wxperts.wxkanban-dev-cockpit`), so we prefer installing by
+// Marketplace extension ID — a gallery-managed copy auto-updates itself, which a
+// sideloaded `.vsix` never does. The bundled `.vsix` is only a fallback when the
+// gallery install cannot run (offline / `code` missing / gallery unreachable).
+// We never downgrade a copy already at or ahead of the bundled floor.
 //
 // Same best-effort contract as emitCockpitRefresh: `code` may be absent, no
 // window may be open, or the consumer may not use VS Code — every failure is
 // swallowed and MUST NOT affect the triggering command's exit status. Throttled
-// to once per process (the bundled version cannot change mid-run). Disabled by
-// WXKANBAN_NO_COCKPIT_REFRESH or the dedicated WXKANBAN_NO_COCKPIT_UPDATE.
+// to once per process. Disabled by WXKANBAN_NO_COCKPIT_REFRESH or the dedicated
+// WXKANBAN_NO_COCKPIT_UPDATE.
 const COCKPIT_EXTENSION_ID = "wxperts.wxkanban-dev-cockpit";
 const COCKPIT_VSIX_PREFIX = "wxkanban-dev-cockpit-";
 let cockpitUpdateChecked = false;
@@ -160,33 +163,111 @@ export function ensureCockpitUpToDate(): void {
   if (process.env.WXKANBAN_NO_COCKPIT_REFRESH || process.env.WXKANBAN_NO_COCKPIT_UPDATE) return;
   try {
     const bundled = findBundledVsix();
-    if (!bundled) return; // no bundled artifact to install from
-
     const installed = readInstalledCockpitVersion();
-    // Skip when up to date or ahead. installed === null means not installed
-    // (or `code` unavailable) — only install if `code` is actually present,
-    // which the install spawn below will determine; a missing `code` makes it a
-    // silent no-op via the error handler.
-    if (installed !== null && compareVersions(installed, bundled.version) >= 0) return;
 
-    // Make the update VISIBLE — a silently-swallowed stale cockpit is how a
-    // developer ends up several versions behind the bundled help without any
-    // signal (FR-012 follow-up). One stderr line; never blocks or fails the
-    // caller.
+    // Steady state: an installed copy that is at or ahead of the bundled floor
+    // needs no action here — a gallery-managed copy auto-updates itself, and we
+    // never downgrade to an older bundled `.vsix`. Return before spawning
+    // anything so the common case stays cost-free. (With no bundled artifact to
+    // compare against, an existing install is likewise left alone.)
+    if (installed !== null && (!bundled || compareVersions(installed, bundled.version) >= 0)) {
+      return;
+    }
+
+    // An install (not present) or an update (older than the bundled floor) is
+    // needed. Prefer the Marketplace gallery so the copy is gallery-managed and
+    // auto-updates; fall back to the bundled `.vsix` only if the gallery install
+    // cannot run. Make it VISIBLE — a silently-swallowed stale cockpit is how a
+    // developer ends up several versions behind without any signal.
     console.error(
-      `[cockpit] updating Dev Cockpit ${installed ?? "(not installed)"} -> ${bundled.version} ` +
-        `(force-installing ${path.basename(bundled.vsixPath)})`,
+      `[cockpit] installing/updating Dev Cockpit ${installed ?? "(not installed)"} -> gallery ${COCKPIT_EXTENSION_ID}` +
+        (bundled ? ` (fallback ${path.basename(bundled.vsixPath)} ${bundled.version})` : ""),
     );
 
-    const { cmd, shell } = resolveCodeCli();
-    // Quote the path (may contain spaces) for the Windows shell form.
-    const child = shell
-      ? spawn(`${cmd} --install-extension "${bundled.vsixPath}" --force`, { stdio: "ignore", detached: true, shell: true })
-      : spawn(cmd, ["--install-extension", bundled.vsixPath, "--force"], { stdio: "ignore", detached: true, shell: false });
-    child.on("error", () => undefined); // missing `code` must never surface
-    child.unref();
+    const ok = installCockpitGalleryFirst(bundled ? bundled.vsixPath : null);
+    if (!ok) {
+      // SCOPE-086 FR-002 (T006): auto-install could not run (no `code` on PATH,
+      // gallery unreachable AND no/failed bundled .vsix). Never leave the
+      // customer with a silently-missing cockpit — print an actionable,
+      // copy-pasteable manual path instead of a swallowed one-liner.
+      const lines = [
+        "[cockpit] Could not auto-install the Dev Cockpit. Install it manually:",
+        '  • VS Code: Extensions panel → search "wxKanban Dev Cockpit" → Install',
+        `  • Or CLI:  code --install-extension ${COCKPIT_EXTENSION_ID}`,
+      ];
+      if (bundled) lines.push(`  • Offline: code --install-extension "${bundled.vsixPath}"`);
+      lines.push(
+        '  If `code` is not found, add it to PATH — VS Code: Ctrl/Cmd+Shift+P →',
+        '  "Shell Command: Install \'code\' command in PATH".',
+      );
+      console.error(lines.join("\n"));
+    }
   } catch {
     /* best-effort only — never affect the caller's exit status */
   }
 }
 // [SCOPE 042 / T038] END
+
+// Resolve the cockpit install source from WXKANBAN_COCKPIT_SOURCE (SCOPE-086
+// FR-004 / T003). `auto` (default) = gallery-first with .vsix fallback;
+// `gallery` = Marketplace only (never sideload); `vsix` = bundled artifact only
+// (for policy-locked environments where the Marketplace gallery is blocked).
+// Any unrecognized value is treated as `auto`.
+// [SCOPE 086 / T003] BEGIN — WXKANBAN_COCKPIT_SOURCE escape hatch (auto/gallery/vsix)
+function cockpitSource(): "auto" | "gallery" | "vsix" {
+  const v = (process.env.WXKANBAN_COCKPIT_SOURCE ?? "auto").trim().toLowerCase();
+  return v === "gallery" || v === "vsix" ? v : "auto";
+}
+// [SCOPE 086 / T003] END
+
+// Install or update the cockpit, gallery-first. Prefer installing by Marketplace
+// extension ID so the resulting copy is gallery-managed and auto-updates; only
+// when that install cannot run (or WXKANBAN_COCKPIT_SOURCE forces it) do we fall
+// back to the bundled `.vsix`. This is BLOCKING (spawnSync) on purpose: we need
+// the gallery exit status to decide whether to fall back. It runs only on the
+// rare path where an install/update is actually required — never in the
+// steady-state no-op case — so the brief block is acceptable. Returns true when
+// any install command reported success.
+// [SCOPE 086 / T001] BEGIN — Marketplace-first self-update in ensureCockpitUpToDate
+function installCockpitGalleryFirst(bundledVsixPath: string | null): boolean {
+  const { cmd, shell } = resolveCodeCli();
+  const INSTALL_TIMEOUT_MS = 120000;
+  const source = cockpitSource();
+
+  // 1) Gallery install by Marketplace ID (the auto-updating copy). Skipped when
+  //    the source is pinned to the bundled `.vsix`.
+  if (source !== "vsix") {
+    const gallery = shell
+      ? spawnSync(`${cmd} --install-extension ${COCKPIT_EXTENSION_ID} --force`, {
+          stdio: "ignore",
+          shell: true,
+          timeout: INSTALL_TIMEOUT_MS,
+        })
+      : spawnSync(cmd, ["--install-extension", COCKPIT_EXTENSION_ID, "--force"], {
+          stdio: "ignore",
+          shell: false,
+          timeout: INSTALL_TIMEOUT_MS,
+        });
+    if (!gallery.error && gallery.status === 0) return true;
+  }
+
+  // 2) Fallback: the bundled `.vsix` (offline / air-gapped / gallery unreachable).
+  //    Skipped when the source is pinned to the gallery.
+  if (source !== "gallery" && bundledVsixPath) {
+    const vsix = shell
+      ? spawnSync(`${cmd} --install-extension "${bundledVsixPath}" --force`, {
+          stdio: "ignore",
+          shell: true,
+          timeout: INSTALL_TIMEOUT_MS,
+        })
+      : spawnSync(cmd, ["--install-extension", bundledVsixPath, "--force"], {
+          stdio: "ignore",
+          shell: false,
+          timeout: INSTALL_TIMEOUT_MS,
+        });
+    if (!vsix.error && vsix.status === 0) return true;
+  }
+
+  return false;
+}
+// [SCOPE 086 / T001] END

@@ -5,3 +5,7 @@ esbuild.mjs
 .gitignore
 **/*.map
 **/*.ts
+tests/**
+vitest.config.ts
+package-lock.json
+**/*.vsix

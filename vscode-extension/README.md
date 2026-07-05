@@ -33,10 +33,16 @@ The view stays current without manual action:
   was evaluated per T022 and not adopted for v1 — the poll is the fallback.)
 - **Manual.** The refresh button in the view title bar forces a re-query.
 
-## Install / update via the kit
+## Install / update
 
-The extension is **not** published to the VS Code Marketplace. It ships as a
-`.vsix` inside the kit download payload and is installed by `scripts/init.mjs`:
+**Primary — VS Code Marketplace.** Open the Extensions panel, search
+**"wxKanban Dev Cockpit"** (publisher `wxperts`), and click Install. VS Code
+keeps it up to date automatically — new versions install in the background with
+no action needed. This is the recommended path for all customers.
+
+**Fallback — bundled `.vsix` (offline / locked-down machines).** The extension
+also ships as a `.vsix` inside the kit download payload and can be installed by
+`scripts/init.mjs` when the Marketplace is unavailable:
 
 - Fresh kit init runs `code --install-extension` for the bundled `.vsix`, then
   prompts you to reload the window to activate it.

@@ -235,6 +235,23 @@ export function emitFence(opts: EmitFenceOptions): EmitFenceResult {
   const proposedLines = opts.proposedContent.split(/\r?\n/);
   const proposedFences = parseFences(opts.proposedContent).fences;
 
+  // Map every declaration already present in the CURRENT file to its exact body
+  // text, so we can tell a genuinely new/changed unit apart from a pre-existing
+  // one that this proposal left untouched. Without this, a modify to any file
+  // would newly-fence every legacy un-fenced declaration (and unchanged siblings)
+  // under the modifying task — misattributing code the task never wrote. Empty
+  // for a create (currentContent === null), so new files fence everything.
+  const currentDeclBodies = new Map<string, string>();
+  if (opts.currentContent) {
+    const currentLines = opts.currentContent.split(/\r?\n/);
+    for (const d of detectTopLevelDeclarations(opts.currentContent, ext)) {
+      currentDeclBodies.set(
+        `${d.kind}::${d.name}`,
+        currentLines.slice(d.startLine - 1, d.endLine).join("\n"),
+      );
+    }
+  }
+
   const outputLines = [...proposedLines];
   const insertions: { atLine: number; lines: string[] }[] = [];
 
@@ -254,6 +271,18 @@ export function emitFence(opts: EmitFenceOptions): EmitFenceResult {
     const existing = matchPriorFence(opts.existingFences, decl);
 
     if (!existing) {
+      // Leave a pre-existing declaration alone when this proposal did not change
+      // its body: it is legacy un-fenced code (or an untouched unit), not
+      // something the current task authored. Only newly-added or genuinely
+      // changed un-fenced declarations get a fresh fence under the current task.
+      const currentBody = currentDeclBodies.get(`${decl.kind}::${decl.name}`);
+      if (
+        currentBody !== undefined &&
+        currentBody ===
+          proposedLines.slice(decl.startLine - 1, decl.endLine).join("\n")
+      ) {
+        continue;
+      }
       const beginLine = buildFenceLine(
         ext,
         `[SCOPE ${opts.ownerScope} / ${opts.ownerTask}] BEGIN — ${description}`,

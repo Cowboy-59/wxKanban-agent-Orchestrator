@@ -47,6 +47,7 @@ const STANDARD = new Set<string>([
   'dev-plan', // [SCOPE 081 / T006]
   'watermark', // [SCOPE 082 / T010]
   'help-catalog', // [SCOPE 084 / T010]
+  'wxhelpgenerate', // end-user help-doc generator (skill wxHelpGenerate)
 ]);
 
 // Non-command docs that live alongside the commands but aren't slash commands.

@@ -16,6 +16,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
+const COCKPIT_ID = 'wxperts.wxkanban-dev-cockpit';
 const spawnMock = vi.fn();
 const spawnSyncMock = vi.fn();
 
@@ -47,6 +48,7 @@ beforeEach(() => {
   process.env.WXKANBAN_COCKPIT_VSIX_DIR = vsixDir;
   delete process.env.WXKANBAN_NO_COCKPIT_UPDATE;
   delete process.env.WXKANBAN_NO_COCKPIT_REFRESH;
+  delete process.env.WXKANBAN_COCKPIT_SOURCE;
   vi.resetModules(); // reset the once-per-process throttle for each test
 });
 
@@ -101,16 +103,30 @@ describe('findBundledVsix', () => {
   });
 });
 
+// SCOPE-086 / T001 + T004 — self-update is now gallery-first: install/update by
+// Marketplace extension ID via spawnSync (the gallery copy auto-updates), with
+// the bundled .vsix only as a fallback. The old detached `spawn(--install
+// -extension <vsix>)` sideload path is gone.
+function installArg(call: unknown[]): string {
+  return String(call[0]) + JSON.stringify(call[1] ?? '');
+}
+function findInstallCall(): unknown[] | undefined {
+  return spawnSyncMock.mock.calls.find((c) => installArg(c).includes('--install-extension'));
+}
+
 describe('ensureCockpitUpToDate', () => {
-  it('installs --force when the installed cockpit is older', async () => {
+  it('installs from the Marketplace gallery (by extension ID) when the installed cockpit is older', async () => {
     writeVsix('0.1.10');
-    spawnSyncMock.mockReturnValue(installed('0.1.8'));
+    spawnSyncMock.mockReturnValue(installed('0.1.8')); // list reports 0.1.8; gallery install then succeeds (status 0)
     const { ensureCockpitUpToDate } = await load();
     ensureCockpitUpToDate();
-    expect(spawnMock).toHaveBeenCalledTimes(1);
-    const arg = String(spawnMock.mock.calls[0][0]) + JSON.stringify(spawnMock.mock.calls[0][1] ?? '');
-    expect(arg).toContain('--install-extension');
-    expect(arg).toContain('--force');
+    expect(spawnMock).not.toHaveBeenCalled(); // no detached sideload anymore
+    const call = findInstallCall();
+    expect(call).toBeTruthy();
+    const s = installArg(call!);
+    expect(s).toContain('wxperts.wxkanban-dev-cockpit'); // gallery ID, not a .vsix path
+    expect(s).toContain('--force');
+    expect(s).not.toContain('.vsix'); // gallery succeeded → no fallback
   });
 
   it('is a no-op when installed is equal or newer', async () => {
@@ -119,6 +135,7 @@ describe('ensureCockpitUpToDate', () => {
     const { ensureCockpitUpToDate } = await load();
     ensureCockpitUpToDate();
     expect(spawnMock).not.toHaveBeenCalled();
+    expect(findInstallCall()).toBeUndefined(); // steady state → no install spawned
   });
 
   it('does not downgrade when installed is newer', async () => {
@@ -127,14 +144,78 @@ describe('ensureCockpitUpToDate', () => {
     const { ensureCockpitUpToDate } = await load();
     ensureCockpitUpToDate();
     expect(spawnMock).not.toHaveBeenCalled();
+    expect(findInstallCall()).toBeUndefined();
   });
 
-  it('installs when the extension is not installed at all', async () => {
+  it('installs from the gallery when the extension is not installed at all', async () => {
     writeVsix('0.1.10');
     spawnSyncMock.mockReturnValue(installed(null));
     const { ensureCockpitUpToDate } = await load();
     ensureCockpitUpToDate();
-    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(spawnMock).not.toHaveBeenCalled();
+    const call = findInstallCall();
+    expect(call).toBeTruthy();
+    expect(installArg(call!)).toContain('wxperts.wxkanban-dev-cockpit');
+  });
+
+  it('falls back to the bundled .vsix when the gallery install cannot run', async () => {
+    writeVsix('0.1.10');
+    spawnSyncMock.mockImplementation((...args: unknown[]) => {
+      const s = String(args[0]) + JSON.stringify(args[1] ?? '');
+      if (s.includes('--list-extensions')) return installed('0.1.8');
+      if (s.includes('wxperts.wxkanban-dev-cockpit') && !s.includes('.vsix')) {
+        return { error: new Error('gallery unreachable'), status: null }; // gallery fails
+      }
+      return { error: undefined, status: 0 }; // bundled .vsix install succeeds
+    });
+    const { ensureCockpitUpToDate } = await load();
+    ensureCockpitUpToDate();
+    const vsixCall = spawnSyncMock.mock.calls.find((c) => installArg(c).includes('.vsix'));
+    expect(vsixCall).toBeTruthy(); // fell back to the bundled vsix
+  });
+
+  it('honors WXKANBAN_COCKPIT_SOURCE=vsix (skips the gallery, uses the bundled vsix)', async () => {
+    writeVsix('0.1.10');
+    process.env.WXKANBAN_COCKPIT_SOURCE = 'vsix';
+    spawnSyncMock.mockImplementation((...args: unknown[]) => {
+      if (installArg(args).includes('--list-extensions')) return installed('0.1.8');
+      return { error: undefined, status: 0 };
+    });
+    const { ensureCockpitUpToDate } = await load();
+    ensureCockpitUpToDate();
+    const galleryCall = spawnSyncMock.mock.calls.find((c) => {
+      const s = installArg(c);
+      return s.includes('--install-extension') && s.includes(COCKPIT_ID) && !s.includes('.vsix');
+    });
+    expect(galleryCall).toBeUndefined(); // gallery skipped when pinned to vsix
+    expect(spawnSyncMock.mock.calls.find((c) => installArg(c).includes('.vsix'))).toBeTruthy();
+  });
+
+  it('honors WXKANBAN_COCKPIT_SOURCE=gallery (never falls back to the vsix)', async () => {
+    writeVsix('0.1.10');
+    process.env.WXKANBAN_COCKPIT_SOURCE = 'gallery';
+    spawnSyncMock.mockImplementation((...args: unknown[]) => {
+      if (installArg(args).includes('--list-extensions')) return installed('0.1.8');
+      return { error: new Error('gallery down'), status: null }; // gallery fails
+    });
+    const { ensureCockpitUpToDate } = await load();
+    ensureCockpitUpToDate();
+    expect(spawnSyncMock.mock.calls.find((c) => installArg(c).includes('.vsix'))).toBeUndefined();
+  });
+
+  it('prints a visible manual-install message when auto-install fails (FR-002 / T006)', async () => {
+    writeVsix('0.1.10');
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    spawnSyncMock.mockImplementation((...args: unknown[]) => {
+      if (installArg(args).includes('--list-extensions')) return installed('0.1.8');
+      return { error: new Error('no code'), status: null }; // gallery + vsix both fail
+    });
+    const { ensureCockpitUpToDate } = await load();
+    ensureCockpitUpToDate();
+    const printed = errSpy.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(printed).toContain('Could not auto-install');
+    expect(printed).toContain(`--install-extension ${COCKPIT_ID}`);
+    errSpy.mockRestore();
   });
 
   it('does nothing when disabled by WXKANBAN_NO_COCKPIT_UPDATE', async () => {
@@ -153,6 +234,7 @@ describe('ensureCockpitUpToDate', () => {
     const { ensureCockpitUpToDate } = await load();
     ensureCockpitUpToDate();
     ensureCockpitUpToDate();
-    expect(spawnSyncMock).toHaveBeenCalledTimes(1); // second call short-circuits
+    const installCalls = spawnSyncMock.mock.calls.filter((c) => installArg(c).includes('--install-extension'));
+    expect(installCalls).toHaveLength(1); // second call short-circuits
   });
 });
