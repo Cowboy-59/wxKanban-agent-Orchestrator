@@ -28,6 +28,7 @@ type NodeKind =
   | 'devplan-group' // [SCOPE 081 / T005]
   | 'devplan-item' // [SCOPE 081 / T005]
   | 'commands-setup' // [SCOPE 060 / Cockpit]
+  | 'community-help' // [SCOPE 079 / T05]
   | 'kit-update'; // [SCOPE 019 / R15]
 type LoadState = 'unloaded' | 'ok' | 'empty' | 'no-project' | 'no-token' | 'error';
 
@@ -188,7 +189,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     this.commandsStatus = checkCommands();
     // [SCOPE 019 / R15] cheap local-fs read of the kit's cached version check.
     this.kitUpdate = checkKitUpdate();
-    return this.withKitUpdateSection(this.withFaqSection(this.withDevplanSection(this.withVideosSection(this.withHelpSection(this.withCommandsSection(this.rootNodes()))))));
+    return this.withKitUpdateSection(this.withFaqSection(this.withDevplanSection(this.withVideosSection(this.withHelpSection(this.withCommunityHelpSection(this.withCommandsSection(this.rootNodes())))))));
   }
 
   private applyState(s: ComputedState): void {
@@ -340,6 +341,13 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     return [...base, devplanGroupNode(items)];
   }
   // [SCOPE 081 / T005] END
+
+  // [SCOPE 079 / T05] BEGIN — always-available "Community Help" row → opens the
+  // live wxKanban Community chat. Shown in every state so help is one click away.
+  private withCommunityHelpSection(base: CockpitNode[]): CockpitNode[] {
+    return [...base, communityHelpNode()];
+  }
+  // [SCOPE 079 / T05] END
 }
 // [SCOPE 042 / T016] END
 
@@ -434,6 +442,17 @@ function devplanItemNode(item: { scope: string; title: string; state: string }):
   return node;
 }
 // [SCOPE 081 / T005] END
+
+// [SCOPE 079 / T05] "Community Help" action row — opens the live community chat panel.
+function communityHelpNode(): CockpitNode {
+  const node = new CockpitNode('community-help', 'Community Help — live chat', vscode.TreeItemCollapsibleState.None);
+  node.description = 'ask the wxKanban Community';
+  node.iconPath = new vscode.ThemeIcon('comment-discussion');
+  node.tooltip = 'Open a live chat with the wxKanban Community for support and community help.';
+  node.contextValue = 'wxkanban.communityHelp';
+  node.command = { command: 'wxkanban.cockpit.openChat', title: 'Community Help' };
+  return node;
+}
 
 function messageNode(label: string, icon: string, tooltip?: string, command?: string): CockpitNode {
   const node = new CockpitNode('message', label, vscode.TreeItemCollapsibleState.None);

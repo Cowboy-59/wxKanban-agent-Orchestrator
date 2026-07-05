@@ -2,7 +2,7 @@
   "name": "wxkanban-dev-cockpit",
   "displayName": "wxKanban Dev Cockpit",
   "description": "See the current wxKanban project's remaining work per scope, without leaving the editor.",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "publisher": "wxperts",
   "icon": "media/wxPerts_icon.png",
   "private": true,
@@ -87,10 +87,28 @@
         "command": "wxkanban.cockpit.showFeedbackDetail",
         "title": "wxKanban: View Feedback Detail",
         "icon": "$(eye)"
+      },
+      {
+        "command": "wxkanban.cockpit.openChat",
+        "title": "wxKanban: Community Help (live chat)",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "wxkanban.cockpit.setChatCredential",
+        "title": "wxKanban: Set Community Chat Credential"
+      },
+      {
+        "command": "wxkanban.cockpit.clearChatCredential",
+        "title": "wxKanban: Clear Community Chat Credential"
       }
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "wxkanban.cockpit.openChat",
+          "when": "view == wxkanban.cockpit",
+          "group": "navigation"
+        },
         {
           "command": "wxkanban.cockpit.submitFeedback",
           "when": "view == wxkanban.cockpit",
@@ -138,9 +156,13 @@
     "test": "vitest run",
     "package": "node esbuild.mjs && vsce package --no-dependencies"
   },
+  "dependencies": {
+    "ws": "^8.21.0"
+  },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/vscode": "^1.90.0",
+    "@types/ws": "^8.18.1",
     "@vscode/vsce": "^2.32.0",
     "esbuild": "^0.21.5",
     "typescript": "^5.4.5",

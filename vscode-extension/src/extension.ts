@@ -5,11 +5,12 @@ import { showFeedbackDetail } from './providers/feedbackDetailPanel.js'; // [SCO
 import { openRelatedSpec } from './commands/openSpec.js';
 import { myFeedback, answerFeedbackItem, pushFeedbackToChat } from './commands/feedback.js'; // [SCOPE 043 / T004, T010, T011b]
 import { openFeedbackPanel } from './providers/feedbackPanel.js'; // [SCOPE 043 / T009]
+import { openChatPanel } from './providers/chatPanel.js'; // [SCOPE 079 / T05]
 import type { MyFeedbackItem } from './types.js';
 import type { HelpCommand } from './services/helpCatalog.js'; // [SCOPE 042 / Help]
 import type { DocVideo } from './services/videosCatalog.js'; // [SCOPE 042 / Videos]
 import type { FaqEntry } from './services/faqCatalog.js'; // [SCOPE 066 / T008]
-import { storeToken } from './services/auth.js';
+import { storeToken, storeChatCredential, clearChatCredential } from './services/auth.js';
 import { resolveProjectContext } from './services/projectContext.js';
 import { materializeStackOnOpen } from './services/materializeStack.js'; // [SCOPE 055]
 import { registerScopeDepsWatcher } from './services/scopeDepsWatcher.js'; // [SCOPE 073 / T010]
@@ -143,6 +144,26 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('wxkanban.cockpit.submitFeedback', () => openFeedbackPanel(context.secrets)),
     vscode.commands.registerCommand('wxkanban.cockpit.myFeedback', () => myFeedback(context.secrets)),
     // [SCOPE 043 / T004] END
+
+    // [SCOPE 079 / T05] BEGIN — Community Help chat + its consumer-credential commands
+    vscode.commands.registerCommand('wxkanban.cockpit.openChat', () => openChatPanel(context.secrets)),
+    vscode.commands.registerCommand('wxkanban.cockpit.setChatCredential', async () => {
+      const secret = await vscode.window.showInputBox({
+        title: 'wxKanban Community chat credential',
+        prompt: 'Paste the wxKanban → YappChat consumer secret (used only by the extension host).',
+        password: true,
+        ignoreFocusOut: true,
+      });
+      if (secret && secret.trim()) {
+        await storeChatCredential(context.secrets, secret.trim());
+        void vscode.window.showInformationMessage('wxKanban: community-chat credential saved.');
+      }
+    }),
+    vscode.commands.registerCommand('wxkanban.cockpit.clearChatCredential', async () => {
+      await clearChatCredential(context.secrets);
+      void vscode.window.showInformationMessage('wxKanban: community-chat credential cleared.');
+    }),
+    // [SCOPE 079 / T05] END
 
     // [SCOPE 043 / T010] answer a needs-info item clicked in the cockpit tree
     vscode.commands.registerCommand('wxkanban.cockpit.answerFeedback', (item?: MyFeedbackItem) => {

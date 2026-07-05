@@ -54,7 +54,12 @@ export async function openFeedbackPanel(secrets: vscode.SecretStorage): Promise<
     suggestion: SUGGESTION_PERSONA,
   });
 
-  panel.webview.onDidReceiveMessage(async (msg: SubmitMessage | { type: 'cancel' }) => {
+  panel.webview.onDidReceiveMessage(async (msg: SubmitMessage | { type: 'cancel' } | { type: 'openChat' }) => {
+    if (msg.type === 'openChat') {
+      // [SCOPE 079 / T05] the bug/suggestion screen also offers live community help.
+      void vscode.commands.executeCommand('wxkanban.cockpit.openChat');
+      return;
+    }
     if (msg.type === 'cancel') {
       panel.dispose();
       return;
@@ -137,6 +142,7 @@ function getHtml(
 <body>
   <h1>Report a Bug / Suggest a Feature</h1>
   <p class="sub">Quick = paste what you've got and fire it off. Guided = we'll walk you through a full report.</p>
+  <p class="sub">Want a live answer instead? <a href="#" id="openChat">Open community help chat →</a></p>
 
   <div class="row seg" id="typeSeg">
     <button data-type="bug" class="active">🐞 Bug</button>
@@ -239,6 +245,7 @@ function getHtml(
   $('gNext').addEventListener('click', () => { saveGuidedAnswer(); state.gIndex++; renderGuided(); });
 
   $('cancel').addEventListener('click', () => vscode.postMessage({ type: 'cancel' }));
+  $('openChat').addEventListener('click', (e) => { e.preventDefault(); vscode.postMessage({ type: 'openChat' }); });
 
   $('submit').addEventListener('click', () => {
     const title = $('title').value.trim();

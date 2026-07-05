@@ -61,12 +61,14 @@ Claude Code loads project-scoped MCP servers from **`.mcp.json` at the workspace
       "type": "http",
       "url": "<mcpBaseUrl>/mcp",
       "headers": {
-        "Authorization": "Bearer <WXKANBAN_API_TOKEN from .env>"
+        "Authorization": "Bearer <paste the literal token value>"
       }
     }
   }
 }
 ```
+
+> **⚠ Paste the actual token string** (the literal value copied out of `.env`) into the header — **not** a `${WXKANBAN_API_TOKEN}` placeholder. Claude Code does **not** expand `${...}` from `.env`, so a placeholder sends an empty `Authorization` header and the server rejects the connection. `scripts/init.mjs` inlines the literal token for you automatically; this only bites when you hand-edit. It is the #1 hand-config mistake.
 
 **After it is written, restart Claude Code and approve the `wxkanban` server** — project-scoped MCP servers prompt for a one-time approval (run `/mcp` to approve if you miss it). MCP servers connect only at startup, never mid-session.
 
