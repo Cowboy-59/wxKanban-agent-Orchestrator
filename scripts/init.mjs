@@ -329,14 +329,17 @@ function cleanupStaleKitFiles() {
 // Register the hosted MCP with Claude Code so its tools (project.get_command_prompt,
 // buildscope, etc.) actually load. Claude Code reads project-scoped MCP servers from
 // `.mcp.json` at the repo root (NOT .claude/settings.json). The hosted server speaks
-// the MCP SSE transport (GET /sse -> POST /messages) and authenticates via a bearer
+// the MCP Streamable HTTP transport (POST /mcp — stateless and proxy-safe, so it
+// survives TLS-inspection / SSE-buffering proxies) and authenticates via a bearer
 // header — project scope is derived from the token, so no project-id header is needed.
 // The token is written literally (Claude Code does not load .env), so the file is a
 // per-project secret and must be gitignored. Other servers already present are kept.
+// NOTE: the legacy SSE transport at /sse still exists server-side as a fallback but is
+// no longer registered here — it is not proxy-safe and does not carry write scope.
 function writeClaudeMcpRegistration(cfg) {
   const mcpJsonPath = path.join(root, '.mcp.json');
-  const url = `${cfg.mcpBaseUrl.replace(/\/$/, '')}/sse`;
-  const entry = { type: 'sse', url, headers: { Authorization: `Bearer ${cfg.apiToken}` } };
+  const url = `${cfg.mcpBaseUrl.replace(/\/$/, '')}/mcp`;
+  const entry = { type: 'http', url, headers: { Authorization: `Bearer ${cfg.apiToken}` } };
 
   let doc = {};
   if (fs.existsSync(mcpJsonPath)) {
