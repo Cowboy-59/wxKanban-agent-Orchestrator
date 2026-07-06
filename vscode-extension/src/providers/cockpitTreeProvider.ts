@@ -7,6 +7,7 @@ import { loadVideoCatalog, loadMarketingVideoCatalog, type DocVideo, type Market
 import { loadFaqCatalog, type FaqEntry } from '../services/faqCatalog.js'; // [SCOPE 066 / T008]
 import { checkCommands, type CommandsStatus } from '../services/commandsInstall.js'; // [SCOPE 060 / Cockpit]
 import { checkKitUpdate, type KitUpdateStatus } from '../services/kitUpdate.js'; // [SCOPE 019 / R15]
+import { checkGitStatus, type GitStatus } from '../services/gitStatus.js'; // [SCOPE 091 / T001]
 import type { CockpitScope, CockpitSummary, CockpitTask, MyFeedbackItem } from '../types.js';
 import { scopeResourceUri } from './scopeDecorations.js'; // [SCOPE 058 / T013]
 
@@ -29,7 +30,10 @@ type NodeKind =
   | 'devplan-item' // [SCOPE 081 / T005]
   | 'commands-setup' // [SCOPE 060 / Cockpit]
   | 'community-help' // [SCOPE 079 / T05]
-  | 'kit-update'; // [SCOPE 019 / R15]
+  | 'kit-update' // [SCOPE 019 / R15]
+  | 'scopes-group' // [SCOPE 091 / T005]
+  | 'git-group' // [SCOPE 091 / T002]
+  | 'git-commit'; // [SCOPE 091 / T002]
 type LoadState = 'unloaded' | 'ok' | 'empty' | 'no-project' | 'no-token' | 'error';
 
 interface ComputedState {
@@ -38,6 +42,7 @@ interface ComputedState {
   activeScope: string | undefined;
   // [SCOPE 043 / T010] the submitter's own feedback (best-effort; null when unfetched)
   feedback: MyFeedbackItem[];
+  gitStatus: GitStatus; // [SCOPE 091 / T003] unpushed-commit state, folded into the signature
   errorMsg: string;
   signature: string;
 }
@@ -78,6 +83,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   private faqs: FaqEntry[] = []; // [SCOPE 066 / T008]
   private commandsStatus: CommandsStatus | null = null; // [SCOPE 060 / Cockpit]
   private kitUpdate: KitUpdateStatus | null = null; // [SCOPE 019 / R15]
+  private gitStatus: GitStatus | null = null; // [SCOPE 091 / T002]
   private state: LoadState = 'unloaded';
   private errorMsg = '';
   private signature = '';
@@ -160,6 +166,17 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
       if (element.kind === 'devplan-group') {
         return (element.devplanItems ?? []).map(devplanItemNode);
       }
+      // [SCOPE 091 / T005] expand the "Scopes unfinished" header into the scope rows
+      // (active-scope first) — the same nodes that used to render flat at the root.
+      if (element.kind === 'scopes-group') {
+        const viewer = this.summary?.viewerUserId ?? null;
+        return this.sortedWorkScopes().map((s) => scopeNode(s, s.specNumber === this.activeScope, viewer));
+      }
+      // [SCOPE 091 / T002] expand the Git group into unpushed commit subjects
+      // (newest first, capped at 10 with a "…and N more" leaf).
+      if (element.kind === 'git-group') {
+        return gitCommitNodes(this.gitStatus?.subjects ?? []);
+      }
       return [];
     }
     if (this.state === 'unloaded') {
@@ -189,7 +206,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     this.commandsStatus = checkCommands();
     // [SCOPE 019 / R15] cheap local-fs read of the kit's cached version check.
     this.kitUpdate = checkKitUpdate();
-    return this.withKitUpdateSection(this.withFaqSection(this.withDevplanSection(this.withVideosSection(this.withHelpSection(this.withCommunityHelpSection(this.withCommandsSection(this.rootNodes())))))));
+    return this.withKitUpdateSection(this.withGitSection(this.withFaqSection(this.withDevplanSection(this.withVideosSection(this.withHelpSection(this.withCommunityHelpSection(this.withCommandsSection(this.rootNodes()))))))));
   }
 
   private applyState(s: ComputedState): void {
@@ -197,6 +214,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     this.summary = s.summary;
     this.activeScope = s.activeScope;
     this.feedback = s.feedback;
+    this.gitStatus = s.gitStatus; // [SCOPE 091 / T002]
     this.errorMsg = s.errorMsg;
     this.signature = s.signature;
     // [SCOPE 058 / T013] push claim state to the decoration + read-only provider.
@@ -207,9 +225,13 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
   // Pure of side effects on `this` so both the load path and poll can use it.
   private async computeState(): Promise<ComputedState> {
     const folders = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
+    // [SCOPE 091 / T003] cheap local git read, folded into every signature so
+    // poll() repaints when the unpushed count changes (after a commit or push).
+    const gitStatus = checkGitStatus();
+    const gitSig = `git:${gitStatus.aheadCount}`;
     const ctx = resolveProjectContext(folders);
     if (!ctx) {
-      return { state: 'no-project', summary: null, activeScope: undefined, feedback: [], errorMsg: '', signature: 'no-project' };
+      return { state: 'no-project', summary: null, activeScope: undefined, feedback: [], gitStatus, errorMsg: '', signature: `no-project|${gitSig}` };
     }
 
     let token: string | null = null;
@@ -219,7 +241,7 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
       token = null;
     }
     if (!token) {
-      return { state: 'no-token', summary: null, activeScope: ctx.activeScope, feedback: [], errorMsg: '', signature: 'no-token' };
+      return { state: 'no-token', summary: null, activeScope: ctx.activeScope, feedback: [], gitStatus, errorMsg: '', signature: `no-token|${gitSig}` };
     }
 
     try {
@@ -239,14 +261,15 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
         summary,
         activeScope: ctx.activeScope,
         feedback,
+        gitStatus,
         errorMsg: '',
-        signature: `${ctx.activeScope ?? ''}|${signatureOf(summary)}|${feedbackSignatureOf(feedback)}`,
+        signature: `${ctx.activeScope ?? ''}|${signatureOf(summary)}|${feedbackSignatureOf(feedback)}|${gitSig}`,
       };
     } catch (err) {
       // Surface the resolved endpoint so a misconfig (e.g. falling back to
       // localhost when the hosted URL key is missing) is self-diagnosing.
       const msg = `Tried ${ctx.mcpBaseUrl} — ${(err as Error).message}`;
-      return { state: 'error', summary: null, activeScope: ctx.activeScope, feedback: [], errorMsg: msg, signature: `error:${msg}` };
+      return { state: 'error', summary: null, activeScope: ctx.activeScope, feedback: [], gitStatus, errorMsg: msg, signature: `error:${msg}|${gitSig}` };
     }
   }
 
@@ -263,18 +286,27 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
           messageNode('All caught up — no remaining work', 'check', 'No incomplete tasks in this project.'),
         ]);
       case 'ok': {
-        const withWork = (this.summary?.scopes ?? []).filter((s) => s.remainingCount > 0);
-        const sorted = [...withWork].sort((a, b) => {
-          const aActive = a.specNumber === this.activeScope ? 0 : 1;
-          const bActive = b.specNumber === this.activeScope ? 0 : 1;
-          return aActive - bActive || a.specNumber.localeCompare(b.specNumber);
-        });
-        const viewer = this.summary?.viewerUserId ?? null;
-        return this.withFeedbackSection(sorted.map((s) => scopeNode(s, s.specNumber === this.activeScope, viewer)));
+        // [SCOPE 091 / T005] group the unfinished scopes under one collapsible
+        // "<nn> Scopes unfinished" header instead of rendering them flat. The
+        // rows themselves (and their active-first order) are produced on expand
+        // by getChildren via sortedWorkScopes().
+        const count = this.sortedWorkScopes().length;
+        return this.withFeedbackSection([scopesGroupNode(count)]);
       }
       default:
         return [];
     }
+  }
+
+  // [SCOPE 091 / T005] Unfinished scopes (remaining work > 0), active scope first,
+  // then by spec number. Shared by rootNodes() (count) and getChildren() (rows).
+  private sortedWorkScopes(): CockpitScope[] {
+    const withWork = (this.summary?.scopes ?? []).filter((s) => s.remainingCount > 0);
+    return [...withWork].sort((a, b) => {
+      const aActive = a.specNumber === this.activeScope ? 0 : 1;
+      const bActive = b.specNumber === this.activeScope ? 0 : 1;
+      return aActive - bActive || a.specNumber.localeCompare(b.specNumber);
+    });
   }
 
   // [SCOPE 043 / T010] BEGIN — append the "My Feedback" group when the user has
@@ -315,6 +347,17 @@ export class CockpitTreeProvider implements vscode.TreeDataProvider<CockpitNode>
     return [kitUpdateNode(s), ...base];
   }
   // [SCOPE 019 / R15] END
+
+  // [SCOPE 091 / T002] BEGIN — prepend a collapsible "Git — N commits to push"
+  // group when the branch is ahead of its upstream. Read-only: it names the
+  // unpushed commits and, in the tooltip, that they deploy only after a push to
+  // main. Omitted entirely at 0 unpushed / non-git / no-upstream workspaces.
+  private withGitSection(base: CockpitNode[]): CockpitNode[] {
+    const s = this.gitStatus;
+    if (!s || !s.root || s.aheadCount <= 0) return base;
+    return [gitGroupNode(s.aheadCount), ...base];
+  }
+  // [SCOPE 091 / T002] END
 
   // [SCOPE 042 / Videos] BEGIN — append the "Help — Videos" section when the docs
   // index has at least one video. Omitted entirely when offline / none found.
@@ -415,6 +458,53 @@ function kitUpdateNode(s: KitUpdateStatus): CockpitNode {
   node.command = { command: 'wxkanban.cockpit.upgradeKit', title: 'Install kit update' };
   return node;
 }
+
+// [SCOPE 091 / T005] Collapsible header the unfinished scope rows hang under.
+// Collapsed by default; expands (via getChildren) into the same scope nodes.
+function scopesGroupNode(count: number): CockpitNode {
+  const node = new CockpitNode('scopes-group', `${count} Scope${count === 1 ? '' : 's'} unfinished`, vscode.TreeItemCollapsibleState.Collapsed);
+  node.description = 'remaining work';
+  node.iconPath = new vscode.ThemeIcon('list-tree');
+  node.tooltip = `${count} scope${count === 1 ? '' : 's'} with remaining work — expand to see each.`;
+  node.contextValue = 'wxkanban.scopesGroup';
+  return node;
+}
+
+// [SCOPE 091 / T002] BEGIN — Git group + unpushed-commit leaves.
+// Read-only: the group counts unpushed commits and warns (in the tooltip) that
+// they deploy only after a push to main; expanding lists their subjects.
+function gitGroupNode(count: number): CockpitNode {
+  const node = new CockpitNode('git-group', `Git — ${count} commit${count === 1 ? '' : 's'} to push`, vscode.TreeItemCollapsibleState.Collapsed);
+  node.description = 'not yet deployed';
+  node.iconPath = new vscode.ThemeIcon('cloud-upload', new vscode.ThemeColor('notificationsWarningIcon.foreground'));
+  node.tooltip =
+    `${count} local commit${count === 1 ? '' : 's'} ahead of origin.\n` +
+    `These build and deploy only after a push to main (App Runner deploys on push).`;
+  node.contextValue = 'wxkanban.gitGroup';
+  return node;
+}
+
+function gitCommitNodes(subjects: string[]): CockpitNode[] {
+  const CAP = 10;
+  const nodes = subjects.slice(0, CAP).map(gitCommitNode);
+  const more = subjects.length - CAP;
+  if (more > 0) {
+    const moreNode = new CockpitNode('git-commit', `…and ${more} more`, vscode.TreeItemCollapsibleState.None);
+    moreNode.iconPath = new vscode.ThemeIcon('ellipsis');
+    moreNode.tooltip = `${more} more unpushed commit${more === 1 ? '' : 's'} not shown`;
+    nodes.push(moreNode);
+  }
+  return nodes;
+}
+
+function gitCommitNode(subject: string): CockpitNode {
+  const node = new CockpitNode('git-commit', subject, vscode.TreeItemCollapsibleState.None);
+  node.iconPath = new vscode.ThemeIcon('git-commit');
+  node.tooltip = subject;
+  node.contextValue = 'wxkanban.gitCommit';
+  return node;
+}
+// [SCOPE 091 / T002] END
 
 // [SCOPE 081 / T005] BEGIN — Development Plan group + checklist items.
 function devplanGroupNode(items: NonNullable<CockpitSummary['devplan']>): CockpitNode {
