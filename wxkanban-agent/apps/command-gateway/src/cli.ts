@@ -214,9 +214,9 @@ async function main(): Promise<void> {
 	const context = resolveProjectContext(config);
 
 	if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
-		// Startup self-heal: force-install the bundled cockpit .vsix when the
-		// installed copy is missing/older. Best-effort, detached, throttled once
-		// per process — never blocks or fails the help output.
+		// Startup self-heal: install the cockpit from the VS Code Marketplace when
+		// it is not present (a gallery-managed copy auto-updates itself). Best-effort,
+		// throttled once per process — never blocks or fails the help output.
 		ensureCockpitUpToDate();
 		ensureKitUpToDate();
 		printAvailableCommands(context.lifecycleStage, context.customCommands);
