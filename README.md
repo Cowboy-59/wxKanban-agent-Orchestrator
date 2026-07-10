@@ -76,11 +76,12 @@ If `init.mjs` reports `WXKANBAN_API_TOKEN missing`, you haven't configured the k
 ```bash
 # Step 1: Ask a wxKanban admin to mint an API token for your project at
 #         wxkanban.wxperts.com → Admin → Projects → <project> → API tokens.
-#         The admin will give you a wxk_live_<64hex> or wxk_test_<64hex> string.
+#         The admin will give you a ~43-char URL-safe base64 string
+#         (e.g. 9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0) — no wxk_ prefix.
 
 # Step 2: Configure the kit (writes .wxai/project.json atomically; token is never echoed in full).
 node wxkanban-agent/bin/wxkanban-agent kit-configure \
-  --token wxk_live_<64hex> \
+  --token <token copied from the Admin → API Tokens modal> \
   --project-id <uuid> \
   --mcp-url https://mcp.wxperts.com
 
@@ -230,7 +231,7 @@ their own platform via `scripts/init.mjs`), and uploads the artifacts.
    curl -L -o kit.tar.gz https://github.com/Cowboy-59/wxKanban-agent-Orchestrator/releases/download/v1.1.1/kit.tar.gz
    tar -xzf kit.tar.gz
    node wxkanban-agent/bin/wxkanban-agent kit-configure \
-     --token wxk_test_<64hex> --project-id <test-uuid> \
+     --token <staging token from Admin → API Tokens> --project-id <test-uuid> \
      --mcp-url https://staging.mcp.wxperts.com
    node scripts/init.mjs
    ```

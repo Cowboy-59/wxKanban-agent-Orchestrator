@@ -310,7 +310,7 @@ Custom commands are allowed in **every lifecycle stage** (like cross-cutting com
 #
 # 2. Configure the kit:
 wxkanban-agent kit:configure \
-  --token wxk_live_<64hex> \
+  --token <token copied from the Admin → API Tokens modal> \
   --project-id <uuid> \
   --mcp-url https://mcp.wxperts.com
 
@@ -351,7 +351,7 @@ in a future kit release.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `MCP_BASE_URL` | `https://mcp.wxperts.com` | Hosted MCP endpoint (override for staging or local) |
-| `WXKANBAN_API_TOKEN` | — | Bearer token for the hosted MCP (format: `wxk_live_<64hex>` or `wxk_test_<64hex>`) |
+| `WXKANBAN_API_TOKEN` | — | Bearer token for the hosted MCP (a ~43-char URL-safe base64 string, e.g. `9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0`; no `wxk_` prefix) |
 | `WXKANBAN_PROJECT_ID` | — | Project ID (fallback if not in `.wxai/project.json`) |
 | `GATEWAY_HTTP_PORT` | `3003` | HTTP gateway port |
 | `GROQ_API_KEY` | — | Primary AI provider key (spec 025 / 028 default) |

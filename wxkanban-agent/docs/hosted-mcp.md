@@ -16,7 +16,7 @@ v0.3.x, see [hosted-mcp-migration.md](./hosted-mcp-migration.md).
   "activeScope": "027",
   "kit": {
     "mcpBaseUrl": "https://mcp.wxperts.com",
-    "apiToken": "wxk_live_<64hex>",
+    "apiToken": "9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0",
     "projectId": "01926a90-…"
   }
 }
@@ -29,7 +29,7 @@ to `.gitignore` — the `kit.apiToken` field is a secret.
 
 ```bash
 MCP_BASE_URL=https://mcp.wxperts.com
-WXKANBAN_API_TOKEN=wxk_live_<64hex>
+WXKANBAN_API_TOKEN=9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0
 WXKANBAN_PROJECT_ID=01926a90-…
 ```
 
@@ -52,15 +52,17 @@ fallback** — resolution always yields a hosted URL:
 
 ### Token format
 
+A raw token is a **URL-safe base64 (base64url) string of ~43 characters** —
+the output of `crypto.randomBytes(32).toString('base64url')`. It carries **no
+`wxk_live_` / `wxk_test_` prefix**; production vs. staging is a property of the
+issuing environment, not the token string. Example:
+
 ```
-wxk_(live|test)_[a-f0-9]{64}
+9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0
 ```
 
-- `live` — production tokens (issued from `wxkanban.wxperts.com`)
-- `test` — staging tokens (issued from a `NODE_ENV=staging` admin)
-
-The kit's HTTP client (`core/http/mcp-client.ts`) rejects malformed tokens
-at construction time.
+The kit's HTTP client (`core/http/mcp-client.ts`) rejects obviously-malformed
+tokens at construction time.
 
 ### Minting
 
@@ -68,7 +70,7 @@ Admin UI: **wxkanban.wxperts.com → Admin → Projects → `<project>` → API 
 Requires `COMPANY_ADMIN` or `PROJECT_OWNER` role for the project.
 
 The raw token is displayed **once** in a modal with a copy-to-clipboard
-button. After dismissal, only the prefix (e.g. `wxk_live_a3f9`) and the
+button. After dismissal, only a short display prefix (e.g. `9bB7UUaP`) and the
 hashed value remain in the database.
 
 ### Rotation
@@ -93,7 +95,7 @@ the next call; there is no propagation delay.
 Every request to a non-`/health` route must carry:
 
 ```
-Authorization: Bearer wxk_(live|test)_<64hex>
+Authorization: Bearer 9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0
 ```
 
 Every response carries `X-Request-Id` (also written to the audit row's

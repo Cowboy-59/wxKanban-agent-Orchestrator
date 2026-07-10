@@ -52,7 +52,7 @@ Before fetching project data, verify and configure the developer environment. Ru
 
 Claude Code loads project-scoped MCP servers from **`.mcp.json` at the workspace root** — **not** `.claude/settings.json`. The MCP is **hosted** (spec 028); there is no local server to spawn. It speaks the MCP **Streamable HTTP transport** (`POST /mcp`, plain-JSON request/response — proxy-friendly) and authenticates with a bearer token. The server derives your project scope **from the token**, so no project-id header is needed. (The older **SSE** transport at `/sse` still works for existing setups, but `/mcp` is the default — it survives TLS-inspection proxies that break long-lived SSE; see the proxy note below.)
 
-**`scripts/init.mjs` writes this automatically** after validating your token, reading the endpoint from `.wxai/project.json` `kit.mcpBaseUrl` (defaults to `https://mcp.wxperts.com`) and the token from `kit.apiToken` / `.env`. It also **gitignores `.mcp.json`**, because the file holds the token. To write it by hand, the block is:
+A fresh kit download already ships a **pre-filled `.mcp.json`** at the workspace root (injected by the download server), so the project is usually connected before you run anything. **`scripts/init.mjs` writes/refreshes it** — and runs automatically when VS Code opens the folder — after validating your token, reading the endpoint from `.wxai/project.json` `kit.mcpBaseUrl` (defaults to `https://mcp.wxperts.com`) and the token from `kit.apiToken` / `.env`. It also **gitignores `.mcp.json`**, because the file holds the token. To write it by hand, the block is:
 
 ```json
 {
@@ -78,7 +78,7 @@ If `.mcp.json` exists with other entries, merge — do not overwrite the file.
 
 Report: `✓ MCP wxKanban registered (<mcpBaseUrl>/mcp)` or `⚠ Already present`.
 
-**Behind a corporate proxy that blocks the connection?** Some networks (TLS-inspection / SSE-buffering proxies such as Cisco Secure Access) let short HTTPS requests through but break the long-lived `/sse` stream — so the SSE server above never connects. Quick test: if `curl <mcpBaseUrl>/health` returns **200** but `curl <mcpBaseUrl>/sse` **hangs**, use the **local stdio bridge** instead. It speaks MCP to Claude Code over stdio (no network on the editor side) and reaches the hosted MCP only via short request/response calls (`/tools` + `/call`) — the exact calls that already pass the proxy. No IT changes needed; it works wherever `/health` returns 200. `.mcp.json` block:
+**Behind a corporate proxy that blocks the connection?** The default `/mcp` transport is short request/response, so it already survives most TLS-inspection proxies (this is exactly why it's preferred over the legacy long-lived `/sse` stream, which such proxies buffer and break). If even `/mcp` is blocked — `curl <mcpBaseUrl>/health` returns **200** but the `wxkanban` server still won't connect — use the **local stdio bridge** instead. It speaks MCP to Claude Code over stdio (no network on the editor side) and reaches the hosted MCP only via short request/response calls (`/tools` + `/call`) — the exact calls that already pass the proxy. No IT changes needed; it works wherever `/health` returns 200. `.mcp.json` block:
 
 ```json
 {

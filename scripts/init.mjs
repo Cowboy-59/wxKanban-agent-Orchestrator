@@ -143,7 +143,7 @@ async function checkToken(baseUrl, token, projectId) {
   if (res.status === 401) {
     bail(`token rejected (HTTP 401). Ask your wxKanban admin to mint a new one,\n` +
          `  then run:  node wxkanban-agent/bin/wxkanban-agent kit-configure \\\n` +
-         `              --token <wxk_..._>  --project-id ${projectId}  --mcp-url ${baseUrl}`);
+         `              --token <token>  --project-id ${projectId}  --mcp-url ${baseUrl}`);
   }
   if (res.status === 403) {
     bail(`token does not have access to project ${projectId} (HTTP 403).`);
@@ -397,7 +397,7 @@ async function main() {
       `kit is not configured.\n\n` +
       `Run kit-configure first:\n\n` +
       `  node wxkanban-agent/bin/wxkanban-agent kit-configure \\\n` +
-      `    --token wxk_live_<64hex> \\\n` +
+      `    --token <token minted at wxkanban.wxperts.com → Admin → Projects → API tokens> \\\n` +
       `    --project-id <project-uuid> \\\n` +
       `    --mcp-url https://mcp.wxperts.com\n\n` +
       `(Ask a wxKanban admin to mint the token at wxkanban.wxperts.com → Admin → Projects.)`

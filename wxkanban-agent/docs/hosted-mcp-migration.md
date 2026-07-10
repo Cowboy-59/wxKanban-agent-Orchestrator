@@ -31,8 +31,9 @@ the local MCP service.
 
 The admin opens `wxkanban.wxperts.com` → **Admin → Projects → your project
 → API Tokens → Issue token**. They give it a recognizable name (e.g.
-"Andy's laptop") and copy the raw token (shown **once only**, format
-`wxk_live_<64hex>`).
+"Andy's laptop") and copy the raw token (shown **once only** — a ~43-char
+base64url string such as `9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0`, with
+no `wxk_` prefix).
 
 The admin sends it to you over a secure channel (1Password, Slack DM —
 never email).
@@ -43,7 +44,7 @@ never email).
 
 ```bash
 wxkanban-agent kit:configure \
-  --token wxk_live_<your-token> \
+  --token <token copied from the Admin → API Tokens modal> \
   --project-id <your-project-uuid> \
   --mcp-url https://mcp.wxperts.com
 ```
@@ -54,7 +55,7 @@ This writes three fields atomically into `.wxai/project.json`:
 {
   "kit": {
     "mcpBaseUrl": "https://mcp.wxperts.com",
-    "apiToken": "wxk_live_<your-token>",
+    "apiToken": "9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0",
     "projectId": "<your-project-uuid>"
   }
 }
