@@ -13,7 +13,12 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname, join } from "path";
 import { randomBytes } from "crypto";
 
-const TOKEN_RE = /^wxk_(live|test)_[a-f0-9]{64}$/;
+// [SCOPE 095 / T004] Accept the real minted token format. generateApiToken() emits
+// crypto.randomBytes(32).toString('base64url') → ~43 URL-safe chars with no prefix;
+// the aspirational wxk_(live|test)_<64hex> form is kept for forward-compat. The prior
+// regex accepted only the latter and so rejected every real token, breaking the
+// documented `kit:configure` repair path.
+const TOKEN_RE = /^(wxk_(live|test)_[a-f0-9]{64}|[A-Za-z0-9_-]{20,})$/;
 const HOSTED_RE = /^https:\/\/.+/i;
 
 export interface KitConfigureArgs {
@@ -93,7 +98,7 @@ export function handleKitConfigureCommand(args: KitConfigureArgs): KitConfigureR
     return {
       exitCode: 2,
       writtenTo: null,
-      message: `kit:configure: token does not match wxk_(live|test)_<64hex> (got ${maskToken(args.token)}).`,
+      message: `kit:configure: token does not look like a wxKanban API token — expected the token minted at wxkanban.wxperts.com → Admin → Projects → API tokens (got ${maskToken(args.token)}).`,
     };
   }
   if (!HOSTED_RE.test(mcpUrl)) {

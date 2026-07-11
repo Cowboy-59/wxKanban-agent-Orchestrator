@@ -71,7 +71,7 @@ Choose one:
 
 **3. Check for existing related documents**
 - Search `specs/` for related learnings files
-- Query wxKanban for existing compound-learning docs on this project
+- Query wxKanban `projectdocuments` WHERE `doctype = 'CompoundLearning'` for existing learnings on this project
 - Assess overlap: if high, update the existing doc instead of creating a new one
 
 **4. Identify compliance relevance**
@@ -168,7 +168,7 @@ What's the first thing to check?]
 After writing the file, push to the `projectdocuments` table:
 
 ```
-doctype:    'compound-learning'
+doctype:    'CompoundLearning'
 title:      [document title]
 filepath:   [relative path to the .md file]
 content:    [full markdown content]

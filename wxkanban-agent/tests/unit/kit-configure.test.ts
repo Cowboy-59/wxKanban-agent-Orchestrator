@@ -5,6 +5,9 @@ import { join } from 'path';
 import { handleKitConfigureCommand } from '../../core/orchestrator/command-handlers/kit-configure';
 
 const VALID_TOKEN = 'wxk_live_' + 'b'.repeat(64);
+// [SCOPE 095 / T004] The real minted format: crypto.randomBytes(32).toString('base64url')
+// → ~43 URL-safe chars, no prefix. kit:configure must accept these (it rejected them before).
+const REAL_TOKEN = '9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0';
 const VALID_PROJECT = '11111111-2222-3333-4444-555555555555';
 
 function freshRoot(): string {
@@ -19,10 +22,28 @@ describe('handleKitConfigureCommand', () => {
 		root = freshRoot();
 	});
 
-	it('rejects a malformed token with exit 2', () => {
-		const r = handleKitConfigureCommand({ token: 'not-a-token', projectId: VALID_PROJECT, projectRoot: root });
+	it('rejects a malformed (too-short) token with exit 2', () => {
+		const r = handleKitConfigureCommand({ token: 'short', projectId: VALID_PROJECT, projectRoot: root });
 		expect(r.exitCode).toBe(2);
-		expect(r.message).toMatch(/wxk_/);
+		expect(r.message).toMatch(/wxKanban API token/);
+	});
+
+	it('rejects a token containing an invalid character with exit 2', () => {
+		const r = handleKitConfigureCommand({ token: 'has space in it not valid', projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(2);
+	});
+
+	// [SCOPE 095 / T004] The prior regex (^wxk_(live|test)_<64hex>$) rejected every real
+	// token. Both accept-cases below must pass: the aspirational wxk_ form AND the real
+	// base64url form the system actually mints.
+	it('accepts a real base64url minted token (exit 0)', () => {
+		const r = handleKitConfigureCommand({ token: REAL_TOKEN, projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(0);
+	});
+
+	it('accepts the aspirational wxk_ token form (exit 0)', () => {
+		const r = handleKitConfigureCommand({ token: VALID_TOKEN, projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(0);
 	});
 
 	it('rejects a non-https mcp-url with exit 2', () => {

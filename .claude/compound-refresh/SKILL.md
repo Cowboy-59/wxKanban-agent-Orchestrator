@@ -48,7 +48,7 @@ For each document reviewed, choose one:
 Find all compound documents:
 - `specs/*/learnings/*.md`
 - `docs/learnings/*.md`
-- Query wxKanban `projectdocuments` WHERE `doctype = 'compound-learning'`
+- Query wxKanban `projectdocuments` WHERE `doctype = 'CompoundLearning'`
 
 Review **compliance-relevant docs first** (where `compliance_relevant: true`). These have the highest cost if stale.
 
