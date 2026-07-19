@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.7.28",
+  "version": "1.7.31",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -53,6 +53,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/react-router-dom": "^5.3.3",
+    "@uiw/react-md-editor": "^4.1.1",
     "@vitejs/plugin-react": "^6.0.1",
     "@wxkanban/preflight": "file:shared/preflight",
     "@wxkanban/watermark": "file:shared/watermark",

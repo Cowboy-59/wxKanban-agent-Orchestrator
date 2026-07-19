@@ -498,6 +498,41 @@ export class WorkflowEngine {
 		return { result, audit };
 	}
 
+	// [SCOPE 103 / T007] BEGIN — reconcile a scope/spec group's on-disk files to
+	// its archived status (move to/from specs/_archive/). Local FS only; allowed
+	// in every lifecycle phase.
+	static async runArchiveFiles(
+		context: ProjectContext,
+		options: Record<string, unknown>,
+		user?: string,
+	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
+		const timestamp = new Date().toISOString();
+		const policy = evaluateStageOnly(
+			context.lifecycleStage, 'archive:files', context.customCommands,
+		);
+		if (!policy.allowed) {
+			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
+			const audit: AuditRecord = { timestamp, command: 'archive:files', input: options, result: result as unknown as Record<string, unknown>, user };
+			return { result, audit };
+		}
+		const { handleArchiveFilesCommand } = await import('./command-handlers/archive-files');
+		const specNumber = (options['spec-number'] ?? options['specNumber']) as string | undefined;
+		const action = (options['action'] as 'archive' | 'unarchive' | undefined) ?? 'archive';
+		const handlerResult = await handleArchiveFilesCommand({
+			specNumber: specNumber ?? '',
+			action,
+			projectRoot: options['project-root'] as string | undefined,
+		});
+		console.log(handlerResult.output);
+		const success = handlerResult.exitCode === 0;
+		const result: CommandResult<Record<string, unknown>> = success
+			? { success: true, artifact: handlerResult.result as unknown as Record<string, unknown> }
+			: { success: false, error: `archive:files exited with code ${handlerResult.exitCode}` };
+		const audit: AuditRecord = { timestamp, command: 'archive:files', input: options, result: result as unknown as Record<string, unknown>, user };
+		return { result, audit };
+	}
+	// [SCOPE 103 / T007] END
+
 	static async dispatch(
 		context: ProjectContext,
 		command: string,
@@ -581,6 +616,8 @@ export class WorkflowEngine {
 				return WorkflowEngine.runKitStatus(context, input, user);
 			case 'scaffold:frontend':
 				return WorkflowEngine.runScaffoldFrontend(context, input, user);
+			case 'archive:files':
+				return WorkflowEngine.runArchiveFiles(context, input, user);
 			case 'wxconversion':
 				return WorkflowEngine.runWxConversion(context, input, user);
 			case 'wxconversionscope':

@@ -1,6 +1,6 @@
 {
   "name": "wxkanban-agent",
-  "version": "1.7.28",
+  "version": "1.7.31",
   "description": "wxKanban Agent Orchestrator Kit — lifecycle-aware command gateway, code fencing, implement/auditfences.",
   "main": "dist/index.js",
   "files": [
@@ -24,14 +24,18 @@
     "gateway:cli": "ts-node apps/command-gateway/src/cli.ts",
     "gateway:http": "ts-node apps/command-gateway/src/http.ts",
     "dbpush": "ts-node dbpush.ts",
+    "remote": "ts-node apps/remote-bridge/src/main.ts",
     "pack": "bash scripts/pack-kit.sh"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.215",
     "@wxkanban/preflight": "file:../shared/preflight",
-    "uuid": "^11.0.0"
+    "uuid": "^11.0.0",
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
     "esbuild": "^0.28.0"
   },
   "keywords": [

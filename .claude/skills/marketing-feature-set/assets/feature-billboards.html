@@ -1,0 +1,113 @@
+<!-- ============================================================
+     wxKanban feature billboards — flipping landing-page carousel.
+     Self-contained: scoped .fbb- CSS + vanilla JS, no build step.
+     Reads banners/manifest.json (written by generate-banners.mjs) and
+     rotates the top-ranked billboards with a cross-fade + language toggle.
+     Paste this whole block into marketing/site/index.html right AFTER the
+     hero's closing </section>. Then: pwsh marketing/site/deploy/redeploy.ps1
+     ============================================================ -->
+<section class="fbb" aria-label="What wxKanban does">
+  <div class="fbb-wrap">
+    <div class="fbb-head">
+      <span class="fbb-kicker">Everything wxKanban does</span>
+      <div class="fbb-langs" role="group" aria-label="Language"></div>
+    </div>
+    <div class="fbb-stage" id="fbb-stage"><!-- slides injected --></div>
+    <div class="fbb-dots" id="fbb-dots"><!-- dots injected --></div>
+  </div>
+
+  <style>
+    .fbb { background: #0f1722; padding: 40px 0 48px; }
+    .fbb-wrap { max-width: 1120px; margin: 0 auto; padding: 0 22px; }
+    .fbb-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .fbb-kicker { color: #93a0b3; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.4px; font-weight: 700; }
+    .fbb-langs { display: flex; gap: 6px; }
+    .fbb-langs button { background: rgba(255,255,255,0.06); color: #c3cad6; border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px; padding: 4px 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer; letter-spacing: 0.4px; }
+    .fbb-langs button[aria-pressed="true"] { background: #c8761b; color: #fff; border-color: #c8761b; }
+    .fbb-stage { position: relative; width: 100%; aspect-ratio: 1456 / 416; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.45); background: #0f1722; }
+    .fbb-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.7s ease; }
+    .fbb-slide.is-on { opacity: 1; }
+    .fbb-slide a { display: block; width: 100%; height: 100%; }
+    .fbb-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .fbb-dots { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+    .fbb-dots button { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: none; cursor: pointer;
+      background: rgba(255,255,255,0.28); transition: background 0.2s, transform 0.2s; }
+    .fbb-dots button[aria-current="true"] { background: #c8761b; transform: scale(1.25); }
+    .fbb-empty { color: #93a0b3; text-align: center; padding: 40px 0; font-size: 0.9rem; }
+    @media (max-width: 560px) { .fbb-stage { aspect-ratio: 1200 / 630; } }
+  </style>
+
+  <script>
+  (function () {
+    var MANIFEST = 'banners/manifest.json';
+    var ROTATE_MS = 5000;
+    var stage = document.getElementById('fbb-stage');
+    var dotsEl = document.getElementById('fbb-dots');
+    var langsEl = document.querySelector('.fbb-langs');
+    var idx = 0, timer = null, locale = 'en-US', data = null;
+
+    fetch(MANIFEST).then(function (r) { return r.json(); }).then(function (m) {
+      data = m;
+      if (!m.features || !m.features.length) { stage.innerHTML = '<div class="fbb-empty">No billboards yet — run generate-banners.mjs.</div>'; return; }
+      locale = (m.locales && m.locales.indexOf('en-US') >= 0) ? 'en-US' : (m.locales && m.locales[0]) || 'en-US';
+      buildLangs(m.locales || ['en-US']);
+      render();
+      start();
+    }).catch(function () { stage.innerHTML = '<div class="fbb-empty">Billboards unavailable.</div>'; });
+
+    function buildLangs(locales) {
+      if (!locales || locales.length < 2) { langsEl.style.display = 'none'; return; }
+      langsEl.innerHTML = '';
+      locales.forEach(function (lc) {
+        var b = document.createElement('button');
+        b.textContent = lc.split('-')[0].toUpperCase();
+        b.setAttribute('aria-pressed', String(lc === locale));
+        b.addEventListener('click', function () { locale = lc; idx = 0; render(); restart(); });
+        langsEl.appendChild(b);
+      });
+    }
+
+    function src(f) { return (f.billboards && (f.billboards[locale] || f.billboards['en-US'])) || null; }
+
+    function render() {
+      stage.innerHTML = ''; dotsEl.innerHTML = '';
+      var feats = data.features.filter(src);
+      feats.forEach(function (f, i) {
+        var slide = document.createElement('div');
+        slide.className = 'fbb-slide' + (i === idx ? ' is-on' : '');
+        slide.innerHTML = '<a href="' + (f.link || '#') + '"><img src="' + src(f) + '" alt="' + (f.name || '') + '" loading="' + (i === 0 ? 'eager' : 'lazy') + '"></a>';
+        stage.appendChild(slide);
+
+        var dot = document.createElement('button');
+        dot.setAttribute('aria-label', f.name || ('Slide ' + (i + 1)));
+        dot.setAttribute('aria-current', String(i === idx));
+        dot.addEventListener('click', function () { go(i); restart(); });
+        dotsEl.appendChild(dot);
+      });
+      // reflect active language on the toggle
+      Array.prototype.forEach.call(langsEl.querySelectorAll('button'), function (b) {
+        b.setAttribute('aria-pressed', String(b.textContent === locale.split('-')[0].toUpperCase()));
+      });
+    }
+
+    function go(i) {
+      var slides = stage.querySelectorAll('.fbb-slide');
+      var dots = dotsEl.querySelectorAll('button');
+      if (!slides.length) return;
+      idx = (i + slides.length) % slides.length;
+      slides.forEach(function (s, k) { s.classList.toggle('is-on', k === idx); });
+      dots.forEach(function (d, k) { d.setAttribute('aria-current', String(k === idx)); });
+    }
+    function next() { go(idx + 1); }
+    function start() { if (data && data.features.filter(src).length > 1) timer = setInterval(next, ROTATE_MS); }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } }
+    function restart() { stop(); start(); }
+
+    stage.addEventListener('mouseenter', stop);
+    stage.addEventListener('mouseleave', start);
+  })();
+  </script>
+</section>
+<!-- ============================================================ end feature billboards -->

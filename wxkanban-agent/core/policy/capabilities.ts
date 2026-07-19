@@ -22,6 +22,9 @@ export enum Capability {
   AuditFences = "AuditFences",
   KitStatus = "KitStatus",
   ScaffoldFrontend = "ScaffoldFrontend",
+  // Spec 103 / T007 — reconcile a scope/spec group's on-disk files to its
+  // archived status (move to/from specs/_archive/). Local FS only, every phase.
+  ArchiveFiles = "ArchiveFiles",
   // WinDev/WebDev conversion FROM the technical-doc PDF (Design-only, no spec).
   WxConversion = "WxConversion",
   // Scope generation over the converted artifacts (Design-only, no spec).
@@ -106,6 +109,11 @@ export const gateTable: Readonly<Record<Capability, CapabilityGate>> = {
     allowsEscalation: false,
   },
   [Capability.ScaffoldFrontend]: {
+    allowedPhases: "all",
+    requiresVerifiedSpec: false,
+    allowsEscalation: false,
+  },
+  [Capability.ArchiveFiles]: {
     allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,

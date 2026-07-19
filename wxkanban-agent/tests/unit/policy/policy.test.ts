@@ -300,11 +300,13 @@ describe("gateTable consistency (spec 030 FR-010 module-load assert)", () => {
     ].sort());
   });
 
-  it("the 5 cross-cutting capabilities have allowedPhases: 'all'", () => {
+  it("the 6 cross-cutting capabilities have allowedPhases: 'all'", () => {
     const crossCutting = (Object.values(Capability) as Capability[]).filter(
       (c) => gateTable[c].allowedPhases === "all",
     );
     expect(crossCutting.sort()).toEqual([
+      // Spec 103 / T007 — archive:files reconciles on-disk group to archived status.
+      Capability.ArchiveFiles,
       Capability.AuditFences,
       Capability.DbPush,
       Capability.KitStatus,

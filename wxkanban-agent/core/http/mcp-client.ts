@@ -41,7 +41,10 @@ export interface McpCallResult<T = unknown> {
   error?: string;
 }
 
-const TOKEN_RE = /^wxk_(live|test)_[a-f0-9]{64}$/;
+// [SCOPE 097 / T005] No client-side token-shape check. Token acceptance is a
+// server-side authz decision; a client regex can only produce false negatives
+// (rejecting a token the server would accept — e.g. legacy tokens). The server
+// is the sole authority; this client forwards whatever token was resolved.
 
 function readKitBlock(projectRoot: string): { apiToken?: string } | null {
   const path = join(projectRoot, ".wxai", "project.json");
@@ -114,11 +117,6 @@ export function resolveProjectId(opts: { projectRoot?: string } = {}): string | 
   return readProjectIdFile(opts.projectRoot ?? process.cwd());
 }
 
-function maskToken(token: string): string {
-  if (token.length <= 12) return "***";
-  return `${token.slice(0, 12)}…${token.slice(-4)}`;
-}
-
 export class McpClient {
   private readonly baseUrl: string;
   private readonly token: string | null;
@@ -141,11 +139,9 @@ export class McpClient {
           `or revert to the local-MCP path with 'npm run kit:start:legacy'.`,
       );
     }
-    if (this.token && !TOKEN_RE.test(this.token)) {
-      throw new Error(
-        `mcp-client: token does not match wxk_(live|test)_<64hex> shape (got ${maskToken(this.token)})`,
-      );
-    }
+    // [SCOPE 097 / T005] Intentionally NO token-shape check here — the server
+    // decides token acceptance (FR-005). A server-rejected token surfaces as the
+    // server's 401, not a client-side false negative.
   }
 
   get base(): string {

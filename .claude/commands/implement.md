@@ -47,6 +47,16 @@ If `stack.md` does **not** exist, proceed exactly as today — no change in beha
   - `type`: "spec_implementation_progress"
   - `rawContent`: Implementation summary
 
+### Phase 4: Advisory Review (wxUIUXCodeReview)
+After the implementation report, run an **advisory** combined code + UI/UX review over
+the changes this run produced — it never blocks completion; implement is already reported done.
+
+- [ ] Scope the review to the files/tasks changed by this implement run (the diff), not the whole repo.
+- [ ] Run the `wxUIUXCodeReview` command: call `project.get_command_prompt` with `{ "command": "wxuiuxcodereview" }` and follow the returned methodology against those changes. If unavailable, fall back to the `wxUIUXCodeReview` skill under `.claude/skills/wxUIUXCodeReview/`.
+- [ ] Run the track(s) that match the diff: the code track always; the UI/UX track only when the run touched frontend files (`.tsx`/`.jsx`/`.css`/Tailwind/shadcn). Use a static UI review — do not launch the app here.
+- [ ] Print the review findings (ordered by severity: must-fix / should-fix / nit) after the implement report.
+- [ ] Do **not** auto-apply fixes, edit code, restyle, or mark tasks blocked based on the review — surface findings for the user to act on. must-fix findings are called out prominently but do not fail the run.
+
 ## Output Format
 ```
 implement Report (MCP Project Hub)

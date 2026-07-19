@@ -21,6 +21,7 @@ import { classifyBlockingIssues } from './core/orchestrator/heading-classifier';
 import { rewriteHeadings } from './core/orchestrator/spec-heading-rewriter';
 import { emitCockpitRefresh, ensureCockpitUpToDate } from './core/orchestrator/cockpit-refresh';
 import { syncTaskStatuses, buildDoneTitles } from './core/orchestrator/sync-task-status';
+import { syncArchivedFiles } from './core/orchestrator/sync-archived-files';
 import { trustSystemCertificates } from './core/bootstrap/system-ca';
 import { loadProjectEnv } from './core/bootstrap/load-env';
 
@@ -637,13 +638,23 @@ async function pushExistingSpec(
   };
   const featureName =
     artifact.specMeta.title || artifact.slug || `Spec ${artifact.scope}`;
+  // BUG-2026-07-18 (Issue 3): titles MUST match exactly what create_specs writes,
+  // because upsert_document matches project-level docs by (doctype, title). Both
+  // paths already use doctype 'specs'; the only divergence was the title format
+  // (em-dash vs colon, and the Plan naming), which made dbpush create a parallel
+  // 31+ doc set on an already-imported project instead of updating in place.
+  // create_specs writes: spec = `Spec {N}: {name}` (colon), plan = `Plan: {name}`.
+  // (create_specs also seeds spec.md's `# Spec {N}: {name}` header, so the parsed
+  // specMeta.title here equals the original featureName — the titles line up.)
   const docs: Array<{ title: string; body: string }> = [
-    { title: `Spec ${artifact.scope} — ${featureName}`, body: artifact.specBody },
+    { title: `Spec ${artifact.scope}: ${featureName}`, body: artifact.specBody },
   ];
   if (artifact.planBody) {
-    docs.push({ title: `Spec ${artifact.scope} — Plan`, body: artifact.planBody });
+    docs.push({ title: `Plan: ${featureName}`, body: artifact.planBody });
   }
   if (artifact.testsBody) {
+    // create_specs writes no tests doc, so this is dbpush-owned; its stable title
+    // keeps it idempotent across dbpush re-runs (matches its own prior row).
     docs.push({ title: `Spec ${artifact.scope} — Tests`, body: artifact.testsBody });
   }
 
@@ -847,6 +858,25 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
     ensureCockpitUpToDate();
   }
   // [SCOPE 042 / T021] END
+
+  // [SCOPE 103 / T007] BEGIN — reconcile on-disk files to the DB archived status
+  // The app archives a scope by setting its DB status; the kit is the only side
+  // that can move the local files, so after a real push we sync each group
+  // to/from specs/_archive/ to match. Best-effort; never fails the command.
+  if (!options.dryRun && !dbState.unreachable) {
+    try {
+      const arch = await syncArchivedFiles({ projectId: config.projectId, projectRoot });
+      if (arch.archived.length) console.log(`dbpush: archived files for scope(s) ${arch.archived.join(', ')}`);
+      if (arch.unarchived.length) console.log(`dbpush: restored files for scope(s) ${arch.unarchived.join(', ')}`);
+      // This is a best-effort side reconcile, NOT part of the spec/task push report —
+      // its errors go to the log, never into totals.errors (which the push envelope and
+      // its tests treat as spec-push failures).
+      for (const e of arch.errors) console.warn(`dbpush: archived-file sync: ${e}`);
+    } catch (err) {
+      console.warn(`dbpush: archived-file sync failed (non-fatal): ${(err as Error).message}`);
+    }
+  }
+  // [SCOPE 103 / T007] END
 
   return {
     validation: {

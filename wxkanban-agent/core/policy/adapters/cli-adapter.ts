@@ -45,6 +45,7 @@ const CLI_COMMAND_TO_CAPABILITY: Readonly<Record<string, Capability>> = {
   auditfences: Capability.AuditFences,
   "kit:status": Capability.KitStatus,
   "scaffold:frontend": Capability.ScaffoldFrontend,
+  "archive:files": Capability.ArchiveFiles,
   // WinDev/WebDev conversion entry points (Design-only).
   wxconversion: Capability.WxConversion,
   wxconversionscope: Capability.WxConversionScope,

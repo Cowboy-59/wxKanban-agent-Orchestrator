@@ -1,7 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { McpClient, resetDefaultMcpClientForTests } from '../../core/http/mcp-client';
+import { callMcpTool } from '../../core/orchestrator/mcp-client';
 
 const VALID_TOKEN = 'wxk_live_' + 'a'.repeat(64);
+// [SCOPE 097 / T005] A server-valid legacy token that does NOT match the old
+// wxk_(live|test)_<64hex> shape. The client must forward it, not reject it.
+const LEGACY_TOKEN = 'drHsAbC123LegacyToken';
 
 function fetchOnce(response: Partial<Response>): typeof fetch {
 	return vi.fn().mockResolvedValueOnce(makeResponse(response)) as unknown as typeof fetch;
@@ -28,8 +32,28 @@ describe('McpClient', () => {
 		expect(() => new McpClient({ baseUrl: 'https://mcp.wxperts.com' })).toThrow(/no API token resolved/);
 	});
 
-	it('rejects malformed tokens', () => {
-		expect(() => new McpClient({ baseUrl: 'http://localhost:3002', token: 'bogus' })).toThrow(/wxk_/);
+	// [SCOPE 097 / T005 — FR-005] Client-side token-shape enforcement removed.
+	// Token acceptance is a server-side authz decision; a client regex can only
+	// produce false negatives (rejecting a token the server would accept).
+	it('accepts a server-valid legacy (non-wxk_) token without throwing', () => {
+		expect(() => new McpClient({ baseUrl: 'http://localhost:3002', token: LEGACY_TOKEN })).not.toThrow();
+		expect(() => new McpClient({ baseUrl: 'https://mcp.wxperts.com', token: LEGACY_TOKEN })).not.toThrow();
+	});
+
+	it('forwards the legacy token unchanged as Bearer on /call', async () => {
+		const calls: Array<{ init?: RequestInit }> = [];
+		const fakeFetch = vi.fn(async (_url, init) => {
+			calls.push({ init });
+			return makeResponse({ ok: true, status: 200, json: async () => ({ ok: true }) });
+		}) as unknown as typeof fetch;
+		const client = new McpClient({
+			baseUrl: 'https://mcp.wxperts.com',
+			token: LEGACY_TOKEN,
+			fetchImpl: fakeFetch,
+		});
+		await client.callTool('project.help', {});
+		const headers = calls[0].init?.headers as Record<string, string>;
+		expect(headers.Authorization).toBe(`Bearer ${LEGACY_TOKEN}`);
 	});
 
 	it('attaches Bearer header on /call', async () => {
@@ -87,5 +111,32 @@ describe('McpClient', () => {
 		expect(result.status).toBe(502);
 		expect(result.error).toMatch(/502/);
 		expect(fakeFetch).toHaveBeenCalledTimes(1);
+	});
+});
+
+// [SCOPE 097 / T006 — FR-006] Policy parity: BOTH kit MCP clients forward the
+// token untouched with no client-side shape gate, so no route can reintroduce
+// the divergence that rejected a server-valid legacy token.
+describe('mcp token-passing parity (orchestrator client)', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('orchestrator callMcpTool forwards a legacy (non-wxk_) token as Bearer', async () => {
+		let seenAuth: string | undefined;
+		const fakeFetch = vi.fn(async (_url: string, init?: RequestInit) => {
+			seenAuth = (init?.headers as Record<string, string> | undefined)?.Authorization;
+			return makeResponse({
+				ok: true,
+				status: 200,
+				json: async () => ({ content: [{ type: 'text', text: JSON.stringify({ success: true }) }] }),
+			});
+		});
+		vi.stubGlobal('fetch', fakeFetch);
+
+		await expect(
+			callMcpTool('project.help', {}, { baseUrl: 'https://mcp.wxperts.com', apiToken: LEGACY_TOKEN }),
+		).resolves.toBeDefined();
+		expect(seenAuth).toBe(`Bearer ${LEGACY_TOKEN}`);
 	});
 });
