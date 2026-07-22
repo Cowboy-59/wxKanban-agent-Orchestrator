@@ -61,10 +61,67 @@ PROP_KEYS = {
     "Type", "Sorted", "Group", "Alias", "HTMLBefore", "HTMLAfter", "HTMLClass",
     "Semantics (HTML5)", "Empty", "Clickable area", "Transparency", "Tranparency",
     "Alt. Text", "Controls", "Direction", "Default value", "Caption", "Keyword",
+    # Table/column-specific labels (JCA technical-doc dumps, added 2026-07-19 fix)
+    "Plane", "File", "Browse", "Use HFilter()", "Lock record", "Save on exit",
+    "Multiselection", "Display/Scrollbar", "Proportional scrollbar", "Scrollbar tooltip",
+    "Cascading input", "ENTER Management", "Saves col. config.", "Anchored column",
+    "5.5-compatible", "Fixed left", "Moveable", "Adjustable width", "Sortable column",
+    "With search", "Horz. alignment", "Vert. alignment", "Input type", "Multiline",
+    "RTF format", "With input", "File assisted input",
+    # Single-word labels from the "<Type> : <Name>" detail-block format (as a safety net
+    # in addition to the section-header reset above).
+    "Opacity", "Ellipse", "Halo Width", "Halo Height", "UI by the user",
+    "Ellipsis mode", "Automatic link", "Check spelling", "Unicode",
+    "Horz. scrollbar", "Vert. scrollbar", "File system completion",
 }
 
 NAME_RE = re.compile(r"^[A-Za-z][\w]*(?:\.[A-Za-z][\w]*)*$")
 PREFIX_RE = re.compile(r"^([A-Za-z]+)_")
+
+# --- Fallback control-type detection by declared type header, not just name prefix -----
+# Some WinDev projects (JCA among them) rename controls away from the IDE's
+# auto-generated TYPE_n defaults to meaningful names (e.g. "CONMobile", or a Table
+# control literally named "TABLE") — these carry no recognizable prefix at all, so
+# `kind_of()`/prefix matching alone would never see them. Each control block in the dump
+# is still announced by a literal type-header line (e.g. "Table", "Check Box", "Edit"),
+# so track that as a fallback kind for any name with no recognized prefix.
+TYPE_HEADER_KIND = {
+    "Table": "table", "Table column": "column", "Check Box": "checkbox",
+    "Radio Button": "radio", "Edit": "input", "Edit control": "input",
+    "Static": "static", "Image": "image", "Shape": "static",
+    "Button": "button", "Combo Box": "select", "List Box": "select",
+    "Group Box": "groupbox", "Zone": "zone", "Cell": "cell", "Menu": "menu",
+    "Looper": "looper", "Looper break": "static", "RTF": "richtext", "Tab": "tabcontrol",
+    "Splitter": "splitter", "Spin": "input",
+}
+
+# A second document layout exists alongside the compact "type header + shared
+# property list + repeated name/value rows" one already handled above: individual
+# controls are sometimes documented as their own "<Type> : <Name>" block with
+# interleaved label/value pairs (e.g. "Button : BT_ACTIVE", "Table : TABLE",
+# "Window : cr_tab"). This is unambiguous — the name is given directly — and also
+# marks a section boundary: seeing one of these must reset any in-progress
+# type/table-owner tracking from the block-style section above it, or later labels
+# specific to this format (e.g. "Opacity") get misread as more rows of whatever
+# came before (this was a real bug caught by inspecting actual output, not
+# theoretical - see DesignDecisions.md's go/no-go test log).
+SECTION_HEADER_RE = re.compile(r"^([A-Za-z][A-Za-z ]*?)\s*:\s*(.+)$")
+
+# Bare identifier-shaped tokens that are property *values* in these dumps, not control
+# names — without this, e.g. a page-footer "JCA" (the project name) or a value like
+# "Active"/"Read-onl" (PDF-truncated "Read-only") could be misread as a control header.
+VALUE_TOKENS = {
+    "Active", "Inactive", "Grayed", "Visible", "Invisible", "Yes", "No", "GB", "None",
+    "Text", "Numeric", "Currency", "Date", "Time", "Duration", "Editable", "ReadOnly",
+    "Read-onl", "Default", "Automatic", "Manual", "Single", "Multiple", "Vertical",
+    "Horizontal", "True", "False", "Search", "Filter", "Left", "Right", "Center",
+    "Top", "Bottom", "Memor", "Memory", "Linked", "Never", "Always", "Sometimes",
+}
+NUMERIC_RE = re.compile(r"^-?\d+(\.\d+)?%?$")
+
+
+def is_value_line(s):
+    return s in VALUE_TOKENS or bool(NUMERIC_RE.match(s))
 
 
 def kind_of(seg: str) -> str:
@@ -92,26 +149,21 @@ def humanize(seg: str) -> str:
     return base[:1].upper() + base[1:] if base else seg
 
 
-def is_control_header(lines, i):
-    s = lines[i].strip()
-    if not s or not NAME_RE.match(s) or " " in s:
-        return False
-    last = s.split(".")[-1]
-    m = PREFIX_RE.match(last)
-    if not m or m.group(1).upper() not in CONTROL_PREFIXES:
-        return False
-    nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
-    return nxt in PROP_KEYS
+LANG_TAG_RE = re.compile(r"^[A-Za-z]{2,4}:$")  # e.g. "AU:", "EN:", "FR:" - multilingual tag
 
 
 def read_value(block, key):
-    """Return the literal value after `key` (skipping the 'GB' multilingual marker)."""
+    """Return the literal value after `key` (skipping the 'GB' multilingual marker and any
+    leading language-tag line, e.g. "AU:", printed before the actual text for whichever
+    language the project is configured for)."""
     for j, l in enumerate(block):
         if l.strip() == key:
             vals = []
             for k in range(j + 1, len(block)):
                 v = block[k].strip()
                 if v == "GB":
+                    continue
+                if not vals and LANG_TAG_RE.match(v):
                     continue
                 if v in PROP_KEYS:
                     break
@@ -122,17 +174,101 @@ def read_value(block, key):
     return ""
 
 
+def strip_mnemonic(text):
+    """Strip WinDev's '&' Alt-key mnemonic marker (no HTML/React equivalent - see
+    CommonControlProperties.md's Hotkey entry). '&&' is the escape for a literal ampersand
+    and becomes a single '&'; a lone '&' before a letter is the mnemonic marker and is
+    dropped entirely, revealing the clean caption text."""
+    if not text:
+        return text
+    return text.replace("&&", "\x00").replace("&", "").replace("\x00", "&")
+
+
 def parse_controls(path):
     raw = open(path, encoding="utf-8").read().split("\n")
     # drop our own md header/comment lines
     lines = [l for l in raw if not l.startswith("#") and not l.startswith("_")
              and not l.startswith("<!--")]
-    headers = [i for i in range(len(lines)) if is_control_header(lines, i)]
+
+    # Single stateful pass: a control name is recognized either by its own name
+    # prefix (original convention) or, failing that, by the declared type header
+    # of the block it's structurally inside (fallback for projects like JCA that
+    # rename controls away from the IDE's auto-generated prefixes). See
+    # TYPE_HEADER_KIND / TABLE_OWNER_RE above.
+    current_kind = None
+    current_table_owner = None
+    seen_any_label = False
+    header_idx, header_kind, header_full = [], {}, {}
+
+    for i, raw_line in enumerate(lines):
+        s = raw_line.strip()
+        if not s:
+            continue
+        m_section = SECTION_HEADER_RE.match(s)
+        if m_section:
+            type_word, name_part = m_section.group(1).strip(), m_section.group(2).strip()
+            if type_word == "Table":
+                current_table_owner = name_part
+                current_kind = "column"
+            elif type_word == "Table column" and current_table_owner:
+                # individually-detailed column of whichever table we're inside
+                full = f"{current_table_owner}.{name_part}"
+                header_idx.append(i)
+                header_kind[i] = "column"
+                header_full[i] = full
+                current_kind = "column"
+            elif type_word in TYPE_HEADER_KIND:
+                # unambiguous "<Type> : <Name>" block - take the name directly and stop
+                # tracking whatever block-style section preceded this one.
+                current_kind, current_table_owner = None, None
+                header_idx.append(i)
+                header_kind[i] = TYPE_HEADER_KIND[type_word]
+                header_full[i] = name_part
+            else:
+                # unrecognized section (e.g. "Window : cr_tab" - the page itself, not a
+                # control) - still ends whatever block-style section preceded it.
+                current_kind, current_table_owner = None, None
+            seen_any_label = False
+            continue
+        if s in TYPE_HEADER_KIND:
+            current_kind = TYPE_HEADER_KIND[s]
+            if current_kind != "column":
+                current_table_owner = None
+            seen_any_label = False
+            continue
+        if s in PROP_KEYS:
+            seen_any_label = True
+            continue
+        if not NAME_RE.match(s) or " " in s or is_value_line(s):
+            continue
+        nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if nxt in PROP_KEYS:
+            # A fresh label list starts right after this line - this is noise (e.g. a
+            # page running-header artifact like the project name), not real control/
+            # column data, which is always followed by its own values, not new labels.
+            continue
+
+        last = s.split(".")[-1]
+        m = PREFIX_RE.match(last)
+        kind = None
+        if m and m.group(1).upper() in CONTROL_PREFIXES:
+            kind = PREFIX_KIND[m.group(1).upper()]
+        elif seen_any_label or current_kind is not None:
+            kind = current_kind or "control"
+        if kind is None:
+            continue
+
+        full = f"{current_table_owner}.{s}" if (kind == "column" and current_table_owner) else s
+        header_idx.append(i)
+        header_kind[i] = kind
+        header_full[i] = full
+
     nodes = {}
     order = 0
-    for s, e in zip(headers, headers[1:] + [len(lines)]):
-        full = lines[s].strip()
-        block = lines[s:e]
+    for pos, s_i in enumerate(header_idx):
+        e_i = header_idx[pos + 1] if pos + 1 < len(header_idx) else len(lines)
+        full = header_full[s_i]
+        block = lines[s_i:e_i]
         seg = full.split(".")[-1]
         def num(key):
             v = read_value(block, key)
@@ -140,7 +276,7 @@ def parse_controls(path):
             return int(m.group()) if m else None
 
         node = dict(
-            path=full, seg=seg, kind=kind_of(seg),
+            path=full, seg=seg, kind=header_kind[s_i],
             caption=read_value(block, "Caption"),
             title=read_value(block, "Title"),
             state=read_value(block, "State"),
@@ -258,10 +394,26 @@ def handler_for(seg):
     return fn
 
 
+# WinDev's own unconfigured default caption for a Tab control - not a real label. Its
+# actual per-page names live in the Tab control editor's "Static panes" list, which is
+# not captured by the technical-documentation PDF export at all (confirmed 2026-07-20 by
+# searching the full converted output for a known real pane name and finding nothing) -
+# so there's nothing to parse here; treat it the same as the unset "GB" placeholder.
+DEFAULT_TAB_CAPTION_RE = re.compile(r"^tab$", re.I)
+
+
 def label(node):
     cap = node["caption"] or node["title"]
-    if cap and cap.upper() != "GB":
-        return cap, False
+    if cap and cap.upper() != "GB" and not (
+            node["kind"] == "tabcontrol" and DEFAULT_TAB_CAPTION_RE.match(strip_mnemonic(cap))):
+        return strip_mnemonic(cap), False
+    if node["kind"] == "tabcontrol":
+        # humanize() strips a leading "XXX_" as if it were a throwaway code-organization
+        # prefix (right for most controls, e.g. BTN_Save -> "Save") - but on a tab whose
+        # real name is unrecoverable anyway (see note above), that prefix is often the
+        # only distinguishing information left (CC_Tab, JU_Tab, CB_Tab), so show it as-is
+        # rather than collapsing several different tabs down to the same word "Tab".
+        return node["seg"], True
     return humanize(node["seg"]), True   # fallback + todo flag
 
 
@@ -298,6 +450,8 @@ def build_vnode(node):
     if k == "table":
         cols = [c for c in node["children"] if c["kind"] == "column"]
         return build_table(node, cols)
+    if k == "tabcontrol":
+        return build_tabs(node)
     if k == "looper":
         kids = [build_vnode(c) for c in node["children"]]
         return V("div", "wx-looper", children=[x for x in kids if x])
@@ -417,6 +571,40 @@ def build_table(node, cols):
     ])
 
 
+def build_tabs(node):
+    """A WD Tab control's own direct children that are themselves Tab controls are its
+    pages (nested tabs recurse naturally via build_vnode); any other direct children are
+    base content shown alongside the tab strip, not inside a page of their own. Grouping
+    comes entirely from the already-correct dotted-path parent/child tree - no dependence
+    on each control's individual (unreliable-to-extract) Plane number. Unlike Table, shadcn's
+    Tabs is a complete native primitive, so this isn't flagged as a component gap - no
+    heavier library is needed."""
+    tab_kids = [c for c in node["children"] if c["kind"] == "tabcontrol"]
+    base_kids = [c for c in node["children"] if c["kind"] != "tabcontrol"]
+    base_vnodes = [x for x in (build_vnode(c) for c in base_kids) if x]
+    if not tab_kids:
+        # leaf "tab" with no sub-pages - e.g. a lone tab strip with no children captured
+        return V("div", "wx-tab-panel", children=base_vnodes) if base_vnodes else None
+
+    triggers, panels = [], []
+    for c in tab_kids:
+        lbl, todo = label(c)
+        val = c["seg"]
+        triggers.append(V("button", "wx-tab-trigger", text=lbl, todo=todo,
+                           attrs={"data-value": val}))
+        # build_vnode(c) recurses through the normal tabcontrol dispatch, so a tab-kid
+        # with its own nested sub-tabs correctly produces another nested <Tabs> here
+        # instead of having its grandchildren flattened into this page directly.
+        inner = build_vnode(c)
+        panel_kids = ([V("p", "wx-tab-panel-h", text=lbl)] if lbl else []) + ([inner] if inner else [])
+        panels.append(V("div", "wx-tab-panel", attrs={"data-value": val}, children=panel_kids))
+    if base_vnodes:
+        panels.insert(0, V("div", "wx-tab-panel", attrs={"data-value": "_base"},
+                            children=base_vnodes))
+    return V("div", "wx-tabs-root", shadcn="Tabs", children=[
+        V("div", "wx-tab-list", children=triggers)] + panels)
+
+
 # ---- HTML preview serializer ---------------------------------------------------------
 
 TW = {  # Tailwind class map for the preview (project tokens; primary = indigo-600)
@@ -441,6 +629,12 @@ TW = {  # Tailwind class map for the preview (project tokens; primary = indigo-6
     "wx-popup": "my-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2",
     "wx-popup-h": "cursor-pointer text-sm font-medium text-slate-500",
     "wx-sep": "my-3 border-t border-slate-200",
+    "wx-tabs-root": "my-3 space-y-3",
+    "wx-tab-list": "flex flex-wrap gap-1 border-b border-slate-200",
+    "wx-tab-trigger": "rounded-t-lg border border-b-0 border-slate-200 bg-slate-100 px-4 py-2 "
+                       "text-sm font-medium text-slate-600",
+    "wx-tab-panel": "rounded-b-lg rounded-tr-lg border border-slate-200 bg-white p-4 space-y-3",
+    "wx-tab-panel-h": "text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2",
     # modern app shell
     "wx-page": "min-h-screen bg-slate-50",
     "wx-appbar": "flex items-center justify-between border-b border-slate-200 bg-white "
@@ -509,6 +703,25 @@ def to_jsx(v, depth=2):
         return f'{pad}<Input type="{ty}" placeholder="{esc(ph)}" />{todo}'
     if v.shadcn == "Select":
         return f'{pad}<Select>{{/* options */}}</Select>{todo}'
+    if v.shadcn == "Tabs":
+        # v.children[0] is the trigger list, the rest are panels (see build_tabs) - both
+        # sides keyed by the same "data-value" so real shadcn Tabs state just works.
+        list_node, panels = v.children[0], v.children[1:]
+        default_val = panels[0].attrs.get("data-value", "") if panels else ""
+        triggers = "\n".join(
+            f'{pad}    <TabsTrigger value="{esc(t.attrs.get("data-value",""))}">'
+            f'{esc(t.text)}</TabsTrigger>' + ("  {/* TODO caption */}" if t.todo else "")
+            for t in list_node.children)
+        contents = "\n".join(
+            f'{pad}  <TabsContent value="{esc(p.attrs.get("data-value",""))}" '
+            f'className="{TW.get(p.cls,"")}">\n'
+            + ("\n".join(to_jsx(c, depth + 2) for c in p.children if c)
+               or f'{pad}    {{/* empty */}}')
+            + f'\n{pad}  </TabsContent>'
+            for p in panels)
+        return (f'{pad}<Tabs defaultValue="{esc(default_val)}" className="{cls}">\n'
+                f'{pad}  <TabsList>\n{triggers}\n{pad}  </TabsList>\n'
+                f'{contents}\n{pad}</Tabs>')
     attrs = "".join(f' {("className" if k=="class" else k)}="{esc(val)}"'
                     for k, val in v.attrs.items())
     cattr = f' className="{cls}"' if cls else ""
@@ -558,6 +771,7 @@ def render_tsx(page, roots):
 {proc_note}import {{ Button }} from "@/components/ui/button";
 import {{ Input }} from "@/components/ui/input";
 import {{ Select }} from "@/components/ui/select";
+import {{ Tabs, TabsList, TabsTrigger, TabsContent }} from "@/components/ui/tabs";
 
 export default function {comp}() {{{handler_block}
   return (
@@ -565,6 +779,30 @@ export default function {comp}() {{{handler_block}
   );
 }}
 """
+
+
+# ---- silent-failure guard ------------------------------------------------------------
+# The control parser recognizes a control by a known WinDev type PREFIX (EDT_, BTN_,
+# TABLE_, ...) OR, since the 2026-07 fix above, by its declared type header (prefix-less /
+# "<Type> : <Name>" dumps). This guard stays as a secondary safety net: if a dump clearly
+# holds control data (many property-label lines) but almost nothing was parsed, the format
+# was very likely still not recognized — turn that silent miss into a loud warning rather
+# than writing an empty .tsx that looks like success.
+def warn_low_yield(path, n_ctl):
+    try:
+        raw = open(path, encoding="utf-8").read().split("\n")
+    except OSError:
+        return
+    prop_hits = sum(1 for l in raw if l.strip() in PROP_KEYS)
+    if prop_hits >= 12 and n_ctl <= max(2, prop_hits // 20):
+        print(f"  !! WARNING: only {n_ctl} controls parsed, but the dump contains "
+              f"{prop_hits} control-property lines.")
+        print("     Most controls were NOT recognized - their names likely carry no WinDev "
+              "type prefix")
+        print("     (renamed to descriptive names, or a bare name like 'TABLE'). The generated "
+              ".tsx is")
+        print("     probably empty/incomplete - review it directly; don't trust the 'controls "
+              "parsed' count.")
 
 
 def main():
@@ -591,6 +829,7 @@ def main():
     n_todo = sum(1 for n in nodes.values()
                  if (n["caption"] or n["title"]).upper() in ("", "GB"))
     print(f"{page}: {n_ctl} controls parsed, {len(roots)} root zones")
+    warn_low_yield(args.page, n_ctl)
     print(f"  -> {tsx_path}")
     print(f"  -> {html_path}")
     print(f"  captions needing review (GB/empty): ~{n_todo}")

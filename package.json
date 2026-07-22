@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.7.31",
+  "version": "1.7.32",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -61,6 +61,7 @@
     "autoprefixer": "^10.4.27",
     "axios": "^1.14.0",
     "bcryptjs": "^3.0.3",
+    "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
