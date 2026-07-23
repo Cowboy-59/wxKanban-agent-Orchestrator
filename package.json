@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.7.32",
+  "version": "1.7.33",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -26,7 +26,8 @@
     "kit:stop:legacy": "node -e \"const fs=require('fs');const p=fs.readFileSync('.mcp-server.pid','utf8').trim();try{process.kill(+p)}catch(e){};fs.unlinkSync('.mcp-server.pid')\" 2>/dev/null || echo 'MCP not running'",
     "lifecycle:generate": "tsx scripts/generate-project-lifecycle.ts",
     "devplan:generate": "tsx scripts/generate-project-devplan.ts",
-    "watermark": "node scripts/watermark.mjs"
+    "watermark": "node scripts/watermark.mjs",
+    "check:getting-started": "node scripts/check-getting-started-sync.mjs"
   },
   "keywords": [],
   "author": "",
