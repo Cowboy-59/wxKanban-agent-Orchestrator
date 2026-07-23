@@ -19,7 +19,7 @@
 
 import archiver from 'archiver';
 import crypto from 'node:crypto';
-import { createReadStream, createWriteStream, existsSync, promises as fsp, statSync } from 'node:fs';
+import { createReadStream, createWriteStream, existsSync, promises as fsp, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -253,28 +253,53 @@ async function main() {
 
   log('output', c.cyan, `releases/${version}/`);
 
-  // ─── Pre-build shared/preflight so dist/ ships in the archive ────────────
-  // Spec 029 / v1.2.8 — wxkanban-agent's `@wxkanban/preflight` file:
-  // dependency resolves to shared/preflight/dist/index.js. The dist/ is
-  // .gitignored, so we build it on demand right before packing.
-  const sharedPreflightDir = path.join(root, 'shared', 'preflight');
-  if (existsSync(sharedPreflightDir)) {
-    log('prebuild', c.yellow, 'Building shared/preflight...');
+  // ─── Pre-build every shared/* package so its dist/ ships in the archive ───
+  // Spec 029 / v1.2.8 — wxkanban-agent's `@wxkanban/preflight` file: dependency
+  // resolves to shared/preflight/dist/index.js. Same for `@wxkanban/watermark`
+  // → shared/watermark/dist/index.js. Every dist/ is .gitignored AND filtered
+  // out by EXCLUDE_BASENAMES-adjacent mirroring, so we build them on demand
+  // right before packing.
+  //
+  // Discovered, not hard-coded: hard-coding `preflight` shipped a kit whose
+  // @wxkanban/watermark resolved to a package with no dist/ (field report
+  // 9cd91ed8, 2026-07-23). Any shared/<pkg> with a package.json `build` script
+  // is now pre-built, so adding a third shared package needs no edit here.
+  const sharedRoot = path.join(root, 'shared');
+  const sharedPkgDirs = existsSync(sharedRoot)
+    ? (await fsp.readdir(sharedRoot, { withFileTypes: true }))
+        .filter((e) => e.isDirectory() && e.name !== 'node_modules')
+        .map((e) => path.join(sharedRoot, e.name))
+        .filter((d) => existsSync(path.join(d, 'package.json')))
+        .filter((d) => {
+          try {
+            const pkg = JSON.parse(readFileSync(path.join(d, 'package.json'), 'utf8'));
+            return Boolean(pkg.scripts?.build);
+          } catch {
+            return false;
+          }
+        })
+    : [];
+
+  if (sharedPkgDirs.length) {
     const { execSync } = await import('node:child_process');
-    // Remove any stale tsbuildinfo that got mirrored from wxKanban; tsc -b
-    // treats it as proof the build is current and skips emitting dist/.
-    const buildInfo = path.join(sharedPreflightDir, 'tsconfig.tsbuildinfo');
-    if (existsSync(buildInfo)) await fsp.rm(buildInfo);
-    const distDir = path.join(sharedPreflightDir, 'dist');
-    if (existsSync(distDir)) await fsp.rm(distDir, { recursive: true, force: true });
-    if (!existsSync(path.join(sharedPreflightDir, 'node_modules'))) {
-      execSync('npm install', { cwd: sharedPreflightDir, stdio: 'inherit' });
+    for (const pkgDir of sharedPkgDirs) {
+      const name = path.basename(pkgDir);
+      log('prebuild', c.yellow, `Building shared/${name}...`);
+      // Remove any stale tsbuildinfo that got mirrored from wxKanban; tsc -b
+      // treats it as proof the build is current and skips emitting dist/.
+      const buildInfo = path.join(pkgDir, 'tsconfig.tsbuildinfo');
+      if (existsSync(buildInfo)) await fsp.rm(buildInfo);
+      const distDir = path.join(pkgDir, 'dist');
+      if (existsSync(distDir)) await fsp.rm(distDir, { recursive: true, force: true });
+      if (!existsSync(path.join(pkgDir, 'node_modules'))) {
+        execSync('npm install', { cwd: pkgDir, stdio: 'inherit' });
+      }
+      execSync('npx tsc -b --force', { cwd: pkgDir, stdio: 'inherit' });
+      if (!existsSync(distDir)) {
+        throw new Error(`shared/${name} prebuild produced no dist/ — investigate before packing`);
+      }
+      log('prebuild', c.green, `shared/${name}/dist ready`);
     }
-    execSync('npx tsc -b --force', { cwd: sharedPreflightDir, stdio: 'inherit' });
-    if (!existsSync(distDir)) {
-      throw new Error('shared/preflight prebuild produced no dist/ — investigate before packing');
-    }
-    log('prebuild', c.green, 'shared/preflight/dist ready');
   }
 
   // ─── Dev Cockpit — Marketplace-only (SCOPE-086) ───────────────────────────

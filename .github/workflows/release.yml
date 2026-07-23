@@ -1,9 +1,33 @@
 name: Release kit tarball
 
+# MANUAL ONLY — deliberately NOT `on: push: tags: v*`.
+#
+# The normal release path is wxKanban's `scripts/sync-to-orchestrator.mjs --release`,
+# which mirrors the kit, runs `scripts/build-release.mjs` here, uploads the four
+# assets with `gh release create`, and then SHA-verifies the published artifacts
+# (SCOPE-086 FR-001).
+#
+# When this workflow triggered on tag push it raced that flow: the tag landed,
+# this job built its own archive from a hand-maintained `cp -r` list, and
+# `action-gh-release` overwrote the assets sync had just verified. The published
+# kit therefore lost `shared/` (@wxkanban/preflight + @wxkanban/watermark →
+# "Cannot find module", dbpush dead on arrival), all 151 `.claude/` skill files,
+# and the `wxAIGit` launchers (SPEC-058 Amendment B / FR-010). Diagnosed from
+# field report 9cd91ed8 against v1.7.32 on 2026-07-23: published asset 486 files
+# / 0 under shared/, local build 587 files / 47 under shared/.
+#
+# Two fixes, both load-bearing:
+#   1. Trigger is workflow_dispatch — this can never clobber a verified release.
+#   2. The staging list is gone. This job now runs `scripts/build-release.mjs`,
+#      the same packer sync uses, so KIT_INCLUDE_DIRS/KIT_INCLUDE_FILES is the
+#      single allowlist. There is no second list to forget to update.
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag to build and publish (e.g. v1.7.33)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,13 +38,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version }}
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install root dependencies (tsx, express)
+      # `archiver` (used by build-release.mjs) is a runtime dependency, so
+      # --omit=dev covers it. --ignore-scripts is safe: build-release.mjs builds
+      # each shared/* package itself right before packing.
+      - name: Install root dependencies
         run: npm install --omit=dev --ignore-scripts --no-audit --no-fund
 
       - name: Install wxkanban-agent dependencies
@@ -31,67 +60,42 @@ jobs:
       # MCP runs only on wxKanban-operated infrastructure at mcp.wxperts.com.
       # The kit no longer ships an MCP server, so no build step is needed.
 
-      - name: Resolve version from tag
-        id: ver
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+      - name: Build kit archives
+        run: node scripts/build-release.mjs --version "${{ inputs.version }}"
 
-      - name: Assemble kit staging directory
-        # Does NOT include per-project files (.wxkanban-project.json, ai-settings.json,
-        # .env) — wxKanban's kitRoutes injects those server-side at download time
-        # per spec 019 Decision #13.
-        # Does NOT include node_modules — they are platform-specific (esbuild,
-        # bcrypt, etc. ship native binaries) and the runner is Linux-only, so
-        # shipping them breaks Windows/Mac consumers. scripts/init.mjs runs
-        # `npm install` on the consumer's machine for the right platform.
-        run: |
-          mkdir -p dist staging
-          cp -r \
-            bin \
-            wxkanban-agent \
-            _wxAI \
-            scripts \
-            .vscode \
-            CLAUDE.md \
-            AI.md \
-            ProjectOverview.md \
-            package.json \
-            package-lock.json \
-            README.md \
-            staging/
-          # Scrub any dev-only/noise artifacts that may have slipped in
-          find staging -type d -name '.history' -prune -exec rm -rf {} +
-          # Strip every node_modules under staging — they were installed on the
-          # Linux runner for build steps but must not ship in the kit.
-          find staging -type d -name 'node_modules' -prune -exec rm -rf {} +
-
+      # spec 028 / T055 — run the guard against what actually got packed, not
+      # against a separately assembled staging dir that could drift from it.
       - name: Verify no Postgres deps or mcp-server in kit (spec 028 T055)
-        run: bash scripts/check-no-pg-in-kit.sh staging
-
-      - name: Build kit.tar.gz (Unix/Mac)
-        working-directory: staging
-        run: tar -czf ../dist/kit.tar.gz .
-
-      - name: Build kit.zip (Windows)
-        working-directory: staging
-        run: zip -rq ../dist/kit.zip .
-
-      - name: Compute checksums
-        working-directory: dist
         run: |
-          sha256sum kit.tar.gz > kit.tar.gz.sha256
-          sha256sum kit.zip    > kit.zip.sha256
+          mkdir -p staging
+          tar -xzf "releases/${{ inputs.version }}/kit.tar.gz" -C staging
+          bash scripts/check-no-pg-in-kit.sh staging
+
+      # Guard against the regression this workflow itself caused: a kit without
+      # shared/ bricks dbpush, and one without .claude/ ships no skills.
+      - name: Verify kit completeness
+        run: |
+          set -euo pipefail
+          for p in shared/preflight/dist/index.js shared/watermark/dist/index.js .claude wxAIGit; do
+            if [ ! -e "staging/$p" ]; then
+              echo "ERROR: packed kit is missing $p" >&2
+              exit 1
+            fi
+          done
+          echo "OK: shared/ dists, .claude/, and wxAIGit present in the packed kit."
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          name: wxKanban Orchestrator Kit ${{ steps.ver.outputs.version }}
+          tag_name: ${{ inputs.version }}
+          name: wxKanban Orchestrator Kit ${{ inputs.version }}
           body: |
-            ## wxKanban Orchestrator Kit ${{ steps.ver.outputs.version }}
+            ## wxKanban Orchestrator Kit ${{ inputs.version }}
 
-            Auto-built from tag `${{ steps.ver.outputs.version }}`.
+            Built from tag `${{ inputs.version }}` by `scripts/build-release.mjs`.
 
             **Artifacts:**
-            - `kit.tar.gz` — full kit bundle for Unix/Mac (runtime dependencies included)
+            - `kit.tar.gz` — full kit bundle for Unix/Mac
             - `kit.zip` — full kit bundle for Windows (same contents, zip format)
             - `kit.tar.gz.sha256` / `kit.zip.sha256` — SHA-256 checksums
 
@@ -100,7 +104,7 @@ jobs:
 
             See `CLAUDE.md` in the archive for orientation.
           files: |
-            dist/kit.tar.gz
-            dist/kit.tar.gz.sha256
-            dist/kit.zip
-            dist/kit.zip.sha256
+            releases/${{ inputs.version }}/kit.tar.gz
+            releases/${{ inputs.version }}/kit.tar.gz.sha256
+            releases/${{ inputs.version }}/kit.zip
+            releases/${{ inputs.version }}/kit.zip.sha256
