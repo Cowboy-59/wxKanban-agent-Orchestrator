@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.7.33",
+  "version": "1.7.34",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -15,7 +15,6 @@
     "lint:i18n": "node scripts/check-hardcoded-strings.mjs",
     "test:unit": "vitest run tests/unit",
     "test:watch": "vitest",
-    "kit:build": "cd mcp-server && npx tsc",
     "kit:start": "node scripts/kit-start.mjs",
     "kit:start:legacy": "node scripts/setup-mcp.mjs && node scripts/setup-gateway.mjs",
     "kit:start:mcp": "node scripts/setup-mcp.mjs",

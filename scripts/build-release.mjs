@@ -62,7 +62,12 @@ if (!version.startsWith('v')) version = `v${version}`;
 // `@wxkanban/preflight` file: dependency resolves on consumer machines
 // after extract. Without this, dbpush crashes on a freshly upgraded kit
 // with "Cannot find module '@wxkanban/preflight'".
-const KIT_INCLUDE_DIRS  = ['bin', 'wxkanban-agent', 'mcp-server', '_wxAI', 'scripts', '.vscode', '.claude', 'shared'];
+// `mcp-server` is deliberately ABSENT: the MCP runs only on wxKanban-operated
+// infrastructure (spec 019 Decision #1 + spec 028), the orchestrator repo has no
+// mcp-server/ to pack, and check-no-pg-in-kit.sh FAILS the build if one ever
+// appears. Listing it made a real omission (shared/) hard to tell apart from an
+// intentional one during the v1.7.32 diagnosis — see field report 9cd91ed8.
+const KIT_INCLUDE_DIRS  = ['bin', 'wxkanban-agent', '_wxAI', 'scripts', '.vscode', '.claude', 'shared'];
 // SPEC-058 Amendment B / FR-010 — the wxAIGit launchers ship at project root so
 // the Cockpit's scope check-out can create the branch. Backing scripts live under
 // scripts/wxaigit/ (scripts/ is already in KIT_INCLUDE_DIRS).
