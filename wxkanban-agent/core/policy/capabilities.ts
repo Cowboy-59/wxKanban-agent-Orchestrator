@@ -78,6 +78,17 @@ export const gateTable: Readonly<Record<Capability, CapabilityGate>> = {
     requiresVerifiedSpec: true,
     allowsEscalation: false,
   },
+  // [SCOPE 111 / T042] Both release capabilities MUST consult the test gate
+  // before promoting, once a handler exists for them (there is none today —
+  // these are declared capabilities with no implementation yet).
+  //
+  // Call `project.test_gate_status` and refuse on any forced item it reports:
+  //   prepareRelease  → requirement 'ai'   (the pre-UAT machine gate)
+  //   finalizeRelease → requirement 'all'  (every forced item, project-wide)
+  //
+  // Do NOT re-derive the verdict here. The application's phase views read the
+  // same tool, and a second implementation will disagree with the first exactly
+  // at a release — the moment it costs the most to be wrong about.
   [Capability.PrepareRelease]: {
     allowedPhases: [LifecycleStage.Beta],
     requiresVerifiedSpec: true,

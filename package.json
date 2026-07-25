@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.7.36",
+  "version": "1.7.37",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -26,7 +26,8 @@
     "lifecycle:generate": "tsx scripts/generate-project-lifecycle.ts",
     "devplan:generate": "tsx scripts/generate-project-devplan.ts",
     "watermark": "node scripts/watermark.mjs",
-    "check:getting-started": "node scripts/check-getting-started-sync.mjs"
+    "check:getting-started": "node scripts/check-getting-started-sync.mjs",
+    "test:e2e": "playwright test"
   },
   "keywords": [],
   "author": "",
@@ -94,6 +95,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.0",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/fs-extra": "^11.0.4",
     "@types/multer": "^2.1.0",

@@ -433,9 +433,29 @@ Plans, signoffs, findings, and items land in wxKanban via the orchestrator, not 
 
 - Plan, report, schema analysis & each signoff doc → `mcp__wxkanban__project_upsert_document`
   (non-empty `doctype`, e.g. `testplan` / `testreport` / `schemaanalysis` / `signoff`).
-- Test items (app **and** `layer: data`) → `mcp__wxkanban__project_create_task`, one per item, using
-  the field mapping in `references/test-item-schema.md` (§ *wxKanban insert mapping*), then
-  `project_link_task_to_spec`. This is what makes the plan live **in the database** (source of truth).
+- **Test items → `mcp__wxkanban__project_upsert_test_plan` (SCOPE-111).** One call carries the whole
+  suite for the scope. This replaces the old one-task-per-item filing, which flattened every item into
+  a task row with a single `results` column and threw the criteria away. Items are now first-class:
+  queryable, re-runnable, gateable, and rendered to a human tester as steps rather than a title.
+
+  Two fields decide everything downstream, and they are **independent**:
+
+  | Field | Means | Set by |
+  |---|---|---|
+  | `executor` | **Who runs it.** `machine` = you run it in QA. `human` = a person runs it in UAT. | The nature of the test |
+  | `origin` | **Who wrote it.** `ai` for everything you author; `user` only for tester-added items. | Always `ai` from this command |
+
+  You author BOTH sets in this one pass. Anything needing a person's eyes, judgement, or a real
+  workflow is `executor: human` — it is stored now and withheld from testers until the release is
+  promoted to UAT. Do not omit human items because you cannot run them; that is precisely what they
+  are for.
+
+  Declare each item's `subjects` — the code it exercises, one per screen for a multi-screen flow.
+  Change-impact analysis walks the dependency graph from these, and an item with no subject **fails
+  safe to Retest** on every release, so a missing subject costs a person real time later.
+
+  Matching is on the immutable `itemKey`, so re-running updates in place and preserves accumulated
+  results and signoffs. Task rows are optional cross-references now, not the storage.
 - **Clarifications Required** → `mcp__wxkanban__project_submit_feedback` **first**, before any item
   that depends on one. An item with `requirementId: null` and no filed clarification has no provenance.
 - `CODE-BUG` / `SPEC-GAP` findings, **schema-analysis findings** (unenforced FKs, missing/excessive
@@ -447,7 +467,52 @@ Plans, signoffs, findings, and items land in wxKanban via the orchestrator, not 
   before the signoff is recorded.
 
 Show the user the filing manifest — counts by type and exact titles — and let them confirm before
-filing. Filing 200 tasks is not an undoable action to take on your own initiative.
+filing. Filing 200 items is not an undoable action to take on your own initiative.
+
+---
+
+## Phase 7 — Executing a run (`--Execute` only)
+
+Execution is **machine items only**. A human item reaching a runner is a category error, and the
+server refuses it.
+
+1. **`project.start_test_run`** with the current app version. It returns the **ordered list** the run
+   will execute. **Narrate that list to the user before running anything** — the same list is what
+   the project's QA view shows, so a teammate who never sees this conversation can follow along.
+2. **`project.report_test_progress`** twice per item: `currentItemId` as you begin it, then
+   `itemId` + `status` when it finishes. Skipping the first makes the live view useless — it is the
+   difference between watching a run and waiting for a verdict.
+3. **`project.complete_test_run`** at the end, always. An abandoned run reads as *stalled*, not
+   finished, and stays that way.
+4. **`project.sign_off_test`** for each item the run **proved**. Refused unless that run passed the
+   item — a signoff is a claim about evidence, and the QA gate would be self-certifying otherwise.
+
+### Reporting change impact (before a release goes to UAT)
+
+You hold the code, so you compute reachability; the application decides what it means for testing.
+Post it with **`project.report_change_impact`**:
+
+- Send the changed files **and their transitive dependents** — an item is marked when its subject
+  depends on a changed file through *any* chain of imports, not only when the change landed in the
+  file the item names. A direct-match-only graph misses a service change reaching a screen test three
+  layers up, which ships a defect under a green human signoff.
+- **Stamp it with the commit** you computed it from. A mismatch against the cycle under test is
+  refused, and without the stamp a wrongly-computed graph marks the wrong items undetectably.
+- If the dependent set is too large, set **`broad: true`** rather than truncating. A truncated set
+  that looks complete produces confidently wrong marking; a declared-broad analysis simply asks
+  everyone to re-test, which is honest.
+- Changes with **no import edges** — migrations, config, environment, static content, dependency
+  upgrades — still change behaviour. Map a migration to items whose subjects touch the affected
+  tables. This is where under-marking actually happens.
+
+Over-marking costs a tester one dismissal with a reason. Under-marking ships a bug under a signoff
+that says it was verified. **Err wide.**
+
+### Before promoting
+
+`project.test_gate_status` answers whether forced tests clear the gate — `ai` before UAT, `all`
+before production. It is the same verdict the application's phase views use, so there is no second
+opinion to reconcile.
 
 ---
 
