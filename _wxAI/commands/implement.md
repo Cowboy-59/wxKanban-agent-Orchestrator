@@ -57,6 +57,23 @@ the changes this run produced — it never blocks completion; implement is alrea
 - [ ] Print the review findings (ordered by severity: must-fix / should-fix / nit) after the implement report.
 - [ ] Do **not** auto-apply fixes, edit code, restyle, or mark tasks blocked based on the review — surface findings for the user to act on. must-fix findings are called out prominently but do not fail the run.
 
+### Phase 5: Create / Refresh the Test Plan (wxCreateTestPlan)
+After the review, create or refresh the **scope's** test plan so the implemented behavior has
+requirement-traceable coverage. This is **advisory and non-blocking** — implement is already reported
+done — and runs in **PLAN mode only** (it does not `--Execute`; running the signoff gates is a
+separate, explicit user action).
+
+- [ ] Determine the **scope** this spec implements: read the spec's `Implements SCOPE-NNN` line (or the
+  scope whose `**Implemented By**` lists this spec). Fall back to the spec number if no scope is found.
+- [ ] Invoke the test-plan command with the scope as its parameter:
+  `/wxCreateTestPlan SCOPE-<n>` (requirement-driven — it derives items from the scope's spec `FR-###`,
+  runs the deterministic inventory + **database schema analysis**, and files the plan into wxKanban).
+- [ ] Respect that command's own gates — it **stops at its Phase-2A coverage summary for approval**
+  before writing item bodies; do not auto-approve volume on the user's behalf.
+- [ ] Surface the coverage summary + schema-analysis referential-integrity score after the review
+  findings. Do **not** execute tests, mutate a database, or file 200 tasks without the user's go-ahead
+  at that command's manifest-confirm gate.
+
 ## Output Format
 ```
 implement Report (MCP Project Hub)
