@@ -196,11 +196,46 @@ These items carry `gate: ui-flow` and run under Playwright. Trace them to the ow
        not fall back to the prod connection.
      - **Explicit `TEST_DATABASE_URL`** — a disposable non-prod URL the user sets for this session.
        The guard hard-refuses any URL resolving to the `.env` host or `*.rds.amazonaws.com` prod host.
+     - **A cloned TEST SCHEMA (preferred when no separate host exists).** Postgres isolates by
+       schema as well as by database, so the CRUD tier can run against a disposable schema in the
+       *same* database without a second host and without touching production tables. **Offer this
+       before hard-stopping** — a hard-stop when a safe path exists is a worse answer than using it.
+
+       ```bash
+       node _wxAI/skills/wxCreateTestPlan/scripts/clone-test-schema.mjs --create   # → wxktest_<id>
+       # run the gate with:  SET search_path TO wxktest_<id>, public;
+       node _wxAI/skills/wxCreateTestPlan/scripts/clone-test-schema.mjs --drop --name wxktest_<id>
+       ```
+
+       What it does and why it is trustworthy:
+       - Clones the **live** schema (not the migration files — this repo's drizzle snapshots stop at
+         `0009` while migrations run past `0055`, so the files no longer describe reality).
+       - Two passes: `CREATE TABLE (LIKE … INCLUDING ALL)` for structure, indexes and CHECKs, then
+         foreign keys re-emitted from `pg_constraint`. **`INCLUDING ALL` does not copy foreign keys** —
+         a one-pass clone silently loses them, and a clone without FKs lets a test pass that
+         production would reject.
+       - **Verifies fidelity** and prints `clone / source` counts for tables, FKs, CHECKs and indexes.
+         If they do not match it says `faithful: false` and exits non-zero — **do not run the CRUD
+         gate against an unfaithful clone.**
+       - Safety: every clone name carries the `wxktest_` prefix, and `--drop` refuses any name
+         without it, so the teardown can never reach `public`.
+       - The clone is **structure-only — it starts empty.** Seed a *coherent* FK chain before the
+         first write (a naive one-row-per-table seed fails, because the clone enforces referential
+         integrity exactly as production does). Each `layer: data` item's `seedScript` covers this.
+
+       Verified on wxKanban 2026-07-25: 127/127 tables, 179/179 FKs, 342/342 indexes; the
+       `chk_testsignoffs_executor_match` and `fk_testsignoffs_item_executor` constraints both fired
+       inside the clone, and `public` row counts were unchanged.
    - **Production is forced to UAT.** Any target that would resolve to production is redirected to
      UAT; there is no PROD write path.
 4. **Hard stops** — refuse and say why:
-   - Any test whose DB connection resolves to the **production RDS host** and mutates.
-   - CRUD tier requested but no verified non-prod DB (MCP-UAT unverified **and** no `TEST_DATABASE_URL`).
+   - Any test whose DB connection resolves to the **production RDS host** and mutates **against the
+     `public` schema**. A cloned `wxktest_` schema is not this case: the writes cannot reach
+     production tables.
+   - CRUD tier requested but no verified non-prod DB **and** no cloned test schema — i.e. only after
+     the clone route above has been offered and declined or has failed.
+   - A clone that reports `faithful: false` — its constraint set does not match production, so a
+     pass proves nothing.
    - Any test that would send real email/SMS, charge Stripe, or push to a live PM system.
 
 ---
@@ -361,6 +396,25 @@ otherwise break every generated test at import time:
 Leave **drizzle real** so schema SQL is exercised; route tests stub the service layer rather than
 faking postgres-js rows. Stub Stripe, SES, S3, Gemini, and PM-system SDKs. `vitest` is already a root
 devDep — no per-package install needed.
+
+### Running the CRUD tier against a cloned schema
+
+When the CRUD tier is using a `wxktest_` clone (Phase 0), the harness needs three things and nothing
+else — the application's own queries are unqualified, so they follow `search_path` without a single
+code change:
+
+1. **Set the search path on every connection**, not once globally:
+   `SET search_path TO wxktest_<id>, public`. A pooled connection that misses this writes to
+   `public` — i.e. production. Set it in a `beforeEach`/connection hook, never assume it persists.
+2. **Seed a coherent FK chain first.** The clone is empty and enforces referential integrity
+   exactly as production does, so parents must exist before children. Copy a *related* set
+   (company → user → project → spec), not one arbitrary row per table.
+3. **Drop the clone in teardown**, and treat failure to drop as a finding — an orphaned
+   `wxktest_` schema is clutter in a production database. `--list` enumerates any left behind.
+
+A test that mutates while `search_path` still points at `public` is the one failure mode this
+arrangement cannot catch for you. Assert the path inside the harness:
+`SELECT current_schema()` must return the clone before the first write.
 
 ---
 
