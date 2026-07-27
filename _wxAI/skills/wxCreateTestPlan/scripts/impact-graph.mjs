@@ -166,10 +166,74 @@ if (out.length > MAX_DEPENDENTS) {
   process.exit(0);
 }
 
-console.log(JSON.stringify({ commitsha, changedFiles, dependents: out }, null, 2));
 
-// Changes with NO import edges still change behaviour and are invisible above:
-// migrations, config, env, static content, dependency upgrades. Map those by
-// their own rules — a migration to the items whose subjects touch the affected
-// tables — and merge them into changedFiles before posting. This is where
-// under-marking actually happens.
+// --- FR-049b3: changes with NO import edges --------------------------------
+// Nothing imports a migration, a lockfile, or a stylesheet, so the transitive
+// walk above reaches nothing from them and the change would read as affecting
+// no tests. The runner classifies them because it is the only party holding the
+// code; the application decides what each one means for testing.
+//
+// A migration is the one kind that maps precisely, via the tables it alters —
+// and the one with the highest consequence when missed, because a column or
+// constraint change reaches every screen reading it through code that never
+// mentions the file. So its tables are extracted here rather than guessed there.
+function classifyEdgeless(path) {
+  const p = path.toLowerCase();
+  if (/(^|\/)src\/db\/migrations\/.*\.sql$/.test(p) || /(^|\/)migrations\/.*\.sql$/.test(p)) return 'migration';
+  if (/(^|\/)\.env(\.|$)/.test(p)) return 'env';
+  if (/(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|package\.json)$/.test(p)) return 'dependency';
+  if (/\/(locales?|i18n)\//.test(p)) return 'static';
+  if (/\.(json|ya?ml|toml|ini|conf)$/.test(p)) return 'config';
+  if (/\.(css|scss|svg|png|jpe?g|webp|ico|woff2?|md|html)$/.test(p)) return 'static';
+  return null;
+}
+
+// Tables a migration touches. Deliberately generous — every DDL/DML form that
+// names a table — because an omission here silently under-marks, while an extra
+// table costs one dismissal. Returns [] when nothing could be read, which the
+// application treats as unresolvable and marks everything.
+const TABLE_RE = [
+  /\bALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?["']?([a-z0-9_]+)["']?/gi,
+  /\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?[^\s]+\s+ON\s+["']?([a-z0-9_]+)["']?/gi,
+  /\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?([a-z0-9_]+)["']?/gi,
+  /\bDROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?["']?([a-z0-9_]+)["']?/gi,
+  /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+["']?([a-z0-9_]+)["']?/gi,
+  /\bON\s+["']?([a-z0-9_]+)["']?\s*\(/gi,
+];
+function migrationTables(path) {
+  let sql;
+  try {
+    sql = readFileSync(join(ROOT, path), 'utf8');
+  } catch {
+    return [];
+  }
+  // Strip -- comments so a table named only in prose is not counted.
+  sql = sql.replace(/--.*$/gm, ' ');
+  const found = new Set();
+  for (const re of TABLE_RE) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(sql)) !== null) if (m[1]) found.add(m[1].toLowerCase());
+  }
+  return [...found];
+}
+
+const edgeless = [];
+for (const path of changedFiles) {
+  const kind = classifyEdgeless(path);
+  if (!kind) continue;
+  const entry = { path, kind };
+  if (kind === 'migration') {
+    entry.tables = migrationTables(path);
+    entry.note = entry.tables.length
+      ? `migration alters: ${entry.tables.join(', ')}`
+      : 'tables could not be read from the migration — application will mark every human test';
+  }
+  edgeless.push(entry);
+}
+
+console.log(JSON.stringify({ commitsha, changedFiles, dependents: out, edgeless }, null, 2));
+
+// FR-049b3 is implemented above: edgeless changes are classified and, for a
+// migration, the altered tables are extracted so the application can map them to
+// the items whose subjects cover those tables.

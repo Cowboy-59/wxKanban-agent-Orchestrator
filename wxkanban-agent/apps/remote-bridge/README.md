@@ -8,21 +8,21 @@ streams in, your messages drive the session, and you can start/answer/steer/stop
 
 Set these in the project's `.env` (each repo has its own, so the room is per-project):
 
-Auth is **hybrid** (YappChat spec 091): the bridge **posts** as the Claude agent using a
+Auth is **hybrid** (YappChatt spec 091): the bridge **posts** as the Claude agent using a
 per-room token, and **reads** your control messages over the WebSocket using a broker session.
 
 | Variable | Required | Default | Purpose |
 |----------|----------|---------|---------|
-| `WXKANBAN_REMOTE_ROOM_ID` | **yes** | — | The private YappChatt room's `conversationId`. Provision the room in YappChat first. |
-| `WXKANBAN_YAPPCHAT_TOKEN` | **yes** | — | **Write** identity — the per-room agent token (`yca_…`). In the YappChat web app, open the room → **Connect Claude** → copy. Posts are authored as "Claude". Per-room + revocable. |
-| `WXKANBAN_CHAT_EMAIL` | **yes** | — | **Read** identity — the operator email the broker mints the session from (e.g. `you@example.com`). Needed so you can steer / approve pushes from the phone (the agent token can't read). |
-| `WXKANBAN_CHAT_DISPLAY_NAME` | no | the email | Display name of the read session. |
+| `YAPPCHATT_ROOM` | **yes** | — | The private YappChatt room's `conversationId`. Provision the room in YappChatt first. Deprecated aliases: `WXKANBAN_YAPPCHATT_ROOM`, `WXKANBAN_YAPPCHAT_ROOM`, `WXKANBAN_REMOTE_ROOM_ID`. |
+| `YAPPCHATT_TOKEN` | **yes** | — | **Write** identity — the per-room agent token (`yca_…`). In the YappChatt web app, open the room → **Connect Claude** → copy. Posts are authored as "Claude". Per-room + revocable. |
+| `YAPPCHATT_EMAIL` | **yes** | — | **Read** identity — the operator email the broker mints the session from (e.g. `you@example.com`). Needed so you can steer / approve pushes from the phone (the agent token can't read). |
+| `YAPPCHATT_DISPLAY_NAME` | no | the email | Display name of the read session. Deprecated alias: `WXKANBAN_CHAT_DISPLAY_NAME`. |
 | `WXKANBAN_REMOTE_MODEL` | no | SDK default | Model override for the session. |
 | `WXKANBAN_REMOTE_SEED` | no | — | Text seeded as the first turn (GO REMOTE context handoff). |
 | `WXKANBAN_REMOTE_RESUME` | no | — | Resume a prior session id instead of starting fresh. |
-| `WXKANBAN_APP_BASE_URL` / `WXKANBAN_YAPPCHAT_BASE_URL` / `WXKANBAN_WS_URL` | no | hosted defaults | Override broker / YappChat / websocket endpoints. |
+| `YAPPCHATT_URL` / `YAPPCHATT_WS_URL` / `WXKANBAN_APP_BASE_URL` | no | hosted defaults | Override broker / YappChatt / websocket endpoints. Deprecated aliases: `WXKANBAN_YAPPCHATT_URL`, `WXKANBAN_YAPPCHAT_URL`, `WXKANBAN_YAPPCHAT_BASE_URL`, `WXKANBAN_WS_URL`. |
 
-The YappChat **consumer secret is never used here** — it stays server-side in the broker
+The YappChatt **consumer secret is never used here** — it stays server-side in the broker
 (`/api/community/session`) for the read session. The agent token is the only credential the
 bridge holds for **posting**; it can only post to the room it was minted for.
 
@@ -61,5 +61,5 @@ control signals instead:
   without your word. `CONFIRMED` on `main` deploys, so the branch/remote are named in the prompt.
 - Claude posts as a distinct **agent** user (`isagent`), so its lines render on the left as
   "🤖 Claude" automatically — no content prefix. The bridge drops its own echoes by that flag
-  (translation-proof), so your messages always get through. YappChat auto-translates Claude's
+  (translation-proof), so your messages always get through. YappChatt auto-translates Claude's
   **prose** into members' languages; code/command output is left as-is.

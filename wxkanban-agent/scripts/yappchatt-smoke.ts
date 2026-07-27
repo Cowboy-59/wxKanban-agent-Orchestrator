@@ -15,7 +15,10 @@ function loadRepoEnv(): void {
   const envPath = join(REPO_ROOT, ".env");
   if (!existsSync(envPath)) return;
   for (const line of readFileSync(envPath, "utf-8").split(/\r?\n/)) {
-    const m = /^\s*(WXKANBAN_[A-Z0-9_]+)\s*=\s*(.+)$/.exec(line);
+    // Both families: the bare YAPPCHATT_* connection vars and the WXKANBAN_* bridge
+    // vars. Filtering on the WXKANBAN_ prefix alone would silently skip every
+    // canonical connection var and leave the resolver reporting them unset.
+    const m = /^\s*((?:WXKANBAN|YAPPCHATT)_[A-Z0-9_]+)\s*=\s*(.+)$/.exec(line);
     if (!m) continue;
     const key = m[1];
     // strip inline comments (whitespace + #...), trailing ws, then surrounding quotes
@@ -44,7 +47,11 @@ function projectName(): string {
 
 async function main(): Promise<void> {
   loadRepoEnv();
-  if (!process.env.WXKANBAN_CHAT_EMAIL) process.env.WXKANBAN_CHAT_EMAIL = "andy@wxperts.com";
+  // Publish the resolved project name so the config resolver can use it as the
+  // read session's display name (.wxai/project.json and the repo directory are
+  // not visible from core/).
+  if (!process.env.WXKANBAN_PROJECT_NAME) process.env.WXKANBAN_PROJECT_NAME = projectName();
+  if (!process.env.YAPPCHATT_EMAIL && !process.env.WXKANBAN_CHAT_EMAIL) process.env.YAPPCHATT_EMAIL = "andy@wxperts.com";
 
   const { config, user } = resolveYappchattConfig();
   const announce = `Claude on project ${projectName()} is connected`;

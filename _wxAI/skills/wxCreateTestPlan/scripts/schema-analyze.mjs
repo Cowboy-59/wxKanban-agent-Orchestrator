@@ -68,13 +68,46 @@ for (const file of files) {
   while ((m = tableRe.exec(text))) {
     const [, constName, tableName] = m;
     const startIdx = m.index;
-    // Slice a generous window from the pgTable( to the matching close — walk parens.
+    // Slice from the pgTable( to the matching close by walking parens — but count
+    // ONLY parens that are actually code.
+    //
+    // A naive walk counts them inside comments and string literals too, so a
+    // single unbalanced paren in prose ("...on its own line after references(.")
+    // means depth never returns to zero, `end` stays at the opening paren, and the
+    // body comes out as the one-character string "(". The table then parses as
+    // having no columns at all — which the audit reports as "no primary key
+    // declared", "missing createdat", and "island table", while the real table is
+    // simply absent from every other check. It is the most dangerous failure shape
+    // available: a table disappears from the audit and the report still looks
+    // healthy. So skip comments and strings while counting.
     const openParen = text.indexOf('(', m.index);
     let depth = 0;
-    let end = openParen;
+    let end = -1;
     for (let i = openParen; i < text.length; i++) {
-      if (text[i] === '(') depth++;
-      else if (text[i] === ')') {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (ch === '/' && next === '/') {
+        const nl = text.indexOf('\n', i);
+        i = nl === -1 ? text.length : nl;
+        continue;
+      }
+      if (ch === '/' && next === '*') {
+        const close = text.indexOf('*/', i + 2);
+        i = close === -1 ? text.length : close + 1;
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        for (let j = i + 1; j < text.length; j++) {
+          if (text[j] === '\\') { j++; continue; }
+          if (text[j] === ch) { i = j; break; }
+          if (j === text.length - 1) i = j;
+        }
+        continue;
+      }
+
+      if (ch === '(') depth++;
+      else if (ch === ')') {
         depth--;
         if (depth === 0) {
           end = i;
@@ -82,18 +115,59 @@ for (const file of files) {
         }
       }
     }
+    if (end === -1) {
+      // Genuinely unbalanced source. Say so rather than emitting a table with no
+      // columns, which reads as a schema defect instead of a parser failure.
+      console.error(
+        `schema-analyze: could not find the end of pgTable("${tableName}") in ${rel} — table SKIPPED, not analysed`,
+      );
+      continue;
+    }
     const body = text.slice(openParen, end + 1);
 
     // Columns: `name: <builder>("dbname", ...)....` on the first object arg.
     const columns = new Map();
     const colRe = /(\w+)\s*:\s*(uuid|varchar|text|integer|bigint|boolean|timestamp|jsonb|json|numeric|real|serial|date|time|smallint|doublePrecision)\(\s*["'`]([^"'`]+)["'`]([^,\n]*)/g;
+    // Two passes. The first only locates every column declaration; the second
+    // reads each one within a window bounded by the NEXT declaration.
+    //
+    // This bound is load-bearing. The window used to be a flat 400 characters
+    // from the column's own start, which spills freely into the columns that
+    // follow — so a column absorbed a later column's .references() and was
+    // reported as a foreign key to a table it has nothing to do with
+    // ("FK 'commitsha' → userprofiles.id", "FK 'password' → companies.id").
+    // Bounding each column to its own declaration is what makes col.ref mean
+    // what it says.
+    const colMatches = [];
     let c;
-    while ((c = colRe.exec(body))) {
+    while ((c = colRe.exec(body))) colMatches.push(c);
+
+    for (let ci = 0; ci < colMatches.length; ci++) {
+      const c = colMatches[ci];
       const [, prop, type, dbname, tail] = c;
-      // The column's full chain runs to the next top-level `,\n    <ident>:` — approximate with a slice.
       const chainStart = c.index;
-      const chain = body.slice(chainStart, chainStart + 400);
-      const refM = /references\(\(\)\s*=>\s*(\w+)\.(\w+)\s*(?:,\s*\{\s*onDelete:\s*["'`](\w+)["'`])?/.exec(chain);
+      const chainEnd = ci + 1 < colMatches.length ? colMatches[ci + 1].index : body.length;
+      const chain = body.slice(chainStart, chainEnd);
+      // Matching .references() is fiddlier than it looks, and getting it wrong is
+      // expensive in both directions — a missed match invents an "unenforced FK",
+      // a missed onDelete invents a "no onDelete rule". Three forms all appear in
+      // this codebase and all must match:
+      //
+      //   .references(() => t.id, { onDelete: "cascade" })            one line
+      //   .references(\n  () => t.id,\n  { onDelete: "set null" },\n) argument on its own line
+      //   .references((): AnyPgColumn => t.id, { onDelete: "cascade" }) self-reference
+      //
+      // Hence: allow whitespace after `references(`; allow a return-type
+      // annotation between the empty parameter list and the arrow; and capture the
+      // onDelete VALUE as [^"'`]+ rather than \w+ — "set null" contains a space,
+      // so \w+ silently failed on every set-null FK in the repository while
+      // "cascade" matched, which read as "only set-null FKs lack a rule".
+      // onDelete is also matched anywhere inside the options object, since it may
+      // follow onUpdate or sit on its own line.
+      const refM =
+        /references\(\s*\(\s*\)\s*(?::[^=]*)?=>\s*(\w+)\.(\w+)\s*(?:,\s*\{[^}]*onDelete:\s*["'`]([^"'`]+)["'`])?/.exec(
+          chain,
+        );
       columns.set(prop, {
         prop,
         type,
@@ -105,6 +179,41 @@ for (const file of files) {
         varcharLen: type === 'varchar' ? (/\{\s*length:\s*(\d+)/.exec(tail || chain)?.[1] ?? null) : null,
         ref: refM ? { table: refM[1], col: refM[2], onDelete: refM[3] || null } : null,
       });
+    }
+
+    // Composite foreign keys, declared in the table-extras callback rather than
+    // on the column:
+    //
+    //   foreignKey({ columns: [table.itemid, table.itemexecutor],
+    //                foreignColumns: [other.id, other.executor] }).onDelete("cascade")
+    //
+    // Every column named here IS enforced. Without this pass each one reads as an
+    // "unenforced/implicit FK", which is the opposite of the truth — a composite FK
+    // is a stronger guarantee than a single-column one, not a weaker one.
+    const compositeFkCols = new Map();
+    const cfkRe = /foreignKey\(\s*\{([\s\S]*?)\}\s*\)(?:\s*\.onDelete\(\s*["'`]([^"'`]+)["'`]\s*\))?/g;
+    let cf;
+    while ((cf = cfkRe.exec(body))) {
+      const cfg = cf[1];
+      const onDelete = cf[2] || null;
+      const own = /columns:\s*\[([^\]]*)\]/.exec(cfg);
+      const foreign = /foreignColumns:\s*\[([^\]]*)\]/.exec(cfg);
+      if (!own) continue;
+      const ownCols = [...own[1].matchAll(/table\.(\w+)/g)].map((x) => x[1]);
+      const foreignRef = foreign ? /(\w+)\.(\w+)/.exec(foreign[1]) : null;
+      for (const p of ownCols) {
+        compositeFkCols.set(p, {
+          table: foreignRef?.[1] ?? null,
+          col: foreignRef?.[2] ?? null,
+          onDelete,
+          composite: true,
+          members: ownCols,
+        });
+      }
+    }
+    for (const [prop, ref] of compositeFkCols) {
+      const existing = columns.get(prop);
+      if (existing && !existing.ref) existing.ref = ref;
     }
 
     // Indexes: index("idx")/uniqueIndex("uq").on(table.a, table.b)
@@ -129,7 +238,20 @@ const orphanDataSql = [];
 // are excluded here (they're flagged separately as naming violations) to avoid FK false positives.
 const FK_STOP = /^(paid|said|valid|void|grid|rapid|solid|rigid|fluid|avoid|uuid|guid|android|hybrid|acid|arid|lucid|vivid|humid|liquid|candid|squid|orchid|pyramid|overpaid|unpaid|prepaid|repaid|forbid|amid|mid|bid|kid|lid|rid|hid|grid)$/;
 const isFkName = (prop) => /^[a-z][a-z0-9]*id$/.test(prop) && prop !== 'id' && !FK_STOP.test(prop);
+// The name test alone is not enough. Every primary key in this schema is UUID v7,
+// so a real foreign key is necessarily a `uuid` column — whereas a varchar column
+// whose name happens to end in "id" is a text key and can never reference one.
+// Two live examples: testplanitems.requirementid holds 'FR-005', and
+// testitemsubjects.unitid holds 'express-route:POST /auth/signin'. Demanding the
+// uuid type as well is what keeps those out of the referential-integrity score
+// instead of permanently depressing it with findings that can never be actioned.
+const isFkCandidate = (col) => isFkName(col.prop) && col.type === 'uuid';
 const indexedCols = (t) => new Set(t.indexes.flatMap((i) => i.columns));
+// An FK is only covered by an index that LEADS with its column. Postgres can use
+// the leading column of a composite for a single-column lookup, but not a column
+// buried in second position — so counting every member of every composite as
+// "indexed" silently excuses genuinely uncovered foreign keys.
+const leadingIndexCols = (t) => new Set(t.indexes.map((i) => i.columns[0]).filter(Boolean));
 
 // snapshot of table names for onDelete/ref target validation
 const tableConstNames = new Map([...tables.values()].map((t) => [t.constName, t]));
@@ -141,6 +263,7 @@ let wNoIndex = 0;
 
 for (const [name, t] of tables) {
   const idx = indexedCols(t);
+  const leadIdx = leadingIndexCols(t);
   const singleColIndexes = t.indexes.filter((i) => i.columns.length === 1).map((i) => i.columns[0]);
 
   // PK present + UUID?
@@ -162,8 +285,31 @@ for (const [name, t] of tables) {
     if (col.type === 'varchar' && !col.varcharLen)
       findings.fieldMapping.push({ table: name, file: t.file, line: col.line, issue: `varchar '${col.prop}' has no length` });
 
+    // A varchar column named like a foreign key is a text key, not a broken FK.
+    // Reported as advisory so it is still visible, but kept out of the RI score.
+    if (isFkName(col.prop) && !col.isPk && col.type !== 'uuid' && !col.ref) {
+      findings.fieldMapping.push({
+        table: name, file: t.file, line: col.line,
+        issue: `advisory: '${col.prop}' is named like a foreign key but is ${col.type}, not uuid — treated as a text key, not scored against referential integrity`,
+      });
+    }
+
     // ---- referential integrity
-    if (isFkName(col.prop) && !col.isPk) {
+    //
+    // Two independent questions, and they must NOT share a gate:
+    //
+    //   * "is this a DECLARED foreign key?" — answered by col.ref alone. Every
+    //     declared FK is checked for an onDelete rule and a covering index no
+    //     matter what the column is called.
+    //   * "is this an UNDECLARED foreign key?" — answered by the name-plus-uuid
+    //     heuristic, which is all we have to go on when there is no .references().
+    //
+    // Gating both behind the name heuristic (as this did originally) means a
+    // declared FK on a column not ending in "id" is never checked at all.
+    // complianceoverride.overriddenby is exactly that: a real FK to
+    // userprofiles.id with no onDelete rule, invisible to the audit because of
+    // its name.
+    if ((isFkCandidate(col) || col.ref) && !col.isPk) {
       fkCandidates++;
       if (!col.ref) {
         wUnenforced += 3;
@@ -182,7 +328,30 @@ for (const [name, t] of tables) {
             fix: `specify { onDelete: 'cascade' | 'set null' | 'restrict' }`,
           });
         }
-        if (!idx.has(col.prop)) {
+        // A composite FK is covered as a TUPLE, not column by column. Checking its
+        // members individually both misreports and misadvises: an index on
+        // testsignoffs.itemexecutor alone would be useless (it holds two distinct
+        // values), and the member that matters is already covered by an index
+        // leading with itemid. So the tuple is checked once, against the first
+        // member, and the remaining members are skipped.
+        if (col.ref.composite) {
+          const members = col.ref.members ?? [col.prop];
+          if (col.prop === members[0]) {
+            const covered = t.indexes.some((i) =>
+              members.every((mc, mi) => i.columns[mi] === mc),
+            );
+            // Falls back to the leading-column test: a cascade driven by a highly
+            // selective leading column does not need the full tuple indexed.
+            if (!covered && !leadIdx.has(members[0])) {
+              wNoIndex += 1;
+              findings.missingIndexes.push({
+                table: name, file: t.file, line: col.line, severity: 'medium',
+                issue: `composite FK (${members.join(', ')}) has no covering index (Postgres does not auto-index FKs)`,
+                fix: `CREATE INDEX idx_${name}_${members.join('_').toLowerCase()} ON ${name}(${members.join(', ')});`,
+              });
+            }
+          }
+        } else if (!leadIdx.has(col.prop)) {
           wNoIndex += 1;
           findings.missingIndexes.push({
             table: name, file: t.file, line: col.line, severity: 'medium',
@@ -191,7 +360,12 @@ for (const [name, t] of tables) {
           });
         }
         // orphan-data SQL (only for real FKs with a resolvable parent table)
-        const parent = tableConstNames.get(col.ref.table);
+        //
+        // Skipped for composite FKs: the correct check is a multi-column join, and
+        // pairing one member against the parent's first column would emit valid
+        // SQL that answers the wrong question (comparing itemexecutor to id). A
+        // missing check is recoverable; a confidently wrong one is not.
+        const parent = col.ref.composite ? null : tableConstNames.get(col.ref.table);
         if (parent) {
           orphanDataSql.push({
             child: name, column: col.prop, parent: parent ? [...tables].find(([, x]) => x.constName === col.ref.table)?.[0] : col.ref.table,

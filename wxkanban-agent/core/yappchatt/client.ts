@@ -5,30 +5,40 @@ import WebSocket from "ws";
 // into the kit core so the Remote Session Bridge can reuse the exact same transport
 // without any VS Code dependency.
 //
-// HYBRID auth (YappChat spec 091 slice #1): the two directions now use DIFFERENT
+// HYBRID auth (YappChatt spec 091 slice #1): the two directions now use DIFFERENT
 // identities.
 //   READ  (inbound control from the phone): broker-minted yc_session over the WS —
-//         history + ws-token + subscribe. Requires WXKANBAN_CHAT_EMAIL. Reading still
+//         history + ws-token + subscribe. Requires YAPPCHATT_EMAIL. Reading still
 //         needs a user session; the agent token cannot read.
 //   WRITE (status/output to the room): per-room agent token (yca_…) over REST POST —
 //         authored server-side as "Claude" (isagent), rendered on the left. No broker
-//         session, no 🤖 prefix. Requires WXKANBAN_YAPPCHAT_TOKEN.
+//         session, no 🤖 prefix. Requires YAPPCHATT_TOKEN.
 //
 // The target conversation is an EXPLICIT input (the operator's private room,
-// WXKANBAN_REMOTE_ROOM_ID) rather than the broker's returned community default. We keep
+// YAPPCHATT_ROOM) rather than the broker's returned community default. We keep
 // session.userid + the isagent flag for "mine"/self-echo detection.
 
 export interface YappchattConfig {
   /** wxKanban app base (session broker for READING), e.g. https://wxkanban.wxperts.com */
   wxkanbanBaseUrl: string;
-  /** YappChat Next app base, e.g. https://www.yappchatt.com */
+  /** YappChatt Next app base, e.g. https://www.yappchatt.com */
   yappchatBaseUrl: string;
   /** shared realtime engine, e.g. wss://ws.wxperts.com */
   wsUrl: string;
-  /** the private room to bind to (WXKANBAN_REMOTE_ROOM_ID) — NOT the broker default */
+  /**
+   * Prepended to every outgoing post as "[prefix] ". Exists because the AUTHOR of a
+   * post is decided server-side from the yca_ agent token — every project's bridge
+   * therefore renders as the same "Claude", and with a bridge per repo there is
+   * nothing in the room to say which codebase is talking. Tagging the content is the
+   * only lever this side of the API has.
+   *
+   * Empty or unset means no tagging.
+   */
+  postPrefix?: string;
+  /** the private room to bind to (YAPPCHATT_ROOM) — NOT the broker default */
   conversationId: string;
   /**
-   * Per-room agent token (`yca_…`) used to POST as the Claude agent (YappChat
+   * Per-room agent token (`yca_…`) used to POST as the Claude agent (YappChatt
    * spec 091 slice #1). Posting no longer uses the broker session cookie; the
    * token is the identity and messages are authored server-side as "Claude".
    */
@@ -52,7 +62,7 @@ export interface YappchattMessage {
   /**
    * true when authored by the Claude agent user (`isagent`). The bridge drops
    * these inbound so it never re-feeds its own posts into the session — robust
-   * against YappChat's prose translation, which defeats text-match echo removal.
+   * against YappChatt's prose translation, which defeats text-match echo removal.
    */
   isAgent: boolean;
 }
@@ -131,13 +141,34 @@ export class YappchattClient {
   /**
    * Send a message into the bound room. REST post authenticated with the per-room
    * agent token (`Authorization: Bearer yca_…`); the message is authored server-side
-   * as "Claude" (YappChat spec 091). Independent of the read session — posting works
+   * as "Claude" (YappChatt spec 091). Independent of the read session — posting works
    * even if the WS/read side is down. Returns true on a 2xx (201). The echo arrives
    * over the WS with `isagent: true` and is dropped there, so nothing is appended
    * locally (that avoids a duplicate render/relay).
    */
-  async send(text: string): Promise<boolean> {
+  /**
+   * The exact string send() will post, prefix included.
+   *
+   * Public because the bridge remembers what it posted to drop its own echoes by
+   * exact text match. If the prefix were applied privately inside send(), the
+   * bridge would record the untagged text, the echo would arrive tagged, the match
+   * would silently stop working, and a legacy same-identity echo could be fed back
+   * to Claude as if the operator had typed it.
+   *
+   * Idempotent: text already carrying the prefix is returned unchanged, so a retry
+   * or a re-post cannot stack "[wxKanban] [wxKanban] …".
+   */
+  formatOutgoing(text: string): string {
     const body = text.trim();
+    const prefix = this.cfg.postPrefix?.trim();
+    if (!body || !prefix) return body;
+    const tag = `[${prefix}]`;
+    if (body.startsWith(tag)) return body;
+    return `${tag} ${body}`;
+  }
+
+  async send(text: string): Promise<boolean> {
+    const body = this.formatOutgoing(text);
     if (!body) return false;
     const res = await this.fetchImpl(
       `${this.cfg.yappchatBaseUrl}/api/engine/conversations/${this.cfg.conversationId}/messages`,
@@ -173,7 +204,7 @@ export class YappchattClient {
 
   // ── handshake steps ────────────────────────────────────────────────────────
   // Provision via the wxKanban broker (SCOPE-079 Amendment C): the server holds
-  // the consumer secret and calls YappChat for us, so this request carries only
+  // the consumer secret and calls YappChatt for us, so this request carries only
   // the user's email — no secret ever touches the bridge.
   private async provisionSession(): Promise<ConsumerSession> {
     const res = await this.fetchImpl(`${this.cfg.wxkanbanBaseUrl}/api/community/session`, {
@@ -324,7 +355,7 @@ export class YappchattClient {
     return `yc_session=${this.session?.sessionToken ?? ""}`;
   }
 
-  /** Best-effort map of a YappChat message row/payload to our shape. */
+  /** Best-effort map of a YappChatt message row/payload to our shape. */
   private toMessage(raw: unknown): YappchattMessage | null {
     if (!raw || typeof raw !== "object") return null;
     const m = raw as Record<string, unknown>;
@@ -373,6 +404,8 @@ async function safeText(res: { text(): Promise<string> }): Promise<string> {
 export interface YappchattResolved {
   config: YappchattConfig;
   user: YappchattUser;
+  /** Deprecated one-T env names still in use, as "OLD -> CANONICAL". Empty when current. */
+  deprecated: string[];
 }
 
 export class YappchattConfigError extends Error {
@@ -386,47 +419,105 @@ export function resolveYappchattConfig(env: NodeJS.ProcessEnv = process.env): Ya
   const wxkanbanBaseUrl =
     (typeof env.WXKANBAN_APP_BASE_URL === "string" && env.WXKANBAN_APP_BASE_URL) ||
     "https://wxkanban.wxperts.com";
-  // Accept the newer short names (WXKANBAN_YAPPCHAT_URL / _ROOM) and fall back to the
-  // original ones (WXKANBAN_YAPPCHAT_BASE_URL / WXKANBAN_REMOTE_ROOM_ID) for compat.
-  const yappchatBaseUrl =
-    (typeof env.WXKANBAN_YAPPCHAT_URL === "string" && env.WXKANBAN_YAPPCHAT_URL) ||
-    (typeof env.WXKANBAN_YAPPCHAT_BASE_URL === "string" && env.WXKANBAN_YAPPCHAT_BASE_URL) ||
-    "https://www.yappchatt.com";
-  const wsUrl =
-    (typeof env.WXKANBAN_WS_URL === "string" && env.WXKANBAN_WS_URL) || "wss://ws.wxperts.com";
+  // CANONICAL NAMES ARE THE BARE YAPPCHATT_* FAMILY. These five are everything needed
+  // to connect and chat, they belong to YappChatt rather than to wxKanban, and the
+  // product is spelled with two Ts (as is its domain, yappchatt.com):
+  //
+  //   YAPPCHATT_ROOM          private room conversationId
+  //   YAPPCHATT_TOKEN         WRITE identity, the per-room yca_ agent token
+  //   YAPPCHATT_EMAIL         READ identity, mints the inbound-control session
+  //   YAPPCHATT_DISPLAY_NAME  read session's name (optional; defaults to the PROJECT name)
+  //   YAPPCHATT_URL           app base                     (optional)
+  //   YAPPCHATT_WS_URL        websocket endpoint           (optional)
+  //
+  // Everything that configures the BRIDGE rather than the connection keeps its
+  // WXKANBAN_ prefix (WXKANBAN_REMOTE_SEED / _MODEL / _RESUME, WXKANBAN_PROJECT_NAME,
+  // WXKANBAN_APP_BASE_URL) — those are wxKanban's, not YappChatt's.
+  //
+  // Every earlier spelling is accepted as a deprecated fallback so no deployed .env
+  // breaks, and the resolver REPORTS which ones were used: a stale .env should be
+  // visible, not merely working. Precedence, most to least preferred:
+  //
+  //   YAPPCHATT_ROOM    -> WXKANBAN_YAPPCHATT_ROOM -> WXKANBAN_YAPPCHAT_ROOM -> WXKANBAN_REMOTE_ROOM_ID
+  //   YAPPCHATT_TOKEN   -> WXKANBAN_YAPPCHATT_TOKEN -> WXKANBAN_YAPPCHAT_TOKEN
+  //   YAPPCHATT_EMAIL   -> WXKANBAN_CHAT_EMAIL
+  //   YAPPCHATT_DISPLAY_NAME -> WXKANBAN_CHAT_DISPLAY_NAME
+  //   YAPPCHATT_URL     -> WXKANBAN_YAPPCHATT_URL -> WXKANBAN_YAPPCHAT_URL -> WXKANBAN_YAPPCHAT_BASE_URL
+  //   YAPPCHATT_WS_URL  -> WXKANBAN_WS_URL
+  const deprecatedInUse: string[] = [];
+  const pick = (canonical: string, ...fallbacks: string[]): string => {
+    const v = env[canonical];
+    if (typeof v === "string" && v.trim()) return v.trim();
+    for (const name of fallbacks) {
+      const f = env[name];
+      if (typeof f === "string" && f.trim()) {
+        deprecatedInUse.push(`${name} -> ${canonical}`);
+        return f.trim();
+      }
+    }
+    return "";
+  };
 
-  const conversationId =
-    (typeof env.WXKANBAN_YAPPCHAT_ROOM === "string" && env.WXKANBAN_YAPPCHAT_ROOM.trim()) ||
-    (typeof env.WXKANBAN_REMOTE_ROOM_ID === "string" && env.WXKANBAN_REMOTE_ROOM_ID.trim()) ||
-    "";
+  const yappchatBaseUrl =
+    pick(
+      "YAPPCHATT_URL",
+      "WXKANBAN_YAPPCHATT_URL",
+      "WXKANBAN_YAPPCHAT_URL",
+      "WXKANBAN_YAPPCHAT_BASE_URL",
+    ) || "https://www.yappchatt.com";
+  const wsUrl = pick("YAPPCHATT_WS_URL", "WXKANBAN_WS_URL") || "wss://ws.wxperts.com";
+
+  const conversationId = pick(
+    "YAPPCHATT_ROOM",
+    "WXKANBAN_YAPPCHATT_ROOM",
+    "WXKANBAN_YAPPCHAT_ROOM",
+    "WXKANBAN_REMOTE_ROOM_ID",
+  );
   if (!conversationId) {
     throw new YappchattConfigError(
-      "WXKANBAN_YAPPCHAT_ROOM (or WXKANBAN_REMOTE_ROOM_ID) is not set. Provision a private " +
-        "YappChat room and set its conversationId in this project's .env before going remote.",
+      "YAPPCHATT_ROOM is not set. Provision a private YappChatt room and set its " +
+        "conversationId in this project's .env before going remote. " +
+        "(Deprecated aliases still accepted: WXKANBAN_YAPPCHATT_ROOM, WXKANBAN_YAPPCHAT_ROOM, WXKANBAN_REMOTE_ROOM_ID.)",
     );
   }
 
   // WRITE identity — the per-room agent token (yca_…). Posting is authored as "Claude".
-  const yappchatToken =
-    (typeof env.WXKANBAN_YAPPCHAT_TOKEN === "string" && env.WXKANBAN_YAPPCHAT_TOKEN.trim()) || "";
+  const yappchatToken = pick("YAPPCHATT_TOKEN", "WXKANBAN_YAPPCHATT_TOKEN", "WXKANBAN_YAPPCHAT_TOKEN");
   if (!yappchatToken) {
     throw new YappchattConfigError(
-      "WXKANBAN_YAPPCHAT_TOKEN is not set. In the YappChat web app, open this project's room, " +
-        "click 'Connect Claude', and copy the yca_ token into this project's .env (YappChat spec 091).",
+      "YAPPCHATT_TOKEN is not set. In the YappChatt web app, open this project's room, " +
+        "click 'Connect Claude', and copy the yca_ token into this project's .env " +
+        "(YappChatt spec 091). (Deprecated aliases: WXKANBAN_YAPPCHATT_TOKEN, WXKANBAN_YAPPCHAT_TOKEN.)",
     );
   }
 
   // READ identity — the broker-minted user session (kept for inbound control from the
   // phone; the agent token cannot read history/subscribe).
-  const email = (typeof env.WXKANBAN_CHAT_EMAIL === "string" && env.WXKANBAN_CHAT_EMAIL.trim()) || "";
+  const email = pick("YAPPCHATT_EMAIL", "WXKANBAN_CHAT_EMAIL");
   if (!email) {
     throw new YappchattConfigError(
-      "WXKANBAN_CHAT_EMAIL is not set. It mints the read session used for inbound control " +
-        "(steering / push approval from the phone). Posting uses WXKANBAN_YAPPCHAT_TOKEN instead.",
+      "YAPPCHATT_EMAIL is not set. It mints the read session used for inbound control " +
+        "(steering / push approval from the phone), because the agent token can post but " +
+        "cannot read history or subscribe. Posting uses YAPPCHATT_TOKEN instead. " +
+        "(Deprecated alias still accepted: WXKANBAN_CHAT_EMAIL.)",
     );
   }
+  // Defaults to the PROJECT NAME, not the email. With a bridge per repo, several
+  // rooms carry a session that would otherwise all identify as the same person —
+  // naming it after the project is what tells you which codebase you are talking
+  // to. The email is kept only as a last resort, for the case where no project
+  // name is resolvable at all.
+  //
+  // Callers set WXKANBAN_PROJECT_NAME from .wxai/project.json or the repo directory
+  // before resolving, so this sees the same name the bridge announces itself with.
+  //
+  // NOTE: this is the READ session's name. What appears as the AUTHOR on Claude's
+  // posts is decided server-side from the yca_ agent token (send() carries no name
+  // field), so it cannot be set from here — see the header note on hybrid auth.
   const displayName =
-    (typeof env.WXKANBAN_CHAT_DISPLAY_NAME === "string" && env.WXKANBAN_CHAT_DISPLAY_NAME.trim()) || email;
+    pick("YAPPCHATT_DISPLAY_NAME", "WXKANBAN_CHAT_DISPLAY_NAME") ||
+    (typeof env.WXKANBAN_PROJECT_NAME === "string" && env.WXKANBAN_PROJECT_NAME.trim()) ||
+    email;
 
   return {
     config: {
@@ -435,8 +526,18 @@ export function resolveYappchattConfig(env: NodeJS.ProcessEnv = process.env): Ya
       wsUrl,
       conversationId,
       yappchatToken,
+      // Tag posts with the same name the read session uses, which defaults to the
+      // project. One knob, so the room shows a single consistent identity per repo.
+      postPrefix: displayName,
     },
     user: { email, displayName },
+    // Which deprecated one-T names this .env is still relying on, as
+    // "OLD_NAME -> CANONICAL_NAME" strings. Empty when the .env is current.
+    //
+    // Returned rather than logged so the caller decides how loudly to say it: the
+    // resolver is used by the smoke script, the bridge and the tests, and a config
+    // helper that writes to stderr on its own is unusable in the last of those.
+    deprecated: deprecatedInUse,
   };
 }
 // [SCOPE 102 / T001] END

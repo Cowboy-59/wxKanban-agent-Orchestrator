@@ -10,9 +10,9 @@ do **not** treat it as a task to work on — run the handoff below.
 ## What to do
 
 1. **Preflight the repo-root `.env`.** The bridge requires, per project:
-   - `WXKANBAN_REMOTE_ROOM_ID` — private YappChatt room `conversationId`.
-   - `WXKANBAN_CHAT_EMAIL` — operator identity (broker read session).
-   - `WXKANBAN_YAPPCHAT_TOKEN` — per-room agent token (`yca_…`), from the YappChatt web app:
+   - `YAPPCHATT_ROOM` — private YappChatt room `conversationId`.
+   - `YAPPCHATT_EMAIL` — operator identity (broker read session).
+   - `YAPPCHATT_TOKEN` — per-room agent token (`yca_…`), from the YappChatt web app:
      room → **Connect Claude** → copy.
    If any are missing, **stop and tell the operator which one(s)** — never launch a
    half-configured bridge.

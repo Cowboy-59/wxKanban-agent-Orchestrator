@@ -28,7 +28,7 @@ export class RemoteBridge {
   private session?: BridgeSession;
   private announced = false;
   private tornDown = false;
-  // Since YappChat spec 091, Claude posts as a distinct agent user (isagent), so the
+  // Since YappChatt spec 091, Claude posts as a distinct agent user (isagent), so the
   // primary way we drop our own echoes is that flag (see onRoomMessage). selfPosts is a
   // best-effort fallback: we remember exactly what the bridge posted and drop those
   // echoes too, covering any legacy same-identity message the read session still sees.
@@ -113,7 +113,7 @@ export class RemoteBridge {
     const text = m.text.trim();
     if (!text) return;
     // Claude's posts are now authored by the agent user (isagent), so drop our own
-    // echoes by that flag — robust against YappChat's prose translation, which changes
+    // echoes by that flag — robust against YappChatt's prose translation, which changes
     // the text and would defeat content-matching. consumeSelfEcho stays as a fallback
     // for any legacy same-identity echo.
     if (m.isAgent) return;
@@ -281,10 +281,14 @@ export class RemoteBridge {
 
   private async post(text: string): Promise<void> {
     // Posts are authored as the Claude agent server-side (isagent) and render on the left
-    // as "🤖 Claude", so no content prefix is needed (YappChat spec 091). Record the exact
-    // text as a self-echo fallback; the primary inbound drop is the isAgent flag.
+    // as "🤖 Claude" — identical for every project. The content is therefore tagged with
+    // the project name so a room shows which codebase is talking (config.postPrefix).
+    //
+    // Record the string the client will ACTUALLY post, not the raw text: the self-echo
+    // fallback matches on exact equality, so recording the untagged form would break it
+    // silently. The primary inbound drop is still the isAgent flag.
     const now = Date.now();
-    this.selfPosts.push({ text: text.trim(), at: now });
+    this.selfPosts.push({ text: this.client.formatOutgoing(text), at: now });
     this.pruneSelfPosts(now);
     const ok = await this.client.send(text);
     if (!ok) console.error(`[bridge] failed to post: ${text.slice(0, 80)}`);
