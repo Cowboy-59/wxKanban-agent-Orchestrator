@@ -31,13 +31,13 @@ Analyse existing scopes, specs, and compound documents against the currently act
 ## Phase 0 — Load Active Frameworks
 
 1. Call `project.get_audit_config` MCP tool for this project
-2. For each enabled framework, load the full rules file:
-   - `soc2enabled` → `SOC2_SDLC_Compliance_Rules.md`
-   - `hipaaenabled` → `HIPAA_SDLC_Compliance_Rules.md`
-   - `hitrustenabled` → `HITRUST_SDLC_Compliance_Rules.md`
-   - `gdprenabled` → `GDPR_SDLC_Compliance_Rules.md`
+2. Call `project.get_compliance_context` with `mode: "full"` — a retroactive scan needs the whole ruleset, not a phase slice. It returns the complete document for every enabled framework, sourced from the wxKanban database.
+
+Rules are **not** files in your repository. Do not look for `SOC2_SDLC_Compliance_Rules.md` or any sibling on disk.
 
 **If no frameworks are active → stop. Report: "No compliance frameworks enabled for this project."**
+
+**If frameworks are active but the rules cannot be loaded → stop and say so.** Never scan against remembered framework knowledge; a scan that reports findings without its ruleset looks authoritative and is not.
 
 ---
 

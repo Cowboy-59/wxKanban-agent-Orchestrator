@@ -4,45 +4,52 @@
 
 Before beginning any `buildscope`, `createSpecs`, `implement`, `compound`, or `code-review` work, load the active compliance frameworks for this project.
 
+Compliance rules live in the wxKanban database and are served over MCP. They are **not** files in your repository — do not look for `SOC2_SDLC_Compliance_Rules.md` or any sibling on disk. A local copy would drift silently against the authoritative version, which is the failure this design removes.
+
 ### Step 1 — Query Active Frameworks
 
-Call `project.get_audit_config` MCP tool with the current projectId.
+Call `project.get_audit_config` with the current projectId.
 
-Returns flags: `soc2enabled`, `hipaaenabled`, `hitrustenabled`, `gdprenabled`
+Returns flags: `soc2enabled`, `hipaaenabled`, `hitrustenabled`, `gdprenabled`, `nistssdfenabled`, `iso27001enabled`, plus `activeFrameworks` and `complianceActive`.
 
-If MCP is unavailable, check `ai-settings.json` for a `compliance` block.
+**If `complianceActive` is false → compliance context is INACTIVE. Skip all compliance steps.**
 
-**If ALL flags are false → compliance context is INACTIVE. Skip all compliance steps.**
+You may skip straight to Step 2; `project.get_compliance_context` performs the same resolution and returns `complianceActive: false` when nothing is enabled.
 
-### Step 2 — Load Active Rule Files
+### Step 2 — Load Active Rules
 
-For each enabled framework, read the corresponding rules file from the project root:
+Call `project.get_compliance_context`:
 
-| Flag | File |
-|------|------|
-| `soc2enabled: true` | `SOC2_SDLC_Compliance_Rules.md` |
-| `hipaaenabled: true` | `HIPAA_SDLC_Compliance_Rules.md` |
-| `hitrustenabled: true` | `HITRUST_SDLC_Compliance_Rules.md` |
-| `gdprenabled: true` | `GDPR_SDLC_Compliance_Rules.md` |
+| Argument | Use |
+|---|---|
+| `projectId` | required |
+| `mode` | `summary` (default) for structured controls; `full` for the complete rules document |
+| `phase` | the lifecycle phase you are working in — `Design`, `Implementation`, `QA`, `HumanTesting`, `Beta`, `Release` |
+| `keywords` | what the work actually touches, e.g. `["authentication","tokens"]` |
 
-Load only the SDLC-relevant sections for the current phase:
-- **Design/Scope** → Requirements and Design phase sections
-- **Implementation** → Development phase sections
-- **Testing** → Testing phase sections
-- **Release** → Deployment and Maintenance phase sections
+**Use `summary` with a `phase` and `keywords`.** It returns only the controls that bear on the work in hand, which is a fraction of the tokens a whole framework document costs. Reach for `mode: "full"` only when you need the surrounding narrative — writing a compliance section for a scope, or answering a question the structured controls do not settle.
+
+Each returned control carries `controlReference`, `category`, `priority`, `title`, `requirement`, `guidance` and `automated`.
+
+### Step 2a — Failure is a HALT, not a warning
+
+If `complianceActive` is true and the call fails, returns no document for an enabled framework, or reports `missingDocuments`:
+
+**STOP. Report it. Do not continue the task.**
+
+State which frameworks are enabled, that their rules could not be loaded, and that you are not proceeding. Do not treat the failure as INACTIVE, do not substitute your own knowledge of the framework, and do not fall back to any local file. A compliance-enabled project that silently proceeds without its rules produces work that looks reviewed and is not — which is worse than work that was never checked.
+
+The one exception is an entitlement refusal. `project.get_compliance_context` is subscription-gated; if the refusal names an inactive subscription, report that specifically, because the fix is billing rather than configuration.
 
 ### Step 3 — Build Compliance Context
 
 Produce a summary for use in subsequent steps:
 
 ```
-ACTIVE FRAMEWORKS: [SOC2] [HIPAA] [HITRUST] [GDPR]
+ACTIVE FRAMEWORKS: [SOC2] [HIPAA] [HITRUST] [GDPR] [NIST_SSDF] [ISO27001]
 
 PHASE-RELEVANT REQUIREMENTS:
-  SOC2:    [key requirements for this phase]
-  HIPAA:   [key requirements for this phase]
-  HITRUST: [key requirements for this phase]
-  GDPR:    [key requirements for this phase]
+  <framework>: <control reference where known> — <requirement>
 
 DATA TRIGGERS (flag if scope touches any of these):
   - Authentication / authorization / access control
@@ -54,6 +61,8 @@ DATA TRIGGERS (flag if scope touches any of these):
   - Cross-border data transfer (GDPR)
   - Separation of duties in workflow (SOC2 / HITRUST)
 ```
+
+Cite `controlReference` whenever the control carries one. An unreferenced control is still binding, but a referenced one is what an auditor can trace — prefer it when both cover the same ground.
 
 ### Step 4 — Inject into Work
 
