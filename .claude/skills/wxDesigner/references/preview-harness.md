@@ -42,6 +42,44 @@ harness bar that swaps between them so the user sees all four:
 
 `loaded` · `loading` (skeletons) · `empty` (designed, with its call to action) · `error` (recoverable)
 
+## Provenance label
+
+The harness bar always says where the preview came from. On a reshow this matters more than anything
+else in the bar: the user is looking at a **reconstruction**, and if they mistake it for the running
+app they will report bugs against a file. Use exactly one of:
+
+| Label | When |
+|---|---|
+| `new design` | greenfield — nothing existed before |
+| `from page.md` | rebuilt from the saved design; the screen is not built yet |
+| `from page.md · not the live app` | rebuilt from the saved design of a screen that **is** built |
+| `reconstructed from src/` | derived from shipped code because no `page.md` existed |
+
+On the drift path, add a second chip naming the count — `3 drifts` — linked to nothing, just a
+reminder that the preview resolves disagreements the code hasn't yet.
+
+## Verb hint — required
+
+The harness bar must state the three words that drive the session:
+
+```html
+<span class="wxd-exit">SAVE / DISCARD / REFS → type in chat</span>
+```
+
+| Verb | Does |
+|---|---|
+| `SAVE` | write `page.md` and promote any proposed tokens (step 6) |
+| `DISCARD` | delete the preview, leave the repo untouched (step 6) |
+| `REFS` | search mobbin for prior art on this screen (step 3b) |
+
+It is **text, not a button**, and deliberately so. The preview is a `file://` document with no server
+behind it, so a button could not write `page.md` even if one existed — and `page.md` is composed
+(design spec, TSX, token table), which only the skill can do. Styling it as a control would promise
+an action the page cannot perform.
+
+Without this line the only way to know these verbs exist is to have read the skill, which the user has
+not. A preview that doesn't say how to steer it is unfinished.
+
 ## Starting template
 
 ```html
@@ -88,6 +126,8 @@ harness bar that swaps between them so the user sees all four:
     background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
     border-color: hsl(var(--primary));
   }
+  /* Text, never a button — this page cannot perform the action it names. */
+  .wxd-exit { margin-inline-start: auto; font-size: .6875rem; opacity: .85; }
   :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -102,6 +142,7 @@ harness bar that swaps between them so the user sees all four:
   <button data-state="loading" aria-pressed="false">Loading</button>
   <button data-state="empty" aria-pressed="false">Empty</button>
   <button data-state="error" aria-pressed="false">Error</button>
+  <span class="wxd-exit">SAVE / DISCARD / REFS → type in chat</span>
 </div>
 
 <main id="screen"><!-- the design --></main>

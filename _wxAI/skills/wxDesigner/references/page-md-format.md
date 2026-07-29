@@ -13,7 +13,10 @@ the design still needs somewhere to live.
 - **No fence comments.** Do not hand-author `// [SCOPE NNN / TNNN] BEGIN` lines. Fences are written
   by the orchestrator only; hand-written ones corrupt authorship tracking.
 - **One file per screen.** A second screen is a second design pass and a second `page.md`.
-- **Overwrite deliberately.** If `page.md` exists, show the user what would change and get a yes.
+- **Overwrite deliberately.** If `page.md` exists, this is an **edit of an approved design**. Show the
+  user a section-by-section diff and get an explicit yes before writing. Append to **Revision
+  history** rather than replacing it, and keep superseded rationale wherever it still explains
+  something — delete only what is now wrong.
 
 ## Required sections
 
@@ -22,8 +25,18 @@ the design still needs somewhere to live.
 
 **Scope**: SCOPE-NNN — <one line of intent>
 **Specs**: SPEC-NNN (<what it contributes>), SPEC-NNN (…)
-**Route**: `/path` · **Audience**: <who> · **Status**: designed, not implemented
+**Route**: `/path` · **Audience**: <who> · **Status**: <one of the values below>
 **Theme source**: <live profile "name" | src/client/styles/index.css>
+
+`Status` is the honest state of the design against the code, and it is the first thing a reader needs:
+
+| Status | Means |
+|---|---|
+| `designed — not implemented` | the design exists, no code yet |
+| `implemented — matches code` | built, and the drift check found no meaningful divergence |
+| `redesigned — code not yet updated` | the design is **ahead** of the code; a change is outstanding |
+| `corrected to match code` | the code was right, the design was stale, and this file was fixed to match |
+| `reconstructed from code` | the screen was built with no saved design; this file was derived from the shipped component |
 
 ## Purpose
 
@@ -97,6 +110,25 @@ not yet provide; that's a gap for the implementing task, and naming it here is t
 Anything the implementer needs that the code doesn't say: ordering assumptions, i18n keys required,
 permission boundaries, why a component was chosen over the obvious one.
 
+## References
+
+External prior art that informed the design, and the principle taken from each — not the look copied.
+Omit the section entirely when the design borrowed nothing.
+
+| Source | Principle borrowed | How it was translated here |
+|---|---|---|
+| [Linear — project settings](https://mobbin.com/...) | progressive disclosure: advanced options behind one toggle | `Collapsible` under the primary form, closed by default |
+
+## Drift from implementation
+
+Present only when the screen is already built. What the shipped component does differently from this
+design, and which side was judged right. This is the record of a decision, so it survives the SAVE
+that resolves it.
+
+| Aspect | This design says | `src/` has | Resolution |
+|---|---|---|---|
+| Filter row | inline segmented control | `Select` dropdown | code wins — scales past four filters; design updated |
+
 ## Component
 
 ```tsx
@@ -114,6 +146,16 @@ export function ScreenName() {
 
 Anything the design assumes because the scope or specs didn't settle it. Empty is fine; inventing an
 answer silently is not.
+
+## Revision history
+
+Newest first. One line per design pass — never rewritten, only appended. On a first write this holds
+a single row.
+
+| Date | Change | Why |
+|---|---|---|
+| 2026-07-29 | filter row → `Select`; empty state CTA restored | drift check: code won on filters, design won on the empty state |
+| 2026-07-12 | initial design | SCOPE-NNN |
 ````
 
 ## TSX quality bar
