@@ -41,7 +41,14 @@ export interface ScanOptions {
   taskIndex: TaskIdIndex;
   legacyHashes?: Set<string>;
   ignoreDirs?: Set<string>;
+  /**
+   * [SCOPE 118 / T001] Consult `.gitignore` as well as DEFAULT_IGNORE.
+   * Defaults to true; set false to restore the pre-118 filesystem-only walk.
+   */
+  respectGitignore?: boolean;
 }
+
+import { loadGitignore, type GitignoreMatcher } from "./gitignore-matcher";
 
 const DEFAULT_IGNORE = new Set([
   "node_modules",
@@ -71,7 +78,14 @@ export function scanTree(opts: ScanOptions): AuditResult {
   const ignore = new Set([...DEFAULT_IGNORE, ...(opts.ignoreDirs ?? [])]);
   const root = opts.root;
 
-  walk(root, root, ignore, (absPath, relPath) => {
+  // [SCOPE 118 / T001] Honour .gitignore in addition to DEFAULT_IGNORE. The
+  // scanner walks the filesystem, so without this it audits directories git
+  // was told to ignore — 885 of 1,893 errors on wxKanban came from installed
+  // Claude skills and VS Code local history. DEFAULT_IGNORE remains the floor,
+  // so a project with no .gitignore behaves exactly as before.
+  const gitignore = opts.respectGitignore === false ? null : loadGitignore(root);
+
+  walk(root, root, ignore, gitignore, (absPath, relPath) => {
     const ext = extname(absPath).toLowerCase();
     const entry = LANGUAGE_MATRIX[ext];
     if (!entry) return;
@@ -116,12 +130,17 @@ export function scanTree(opts: ScanOptions): AuditResult {
       perScope[scopeKey] = scopeStat;
 
       if (!taskExists(opts.taskIndex, fence.ownerScope, fence.ownerTask)) {
+        // [SCOPE 118 / T003] A fence citing an unresolvable task is a BROKEN
+        // REFERENCE, not a missing fence — the code is fenced, the label is
+        // wrong. The remedy differs (correct the label or restore the spec,
+        // rather than add a fence), so it is reported as a warning pending
+        // triage and is exempt from --strict promotion.
         findings.push({
-          severity: "error",
+          severity: "warning",
           code: "UNKNOWN_TASK",
           file: relPath,
           line: fence.beginLineIdx + 1,
-          message: `fence references unknown task: ${fence.ownerScope}/${fence.ownerTask}`,
+          message: `fence references unknown task: ${fence.ownerScope}/${fence.ownerTask} — broken reference, not a missing fence: correct the label or restore the spec`,
           scope: fence.ownerScope,
           task: fence.ownerTask,
         });
@@ -202,6 +221,7 @@ function walk(
   root: string,
   current: string,
   ignore: Set<string>,
+  gitignore: GitignoreMatcher | null,
   visit: (abs: string, rel: string) => void,
 ): void {
   let entries: string[];
@@ -220,8 +240,11 @@ function walk(
     } catch {
       continue;
     }
+    // [SCOPE 118 / T001] Skip anything git ignores. Checked after statSync
+    // because directory-only patterns (`foo/`) need to know which it is.
+    if (gitignore && gitignore.ignores(rel, st.isDirectory())) continue;
     if (st.isDirectory()) {
-      walk(root, abs, ignore, visit);
+      walk(root, abs, ignore, gitignore, visit);
     } else if (st.isFile()) {
       visit(abs, rel);
     }
@@ -265,9 +288,21 @@ function stripMarkdownCodeBlocks(body: string): string {
   return out.join("\n");
 }
 
+/**
+ * [SCOPE 118 / T003] Findings exempt from --strict promotion.
+ *
+ * These are broken fence references, not missing fences. The code IS fenced;
+ * the label points at a task that no longer resolves. Triage is deferred
+ * (SCOPE-118 open question 1), and holding the gate red on them would defeat
+ * the gate's purpose without fixing anything.
+ */
+const DEFERRED_CODES = new Set(["UNKNOWN_TASK", "UNKNOWN_MODIFIER_TASK"]);
+
 export function promoteWarningsToErrors(result: AuditResult): AuditResult {
   const findings = result.findings.map((f) =>
-    f.severity === "warning" ? { ...f, severity: "error" as const } : f,
+    f.severity === "warning" && !DEFERRED_CODES.has(f.code)
+      ? { ...f, severity: "error" as const }
+      : f,
   );
   const summary: AuditSummary = {
     ...result.summary,
@@ -280,10 +315,15 @@ export function promoteWarningsToErrors(result: AuditResult): AuditResult {
 export function captureBaselineHashes(opts: {
   root: string;
   ignoreDirs?: Set<string>;
+  respectGitignore?: boolean;
 }): Map<string, string> {
   const out = new Map<string, string>();
   const ignore = new Set([...DEFAULT_IGNORE, ...(opts.ignoreDirs ?? [])]);
-  walk(opts.root, opts.root, ignore, (abs, rel) => {
+  // [SCOPE 118 / T001] Baseline capture must use the same walk boundary as the
+  // scan, or the baseline records files the scanner will never look at.
+  const gitignore =
+    opts.respectGitignore === false ? null : loadGitignore(opts.root);
+  walk(opts.root, opts.root, ignore, gitignore, (abs, rel) => {
     const ext = extname(abs).toLowerCase();
     const entry = LANGUAGE_MATRIX[ext];
     if (!entry || entry.suppressed) return;

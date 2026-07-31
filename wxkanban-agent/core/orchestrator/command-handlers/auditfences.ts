@@ -7,6 +7,11 @@ import {
   promoteWarningsToErrors,
   captureBaselineHashes,
 } from "../auditfences-scanner";
+import {
+  runSchemaDrift,
+  formatSchemaDriftText,
+  formatSchemaDriftJson,
+} from "../schema-drift";
 
 export interface AuditFencesOptions {
   path?: string;
@@ -16,6 +21,14 @@ export interface AuditFencesOptions {
   history?: string;
   specsRoot?: string;
   legacyFile?: string;
+  /** [SCOPE 117 / T007] Run the schema drift check instead of the fence scan. */
+  schema?: boolean;
+  /** Override the connection string; defaults to DATABASE_URL. */
+  databaseUrl?: string;
+  /** Override the app schema directory. */
+  appSchema?: string;
+  /** Override the MCP schema file. */
+  mcpSchema?: string;
 }
 
 export interface AuditFencesHandlerResult {
@@ -38,6 +51,12 @@ export async function handleAuditFencesCommand(
     process.cwd(),
     options.legacyFile ?? DEFAULT_LEGACY_FILE,
   );
+
+  // [SCOPE 117 / T007] BEGIN — schema drift mode
+  if (options.schema) {
+    return runSchemaDriftCheck(options);
+  }
+  // [SCOPE 117 / T007] END
 
   if (options.history) {
     return runHistory(options.history);
@@ -62,6 +81,51 @@ export async function handleAuditFencesCommand(
   const exitCode = result.summary.errors > 0 ? 1 : 0;
   return { exitCode, output, result };
 }
+
+// [SCOPE 117 / T007] BEGIN — Schema drift check runner
+async function runSchemaDriftCheck(
+  options: AuditFencesOptions,
+): Promise<AuditFencesHandlerResult> {
+  const databaseUrl = options.databaseUrl ?? process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    return {
+      exitCode: 2,
+      output:
+        "auditfences --schema: DATABASE_URL is not set. Set it, or pass --database-url.",
+    };
+  }
+
+  // Both schemas must be read. Reading only the app schema reports every
+  // MCP-owned table (capabilityindex, events, ...) as an orphan, and reading
+  // only the MCP schema reports the app's tables as missing.
+  const sources = [
+    { label: "app", path: options.appSchema ?? "src/db/schema" },
+    {
+      label: "mcp",
+      path: options.mcpSchema ?? "mcp-server/src/db/schema.ts",
+    },
+  ];
+
+  try {
+    const result = await runSchemaDrift({ sources, databaseUrl });
+    const output =
+      options.format === "json"
+        ? formatSchemaDriftJson(result)
+        : formatSchemaDriftText(result);
+    return {
+      exitCode: result.missing.length > 0 ? 1 : 0,
+      output,
+    };
+  } catch (error) {
+    return {
+      exitCode: 2,
+      output: `auditfences --schema failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    };
+  }
+}
+// [SCOPE 117 / T007] END
 
 function runHistory(target: string): AuditFencesHandlerResult {
   const match = target.match(/^(\d{3})\/(T\d+)$/);

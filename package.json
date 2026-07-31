@@ -1,6 +1,6 @@
 {
   "name": "wxkanban",
-  "version": "1.7.41",
+  "version": "1.7.44",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -27,7 +27,10 @@
     "devplan:generate": "tsx scripts/generate-project-devplan.ts",
     "watermark": "node scripts/watermark.mjs",
     "check:getting-started": "node scripts/check-getting-started-sync.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:check": "drizzle-kit check --config drizzle.config.ts",
+    "db:drift": "tsx scripts/check-schema-drift.ts"
   },
   "keywords": [],
   "author": "",
