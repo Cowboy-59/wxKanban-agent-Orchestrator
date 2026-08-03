@@ -358,10 +358,40 @@ function writeClaudeMcpRegistration(cfg) {
     prev.headers?.Authorization === entry.headers.Authorization;
 
   doc.mcpServers.wxkanban = entry;
+
+  // shadcn-ui MCP — registered automatically because the kit shipped ONLY `wxkanban`,
+  // so nobody outside the wxKanban repo ever had it. A customer reported /wxDesigner
+  // behaving as though an external MCP were a prerequisite; it is not, but the honest
+  // fix is to actually supply the one that is free rather than only document a fallback.
+  //
+  // It costs nothing: a stdio server fetched by npx, no account, no sign-up. Note this
+  // is the LOOKUP service for the component catalog — the shadcn components themselves
+  // are already installed in the project under src/client/components/ui/, so a failure
+  // here degrades convenience, never the component library.
+  //
+  // Deliberately NO GITHUB_PERSONAL_ACCESS_TOKEN. That is a personal secret and must
+  // never ship in a generated file. Without one the server uses GitHub's unauthenticated
+  // rate limit (60 req/hr rather than 5000), which is ample for interactive design work.
+  // A developer wanting the higher ceiling adds their own token to this entry — which is
+  // exactly why an entry that already exists is never overwritten.
+  //
+  // Windows needs `cmd /c` because npx is a .cmd shim and cannot be spawned directly.
+  const addedShadcn = !doc.mcpServers['shadcn-ui'];
+  if (addedShadcn) {
+    doc.mcpServers['shadcn-ui'] =
+      process.platform === 'win32'
+        ? { type: 'stdio', command: 'cmd', args: ['/c', 'npx', '-y', '@jpisnice/shadcn-ui-mcp-server'] }
+        : { type: 'stdio', command: 'npx', args: ['-y', '@jpisnice/shadcn-ui-mcp-server'] };
+  }
+
   const tmp = `${mcpJsonPath}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(doc, null, 2) + '\n', 'utf8');
   fs.renameSync(tmp, mcpJsonPath);
   ensureGitignored('.mcp.json');
+
+  if (addedShadcn) {
+    console.log('[init] ✓ registered shadcn-ui MCP (free, no account) → .mcp.json');
+  }
 
   if (unchanged) {
     console.log('[init] Claude Code MCP already registered (.mcp.json)');
