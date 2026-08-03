@@ -72,6 +72,11 @@ The harness bar must state the three words that drive the session:
 | `DISCARD` | delete the preview, leave the repo untouched (step 6) |
 | `REFS` | search mobbin for prior art on this screen (step 3b) |
 
+`REFS` is the only verb with an external dependency — the **mobbin MCP**, which most projects do not
+have connected. Keep it in the bar regardless: if it is typed and mobbin is absent, say so in one line
+and answer from prior art inside this repo instead. It never blocks SAVE, and its absence never stops
+a design being finished.
+
 It is **text, not a button**, and deliberately so. The preview is a `file://` document with no server
 behind it, so a button could not write `page.md` even if one existed — and `page.md` is composed
 (design spec, TSX, token table), which only the skill can do. Styling it as a control would promise

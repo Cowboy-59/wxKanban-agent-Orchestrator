@@ -54,6 +54,38 @@ Prior art from outside the repo comes from the **mobbin MCP** — `search_screen
 `search_sections`. It is **on request only**, never part of the default pass; the gate and the query
 rules are step 3b.
 
+### External MCPs are optional — the design always completes
+
+**No external MCP is a prerequisite for this skill.** Treating one as required turns a design request
+into a setup errand — a reported field defect, not a hypothetical. A design must never stall, refuse,
+or open with a prerequisites checklist because a server is missing.
+
+What is actually registered:
+
+- **`wxkanban`** — always; `scripts/init.mjs` writes it on project open.
+- **`shadcn-ui`** — registered automatically too (free, MIT, no account). But *do not assume it*:
+  it is fetched by `npx` at launch, so it can be missing behind a proxy, offline, or in a kit
+  predating that change.
+- **`mobbin`** — **never shipped.** It needs its own authenticated account, so in a consumer project
+  it is absent unless that developer added it themselves.
+
+Note what is *not* affected either way: **shadcn components themselves are installed in the project**,
+under `src/client/components/ui/`. The MCP is only a lookup service for the wider catalog — losing it
+costs convenience, never the component library.
+
+If a tool is absent or a call fails:
+
+| Missing | Do this instead |
+|---|---|
+| **shadcn-ui MCP** | Name components from `_wxAI/rules/shadcn.md` and from what is already installed under `src/client/components/ui/`. That is the project's real component vocabulary, and it is on disk whether or not the MCP answers. |
+| **mobbin MCP** | Skip step 3b. Prior art is a garnish, not an input — every other step stands on the scope, the specs, and the live theme tokens. |
+
+Say it **once**, in one line, at the moment it matters — *"mobbin isn't connected here, so I'm
+designing without external references"* — then carry on and finish the screen. Do not lead with it, do
+not repeat it, and **never ask the user to go configure a server before you will design**. If they
+want it later, `/mcp` in an interactive session is the fix, and that is their decision to make after
+seeing a design, not a gate in front of one.
+
 ## Workflow
 
 ### 1. Target — a scope, plus every spec that implements it
@@ -207,9 +239,14 @@ ignore it. If every open question is a policy, ethics, or domain decision, stay 
 cannot settle those.
 
 Never search speculatively. Results come back as images, and they are the most expensive thing this
-skill can put into the conversation. If the mobbin tools aren't available, the server needs
-authenticating via `/mcp` in an interactive session — say so and carry on without it rather than
-stalling the design.
+skill can put into the conversation.
+
+**If the mobbin tools are absent, or a call fails, this step is skipped — not retried, not escalated,
+never a blocker.** Say so in one line, mention that `/mcp` in an interactive session would enable it,
+and continue to the preview. This holds *even when the user typed `REFS` explicitly*: answer it by
+falling back to prior art **inside this repo** — name the closest existing screens under
+`src/client/pages/`, and what they already settle about density, ordering or disclosure. A design is
+never blocked, delayed, or handed back unfinished because a reference server is unreachable.
 
 #### Deriving the query
 

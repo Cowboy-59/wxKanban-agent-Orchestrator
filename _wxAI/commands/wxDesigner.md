@@ -34,7 +34,9 @@ This command runs the **`wxDesigner` skill**. Invoke the skill, then follow its 
    **3b. References** — type **`REFS`** (the third verb, next to SAVE and DISCARD) and it searches
    **mobbin** for real products' screens and flows, cited back as links. Queries are derived from the
    design's *open questions*, translated out of scope vocabulary into UI language, and shown to you
-   before they run. Off by default; it never searches unprompted.
+   before they run. Off by default; it never searches unprompted. **Optional** — mobbin needs its MCP
+   connected, and without it this step is simply skipped and the design still completes. No external
+   MCP is a prerequisite for designing a screen.
 4. **Preview** — write a self-contained preview `.html` to the scratchpad and open it. Light and dark.
 5. **Iterate** — you adjust; the preview re-renders. Repeat until it's right.
 6. **SAVE / DISCARD** — SAVE writes `specs/<NNN-name>/page.md`; DISCARD deletes the preview and leaves
