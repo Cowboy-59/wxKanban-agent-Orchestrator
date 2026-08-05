@@ -71,7 +71,12 @@ const KIT_INCLUDE_DIRS  = ['bin', 'wxkanban-agent', '_wxAI', 'scripts', '.vscode
 // SPEC-058 Amendment B / FR-010 — the wxAIGit launchers ship at project root so
 // the Cockpit's scope check-out can create the branch. Backing scripts live under
 // scripts/wxaigit/ (scripts/ is already in KIT_INCLUDE_DIRS).
-const KIT_INCLUDE_FILES = ['package.json', 'package-lock.json', 'wxAIGit', 'wxAIGit.cmd', 'README_MAC_OS.md'];
+// SCOPE-121 Amendment A / T016 — `tsconfig.wxdbanalyze.json` is named by the packed
+// `typecheck:dbanalyze` script and by the shipped wxDBAnalyze skill, but was in neither this
+// allowlist nor sync-to-orchestrator's KIT_FILES, so every consumer's run died with TS5058
+// (ticket 192e08c1). BOTH allowlists must carry it — sync copies it into this repo, this list
+// packs it. The integrity gate below is what turned an invisible omission into a build failure.
+const KIT_INCLUDE_FILES = ['package.json', 'package-lock.json', 'wxAIGit', 'wxAIGit.cmd', 'README_MAC_OS.md', 'tsconfig.wxdbanalyze.json'];
 
 // Files at exactly .claude/<name> (top-level of .claude/) that must never be
 // packed — they hold per-machine state, not kit content.
@@ -204,6 +209,91 @@ async function gatherKitFiles() {
   return files;
 }
 
+// ─── Integrity gate: every packed script path must exist in the archive ──────
+// SCOPE-121 Amendment A / FR-013 (T016). The kit's root package.json is mirrored verbatim from
+// wxKanban, but root scripts/ is deliberately NOT mirrored — so the manifest named 11 scripts/*
+// paths no archive has ever contained, and `npm run kit:start` has failed with MODULE_NOT_FOUND
+// on every consumer since v1.2.7 (field report a01a6b7c). Nothing detected it: the v1.7.32
+// incident shows a short archive publishes and SHA-verifies exactly like a complete one, because
+// the checksum attests to what was packed, never to what was promised. This gate closes that gap
+// by resolving the promise against the pack — it runs on the staged file list, before any archive
+// is written, and exits non-zero naming each unresolvable path.
+//
+// WHICH paths are checked: those rooted in a kit-owned directory (KIT_INCLUDE_DIRS), plus `tsc -p`
+// config arguments. Entries like `dev:server` → `src/server/index.ts`, `build:client` →
+// `vite.config.ts` and `test:unit` → `tests/unit` are deliberately NOT checked: the archive ships
+// zero files under src/ by design, and those entries are templates the CONSUMER's own application
+// satisfies. Checking them would fail every build for paths the kit is not responsible for.
+// Kit-owned paths are the opposite — if the kit names one, the kit must ship it.
+//
+// Paths are matched ANYWHERE in the command string, not as a leading token. The field report's own
+// regex assumed a leading `scripts/` and so chopped `tsx _wxAI/skills/wxDBAnalyze/scripts/cli.ts`
+// down to `scripts/cli.ts`, reporting a present file as missing and inflating the count to 12.
+// Matching in place keeps that a non-finding.
+function extractKitOwnedPaths(command) {
+  const found = new Set();
+
+  // Any kit-owned directory prefix, wherever it appears — after `node `, inside `tsx …`, in a
+  // quoted argument, or mid-string. Trailing shell/quote punctuation is trimmed off the match.
+  const owned = KIT_INCLUDE_DIRS.map((d) => d.replace(/\./g, '\\.')).join('|');
+  const pathRe = new RegExp(`(?:^|[\\s"'=(,;])((?:${owned})/[^\\s"'\`)]+)`, 'g');
+  for (const m of command.matchAll(pathRe)) {
+    const cleaned = m[1].replace(/[,;:.]+$/, '');
+    if (cleaned && !cleaned.includes('*') && !cleaned.includes('?')) found.add(cleaned);
+  }
+
+  // `tsc -p <config>` / `--project <config>`. The config lives at the repo root, so the prefix
+  // rule above cannot see it — and an unshipped tsconfig fails the script just as hard as an
+  // unshipped .mjs would (ticket 192e08c1).
+  for (const m of command.matchAll(/(?:^|\s)(?:-p|--project)(?:\s+|=)([^\s"'`]+)/g)) {
+    if (m[1]) found.add(m[1]);
+  }
+
+  return [...found];
+}
+
+function verifyPackagedScriptPaths(files) {
+  const pkgPath = path.join(root, 'package.json');
+  if (!existsSync(pkgPath)) {
+    throw new Error('package.json not found at repo root — cannot verify the packed scripts block');
+  }
+  const scripts = JSON.parse(readFileSync(pkgPath, 'utf8')).scripts ?? {};
+
+  // Resolve against what is actually STAGED, not against the working tree — the exclusion rules
+  // above can drop a file that exists on disk, and that is precisely the failure worth catching.
+  const stagedFiles = new Set(files.map((f) => f.rel));
+  const stagedDirs = new Set();
+  for (const { rel } of files) {
+    const parts = rel.split('/');
+    for (let i = 1; i < parts.length; i += 1) stagedDirs.add(parts.slice(0, i).join('/'));
+  }
+
+  const failures = [];
+  for (const [name, command] of Object.entries(scripts)) {
+    for (const p of extractKitOwnedPaths(command)) {
+      if (!stagedFiles.has(p) && !stagedDirs.has(p)) failures.push({ name, path: p });
+    }
+  }
+
+  if (failures.length) {
+    console.log('');
+    log('gate', c.red, col(c.bold, `${failures.length} package.json script path(s) are not in the archive:`));
+    for (const { name, path: p } of failures) {
+      console.log(`    ${col(c.red, '✗')}  ${col(c.bold, name)}  →  ${p}`);
+    }
+    console.log('');
+    console.log(`  ${col(c.dim, 'Fix by shipping the file (KIT_INCLUDE_DIRS / KIT_INCLUDE_FILES, or copy it into')}`);
+    console.log(`  ${col(c.dim, 'this repo), or by removing the script entry in sync-to-orchestrator.mjs\'s')}`);
+    console.log(`  ${col(c.dim, 'FORBIDDEN_KIT_SCRIPTS. Editing only this repo\'s package.json will regress on')}`);
+    console.log(`  ${col(c.dim, 'the next sync, which re-mirrors wxKanban\'s manifest.')}`);
+    console.log('');
+    throw new Error('release blocked — the archive does not contain every script it advertises');
+  }
+
+  const checked = Object.values(scripts).reduce((n, cmd) => n + extractKitOwnedPaths(cmd).length, 0);
+  log('gate', c.green, `${checked} kit-owned script path(s) resolve in the staged archive`);
+}
+
 // ─── SHA-256 of a file ────────────────────────────────────────────────────────
 async function sha256File(filePath) {
   const hash = crypto.createHash('sha256');
@@ -317,6 +407,10 @@ async function main() {
   log('scan', c.yellow, 'Scanning kit files...');
   const files = await gatherKitFiles();
   log('scan', c.green, `${files.length} files staged`);
+
+  // Gate BEFORE packing, and in --dry-run too — a dry run is how this is checked ahead of a
+  // release, so it has to be able to fail.
+  verifyPackagedScriptPaths(files);
 
   if (DRY_RUN) {
     console.log('');
