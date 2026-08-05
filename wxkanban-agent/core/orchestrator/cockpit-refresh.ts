@@ -20,7 +20,7 @@ function resolveCodeCli(): { cmd: string; shell: boolean } {
   ];
   for (const cmd of candidates) {
     try {
-      const probe = spawnSync(cmd, ["--version"], { stdio: "ignore", timeout: 3000 });
+      const probe = spawnSync(cmd, ["--version"], { stdio: "ignore", timeout: 3000, windowsHide: true });
       if (!probe.error && probe.status === 0) return { cmd, shell: false };
     } catch {
       /* try the next candidate */
@@ -48,9 +48,17 @@ export function emitCockpitRefresh(): void {
     // On Windows `code.cmd` must run via the shell; pass ONE command string (the
     // URI is a fixed constant) to avoid the DEP0190 warning that shell:true + an
     // args array emits. macOS/Linux use the resolved binary with no shell.
+    //
+    // windowsHide guards the case where the kit runs from a parent with no console
+    // of its own (VS Code's extension host, a service): a console child would then
+    // be given a fresh, VISIBLE console window. Measured on Windows 10 with a
+    // console-owning parent, `detached` alone was already clean and dropping it in
+    // favour of windowsHide was strictly worse (it allocated a conhost), so
+    // `detached` STAYS and windowsHide is added alongside it. Do not swap one for
+    // the other without re-measuring — the interaction is not what the docs imply.
     const child = shell
-      ? spawn(`${cmd} --open-url "${COCKPIT_REFRESH_URI}"`, { stdio: "ignore", detached: true, shell: true })
-      : spawn(cmd, ["--open-url", COCKPIT_REFRESH_URI], { stdio: "ignore", detached: true, shell: false });
+      ? spawn(`${cmd} --open-url "${COCKPIT_REFRESH_URI}"`, { stdio: "ignore", detached: true, shell: true, windowsHide: true })
+      : spawn(cmd, ["--open-url", COCKPIT_REFRESH_URI], { stdio: "ignore", detached: true, shell: false, windowsHide: true });
     // Never let a missing `code` binary surface as an unhandled error.
     child.on("error", () => undefined);
     child.unref();
@@ -81,8 +89,8 @@ let cockpitUpdateChecked = false;
 function isCockpitInstalled(): boolean | null {
   const { cmd, shell } = resolveCodeCli();
   const res = shell
-    ? spawnSync(`${cmd} --list-extensions`, { encoding: "utf8", shell: true, timeout: 15000 })
-    : spawnSync(cmd, ["--list-extensions"], { encoding: "utf8", shell: false, timeout: 15000 });
+    ? spawnSync(`${cmd} --list-extensions`, { encoding: "utf8", shell: true, timeout: 15000, windowsHide: true })
+    : spawnSync(cmd, ["--list-extensions"], { encoding: "utf8", shell: false, timeout: 15000, windowsHide: true });
   if (res.error || res.status !== 0 || typeof res.stdout !== "string") return null;
   return res.stdout.split(/\r?\n/).some((line) => line.trim().toLowerCase() === COCKPIT_EXTENSION_ID);
 }
@@ -136,11 +144,13 @@ function installCockpitFromGallery(): boolean {
         stdio: "ignore",
         shell: true,
         timeout: INSTALL_TIMEOUT_MS,
+        windowsHide: true,
       })
     : spawnSync(cmd, ["--install-extension", COCKPIT_EXTENSION_ID, "--force"], {
         stdio: "ignore",
         shell: false,
         timeout: INSTALL_TIMEOUT_MS,
+        windowsHide: true,
       });
   return !res.error && res.status === 0;
 }

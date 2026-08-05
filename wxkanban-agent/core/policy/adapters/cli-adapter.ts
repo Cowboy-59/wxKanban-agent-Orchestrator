@@ -44,6 +44,10 @@ const CLI_COMMAND_TO_CAPABILITY: Readonly<Record<string, Capability>> = {
   "pipeline-agent": Capability.PipelineAgent,
   auditfences: Capability.AuditFences,
   "kit:status": Capability.KitStatus,
+  // SCOPE-095 Amendment A / T007 — without this row kit:configure fell to the
+  // `if (!capability)` branch below, which phrases every unknown command as a
+  // stage violation (customer report bd756151).
+  "kit:configure": Capability.KitConfigure,
   "scaffold:frontend": Capability.ScaffoldFrontend,
   "archive:files": Capability.ArchiveFiles,
   // WinDev/WebDev conversion entry points (Design-only).

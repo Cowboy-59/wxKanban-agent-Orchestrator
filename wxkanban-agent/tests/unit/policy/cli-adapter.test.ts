@@ -29,6 +29,8 @@ describe("cli-adapter — name mapping table", () => {
     { command: "pipeline-agent", allowedPhase: "all" },
     { command: "auditfences", allowedPhase: "all" },
     { command: "kit:status", allowedPhase: "all" },
+    // SCOPE-095 Amendment A / T007 — bootstrap command, cross-cutting.
+    { command: "kit:configure", allowedPhase: "all" },
     { command: "wxconversion", allowedPhase: LifecycleStage.Design },
     { command: "wxconversionscope", allowedPhase: LifecycleStage.Design },
     { command: "cwconversion", allowedPhase: LifecycleStage.Design },

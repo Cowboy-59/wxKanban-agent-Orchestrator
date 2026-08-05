@@ -300,7 +300,7 @@ describe("gateTable consistency (spec 030 FR-010 module-load assert)", () => {
     ].sort());
   });
 
-  it("the 6 cross-cutting capabilities have allowedPhases: 'all'", () => {
+  it("the 7 cross-cutting capabilities have allowedPhases: 'all'", () => {
     const crossCutting = (Object.values(Capability) as Capability[]).filter(
       (c) => gateTable[c].allowedPhases === "all",
     );
@@ -309,6 +309,9 @@ describe("gateTable consistency (spec 030 FR-010 module-load assert)", () => {
       Capability.ArchiveFiles,
       Capability.AuditFences,
       Capability.DbPush,
+      // SCOPE-095 Amendment A / T007 — bootstrap: it writes the config the
+      // stage is read from, so it cannot be gated on that stage.
+      Capability.KitConfigure,
       Capability.KitStatus,
       Capability.PipelineAgent,
       // Spec 036 — scaffold:frontend is cross-cutting (added after this

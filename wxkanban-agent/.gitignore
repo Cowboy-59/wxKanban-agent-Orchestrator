@@ -28,3 +28,6 @@ services/**/*.js
 services/**/*.d.ts
 services/**/*.js.map
 services/**/*.d.ts.map
+
+# wxKanban kit — cached signed entitlement token (per-developer; never commit)
+.wxai/.entitlement

@@ -19,6 +19,9 @@ import {
 // [SCOPE 043 / T017] materialize accepted-to-scope feedback seeds into draft files
 import { materializeScopeSeeds } from '../../../core/orchestrator/command-handlers/materialize-seeds';
 import { materializeStack } from '../../../core/orchestrator/command-handlers/materialize-stack';
+// [SCOPE 095 / T007] kit:configure runs before any project config exists — see
+// runKitConfigureBootstrap below (Amendment A, FR-007).
+import { handleKitConfigureCommand } from '../../../core/orchestrator/command-handlers/kit-configure';
 // BUG-REPORT-kit-dbpush-tls-and-packaging.md — trust the OS cert store so the
 // gateway works behind a corporate TLS-inspection proxy (Issue 1), and load
 // .env so every gateway command (dbpush etc.) is authenticated (Issue 4).
@@ -206,10 +209,73 @@ function createFileBasedProposalSource(
 	};
 }
 
+// [SCOPE 095 / T007] BEGIN — kit:configure bootstrap short-circuit (Amendment A, FR-007).
+// This cannot go through WorkflowEngine.dispatch: main() builds a ProjectContext
+// via loadProjectConfig(), which throws "No .wxkanban-project.json found ... Run
+// kit init first." on precisely the un-bootstrapped project kit:configure exists
+// to bootstrap. Parses its own flags (both `--k v` and `--k=v`) and returns the
+// handler's exit code. The HTTP gateway surface routes through dispatch() instead.
+function runKitConfigureBootstrap(args: string[]): number {
+	const flags: Record<string, string> = {};
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		if (!arg.startsWith('--')) continue;
+		const eq = arg.indexOf('=');
+		if (eq > -1) {
+			flags[arg.slice(2, eq)] = arg.slice(eq + 1);
+			continue;
+		}
+		const next = args[i + 1];
+		if (next !== undefined && !next.startsWith('--')) {
+			flags[arg.slice(2)] = next;
+			i++;
+		} else {
+			flags[arg.slice(2)] = 'true';
+		}
+	}
+	const pick = (...keys: string[]): string | undefined => {
+		for (const key of keys) {
+			if (flags[key] !== undefined) return flags[key];
+		}
+		return undefined;
+	};
+
+	const result = handleKitConfigureCommand({
+		token: pick('token') ?? '',
+		// loadProjectEnv() has already run, so a .env-supplied project id is a
+		// usable default when the flag is omitted.
+		projectId: pick('project-id', 'projectId') ?? process.env['WXKANBAN_PROJECT_ID'] ?? '',
+		mcpUrl: pick('mcp-url', 'mcpUrl'),
+		writeTo: pick('write-to', 'writeTo') === '.env' ? '.env' : '.wxai',
+		projectRoot: pick('project-root', 'projectRoot'),
+	});
+	// Human-facing CLI output goes to STDOUT via process.stdout.write — this is
+	// program output a customer reads, not a log record. The operational record
+	// goes to STDERR so piping stdout stays clean. Pino is deliberately NOT used:
+	// the kit ships no logger and no pino dependency (it is intentionally lean,
+	// like the pg/drizzle exclusion), and adding one for two lines would put a new
+	// runtime dep in front of every consumer. Every sibling call site in the kit
+	// uses console.* for the same reason.
+	process.stdout.write(`${result.message}\n`);
+	console.error(
+		`[kit:configure] exit=${result.exitCode} writeTo=${pick('write-to', 'writeTo') === '.env' ? '.env' : '.wxai'} tokenSupplied=${pick('token') ? 'yes' : 'no'}`,
+	);
+	return result.exitCode;
+}
+// [SCOPE 095 / T007] END
+
 async function main(): Promise<void> {
 	trustSystemCertificates();
 	loadProjectEnv();
 	const args = process.argv.slice(2);
+
+	// [SCOPE 095 / T007] Bootstrap command — must be reachable before the project
+	// config it writes exists. Keep this above loadProjectConfig().
+	if (args[0] === 'kit:configure') {
+		process.exitCode = runKitConfigureBootstrap(args.slice(1));
+		return;
+	}
+
 	const config = loadProjectConfig();
 	const context = resolveProjectContext(config);
 

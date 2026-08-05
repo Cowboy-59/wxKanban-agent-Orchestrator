@@ -21,6 +21,9 @@ export enum Capability {
   PipelineAgent = "PipelineAgent",
   AuditFences = "AuditFences",
   KitStatus = "KitStatus",
+  // SCOPE-095 Amendment A / T007 — the hosted-MCP bootstrap command. Cross-
+  // cutting by necessity: it runs on a project that has no lifecycle stage yet.
+  KitConfigure = "KitConfigure",
   ScaffoldFrontend = "ScaffoldFrontend",
   // Spec 103 / T007 — reconcile a scope/spec group's on-disk files to its
   // archived status (move to/from specs/_archive/). Local FS only, every phase.
@@ -115,6 +118,14 @@ export const gateTable: Readonly<Record<Capability, CapabilityGate>> = {
     allowsEscalation: false,
   },
   [Capability.KitStatus]: {
+    allowedPhases: "all",
+    requiresVerifiedSpec: false,
+    allowsEscalation: false,
+  },
+  // SCOPE-095 Amendment A / T007 — bootstrap. Stage-gating this command is a
+  // contradiction: it writes the config the stage is read from, so any gate
+  // narrower than "all" locks the customer out of their own setup.
+  [Capability.KitConfigure]: {
     allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,

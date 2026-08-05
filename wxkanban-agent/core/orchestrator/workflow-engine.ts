@@ -251,6 +251,58 @@ export class WorkflowEngine {
 		return { result, audit };
 	}
 
+	// [SCOPE 095 / T007] BEGIN — kit:configure dispatch (Amendment A, FR-007).
+	// The handler shipped with spec 028/T020 but was never routed, so every
+	// invocation fell through to the policy adapter's unknown-command branch and
+	// reported a stage violation. Synchronous handler; no MCP call.
+	static async runKitConfigure(
+		context: ProjectContext,
+		options: Record<string, unknown>,
+		user?: string,
+	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
+		const timestamp = new Date().toISOString();
+		// The raw token must never reach the audit trail, which is persisted.
+		const auditInput: Record<string, unknown> = { ...options };
+		if (auditInput['token'] !== undefined) auditInput['token'] = '***redacted***';
+
+		const policy = evaluateStageOnly(
+			context.lifecycleStage, 'kit:configure', context.customCommands,
+		);
+		if (!policy.allowed) {
+			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
+			const audit: AuditRecord = { timestamp, command: 'kit:configure', input: auditInput, result: result as unknown as Record<string, unknown>, user };
+			return { result, audit };
+		}
+
+		const { handleKitConfigureCommand } = await import('./command-handlers/kit-configure');
+		const handlerResult = handleKitConfigureCommand({
+			token: (options['token'] as string | undefined) ?? '',
+			projectId:
+				(options['project-id'] as string | undefined) ??
+				(options['projectId'] as string | undefined) ??
+				context.projectId,
+			mcpUrl:
+				(options['mcp-url'] as string | undefined) ??
+				(options['mcpUrl'] as string | undefined),
+			writeTo: options['write-to'] === '.env' || options['writeTo'] === '.env' ? '.env' : '.wxai',
+			projectRoot:
+				(options['project-root'] as string | undefined) ??
+				(options['projectRoot'] as string | undefined),
+		});
+		// stdout = the message the operator reads; stderr = the operational record.
+		// See the note in cli.ts runKitConfigureBootstrap: the kit carries no pino
+		// dependency by design, so console.error is the record channel here.
+		process.stdout.write(`${handlerResult.message}\n`);
+		console.error(`[kit:configure] dispatch exit=${handlerResult.exitCode}`);
+		const success = handlerResult.exitCode === 0;
+		const result: CommandResult<Record<string, unknown>> = success
+			? { success: true, artifact: { writtenTo: handlerResult.writtenTo, exitCode: handlerResult.exitCode } }
+			: { success: false, error: handlerResult.message };
+		const audit: AuditRecord = { timestamp, command: 'kit:configure', input: auditInput, result: result as unknown as Record<string, unknown>, user };
+		return { result, audit };
+	}
+	// [SCOPE 095 / T007] END
+
 	static async runScaffoldFrontend(
 		context: ProjectContext,
 		options: Record<string, unknown>,
@@ -614,6 +666,9 @@ export class WorkflowEngine {
 				return WorkflowEngine.runCreateSpecs(context, input, user);
 			case 'kit:status':
 				return WorkflowEngine.runKitStatus(context, input, user);
+			// [SCOPE 095 / T007] Amendment A — bootstrap command, previously unrouted.
+			case 'kit:configure':
+				return WorkflowEngine.runKitConfigure(context, input, user);
 			case 'scaffold:frontend':
 				return WorkflowEngine.runScaffoldFrontend(context, input, user);
 			case 'archive:files':
