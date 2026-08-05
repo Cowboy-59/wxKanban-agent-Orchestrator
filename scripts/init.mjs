@@ -190,11 +190,20 @@ function startGateway(cfg) {
   // wxai-http.mjs / http.ts take no positional args — they bind the HTTP
   // server on GATEWAY_HTTP_PORT (default 3003). DO NOT pass `gateway:start`;
   // that's a non-existent CLI command and would be rejected by the policy.
+  // windowsHide (CREATE_NO_WINDOW) is REQUIRED here, not cosmetic. This is a
+  // detached, long-lived console process (node.exe) started from VS Code's task
+  // runner, which owns no console of its own — so Windows hands the child a
+  // fresh, VISIBLE console window that then lingers for the life of the gateway.
+  // The folderOpen task runs this on EVERY project open, so the windows stack up
+  // across a multi-project estate. Field report: feedback e8849e53 / 8a2b439a
+  // (window titled with the node.exe path, exactly process.execPath).
+  // `detached` STAYS — it is what survives the launching task exiting.
   const child = spawn(process.execPath, [entry], {
     cwd: root,
     env,
     detached: true,
     stdio: ['ignore', outFd, outFd],
+    windowsHide: true,
   });
   fs.writeFileSync(gwPidPath, String(child.pid));
   child.unref();
@@ -207,7 +216,10 @@ async function runHealthCheck() {
     return 0;
   }
   return await new Promise((resolve) => {
-    const c = spawn(process.execPath, [healthCheckScript], { cwd: root, stdio: 'inherit' });
+    // windowsHide: stdio is inherited, so output still flows to the task
+    // terminal; this only stops Windows allocating a NEW console when the parent
+    // has none (VS Code task runner / extension host). See feedback e8849e53.
+    const c = spawn(process.execPath, [healthCheckScript], { cwd: root, stdio: 'inherit', windowsHide: true });
     c.on('exit', (code) => resolve(code ?? 1));
   });
 }
@@ -226,6 +238,10 @@ async function ensureDepsInstalled() {
       cwd: root,
       stdio: 'inherit',
       shell: process.platform === 'win32',
+      // shell:true runs npm.cmd through cmd.exe — a console program. Without
+      // windowsHide a console-less parent gets a new visible window. Inherited
+      // stdio still carries the output. See feedback e8849e53.
+      windowsHide: true,
     });
     c.on('exit', (rc) => resolve(rc ?? 1));
     c.on('error', (err) => {
@@ -249,6 +265,7 @@ async function ensureDepsInstalled() {
       cwd: root,
       stdio: 'inherit',
       shell: process.platform === 'win32',
+      windowsHide: true, // see the npm install spawn above
     });
     c.on('exit', () => resolve());
     c.on('error', (err) => {

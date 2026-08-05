@@ -29,9 +29,13 @@ function runCode(args) {
   // On Windows `code` is a .cmd, which Node can only spawn via the shell. Pass
   // ONE command string (not an args array) so we avoid the DEP0190 warning that
   // `shell:true` + args array emits on every run. Non-Windows uses no shell.
+  // windowsHide on BOTH branches: this runs from the .vscode/tasks.json
+  // folderOpen chain (init.mjs), whose parent owns no console, so a console
+  // child — cmd.exe here — is handed a new visible window on every project
+  // open. stdout is captured via the pipe, not a window. Feedback e8849e53.
   const res = isWin
-    ? spawnSync(['code.cmd', ...args.map((a) => `"${a}"`)].join(' '), { encoding: 'utf8', shell: true, timeout: 120_000 })
-    : spawnSync('code', args, { encoding: 'utf8', shell: false, timeout: 120_000 });
+    ? spawnSync(['code.cmd', ...args.map((a) => `"${a}"`)].join(' '), { encoding: 'utf8', shell: true, timeout: 120_000, windowsHide: true })
+    : spawnSync('code', args, { encoding: 'utf8', shell: false, timeout: 120_000, windowsHide: true });
   return { ok: res.status === 0 && !res.error, stdout: res.stdout || '' };
 }
 

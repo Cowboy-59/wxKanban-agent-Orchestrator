@@ -1,5 +1,6 @@
 {
   "version": "2.0.0",
+  "//": "presentation.reveal is deliberately \"silent\" on every folderOpen task: the terminal is created but NOT brought to the front, and VS Code still reveals it automatically if the task fails. \"always\" popped the panel on every project open — across a multi-project estate (and on every window reload) that reads as terminals stacking up endlessly. Field report: feedback 8a2b439a. Do not raise this back to \"always\" without re-reading that report. panel:\"dedicated\" is kept so repeat runs REUSE one terminal per task instead of spawning a new one each time.",
   "tasks": [
     {
       "label": "wxKanban Kit — Install & Connect",
@@ -9,7 +10,7 @@
       "args": ["scripts/init.mjs"],
       "problemMatcher": [],
       "presentation": {
-        "reveal": "always",
+        "reveal": "silent",
         "focus": false,
         "panel": "dedicated",
         "showReuseMessage": false
@@ -23,7 +24,7 @@
       "args": ["scripts/check-kit-version.mjs"],
       "problemMatcher": [],
       "presentation": {
-        "reveal": "always",
+        "reveal": "silent",
         "focus": false,
         "panel": "dedicated",
         "showReuseMessage": false
