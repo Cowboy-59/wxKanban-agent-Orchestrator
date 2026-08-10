@@ -20,7 +20,8 @@ import re
 
 import os as _wmos, sys as _wmsys
 _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
-from wxkanban_watermark import stamp_markdown
+import sys  # noqa: E402
+import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
 
 FENCE_RE = re.compile(r"```(?:vb)?\n(.*?)```", re.S)
 SIGNALS = re.compile(r"\b(CrystalReport|CRViewer|\.rpt\b|DataReport|rptText|Printer\.Print|"
@@ -49,7 +50,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default="pre-convert")
     ap.add_argument("--out", default="rebuild/scopes")
+    rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
+
+    state = rd.RedactionState()
 
     reports = [os.path.basename(p) for p in sorted(glob.glob(os.path.join(args.src, "*.report.md")))]
     signals = {}
@@ -79,10 +83,22 @@ def main():
                 out.append(f"- `{f}`: {', '.join(hits)}")
             out.append("\n- Each indicates a print/report path — confirm the engine (Crystal vs "
                        "DataReport vs raw Printer) and rebuild via the API + React-PDF path above.")
-    open(os.path.join(args.out, "RPT-reports-stub.md"), "w", encoding="utf-8").write(stamp_markdown("\n".join(out) + "\n", kind='converted', generator='vbConversion'))
+    # [SCOPE 125 / T010] Through the shared funnel (FR-007): redacts, accumulates findings and
+    # stamps the watermark on .md, so the manual stamp_markdown call is gone, not duplicated.
+    rd.write_text(os.path.join(args.out, "RPT-reports-stub.md"), "\n".join(out) + "\n", state, generator='vbConversion')
     print(f"report-designers={len(reports)}  code-signals={len(signals)}  "
           f"-> {os.path.join(args.out, 'RPT-reports-stub.md')}")
 
+    # [SCOPE 125 / T010] Credential report, rendered from the accumulated state and written
+    # last so it covers every emission this run made. The summary prints unconditionally,
+    # including when nothing was found: a run that says nothing about credentials is the
+    # defect this scope fixes.
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if state.findings:
+        rd.write_text(sidecar_path, rd.render_sidecar(state), state, generator='vbConversion')
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

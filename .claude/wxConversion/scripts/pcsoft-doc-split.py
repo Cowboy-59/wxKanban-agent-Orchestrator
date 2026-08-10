@@ -34,7 +34,7 @@ import sys
 
 import os as _wmos, sys as _wmsys
 _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
-from wxkanban_watermark import stamp_markdown
+import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
 
 try:
     import fitz  # PyMuPDF
@@ -57,9 +57,16 @@ MOJIBAKE = {
 }
 
 
-def clean_text(s: str) -> str:
+def clean_text(s: str, state=None, source: str = "") -> str:
     for k, v in MOJIBAKE.items():
         s = s.replace(k, v)
+    # [SCOPE 125 / T008] Credential redaction runs HERE — after the mojibake repair and before
+    # breadcrumb parsing — so no page body ever holds a credential literal. Every emitted file,
+    # _discarded.md and index.md included, is assembled from these bodies, so this single call
+    # covers every path text can take out of the PDF. `state` is optional so the function stays
+    # callable (and testable) without a redaction run.
+    if state is not None:
+        s, _ = rd.redact(s, state, source=source)
     return s
 
 
@@ -189,18 +196,33 @@ def compress_ranges(nums):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pdf", required=True)
+    ap.add_argument("--pdf")
     ap.add_argument("--out", default="pre-convert")
     ap.add_argument("--dry-run", action="store_true", help="report grouping, write nothing")
+    rd.add_redaction_args(ap)
     args = ap.parse_args()
 
+    # [SCOPE 125 / T008] Scan mode reads artifacts that already exist and never opens a PDF, so it
+    # returns before fitz is used. That is also why wxconv_redact imports nothing but `re` — a
+    # developer auditing past exposure should not need PyMuPDF installed to do it.
+    if args.scan_only:
+        findings = rd.scan_tree(args.scan_only)
+        print(rd.render_scan_report(findings, args.scan_only))
+        return rd.exit_code(len(findings), args.fail_on_secrets)
+
+    if not args.pdf:
+        ap.error("--pdf is required unless --scan-only is used")
+
+    state = rd.RedactionState()
     doc = fitz.open(args.pdf)
     project_name = (crumb_segments(doc[0].get_text()) or ["project"])[0]
 
     # Pass 1: per-page classification + cleaned body
     pages = []
     for i in range(doc.page_count):
-        raw = clean_text(doc[i].get_text())
+        raw = clean_text(
+            doc[i].get_text(), state, source="%s p%d" % (os.path.basename(args.pdf), i + 1)
+        )
         segs = crumb_segments(raw)
         part, kind, name, sub = classify(segs)
         typ = segs[1] if len(segs) > 1 else ""
@@ -233,13 +255,12 @@ def main():
     manifest = []
 
     def write(path, text):
-        if str(path).endswith(".md"):
-            text = stamp_markdown(text, kind="converted", generator="wxConversion")
-        size = len(text.encode("utf-8"))
-        if not args.dry_run:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(text)
-        return size
+        # [SCOPE 125 / T008] Delegates to the shared funnel (FR-007). Two things happen here that
+        # used to be inline: the defence-in-depth re-scrub, which catches anything assembled from a
+        # source other than a page body, and the watermark stamp, which write_text owns for every
+        # script now rather than only this one. Redaction is idempotent, so text already cleaned in
+        # clean_text() passes through unchanged.
+        return rd.write_text(path, text, state, dry_run=args.dry_run, generator="wxConversion")
 
     for k in order:
         el = elements[k]
@@ -351,6 +372,16 @@ def main():
         print(f"  {'NOT CAPTURED':12s}: {len(discarded):3d} pages -> {args.out}/_discarded.md "
               "(REVIEW — keep any real elements)")
 
+    # [SCOPE 125 / T008] Credential report. Rendered from the accumulated state and written last, so
+    # it covers every emission this run made, and written through write() so it is watermarked like
+    # every other generated .md. The summary line prints unconditionally — including when nothing was
+    # found — because a run that says nothing about credentials is the defect this scope fixes.
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if state.findings:
+        write(sidecar_path, rd.render_sidecar(state))
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

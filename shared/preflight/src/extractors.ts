@@ -26,8 +26,29 @@ export function extractSectionContent(content: string, headingPattern: RegExp): 
 // [SCOPE 029 / T001] END
 
 // [SCOPE 029 / T001] BEGIN — extractActorValue (Primary: / Secondary: line label pattern)
+// MODIFIED-BY: [SCOPE 124 / T011] — the label is recognised through Markdown emphasis.
+/**
+ * SCOPE-124 / T011 (FR-007) — the label identifies the actor; the formatting does not.
+ *
+ * `- **Secondary**: Supervisor` was rejected while the unbolded line passed, so validation was
+ * coupled to typography — and the methodology we ship tells authors to write exactly that label,
+ * which the check then refused once it was emphasised.
+ *
+ * Correction to the task's own wording: `- Secondary: **Supervisor**` — emphasis on the actor's
+ * NAME — already passed, because `normalizeText` strips `**` from the captured value. What failed
+ * was emphasis on the LABEL (`**Secondary**:`, `*Secondary*:`) and emphasis wrapping the whole
+ * line (`**- Secondary: …**`), since the old pattern required the label to start immediately after
+ * an optional bullet. All three forms are accepted now.
+ */
+const EMPHASIS = '(?:\\*\\*|\\*|__|_)';
+
 export function extractActorValue(sectionContent: string, label: 'Primary' | 'Secondary'): string {
-  const match = sectionContent.match(new RegExp(`(?:^|\\n)\\s*[-*]?\\s*${label}\\s*:\\s*(.+)$`, 'im'));
+  const pattern = new RegExp(
+    // leading emphasis (whole-line bold) → bullet → emphasis → LABEL → emphasis → colon
+    `(?:^|\\n)\\s*${EMPHASIS}?\\s*[-*]?\\s*${EMPHASIS}?\\s*${label}\\s*${EMPHASIS}?\\s*:\\s*(.+)$`,
+    'im',
+  );
+  const match = sectionContent.match(pattern);
   return match ? normalizeText(match[1]) : '';
 }
 // [SCOPE 029 / T001] END

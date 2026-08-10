@@ -77,23 +77,56 @@ function fixtureProject(): string {
 }
 // [SCOPE 029 / T005] END
 
-describe('phase2Compare envelope handling (FR-009 / FR-010 / FR-011)', () => {
-  it('handles envelope with tasks/documents/events but no specs[] array (FR-009)', async () => {
-    const cwdBefore = process.cwd();
-    const fixture = fixtureProject();
-    process.chdir(fixture);
+// [SCOPE 124 / T004] BEGIN — fixture setup/teardown helpers
+async function setupFixture(): Promise<{ fixture: string; cwdBefore: string }> {
+  const cwdBefore = process.cwd();
+  const fixture = fixtureProject();
+  process.chdir(fixture);
+  callMcpToolMock.mockReset();
+  callMcpToolWithEnvelopeMock.mockReset();
+  callMcpToolWithEnvelopeMock.mockResolvedValue({
+    success: true,
+    blocked: false,
+    blockingIssues: [],
+    data: { spec: { id: 'spec-x' }, tasks: [] },
+  });
+  return { fixture, cwdBefore };
+}
 
-    callMcpToolMock.mockReset();
-    callMcpToolWithEnvelopeMock.mockReset();
+function teardownFixture(fixture: string, cwdBefore: string): void {
+  process.chdir(cwdBefore);
+  // A locked temp directory is not a test failure. On Windows the fixture is
+  // intermittently still handle-locked when rmSync runs, and letting that EPERM
+  // propagate fails an otherwise-passing assertion — noise that makes a real
+  // regression harder to see. Best-effort cleanup; the OS reclaims the temp dir.
+  try {
+    if (existsSync(fixture)) rmSync(fixture, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+}
+// [SCOPE 124 / T004] END
+
+describe('phase2Compare envelope handling (FR-009 / FR-010 / FR-011)', () => {
+  it('recognises every spec from specs[], including one with no tasks (SCOPE-124 T004)', async () => {
+    const { fixture, cwdBefore } = await setupFixture();
     callMcpToolMock.mockImplementation((tool: unknown) => {
       if (tool === 'project.list_open_items') {
-        // Real envelope shape — no `specs` key
+        // [SCOPE 124 / T004] Envelope shape as of T006: identity comes from `specs[]`.
+        // Note spec 030 has NO tasks at all — under the old title-derived set it was
+        // invisible and would have been pushed as new; here it must be recognised.
         return Promise.resolve({
+          specs: [
+            { id: 'spec-029', specNumber: '029', title: 'Spec 029', status: 'planned' },
+            { id: 'spec-028', specNumber: '028', title: 'Spec 028', status: 'planned' },
+            { id: 'spec-030', specNumber: '030', title: 'Spec 030 (no tasks)', status: 'released' },
+          ],
+          specsComplete: true,
           tasks: [
-            { id: 'task-uuid-1', title: '[029-T001] foundation' },
-            { id: 'task-uuid-2', title: '[029-T002] envelope' },
-            { id: 'task-uuid-3', specNumber: '028', title: 'no-prefix but has specNumber' },
-            { id: 'task-uuid-4', title: 'unrelated task with no prefix' },
+            { id: 'task-uuid-1', specId: 'spec-029', specNumber: '029', title: '[029-T001] foundation' },
+            { id: 'task-uuid-2', specId: 'spec-029', specNumber: '029', title: '[029-T002] envelope' },
+            { id: 'task-uuid-3', specId: 'spec-028', specNumber: '028', title: 'no-prefix but has specNumber' },
+            { id: 'task-uuid-4', specId: null, specNumber: null, title: 'unrelated task with no prefix' },
           ],
           documents: [{ id: 'doc-uuid-1', title: 'Spec 028' }],
           events: [],
@@ -110,11 +143,61 @@ describe('phase2Compare envelope handling (FR-009 / FR-010 / FR-011)', () => {
     });
 
     const report = await dbpush({ spec: '029' });
-
-    process.chdir(cwdBefore);
-    if (existsSync(fixture)) rmSync(fixture, { recursive: true, force: true });
+    teardownFixture(fixture, cwdBefore);
 
     // No errors regardless of which path was hit (new vs. existing).
     expect(report.push.errors).toEqual([]);
   });
 });
+
+// [SCOPE 124 / T004] BEGIN — identity comes from specs[], and an untrustworthy
+// answer fails closed rather than defaulting to "nothing exists".
+describe('SCOPE-124 T004 — spec identity is read, not inferred', () => {
+  it('refuses to push when the envelope has no specs[] (older MCP)', async () => {
+    const { fixture, cwdBefore } = await setupFixture();
+    callMcpToolMock.mockImplementation((tool: unknown) =>
+      tool === 'project.list_open_items'
+        ? Promise.resolve({ tasks: [], documents: [], events: [] }) // pre-T006 shape
+        : Promise.resolve({}),
+    );
+
+    const report = await dbpush({ spec: '029' });
+    teardownFixture(fixture, cwdBefore);
+
+    // The critical property: absent identity is UNKNOWN, never "no specs exist".
+    // Defaulting to empty is what made every spec look new and created the duplicates.
+    expect(report.push.errors.join(' ')).toMatch(/no specs pushed/i);
+    expect(report.push.specsCreated).toBe(0);
+  });
+
+  it('refuses to push when the specs[] answer was truncated', async () => {
+    const { fixture, cwdBefore } = await setupFixture();
+    callMcpToolMock.mockImplementation((tool: unknown) =>
+      tool === 'project.list_open_items'
+        ? Promise.resolve({ specs: [{ specNumber: '029' }], specsComplete: false, tasks: [] })
+        : Promise.resolve({}),
+    );
+
+    const report = await dbpush({ spec: '029' });
+    teardownFixture(fixture, cwdBefore);
+
+    expect(report.push.errors.join(' ')).toMatch(/no specs pushed/i);
+    expect(report.push.specsCreated).toBe(0);
+  });
+
+  it('never advertises the deleted setup-mcp.mjs script (T016)', async () => {
+    const { fixture, cwdBefore } = await setupFixture();
+    callMcpToolMock.mockImplementation((tool: unknown) =>
+      tool === 'project.list_open_items'
+        ? Promise.resolve({ tasks: [], documents: [], events: [] })
+        : Promise.resolve({}),
+    );
+
+    const report = await dbpush({ spec: '029' });
+    teardownFixture(fixture, cwdBefore);
+
+    // Deleted at kit v1.1.0; advising it added MODULE_NOT_FOUND to the original failure.
+    expect(report.push.errors.join(' ')).not.toMatch(/setup-mcp\.mjs/);
+  });
+});
+// [SCOPE 124 / T004] END

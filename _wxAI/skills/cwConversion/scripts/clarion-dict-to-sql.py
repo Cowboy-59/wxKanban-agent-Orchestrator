@@ -22,7 +22,8 @@ import re
 
 import os as _wmos, sys as _wmsys
 _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
-from wxkanban_watermark import stamp_markdown
+import sys  # noqa: E402
+import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
 
 # Clarion TYPE -> internal key.
 CLARION_TYPE = {
@@ -256,7 +257,10 @@ def main():
     ap.add_argument("--src", default="pre-convert")
     ap.add_argument("--out", default="rebuild/db")
     ap.add_argument("--keep-prefix", action="store_true")
+    rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
+
+    state = rd.RedactionState()
 
     tables = []
     for p in sorted(glob.glob(os.path.join(args.src, "*.table.md"))):
@@ -269,10 +273,10 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     sql_path = os.path.join(args.out, f"schema.{args.dialect}.sql")
     er_path = os.path.join(args.out, "ER-diagram.md")
-    open(sql_path, "w", encoding="utf-8").write(emit_ddl(tables, links, args.dialect, args.keep_prefix))
-    open(er_path, "w", encoding="utf-8").write(
-        stamp_markdown(emit_er(tables, links, args.dialect, args.keep_prefix),
-                       kind='converted', generator='cwConversion'))
+    # [SCOPE 125 / T011] Through the shared funnel (FR-007): redacts, accumulates findings and
+    # stamps the watermark on .md, so the manual stamp_markdown call is gone, not duplicated.
+    rd.write_text(sql_path, emit_ddl(tables, links, args.dialect, args.keep_prefix), state, generator='cwConversion')
+    rd.write_text(er_path, emit_er(tables, links, args.dialect, args.keep_prefix), state, generator='cwConversion')
 
     nfields = sum(len(t["fields"]) for t in tables)
     print(f"dialect={args.dialect}  tables={len(tables)}  fields={nfields}  relations={len(links)}")
@@ -282,6 +286,16 @@ def main():
         pk = ",".join(t["pk"]) or "(none)"
         print(f"    {t['name']}: {len(t['fields'])} fields  pk={pk}")
 
+    # [SCOPE 125 / T011] Credential report, rendered from the accumulated state and written
+    # last so it covers every emission this run made. The summary prints unconditionally,
+    # including when nothing was found: a run that says nothing about credentials is the
+    # defect this scope fixes.
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if state.findings:
+        rd.write_text(sidecar_path, rd.render_sidecar(state), state, generator='cwConversion')
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -11,6 +11,19 @@
 
 const PLACEHOLDER_MARKERS = ['TODO', 'TBD', 'NEEDS CLARIFICATION', 'placeholder'] as const;
 
+/**
+ * SCOPE-124 / T003 + T010 — where a marker was found, so the block can be acted on.
+ *
+ * `line` is 1-indexed against the ORIGINAL text. Locations are why this exists: "Placeholder
+ * markers found: TODO" against a 300-line document is a fact the author cannot use.
+ */
+export interface PlaceholderHit {
+  marker: string;
+  /** The line as written, trimmed — enough to see the marker in its own context. */
+  text: string;
+  line: number;
+}
+
 // [SCOPE 029 / T001] BEGIN — normalizeText (strip markdown noise, collapse whitespace)
 export function normalizeText(value: string | undefined): string {
   return (value || '')
@@ -24,23 +37,80 @@ export function normalizeText(value: string | undefined): string {
 // [SCOPE 029 / T001] END
 
 // [SCOPE 029 / T001] BEGIN — matchesPlaceholder (returns placeholder markers found in value)
-export function matchesPlaceholder(value: string): string[] {
-  const normalized = normalizeText(value);
-  return PLACEHOLDER_MARKERS.filter((marker) => {
+// MODIFIED-BY: [SCOPE 124 / T010] — markers are matched as ISOLATED UPPERCASE tokens, not
+// case-insensitively, so ordinary prose in another language stops being rejected.
+/**
+ * SCOPE-124 / T010 (FR-007) — judge content, not language.
+ *
+ * The word-boundary match ran with the `i` flag, so `\bTODO\b` matched the Spanish word **todo**
+ * ("all", "every") — a word that is unavoidable in ordinary Spanish prose. A whole project was
+ * blocked from filing its scopes for writing its own language correctly (c9fc52d4).
+ *
+ * A marker is a marker because of how it is written, not merely which letters it contains. The
+ * templates emit `TODO:` and `[NEEDS CLARIFICATION]` in caps, so requiring an isolated UPPERCASE
+ * token keeps every real marker blocking while `todo el historial` passes. `Todo` at the start of
+ * a sentence passes too, which is the point.
+ *
+ * `placeholder` keeps BUG-12's structural narrowing instead: it is a real English word whose
+ * template form is lowercase, so case cannot separate marker from prose there — position does.
+ *
+ * NOTE, carried from the scope's plan: `normalizeText` strips backticks before matching starts, so a
+ * code-span-aware exemption ("it's in a code fence, let it through") cannot be built here. That
+ * information is destroyed before this function sees the text.
+ */
+function markerPattern(marker: string): RegExp {
+  if (marker === 'placeholder') {
     // BUG-12: "placeholder" is a real English word (e.g., "the URL still
     // contains the placeholder string"). Only match it as a standalone
     // marker — bracketed ([placeholder], <placeholder>), as a leading
     // label (placeholder:), or as a whole-line value — not as substring
-    // of natural prose. The other markers (TODO, TBD, NEEDS CLARIFICATION)
-    // are unambiguous and use word-boundary matching unchanged.
-    if (marker === 'placeholder') {
-      const standalone = /(^|[\s])(?:\[placeholder\]|<placeholder>|placeholder\s*:)|^\s*placeholder\s*$/i;
-      return standalone.test(normalized);
-    }
-    return new RegExp(`\\b${marker.replace(/\s+/g, '\\s+')}\\b`, 'i').test(normalized);
-  });
+    // of natural prose.
+    return /(^|[\s])(?:\[placeholder\]|<placeholder>|placeholder\s*:)|^\s*placeholder\s*$/i;
+  }
+  // Case-SENSITIVE. The absence of the `i` flag is the entire fix — do not add it back.
+  return new RegExp(`\\b${marker.replace(/\s+/g, '\\s+')}\\b`);
+}
+
+export function matchesPlaceholder(value: string): string[] {
+  const normalized = normalizeText(value);
+  return PLACEHOLDER_MARKERS.filter((marker) => markerPattern(marker).test(normalized));
 }
 // [SCOPE 029 / T001] END
+
+// [SCOPE 124 / T010] BEGIN — findPlaceholders (markers WITH their location)
+/**
+ * Every marker occurrence, with the line it sits on.
+ *
+ * Scans line by line so a location can be reported, then makes a second pass over the whole text
+ * so a marker split across a line break — `NEEDS\nCLARIFICATION`, which the whole-text normalize
+ * collapses into one — is still caught. A marker found only by that second pass is reported with
+ * `line: 0`, meaning "present, location not pinpointed", rather than being silently dropped.
+ */
+export function findPlaceholders(value: string): PlaceholderHit[] {
+  const hits: PlaceholderHit[] = [];
+  const lines = (value || '').split(/\r?\n/);
+
+  lines.forEach((rawLine, index) => {
+    const normalized = normalizeText(rawLine);
+    if (!normalized) {
+      return;
+    }
+    for (const marker of PLACEHOLDER_MARKERS) {
+      if (markerPattern(marker).test(normalized)) {
+        hits.push({ marker, text: rawLine.trim(), line: index + 1 });
+      }
+    }
+  });
+
+  for (const marker of matchesPlaceholder(value)) {
+    if (!hits.some((hit) => hit.marker === marker)) {
+      hits.push({ marker, text: '', line: 0 });
+    }
+  }
+
+  return hits;
+}
+// [SCOPE 124 / T010] END
 
 // [SCOPE 029 / T001] BEGIN — matchesDefaultValue (detect template placeholder strings)
 export function matchesDefaultValue(value: string | undefined, defaults: string[]): boolean {

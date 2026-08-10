@@ -470,6 +470,13 @@ const TASK_TITLE_SCOPE_RE = /^\[(\d{3})-T\d+\]/;
 // [SCOPE 029 / T005] END
 
 // [SCOPE 029 / T005] BEGIN — parseScopeFromTaskTitle (single-task helper, exported for tests)
+// MODIFIED-BY: [SCOPE 124 / T005] — no longer used to establish spec identity
+//
+// RETAINED, NOT DELETED, and deliberately so: task titles still carry the `[NNN-T###]` prefix
+// and reading it is legitimate for display, grouping and diagnostics. What it may never again
+// decide is whether a spec EXISTS — that comes from `specs[]` (T004). The distinction matters,
+// because the defect was never this parser being wrong; it was a correct parser being asked a
+// question it cannot answer, about specs whose tasks it could not see.
 export function parseScopeFromTaskTitle(title: string | undefined): string | null {
   if (typeof title !== 'string') return null;
   const m = title.match(TASK_TITLE_SCOPE_RE);
@@ -478,37 +485,83 @@ export function parseScopeFromTaskTitle(title: string | undefined): string | nul
 // [SCOPE 029 / T005] END
 
 // [SCOPE 029 / T005] BEGIN — phase2Compare (envelope-aware idempotency read)
+// MODIFIED-BY: [SCOPE 124 / T004] — identity now reads `specs[]`, not task titles
+// MODIFIED-BY: [SCOPE 124 / T005] — `parseScopeFromTaskTitle` removed from the identity path
 //
-// Spec 029 / FR-009 — the real `project.list_open_items` envelope only has
-// `tasks` / `documents` / `events` (no `specs[]`), so the old `resp.specs`
-// branch is removed. Scope numbers come from each task's `specNumber`
-// field when present, or are parsed from the title's `[NNN-T###]` prefix
-// (FR-010). FR-011 preserves the prefix parser as the floor even if the
-// envelope later adds an explicit specs[] array.
+// Spec 029 / FR-009 originally derived scope numbers from each task's `specNumber` when
+// present, or from the title's `[NNN-T###]` prefix. The first arm never fired — tasks link
+// to specs by `specId`, a UUID — so identity came entirely from regex-matching TITLE TEXT.
+// A spec with no open tasks, with untagged titles, or beyond the page was invisible and
+// therefore "new": hard-blocked by the unique index ("Duplicate specNumber 010") or silently
+// duplicated where no index guards it. Four field reports, four projects.
+//
+// SCOPE-124 / T006 gave the envelope a `specs[]` collection, so the question can now be
+// asked directly instead of inferred. A task title is documentation, not a key.
 async function phase2Compare(projectId: string): Promise<DbState> {
   type ListResp = {
-    tasks?: Array<{ id?: string; specNumber?: string; title?: string }>;
+    specs?: Array<{ id?: string; specNumber?: string; title?: string; status?: string }>;
+    specsComplete?: boolean;
+    tasks?: Array<{ id?: string; specId?: string | null; specNumber?: string | null; title?: string }>;
     documents?: Array<{ id?: string; title?: string }>;
     events?: Array<{ id?: string; type?: string }>;
   };
   try {
+    // [SCOPE 124 / T009] BEGIN — no bound on the call that establishes identity
+    // This asked for `maxItems: 100`. FR-006's rule is that a limit may bound a DISPLAY and never
+    // an existence check, and this is an existence check: anything outside the window read as
+    // "does not exist", which is "is new", which is a duplicate.
+    //
+    // The bound could not be raised to fix it either — `maxItems` is capped at 100 by the tool's
+    // own schema, so no value of it can express "all of them". T006 answered the question a
+    // different way: `specs[]` is returned outside `maxItems` entirely, capped only by a runaway
+    // backstop that reports itself through `specsComplete`. So identity is complete here, and the
+    // fail-closed check below is what handles the one case where it is not.
+    //
+    // Passing no bound keeps the two facts from drifting apart. A `maxItems` sitting on the
+    // identity call reads as though it governs identity, and the next person to route a decision
+    // through the bounded lists reintroduces exactly this defect.
     const resp = await callMcpTool<ListResp>('project.list_open_items', {
       projectId,
-      maxItems: 100,
     });
-    const knownSpecNumbers = new Set<string>();
-    const knownTaskIdsBySpec = new Map<string, Set<string>>();
-    if (Array.isArray(resp.tasks)) {
-      for (const t of resp.tasks) {
-        const scope = t.specNumber ?? parseScopeFromTaskTitle(t.title);
-        if (!scope) continue;
-        knownSpecNumbers.add(scope);
-        if (!knownTaskIdsBySpec.has(scope)) {
-          knownTaskIdsBySpec.set(scope, new Set());
-        }
-        if (t.id) knownTaskIdsBySpec.get(scope)!.add(t.id);
-      }
+    // [SCOPE 124 / T009] END
+
+    // FAIL CLOSED on an identity answer we cannot trust.
+    //
+    // A missing `specs[]` is UNKNOWN, never "no specs exist" — and the difference is the whole
+    // defect. Treating absent-or-truncated as empty makes every spec look new, which is the
+    // exact failure being fixed, so it is routed to the `unreachable` path that already
+    // refuses to push outside a dry run. An older MCP without T006, or a project past
+    // SPEC_IDENTITY_CAP, therefore stops with a message instead of writing duplicates.
+    if (!Array.isArray(resp.specs) || resp.specsComplete === false) {
+      const why = !Array.isArray(resp.specs)
+        ? 'the MCP did not return a specs[] collection (server predates SCOPE-124/T006)'
+        : 'the specs[] collection was truncated (specsComplete: false)';
+      console.warn(
+        `dbpush: cannot establish which specs already exist — ${why}. ` +
+          'Refusing to push rather than risk creating duplicates.',
+      );
+      return { knownSpecNumbers: new Set(), knownTaskIdsBySpec: new Map(), unreachable: true };
     }
+
+    // Identity, authoritative. Every spec the project has, including archived ones — an
+    // archived spec still owns its specNumber, so skipping it would report the number free.
+    const knownSpecNumbers = new Set<string>();
+    for (const s of resp.specs) {
+      if (s.specNumber) knownSpecNumbers.add(s.specNumber);
+    }
+
+    // [SCOPE 124 / T009] `knownTaskIdsBySpec` was built here from the task list and read by
+    // nothing — a map assembled on every run to answer a question no caller asked. It is left
+    // empty rather than populated from a list the call above no longer bounds, because task-level
+    // idempotency moved to the server in T008: `create_specs` matches task rows on (specId, name)
+    // and updates instead of inserting. Populating a second, client-side answer to the same
+    // question is how two sources of truth start.
+    //
+    // Kept as a field rather than deleted from `DbState` so the shape stays stable for the
+    // report; T007's lesson applies to dead BRANCHES, and this is now an explicitly empty value
+    // with a stated reason rather than an unreachable arm pretending to work.
+    const knownTaskIdsBySpec = new Map<string, Set<string>>();
+
     return { knownSpecNumbers, knownTaskIdsBySpec, unreachable: false };
   } catch (err) {
     const msg = err instanceof McpClientError ? err.message : (err as Error).message;
@@ -766,7 +819,11 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
   // noise. Dry-run still walks the artifacts so the user sees the plan.
   if (dbState.unreachable && !options.dryRun) {
     totals.errors.push(
-      'MCP server unreachable; no specs pushed. Start the kit runtime with `node scripts/setup-mcp.mjs` and re-run.',
+      // [SCOPE 124 / T016] The old text told the user to run `node scripts/setup-mcp.mjs`.
+      // That script was deleted at kit v1.1.0 in the hosted-MCP cutover and SCOPE-121 confirmed
+      // no archive has ever shipped it, so following the advice produced MODULE_NOT_FOUND on top
+      // of the original failure. The MCP is hosted; there is nothing local to start.
+      'MCP unreachable or unable to report which specs exist; no specs pushed. Check connectivity to the hosted MCP (`npm run kit:status`) and re-run.',
     );
   } else {
     for (const a of validation.artifacts) {

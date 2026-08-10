@@ -11,6 +11,10 @@ export {
 export {
   normalizeText,
   matchesPlaceholder,
+  // [SCOPE 124 / T010 + T012] findPlaceholders is exported so the ambiguity counter in
+  // mcp-server's analyzeSpecArtifacts can converge on this module instead of keeping its own regex.
+  findPlaceholders,
+  type PlaceholderHit,
   matchesDefaultValue,
   isMeaningfulText,
   isMeasurableMetric,

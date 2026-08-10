@@ -15,13 +15,14 @@ Usage:
     python scripts/pcsoft-queries-to-scope.py --out rebuild/scopes
 """
 import argparse
+import sys
 import glob
 import os
 import re
 
 import os as _wmos, sys as _wmsys
 _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
-from wxkanban_watermark import stamp_markdown
+import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
 
 COND_RE = re.compile(r"\b(is equal to|is different from|is greater|is less|is in the list|"
                      r"Contains|starts with|is between|is not)\b", re.I)
@@ -174,7 +175,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default="pre-convert")
     ap.add_argument("--out", default="rebuild/scopes")
+    rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
+
+    state = rd.RedactionState()
 
     files = sorted(glob.glob(os.path.join(args.src, "*.qry.md")))
     queries = [parse_query(f) for f in files]
@@ -218,13 +222,20 @@ def main():
         md.append("\n---\n")
 
     out_path = os.path.join(args.out, "QRY-queries-scope.md")
-    open(out_path, "w", encoding="utf-8").write(
-        stamp_markdown("\n".join(md) + "\n", kind="converted", generator="wxConversion"))
+    # [SCOPE 125 / T009] Through the shared funnel (FR-007): redacts, accumulates findings, and
+    # stamps the watermark on .md — so the manual stamp_markdown call is gone, not duplicated.
+    rd.write_text(out_path, "\n".join(md) + "\n", state)
     print(f"queries={len(queries)}  -> {out_path}")
     for q in queries:
         print(f"  {q['name']}: {len(q['items'])} cols, {len(q['conds'])} conds, "
               f"{len(q['params'])} params")
 
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if state.findings:
+        rd.write_text(sidecar_path, rd.render_sidecar(state), state)
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

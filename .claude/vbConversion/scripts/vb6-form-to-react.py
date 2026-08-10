@@ -26,6 +26,10 @@ Usage:
 import argparse
 import os
 import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import wxconv_redact as rd  # noqa: E402 - sibling module; path inserted directly above
 
 FENCE_RE = re.compile(r"```(?:vb)?\n(.*?)```", re.S)
 BEGIN_RE = re.compile(r"^\s*Begin\s+(\S+)\s+(\S+)\s*$", re.I)
@@ -118,7 +122,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--page", required=True, help="pre-convert/<Form>.controls.md")
     ap.add_argument("--out", default="rebuild/pages")
+    rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
+
+    state = rd.RedactionState()
 
     controls_text = read(args.page)
     base = os.path.basename(args.page)[: -len(".controls.md")]
@@ -236,13 +243,24 @@ def main():
 
     os.makedirs(args.out, exist_ok=True)
     out_path = os.path.join(args.out, f"{jsx_id(base)}.tsx")
-    with open(out_path, "w", encoding="utf-8") as fh:
-        fh.write("\n".join(L) + "\n")
+    # [SCOPE 125 / T010] Through the shared funnel (FR-007): redacts, accumulates findings and
+    # stamps the watermark on .md, so the manual stamp_markdown call is gone, not duplicated.
+    rd.write_text(out_path, "\n".join(L) + "\n", state, generator='vbConversion')
 
     print(f"{base}: controls={len(nodes)}  fields={len(bound)}  buttons={len(buttons)}  "
           f"handlers={len(emitted)}  menus={len(menus)}  ocx-gaps={len(gaps)}")
     print(f"  -> {out_path}")
 
+    # [SCOPE 125 / T010] Credential report, rendered from the accumulated state and written
+    # last so it covers every emission this run made. The summary prints unconditionally,
+    # including when nothing was found: a run that says nothing about credentials is the
+    # defect this scope fixes.
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if state.findings:
+        rd.write_text(sidecar_path, rd.render_sidecar(state), state, generator='vbConversion')
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

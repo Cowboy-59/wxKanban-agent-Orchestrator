@@ -31,7 +31,8 @@ import re
 
 import os as _wmos, sys as _wmsys
 _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
-from wxkanban_watermark import stamp_markdown
+import sys  # noqa: E402
+import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
 
 FENCE_RE = re.compile(r"```(?:vb)?\n(.*?)```", re.S)
 BEGIN_RE = re.compile(r"^\s*Begin\s+(\S+)\s+(\S+)\s*$", re.I)
@@ -153,7 +154,10 @@ def main():
     ap.add_argument("--dialect", default="postgres", choices=list(TYPEMAP))
     ap.add_argument("--src", default="pre-convert")
     ap.add_argument("--out", default="rebuild/db")
+    rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
+
+    state = rd.RedactionState()
 
     data_ctrls, bound, crud, dbfiles = {}, {}, set(), set()
     for p in sorted(glob.glob(os.path.join(args.src, "*.controls.md"))):
@@ -236,8 +240,10 @@ Notes for the loader:
   `.mdb` already has a key (e.g. `ContactID`).
 """)
 
-    open(os.path.join(args.out, f"schema.{args.dialect}.sql"), "w", encoding="utf-8").write("\n".join(sql) + "\n")
-    open(os.path.join(args.out, "ER-diagram.md"), "w", encoding="utf-8").write(stamp_markdown("\n".join(er) + "\n", kind='converted', generator='vbConversion'))
+    # [SCOPE 125 / T010] Through the shared funnel (FR-007): redacts, accumulates findings and
+    # stamps the watermark on .md, so the manual stamp_markdown call is gone, not duplicated.
+    rd.write_text(os.path.join(args.out, f"schema.{args.dialect}.sql"), "\n".join(sql) + "\n", state, generator='vbConversion')
+    rd.write_text(os.path.join(args.out, "ER-diagram.md"), "\n".join(er) + "\n", state, generator='vbConversion')
 
     print(f"dialect={args.dialect}  data-controls={len(data_ctrls)}  tables={len(tables)}")
     for t in tables:
@@ -247,6 +253,16 @@ Notes for the loader:
     if crud:
         print(f"  CRUD in code: {', '.join(sorted(crud))}")
 
+    # [SCOPE 125 / T010] Credential report, rendered from the accumulated state and written
+    # last so it covers every emission this run made. The summary prints unconditionally,
+    # including when nothing was found: a run that says nothing about credentials is the
+    # defect this scope fixes.
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if state.findings:
+        rd.write_text(sidecar_path, rd.render_sidecar(state), state, generator='vbConversion')
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

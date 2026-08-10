@@ -90,7 +90,11 @@ describe('dbpush — envelope inspection (FR-005, FR-006, FR-007)', () => {
     // phase2Compare's list_open_items + capture_event use the legacy path.
     callMcpToolMock.mockImplementation((tool: unknown) => {
       if (tool === 'project.list_open_items') {
-        return Promise.resolve({ tasks: [], documents: [], events: [] });
+        // [SCOPE 124 / T004] `specs` + `specsComplete` are required for phase2Compare to
+        // trust the identity answer. An envelope without them now fails closed and refuses
+        // to push — correct behaviour, but not what these tests are about, so the mock
+        // supplies an empty-but-COMPLETE collection: the project genuinely has no specs.
+        return Promise.resolve({ specs: [], specsComplete: true, tasks: [], documents: [], events: [] });
       }
       if (tool === 'project.capture_event') {
         return Promise.resolve({ id: 'evt-1' });
@@ -102,8 +106,15 @@ describe('dbpush — envelope inspection (FR-005, FR-006, FR-007)', () => {
 
   function cleanup() {
     process.chdir(cwdBefore);
-    if (fixture && existsSync(fixture)) {
-      rmSync(fixture, { recursive: true, force: true });
+    // Best-effort. On Windows the fixture is intermittently still handle-locked when
+    // rmSync runs, and letting that EPERM propagate fails three otherwise-passing
+    // assertions — noise that hides real regressions. The OS reclaims the temp dir.
+    try {
+      if (fixture && existsSync(fixture)) {
+        rmSync(fixture, { recursive: true, force: true });
+      }
+    } catch {
+      /* ignore */
     }
   }
 

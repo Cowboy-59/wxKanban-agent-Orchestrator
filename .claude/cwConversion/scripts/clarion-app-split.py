@@ -16,7 +16,8 @@ Outputs under --out (default pre-convert/):
     <proc>.report.md    one per PROCEDURE owning a REPORT
     <proc>.proc.md      procedures with no WINDOW/REPORT (business logic)
     <name>.view.md      one per VIEW structure found
-    _schema.md          dictionary relations (text-export path; binary .dct has none in .clw)
+    _schema.md          dictionary relations — FILE/RELATION from .txd, OR field-level FK links
+                        recovered from generated ABC `*_BC*.clw` AddRelationLink calls
     _project.md         app overview: element list, module list
     index.md            manifest
     _discarded.md       unclassified sections (review before discarding)
@@ -36,7 +37,12 @@ import re
 
 import os as _wmos, sys as _wmsys
 _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
-from wxkanban_watermark import stamp_markdown
+import sys  # noqa: E402
+import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
+
+# [SCOPE 125 / T011] Module-level redaction state. read_text() and write_if_new() are called from
+# 16 sites between them, and this is a one-shot CLI process, so one run means one state.
+STATE = rd.RedactionState()
 
 # Clarion structure keywords that open a block closed by a matching END.
 STRUCT_OPENERS = {
@@ -55,12 +61,21 @@ FIELD_TYPES = {
 def read_text(path):
     with open(path, "rb") as fh:
         raw = fh.read()
+    text = None
     for enc in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
         try:
-            return raw.decode(enc)
+            text = raw.decode(enc)
+            break
         except UnicodeDecodeError:
             continue
-    return raw.decode("latin-1", "replace")
+    if text is None:
+        text = raw.decode("latin-1", "replace")
+    # [SCOPE 125 / T011] PRIMARY redaction boundary for this family (FR-006). Clarion .txa/.dct put
+    # the ENTIRE connection string, credentials included, in the file's OWNER() attribute — it
+    # matches no key=value shape, which is why the module carries a dedicated pattern for it. This
+    # is the most common Clarion credential leak and fires on essentially every conversion.
+    text, _ = rd.redact(text, STATE, source=os.path.basename(path))
+    return text
 
 
 def safe_name(name):
@@ -378,10 +393,9 @@ def write_if_new(path, content, written, dry):
     written.append(os.path.basename(path))
     if dry or os.path.exists(path):
         return
-    if str(path).endswith('.md'):
-        content = stamp_markdown(content, kind='converted', generator='cwConversion')
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(content)
+    # [SCOPE 125 / T011] Through the shared funnel (FR-007): defence-in-depth redaction on top of
+    # the read_text() boundary, plus the watermark stamp that used to be inline here.
+    rd.write_text(path, content, STATE, generator='cwConversion')
 
 
 def table_md(f):
@@ -405,7 +419,14 @@ def main():
     ap.add_argument("--clw", help="glob for .clw modules (generated or hand-coded)")
     ap.add_argument("--out", default="pre-convert")
     ap.add_argument("--dry-run", action="store_true")
+    rd.add_redaction_args(ap)
     args = ap.parse_args()
+
+    # [SCOPE 125 / T011] Scan mode reads existing output and converts nothing, so it returns first.
+    if args.scan_only:
+        findings = rd.scan_tree(args.scan_only)
+        print(rd.render_scan_report(findings, args.scan_only))
+        return rd.exit_code(len(findings), args.fail_on_secrets)
 
     if not args.dry_run:
         os.makedirs(args.out, exist_ok=True)
@@ -522,6 +543,12 @@ def main():
         for d in discarded:
             print("  " + d)
 
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if STATE.findings and not args.dry_run:
+        rd.write_text(sidecar_path, rd.render_sidecar(STATE), STATE, generator='cwConversion')
+    print(rd.summary_line(STATE, sidecar_path))
+    return rd.exit_code(len(STATE.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

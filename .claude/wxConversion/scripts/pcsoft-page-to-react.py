@@ -23,6 +23,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import wxconv_redact as rd  # noqa: E402 - sibling module; path inserted directly above
+
 # ---- control grammar -----------------------------------------------------------------
 
 PREFIX_KIND = {
@@ -810,8 +813,10 @@ def main():
     ap.add_argument("--page", required=True, help="path to <PAGE>.controls.md")
     ap.add_argument("--out", default="rebuild/pages")
     ap.add_argument("--preview-out", default="scratch-render")
+    rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
 
+    state = rd.RedactionState()
     page = os.path.basename(args.page).split(".")[0]
     roots, nodes = parse_controls(args.page)
     GAPS_HIT.clear()
@@ -822,8 +827,12 @@ def main():
     os.makedirs(args.preview_out, exist_ok=True)
     tsx_path = os.path.join(args.out, f"{page}.tsx")
     html_path = os.path.join(args.preview_out, f"{page}.preview.html")
-    open(tsx_path, "w", encoding="utf-8").write(render_tsx(page, roots))
-    open(html_path, "w", encoding="utf-8").write(render_html(page, roots))
+    # [SCOPE 125 / T009] Through the shared funnel (FR-007). These are .tsx/.html, so write_text
+    # applies redaction but no watermark — matching the behaviour these two writes already had.
+    # Generated TSX embeds handler code lifted from the legacy source, which is exactly where a
+    # hardcoded connection literal would end up.
+    rd.write_text(tsx_path, render_tsx(page, roots), state)
+    rd.write_text(html_path, render_html(page, roots), state)
 
     n_ctl = len(nodes)
     n_todo = sum(1 for n in nodes.values()
@@ -838,6 +847,12 @@ def main():
         for g in sorted(GAPS_HIT):
             print(f"    - {g}: {GAP_RECO[g]}")
 
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if state.findings:
+        rd.write_text(sidecar_path, rd.render_sidecar(state), state)
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -7,6 +7,7 @@ import {
   isMeaningfulText,
   isMeasurableMetric,
   matchesPlaceholder,
+  findPlaceholders,
   uniqueStrings,
 } from './text-utils.js';
 import {
@@ -68,6 +69,8 @@ export function runPreflight(content: string): ScopeValidationResult {
   const businessProblemContent = extractSectionContent(content, /^##?\s*Business\s*Problem\b/i) || overviewContent;
   const successMetrics = extractMetricLines(successMetricsContent);
   const placeholdersFound = uniqueStrings(matchesPlaceholder(content));
+  // [SCOPE 124 / T010] Locations, so a block can be acted on rather than hunted for.
+  const placeholderHits = findPlaceholders(content);
 
   const checks = {
     hasOverview: /##?\s*Overview/i.test(content),
@@ -100,7 +103,22 @@ export function runPreflight(content: string): ScopeValidationResult {
 
   const blockingIssues: string[] = [];
   if (placeholdersFound.length > 0) {
-    blockingIssues.push(`Placeholder markers found: ${placeholdersFound.join(', ')}`);
+    // [SCOPE 124 / T010] FR-007's last acceptance criterion: quote the matched text and its
+    // location. "Placeholder markers found: TODO" against a 300-line document told the author
+    // nothing they could act on — and when the match was their own language, nothing they could
+    // even believe. Cap the enumeration so one stray marker on 50 lines does not bury the rest.
+    const located = placeholderHits.filter((hit) => hit.line > 0);
+    const shown = located.slice(0, 5).map((hit) => {
+      const excerpt = hit.text.length > 80 ? `${hit.text.slice(0, 77)}…` : hit.text;
+      return `${hit.marker} at line ${hit.line}: "${excerpt}"`;
+    });
+    const remainder = located.length - shown.length;
+    blockingIssues.push(
+      `Placeholder markers found: ${placeholdersFound.join(', ')}` +
+        (shown.length > 0
+          ? ` — ${shown.join('; ')}${remainder > 0 ? `; and ${remainder} more` : ''}`
+          : ''),
+    );
   }
   if (!minimumCriteriaStatus.businessProblem) {
     blockingIssues.push('Business Problem must be specific and non-placeholder.');

@@ -19,6 +19,10 @@ Usage:
 import argparse
 import os
 import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import wxconv_redact as rd  # noqa: E402 - sibling module; path inserted directly above
 
 FENCE_RE = re.compile(r"```clarion\n(.*?)```", re.S)
 OPENERS = {"WINDOW", "SHEET", "TAB", "GROUP", "OPTION", "MENUBAR", "MENU", "TOOLBAR", "ITEMIZE"}
@@ -242,7 +246,10 @@ def main():
     ap.add_argument("--page", required=True, help="pre-convert/<proc>.controls.md")
     ap.add_argument("--out", default="rebuild/pages")
     ap.add_argument("--preview-out", default="scratch-render")
+    rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
+
+    state = rd.RedactionState()
 
     base = os.path.basename(args.page).split(".")[0]
     text = fence_body(args.page)
@@ -271,7 +278,9 @@ def main():
                           body=body, embed_comment=embed_comment)
     os.makedirs(args.out, exist_ok=True)
     out_path = os.path.join(args.out, f"{base}.tsx")
-    open(out_path, "w", encoding="utf-8").write(tsx)
+    # [SCOPE 125 / T011] Through the shared funnel (FR-007): redacts, accumulates findings and
+    # stamps the watermark on .md, so the manual stamp_markdown call is gone, not duplicated.
+    rd.write_text(out_path, tsx, state, generator='cwConversion')
 
     # minimal Tailwind-CDN preview
     os.makedirs(args.preview_out, exist_ok=True)
@@ -284,13 +293,23 @@ def main():
                       for r in rows if r["kind"] not in ("WINDOW", "END"))
             + '</div></body></html>')
     prev_path = os.path.join(args.preview_out, f"{base}.preview.html")
-    open(prev_path, "w", encoding="utf-8").write(prev)
+    rd.write_text(prev_path, prev, state, generator='cwConversion')
 
     gaps = sum(1 for r in rows if r["kind"] in ("LIST", "COMBO", "DROPLIST", "DROPCOMBO", "IMAGE"))
     print(f"{base}: {len(rows)} controls  handlers={len(handlers)}  gaps={gaps}  embeds={len(embeds)}")
     print(f"  -> {out_path}")
     print(f"  -> {prev_path}")
 
+    # [SCOPE 125 / T011] Credential report, rendered from the accumulated state and written
+    # last so it covers every emission this run made. The summary prints unconditionally,
+    # including when nothing was found: a run that says nothing about credentials is the
+    # defect this scope fixes.
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if state.findings:
+        rd.write_text(sidecar_path, rd.render_sidecar(state), state, generator='cwConversion')
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

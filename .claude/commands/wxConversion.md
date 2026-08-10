@@ -29,6 +29,11 @@ This command **loads and runs the `wxConversion` skill**
 If no path is given, look for a single PDF under `conversion/docs/` and confirm it with the
 developer before starting.
 
+**The input must be the PDF.** If the developer points at `.wdw` / `.wdg` / `.wdc` / `.wdr` /
+`.wdp` or any other text-saved PCSoft source, **refuse and stop**: no stage can read those files,
+and improvising a reading of them produces confident, wrong results. Ask them to generate the
+Technical Documentation export from the IDE and re-run. Do not partially convert from source.
+
 ## Behavior
 
 1. **Preflight:** confirm the skill exists at `.claude/skills/wxConversion/SKILL.md` and that
@@ -48,6 +53,12 @@ developer before starting.
    - **Stage 5** — write the reports stub (or scope real reports if any exist).
 3. **Surface, don't decide.** Flag `GB` captions, component gaps, truncated SQL, and composite keys
    for human review. Modernize the UI rather than replicating the legacy layout 1:1.
+4. **Never infer status from syntax.** Treat an element as disabled, obsolete, or excluded **only**
+   when a named attribute says so and you can quote the exact key and line. Formatting is not
+   status — YAML block-scalar headers (`|`, `|-`, `|+`, `|1-`, `|2+`, `>-`) are syntax, where the
+   digit sets indentation and `-`/`+` control trailing newlines only. If you cannot quote the
+   attribute, the element is live. A developer's keep/drop answer covers **that element only**;
+   never generalize it into a rule applied to others.
 
 ## Exit conditions
 

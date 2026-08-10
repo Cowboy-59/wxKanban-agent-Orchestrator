@@ -36,7 +36,13 @@ import re
 
 import os as _wmos, sys as _wmsys
 _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
-from wxkanban_watermark import stamp_markdown
+import sys  # noqa: E402
+import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
+
+# [SCOPE 125 / T010] Module-level redaction state. read_text() and write_if_new() are called from
+# 16 sites between them, and this is a one-shot CLI process, so one run means one state. Threading
+# a parameter through every call site would add noise without buying anything.
+STATE = rd.RedactionState()
 
 BEGIN_RE = re.compile(r"^\s*Begin\s+(\S+)\s+(\S+)\s*$", re.I)
 BEGINPROP_RE = re.compile(r"^\s*BeginProperty\b", re.I)
@@ -54,12 +60,20 @@ ATTR_NAME_RE = re.compile(r'^\s*Attribute\s+VB_Name\s*=\s*"([^"]+)"', re.I)
 def read_text(path):
     with open(path, "rb") as fh:
         raw = fh.read()
+    text = None
     for enc in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
         try:
-            return raw.decode(enc)
+            text = raw.decode(enc)
+            break
         except UnicodeDecodeError:
             continue
-    return raw.decode("latin-1", "replace")
+    if text is None:
+        text = raw.decode("latin-1", "replace")
+    # [SCOPE 125 / T010] PRIMARY redaction boundary for this family (FR-005). VB6 .frm/.bas/.cls
+    # carry `ConnectionString = "...;uid=...;pwd=..."` inline, so redacting at the point of read
+    # means no parsed structure downstream ever holds a credential literal.
+    text, _ = rd.redact(text, STATE, source=os.path.basename(path))
+    return text
 
 
 def safe_name(name):
@@ -74,10 +88,9 @@ def write_if_new(path, content, written, dry):
     written.append(os.path.basename(path))
     if dry or os.path.exists(path):
         return
-    if str(path).endswith('.md'):
-        content = stamp_markdown(content, kind='converted', generator='vbConversion')
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(content)
+    # [SCOPE 125 / T010] Through the shared funnel (FR-007): defence-in-depth redaction on top of
+    # the read_text() boundary, plus the watermark stamp that used to be inline here.
+    rd.write_text(path, content, STATE, generator='vbConversion')
 
 
 # ------------------------------------------------------------------ .vbp project
@@ -270,7 +283,15 @@ def main():
     ap.add_argument("--src", help="glob for source files when no .vbp (e.g. \"conversion/src/*\")")
     ap.add_argument("--out", default="pre-convert")
     ap.add_argument("--dry-run", action="store_true")
+    rd.add_redaction_args(ap)
     args = ap.parse_args()
+
+    # [SCOPE 125 / T010] Scan mode reads existing output and converts nothing, so it returns first.
+    if args.scan_only:
+        findings = rd.scan_tree(args.scan_only)
+        print(rd.render_scan_report(findings, args.scan_only))
+        return rd.exit_code(len(findings), args.fail_on_secrets)
+
     if not args.dry_run:
         os.makedirs(args.out, exist_ok=True)
 
@@ -334,6 +355,12 @@ def main():
         for d in discarded:
             print("  " + d)
 
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if STATE.findings and not args.dry_run:
+        rd.write_text(sidecar_path, rd.render_sidecar(STATE), STATE, generator='vbConversion')
+    print(rd.summary_line(STATE, sidecar_path))
+    return rd.exit_code(len(STATE.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -13,13 +13,14 @@ Usage:
     python scripts/pcsoft-schema-to-sql.py --dialect firebird --out rebuild/db
 """
 import argparse
+import sys
 import glob
 import os
 import re
 
 import os as _wmos, sys as _wmsys
 _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
-from wxkanban_watermark import stamp_markdown
+import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
 
 # HFSQL type -> target type, per dialect. (col_type, is_identity_pk)
 TYPEMAP = {
@@ -271,8 +272,10 @@ def main():
     ap.add_argument("--dialect", default="firebird", choices=list(TYPEMAP))
     ap.add_argument("--src", default="pre-convert")
     ap.add_argument("--out", default="rebuild/db")
+    rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
 
+    state = rd.RedactionState()
     table_files = sorted(glob.glob(os.path.join(args.src, "*.table.md")))
     tables = [parse_table(p) for p in table_files]
     links = parse_links(os.path.join(args.src, "_schema.md"))
@@ -280,9 +283,11 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     sql_path = os.path.join(args.out, f"schema.{args.dialect}.sql")
     er_path = os.path.join(args.out, "ER-diagram.md")
-    open(sql_path, "w", encoding="utf-8").write(emit_ddl(tables, links, args.dialect))
-    open(er_path, "w", encoding="utf-8").write(
-        stamp_markdown(emit_er(tables, links, args.dialect), kind="converted", generator="wxConversion"))
+    # [SCOPE 125 / T009] Emission goes through the shared funnel (FR-007): it redacts, accumulates
+    # findings and stamps the watermark on .md, so the manual stamp_markdown call that used to wrap
+    # the ER diagram is gone rather than duplicated.
+    rd.write_text(sql_path, emit_ddl(tables, links, args.dialect), state)
+    rd.write_text(er_path, emit_er(tables, links, args.dialect), state)
 
     nfields = sum(len(f) for _, f in tables)
     print(f"dialect={args.dialect}  tables={len(tables)}  fields={nfields}  links={len(links)}")
@@ -291,6 +296,12 @@ def main():
     for t, f in tables:
         print(f"    {t}: {len(f)} fields")
 
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if state.findings:
+        rd.write_text(sidecar_path, rd.render_sidecar(state), state)
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -29,6 +29,13 @@ description: >-
 > including the generated `*_BC*.clw` business-class modules, which carry the dictionary's foreign-key
 > graph as `AddRelationLink` calls (recovered into real FK constraints when there is no `.txd`).
 >
+> **`--txd` means the *text* TXD export, NOT an XML `.dctx`.** A modern Clarion dictionary export
+> (`*.dctx`, header `<?xml ...><Dictionary ... DctxFormat="N">`) is **XML** and is not understood by the
+> `--txd` parser — passing it yields **zero tables** *and* suppresses the `--clw` table/FK fallback, so
+> you silently get a windows-only conversion. When the only dictionary you have is XML `.dctx`, **omit
+> `--txd`** and let the dictionary + FK graph be recovered from the generated `*_BC*.clw` modules via
+> `--clw`. Symptom of getting this wrong: `pre-convert/` has no `*.table.md` and no `_schema.md`.
+>
 > **Windows path gotcha.** Pass **Windows-style** paths to the scripts (`E:/App/src/*.clw`, forward
 > slashes fine). Git-Bash/MSYS `/e/...` paths silently fail Python's `glob`/`os.path` — the script
 > runs with an empty file set and **no error**.
@@ -44,6 +51,57 @@ description: >-
 > `wxkanban` server (Claude Code: `/mcp`). Only an explicit **401 / subscription error** from the
 > fetch is a token/subscription problem — re-run `kit-configure` or renew at
 > https://wxperts.com/account/billing.
+
+<!-- wxkanban:redaction-rule v1 -->
+
+## Credential redaction — MANDATORY, and it binds YOU, not just the scripts
+
+Legacy applications hardcode database credentials as string literals. Conversion output is committed
+as rebuild source material and read into AI context on every later session, so a credential copied
+into an artifact is disclosed to everyone with repository access **and** to the model provider.
+
+The `scripts/` in this skill redact automatically — every one of them writes through
+`wxconv_redact.write_text()`, which replaces credential values with stable `[[CRED-nn]]` tokens and
+records each finding in `_redactions.md`.
+
+**That covers the scripts. It does not cover artifacts you write yourself.** Any file you author
+from legacy source — an analysis JSON, a summary table, a scope document, a quoted code excerpt in
+chat — bypasses those scripts entirely. The one confirmed credential leak in the field arrived
+exactly this way, in an `analysis/*.json` that no script produces.
+
+**So, whenever you write anything derived from legacy source:**
+
+1. **Record the finding.** Note that a credential is hardcoded, which procedure or file it is in, and
+   the line. This is genuine rebuild signal — the migration needs to know which code paths carry
+   credentials, and the owner needs to know which accounts to rotate.
+2. **Write the value as a token,** never the literal: `"password": "[[CRED-01]]"`. Reuse the same
+   token for the same value so one credential in twelve places still reads as one credential.
+3. **Never drop the element to comply.** Do not omit a credential-bearing procedure, field or module
+   from your output in order to avoid writing the value. Removing the finding is worse than the
+   original problem: it hides a credential that still exists in the legacy source.
+4. **Never reproduce a value in chat either** — not truncated, not masked. A partial mask is a
+   disclosure.
+
+### Checking what is already exposed
+
+Artifacts produced before redaction existed are **already disclosed** and rewriting them does not
+undo that — rotation is the only remedy. To inventory them:
+
+```
+python scripts/clarion-app-split.py --scan-only <output-dir>
+```
+
+Read-only: it reports file, line and key, and changes nothing.
+
+### Repository hygiene
+
+- **`analysis/*.json` and other ad-hoc extracts are regenerable — gitignore them** rather than
+  committing them. This is the confirmed leak site.
+- **The generated technical-documentation export is itself a credential-bearing artifact.** Keep it
+  in a controlled store the conversion reads from, not committed at repository root.
+- **Turn the gate on in CI:** add `--fail-on-secrets` to any pipeline invocation. Redaction always
+  runs, but the flag makes a credential literal fail the build. That gate is the layer that still
+  holds when everything else has drifted.
 
 ## What this skill produces (summary)
 
