@@ -127,6 +127,13 @@ async function startGateway() {
       // No shell: we exec node.exe directly (its path may contain spaces, which
       // shell:true would mis-split), and tsx/entry paths are passed as argv.
       shell: false,
+      // REQUIRED here, not cosmetic — same shape as init.mjs's gateway spawn. A
+      // detached child launched from a console-less parent gets a fresh, VISIBLE
+      // console window that lingers for the life of the gateway, and this runs on
+      // every project open, so the windows stack up across a multi-project estate.
+      // `detached` STAYS — it is what survives the launcher exiting. Output is
+      // already captured to LOG_FILE, so nothing is lost by hiding the window.
+      windowsHide: true,
     },
   );
   child.unref();

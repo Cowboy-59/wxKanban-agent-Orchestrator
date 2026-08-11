@@ -63,7 +63,12 @@ function resolveFiles() {
   const args = process.argv.slice(2).filter((a) => a.endsWith(".tsx"));
   if (args.length) return args;
   try {
-    const out = execSync("git diff --cached --name-only --diff-filter=ACM", { encoding: "utf-8" });
+    // windowsHide: output is captured (encoding set), not inherited, so hiding the
+    // console costs nothing here and keeps the release gate free of exemptions.
+    const out = execSync("git diff --cached --name-only --diff-filter=ACM", {
+      encoding: "utf-8",
+      windowsHide: true,
+    });
     return out.split("\n").filter((f) => f.endsWith(".tsx"));
   } catch {
     return [];

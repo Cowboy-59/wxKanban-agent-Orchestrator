@@ -335,11 +335,13 @@ function extractArchive(archivePath) {
   if (ext === 'zip' && process.platform === 'win32') {
     // bsdtar misreads drive-letter paths (e.g. E:\...) in -C as remote hosts.
     // PowerShell's Expand-Archive handles Windows paths correctly.
+    // windowsHide: powershell.exe is a console program; launched from a console-less
+    // parent it gets a fresh, visible window. Inherited stdio still carries output.
     const ps = spawnSync(
       'powershell.exe',
       ['-NoProfile', '-NonInteractive', '-Command',
         `Expand-Archive -LiteralPath '${archivePath}' -DestinationPath '${root}' -Force`],
-      { stdio: 'inherit' }
+      { stdio: 'inherit', windowsHide: true }
     );
     if (ps.status !== 0) {
       throw new Error('Extraction failed (Expand-Archive)');
@@ -349,7 +351,7 @@ function extractArchive(archivePath) {
     // Use cwd instead of -C to avoid drive-letter parsing issues on Windows.
     const tarBin = resolveTarBinary();
     const args = ext === 'tar.gz' ? ['-xzf', archivePath] : ['-xf', archivePath];
-    const result = spawnSync(tarBin, args, { cwd: root, stdio: 'inherit' });
+    const result = spawnSync(tarBin, args, { cwd: root, stdio: 'inherit', windowsHide: true });
     if (result.status !== 0) {
       throw new Error(`Extraction failed (tar=${tarBin})`);
     }
@@ -370,7 +372,13 @@ function updateProjectConfigVersion(toVersion) {
 
 function runInit() {
   log('info', 'Re-running init.mjs to install platform-correct deps + restart services');
-  const result = spawnSync('node', [path.join(here, 'init.mjs')], { stdio: 'inherit', cwd: root });
+  // init.mjs hides its OWN children, but the upgrade path spawns init.mjs itself —
+  // without this the upgrade still flashes a window even though init.mjs is clean.
+  const result = spawnSync('node', [path.join(here, 'init.mjs')], {
+    stdio: 'inherit',
+    cwd: root,
+    windowsHide: true,
+  });
   if (result.status !== 0) {
     throw new Error(`init.mjs exited with code ${result.status}`);
   }

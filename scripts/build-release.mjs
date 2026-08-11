@@ -294,6 +294,88 @@ function verifyPackagedScriptPaths(files) {
   log('gate', c.green, `${checked} kit-owned script path(s) resolve in the staged archive`);
 }
 
+// ─── Integrity gate: every spawn in a shipped script must hide its console ────
+// On Windows a console program (cmd.exe, powershell.exe, a .cmd shim, or node.exe
+// itself) launched from a console-LESS parent — the VS Code task runner — is handed
+// a fresh, VISIBLE console window. The folderOpen task runs on every project open,
+// so the windows accumulate across a multi-project estate and never close.
+//
+// This has now regressed three times (feedback e8849e53, 8a2b439a, and again at
+// v1.7.53 when setup-gateway.mjs and kit-start.mjs arrived carrying the same
+// omission). The existing defence was a comment inside init.mjs, which protects
+// exactly one file — that is precisely how two NEW files repeated the bug. A gate
+// travels with the archive instead.
+//
+// Deliberately a count-based heuristic, not an AST: it asks only "does this file
+// have at least as many `windowsHide` options as spawn call sites". That is enough
+// to catch the real failure mode (a new file that spawns and never mentions it) and
+// is cheap enough to never be the reason a release is skipped. A file with a genuine
+// exception opts out explicitly with `// windows-hide-exempt: <reason>`, which is
+// reviewable — unlike deleting the gate.
+// The leading lookbehind excludes member calls — `RE.exec(line)` is a regex match,
+// not a process spawn, and without this a lint script full of regexes trips the gate.
+// Known trade-off: a namespaced `child_process.exec(...)` is missed. The kit's own
+// style is destructured imports (`spawnSync(...)`), which is what this must catch.
+const SPAWN_CALL_RE = /(?<![.\w])(?:spawnSync|spawn|execFileSync|execFile|execSync|exec)\s*\(/g;
+const WINDOWS_HIDE_RE = /windowsHide\s*:\s*true/g;
+// Anchored to the start of a comment line so the marker is a DIRECTIVE, not a
+// mention. Unanchored, this file exempted itself simply by documenting the marker
+// — and so would any file that merely explains the convention.
+const WINDOWS_HIDE_EXEMPT_RE = /^\s*(?:\/\/|#)\s*windows-hide-exempt:/m;
+
+/** Blank out block and line comments, preserving offsets well enough to count. */
+function stripComments(src) {
+  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
+function verifyWindowsHide(files) {
+  const failures = [];
+  let checked = 0;
+
+  for (const { full, rel } of files) {
+    if (!rel.startsWith('scripts/')) continue;
+    if (!/\.(mjs|js|cjs)$/.test(rel)) continue;
+
+    let src;
+    try {
+      src = readFileSync(full, 'utf8');
+    } catch {
+      continue;
+    }
+    if (WINDOWS_HIDE_EXEMPT_RE.test(src)) continue;
+
+    // Count against CODE only. Comments discussing the pattern — including this
+    // file's own — otherwise inflate both sides of the comparison and make the
+    // gate lie in whichever direction the prose happens to fall.
+    const code = stripComments(src);
+
+    const calls = (code.match(SPAWN_CALL_RE) || []).length;
+    if (calls === 0) continue;
+    checked++;
+
+    const hides = (code.match(WINDOWS_HIDE_RE) || []).length;
+    if (hides < calls) failures.push({ rel, calls, hides });
+  }
+
+  if (failures.length) {
+    console.log('');
+    log('gate', c.red, col(c.bold, `${failures.length} shipped script(s) spawn without windowsHide:`));
+    for (const { rel, calls, hides } of failures) {
+      console.log(`    ${col(c.red, '✗')}  ${col(c.bold, rel)}  —  ${calls} spawn site(s), ${hides} windowsHide`);
+    }
+    console.log('');
+    console.log(`  ${col(c.dim, 'On Windows each un-hidden spawn opens a console window that never closes.')}`);
+    console.log(`  ${col(c.dim, 'Add `windowsHide: true` to the options object at each site — inherited stdio')}`);
+    console.log(`  ${col(c.dim, 'still carries the output, and `detached`/`shell` can stay. See init.mjs for the')}`);
+    console.log(`  ${col(c.dim, 'proven pattern. If a site genuinely cannot hide, add a `// windows-hide-exempt:')}`);
+    console.log(`  ${col(c.dim, '<reason>` comment to the file so the exception is recorded rather than silent.')}`);
+    console.log('');
+    throw new Error('release blocked — a shipped script spawns a visible console window on Windows');
+  }
+
+  log('gate', c.green, `${checked} shipped script(s) with spawn sites all hide the console`);
+}
+
 // ─── SHA-256 of a file ────────────────────────────────────────────────────────
 async function sha256File(filePath) {
   const hash = crypto.createHash('sha256');
@@ -387,9 +469,9 @@ async function main() {
       const distDir = path.join(pkgDir, 'dist');
       if (existsSync(distDir)) await fsp.rm(distDir, { recursive: true, force: true });
       if (!existsSync(path.join(pkgDir, 'node_modules'))) {
-        execSync('npm install', { cwd: pkgDir, stdio: 'inherit' });
+        execSync('npm install', { cwd: pkgDir, stdio: 'inherit', windowsHide: true });
       }
-      execSync('npx tsc -b --force', { cwd: pkgDir, stdio: 'inherit' });
+      execSync('npx tsc -b --force', { cwd: pkgDir, stdio: 'inherit', windowsHide: true });
       if (!existsSync(distDir)) {
         throw new Error(`shared/${name} prebuild produced no dist/ — investigate before packing`);
       }
@@ -411,6 +493,7 @@ async function main() {
   // Gate BEFORE packing, and in --dry-run too — a dry run is how this is checked ahead of a
   // release, so it has to be able to fail.
   verifyPackagedScriptPaths(files);
+  verifyWindowsHide(files);
 
   if (DRY_RUN) {
     console.log('');

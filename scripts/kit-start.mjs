@@ -51,14 +51,26 @@ function resolveMcpBaseUrl() {
   );
 }
 
+// shell:true runs a .cmd shim through cmd.exe — a console program. Launched from a
+// console-less parent (the VS Code task runner), Windows hands it a fresh, VISIBLE
+// console window. windowsHide suppresses that; inherited stdio still carries the
+// output. Same reasoning as init.mjs's npm spawn — see feedback e8849e53 / 8a2b439a.
 function run(cmd, args) {
-  const r = spawnSync(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32' });
+  const r = spawnSync(cmd, args, {
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+    windowsHide: true,
+  });
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 
 // Best-effort run: log a warning on non-zero exit instead of aborting kit:start.
 function runSoft(cmd, args, label) {
-  const r = spawnSync(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32' });
+  const r = spawnSync(cmd, args, {
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+    windowsHide: true,
+  });
   if (r.status !== 0) {
     console.warn(`[kit:start] ${label} exited with code ${r.status ?? 1} — continuing (non-fatal).`);
   }
