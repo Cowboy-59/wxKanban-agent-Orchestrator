@@ -52,10 +52,33 @@ After the implementation report, run an **advisory** combined code + UI/UX revie
 the changes this run produced — it never blocks completion; implement is already reported done.
 
 - [ ] Scope the review to the files/tasks changed by this implement run (the diff), not the whole repo.
-- [ ] Run the `wxUIUXCodeReview` command: call `project.get_command_prompt` with `{ "command": "wxuiuxcodereview" }` and follow the returned methodology against those changes. If unavailable, fall back to the `wxUIUXCodeReview` skill under `.claude/skills/wxUIUXCodeReview/`.
+- [ ] Run the `wxUIUXCodeReview` command: call `project.get_command_prompt` with `{ "command": "wxuiuxcodereview" }` and follow the returned methodology against those changes. If unavailable, fall back to the `wxUIUXCodeReview` skill under `.claude/skills/wxUIUXCodeReview/`, which ships with the kit and carries the same methodology. If neither is available, say so plainly and skip Phase 4; never improvise a review from memory or report one as if the methodology had been applied.
+- [ ] **Declare this is an auto-run** so the review applies its diff-bounded dimension set (see *Dimension scope by invocation* in that methodology). The repo-wide dimensions — wiring/reachability, test-suite validity, claim-vs-code, and defaults & first-run — are **not** run here: they need searches beyond the diff and surface mostly pre-existing findings, which would reprint on every implement run. They belong to an explicit `/wxUIUXCodeReview` or `/wxUIUXCodeReview --audit`.
 - [ ] Run the track(s) that match the diff: the code track always; the UI/UX track only when the run touched frontend files (`.tsx`/`.jsx`/`.css`/Tailwind/shadcn). Use a static UI review — do not launch the app here.
 - [ ] Print the review findings (ordered by severity: must-fix / should-fix / nit) after the implement report.
 - [ ] Do **not** auto-apply fixes, edit code, restyle, or mark tasks blocked based on the review — surface findings for the user to act on. must-fix findings are called out prominently but do not fail the run.
+
+### Phase 4b: Conversion parity audit (wxConversionParity) — conversion projects only
+If this project is a legacy conversion, audit the element this scope rebuilt against its original
+**before** the test plan is authored, so parity findings — especially dropped defaults — become
+coverage instead of arriving after the plan is written.
+
+- [ ] **Guard 1 — is this a conversion?** If `pre-convert/` does not exist at the repo root, skip this
+  phase **silently** and continue to Phase 5. Most projects are not conversions; do not announce a skip.
+- [ ] **Guard 2 — is the element complete?** Determine the scope this spec implements (same lookup as
+  Phase 5). Parity compares a *whole* legacy element, so run it only when **every spec implementing
+  that scope** is done — read the scope's `**Implemented By**` list, not just this spec's status. A
+  scope can fan out to several specs (SCOPE-045 → SPEC-046…050), and auditing after only one of them
+  reports not-yet-built behavior as regressions. If other specs are outstanding, say so in one line
+  and skip.
+- [ ] Run the parity audit scoped to **this scope's element only**: call `project.get_command_prompt`
+  with `{ "command": "wxconversionparity" }` and follow the returned methodology. Do not sweep the
+  whole app here — a full sweep is an explicit `/wxConversionParity` run.
+- [ ] Surface the result after the review findings: regressions by severity, the **dropped defaults**
+  table, and any regression candidates that need a decision.
+- [ ] **Advisory and non-blocking** — implement is already reported done. Do not restore behavior, edit
+  code, mark tasks blocked, or resolve a regression candidate on the user's behalf.
+- [ ] Carry confirmed regressions and dropped defaults into Phase 5 as test-plan input.
 
 ### Phase 5: Create / Refresh the Test Plan (wxCreateTestPlan)
 After the review, create or refresh the **scope's** test plan so the implemented behavior has
