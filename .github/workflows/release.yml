@@ -33,7 +33,31 @@ permissions:
   contents: write
 
 jobs:
+  # [SPEC 121 / T012] Consumer-file preservation must hold before anything is
+  # packed. This suite guards the defect that cost twelve consumers their work;
+  # a release that cannot pass it must not be cut, so `build` depends on it.
+  # Needs dev dependencies (vitest), which the build job deliberately omits.
+  preservation-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version }}
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (including dev)
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Upgrade preservation suite
+        run: npx vitest run tests/unit/upgrade-kit-preservation.test.mjs
+
   build:
+    needs: preservation-tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
