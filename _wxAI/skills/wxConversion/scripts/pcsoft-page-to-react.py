@@ -110,6 +110,20 @@ TYPE_HEADER_KIND = {
 # theoretical - see DesignDecisions.md's go/no-go test log).
 SECTION_HEADER_RE = re.compile(r"^([A-Za-z][A-Za-z ]*?)\s*:\s*(.+)$")
 
+# "<Type> : <Name>" blocks that declare the ELEMENT rather than a control on it. Everything
+# else in that form is treated as a control, known type or not — the polarity matters: an
+# allow-list of control types silently deletes every type nobody has met yet, whereas a
+# deny-list of non-controls degrades to rendering an unfamiliar control generically.
+NON_CONTROL_SECTIONS = {
+    "Window", "Internal window", "Window template", "Page", "Internal page", "Page template",
+    "Report", "Query", "Project", "Analysis", "Class", "Set of procedures",
+    "Collection of procedures", "Procedure", "Description", "General information",
+}
+
+# Control types met in the field that this script has no mapping for. Reported at the end so
+# the type can be added rather than rediscovered by the next person converting a similar app.
+UNKNOWN_TYPES = {}
+
 # Bare identifier-shaped tokens that are property *values* in these dumps, not control
 # names — without this, e.g. a page-footer "JCA" (the project name) or a value like
 # "Active"/"Read-onl" (PDF-truncated "Read-only") could be misread as a control header.
@@ -189,6 +203,17 @@ def strip_mnemonic(text):
 
 def parse_controls(path):
     raw = open(path, encoding="utf-8").read().split("\n")
+
+    # Drop OUR OWN YAML front matter before anything else. Its lines are "key: value", the
+    # same shape as a "<Type> : <Name>" control declaration, so the parser read
+    # "wxkanbanVersion: kit" as a control named `kit` of type `wxkanbanVersion` — inventing
+    # controls out of the header this very tool wrote. Values like `kit` are valid
+    # identifiers, so no name-shape test can catch this; the block has to be excluded.
+    if raw and raw[0].strip() == "---":
+        end = next((i for i, l in enumerate(raw[1:], start=1) if l.strip() == "---"), None)
+        if end is not None:
+            raw = raw[end + 1:]
+
     # drop our own md header/comment lines
     lines = [l for l in raw if not l.startswith("#") and not l.startswith("_")
              and not l.startswith("<!--")]
@@ -227,9 +252,32 @@ def parse_controls(path):
                 header_idx.append(i)
                 header_kind[i] = TYPE_HEADER_KIND[type_word]
                 header_full[i] = name_part
+            elif type_word in NON_CONTROL_SECTIONS:
+                # The page/window/report itself, not a control on it. Ends whatever
+                # block-style section preceded it and contributes nothing.
+                current_kind, current_table_owner = None, None
+            elif NAME_RE.match(name_part) and len(type_word) > 1:
+                # An unrecognized type in "<Type> : <Name>" form. This used to be dropped
+                # outright, which deleted every control whose type was not one of the 21 in
+                # TYPE_HEADER_KIND - "Sidebar : SDB_Menu" and its whole family - even though
+                # the name is stated unambiguously right there.
+                #
+                # Keep it. An unclassified control rendered generically is a control the
+                # developer can see and correct; a deleted one is invisible in a page that
+                # still reports success. The type is recorded so the map can grow.
+                #
+                # The name must look like an identifier and the type must be more than one
+                # letter: this line shape also matches YAML front matter
+                # ("wxkanbanSource: https://..."), Windows paths ("D: \WXSpooler\...") and
+                # URLs ("http: //"), none of which are controls. Without that check the
+                # parser invents controls out of its own file header.
+                current_kind, current_table_owner = None, None
+                header_idx.append(i)
+                header_kind[i] = "control"
+                header_full[i] = name_part
+                UNKNOWN_TYPES.setdefault(type_word, []).append(name_part)
             else:
-                # unrecognized section (e.g. "Window : cr_tab" - the page itself, not a
-                # control) - still ends whatever block-style section preceded it.
+                # Not a control declaration at all - front matter, a path, a URL.
                 current_kind, current_table_owner = None, None
             seen_any_label = False
             continue
@@ -791,21 +839,45 @@ export default function {comp}() {{{handler_block}
 # holds control data (many property-label lines) but almost nothing was parsed, the format
 # was very likely still not recognized — turn that silent miss into a loud warning rather
 # than writing an empty .tsx that looks like success.
+CANDIDATE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$")
+
+
 def warn_low_yield(path, n_ctl):
+    """
+    Compare what was parsed against the control NAMES the dump contains.
+
+    This used to divide the count of property-LABEL lines by 20, which is not a control count:
+    a single control carries roughly thirty property lines, so a COMPLETE extraction still
+    tripped the warning. On a real 5228-line page it reported "only 66 controls parsed, but the
+    dump contains 1781 control-property lines" while having found all 65 controls present. A
+    warning that fires on correct output teaches people to ignore it, which costs more than
+    having no warning at all.
+
+    Counting distinct control-shaped names gives a denominator in the same unit as the numerator.
+    """
     try:
         raw = open(path, encoding="utf-8").read().split("\n")
     except OSError:
         return
-    prop_hits = sum(1 for l in raw if l.strip() in PROP_KEYS)
-    if prop_hits >= 12 and n_ctl <= max(2, prop_hits // 20):
-        print(f"  !! WARNING: only {n_ctl} controls parsed, but the dump contains "
-              f"{prop_hits} control-property lines.")
-        print("     Most controls were NOT recognized - their names likely carry no WinDev "
-              "type prefix")
-        print("     (renamed to descriptive names, or a bare name like 'TABLE'). The generated "
-              ".tsx is")
-        print("     probably empty/incomplete - review it directly; don't trust the 'controls "
-              "parsed' count.")
+    candidates = {
+        l.strip() for l in raw
+        if CANDIDATE_NAME_RE.match(l.strip() or "") and ("_" in l or "." in l)
+    }
+    if len(candidates) >= 10 and n_ctl < len(candidates) * 0.8:
+        print(f"  !! WARNING: {n_ctl} controls parsed, but the dump names "
+              f"{len(candidates)} control-shaped identifiers.")
+        print("     Controls are being missed - most likely a name shape or a declared type this")
+        print("     parser does not recognize. Review the generated .tsx directly rather than")
+        print("     trusting the count.")
+
+    if UNKNOWN_TYPES:
+        print(f"  !! {len(UNKNOWN_TYPES)} unrecognized control type(s) - rendered generically, "
+              "not dropped:")
+        for type_word, names in sorted(UNKNOWN_TYPES.items()):
+            shown = ", ".join(names[:4]) + (f" …+{len(names) - 4}" if len(names) > 4 else "")
+            print(f"       {type_word}: {shown}")
+        print("     Report these to wxKanban (project_submit_feedback) so the type ships mapped "
+              "and renders correctly.")
 
 
 def main():

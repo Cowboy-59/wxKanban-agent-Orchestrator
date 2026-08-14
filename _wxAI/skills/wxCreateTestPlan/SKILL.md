@@ -163,8 +163,8 @@ is a gap analysis** — never overlapping CRUD items the QA Architect already ow
 consuming that coverage summary and the Phase 1B schema analysis. Its **first deliverable is the
 constraint-gap analysis** — "these `FR-###` have application coverage but no data-layer enforcement
 test" — presented for approval **before** it expands into data-layer item bodies. Gaps that are
-business rules enforced only in app code are **findings** (filed via `project_submit_feedback`), not
-tests. Data items are tagged `layer: data` and carry the extra fields from
+business rules enforced only in app code are **findings** (recorded in THIS project - see **Where
+findings go**), not tests. Data items are tagged `layer: data` and carry the extra fields from
 `references/test-item-schema.md`.
 
 ---
@@ -369,8 +369,8 @@ Now the Senior Database Engineer persona runs, consuming the approved Phase-2A c
 the Phase-1B schema analysis. **First deliverable — the constraint-gap analysis:** list each
 `FR-###` (or unit) that has application coverage but **no data-layer enforcement test**, and each
 business rule enforced only in app code. Present it for approval **before** writing data-item bodies.
-Gaps that are app-only-enforced rules are **findings** (file via `project_submit_feedback`), not
-tests. On approval, expand `layer: data` items across the DBA test categories, each carrying
+Gaps that are app-only-enforced rules are **findings** (record in THIS project - see **Where
+findings go**), not tests. On approval, expand `layer: data` items across the DBA test categories, each carrying
 `targetObjects`, `isolationLevel`, `seedScript`, `teardownScript`, and (where relevant)
 `expectedPlan` — no data item may have unspecified starting data. Every schema change in scope gets a
 forward test, a rollback test, and a data-preservation test. Merge these into `test-items.json`.
@@ -520,12 +520,40 @@ Plans, signoffs, findings, and items land in wxKanban via the orchestrator, not 
 - **Clarifications Required** → `mcp__wxkanban__project_submit_feedback` **first**, before any item
   that depends on one. An item with `requirementId: null` and no filed clarification has no provenance.
 - `CODE-BUG` / `SPEC-GAP` findings, **schema-analysis findings** (unenforced FKs, missing/excessive
-  indexes, orphans), and **DBA constraint gaps** (rules enforced only in app code) →
-  `mcp__wxkanban__project_submit_feedback` against the owning spec.
+  indexes, orphans), and **DBA constraint gaps** (rules enforced only in app code) → **your own
+  project**, never the vendor. See **Where findings go** below.
 - **Signoffs** → the Smoke and CRUD signoffs file as `signoff` documents + a task; the **Final
   signoff** files **pending** and is only marked signed on the user's explicit verification.
   **User-added cases** captured during the final signoff are filed here too (task + `test-items.json`)
   before the signoff is recorded.
+
+### Where findings go
+
+**A finding about the application under test belongs to that application, not to wxKanban.**
+
+This distinction was missing, and the cost was concrete: findings about customers' own systems —
+allergen fail-open logic, XML escaping, session-secret defaults, a sync gap on a receivable — were
+filed into the vendor's support queue by agents correctly following this file, because
+`submit_feedback` was the only filing verb named here. They reached people who cannot act on them,
+and they distorted every metric computed from that queue.
+
+Route by **who owns the defect**, not by how it was discovered:
+
+| What you found | Where it goes |
+|---|---|
+| A gap in the application under test — unenforced constraint, app-only business rule, `CODE-BUG`, `SPEC-GAP`, schema finding | **This project.** One `testplanFindings` document per scope, plus one summary task. |
+| A defect in wxKanban, the kit, or this skill — a script that crashes, an extractor that misses units, a tool that rejects valid input | `mcp__wxkanban__project_submit_feedback`. That queue is for the vendor's own software. |
+
+For the project's own findings:
+
+1. **One document per scope**, via `mcp__wxkanban__project_upsert_document` with
+   `doctype: "testplanFindings"`, titled `Test plan findings: <scope>`, linked to the owning spec.
+   Re-running the skill updates that document in place rather than creating a second one.
+2. **One summary task** referencing it — not one task per finding. A single run can produce thirty
+   findings, and thirty tasks buries the board rather than surfacing the work.
+
+Findings recorded this way stay with the team that can fix them, and survive into the next test run
+because they live beside the spec they came from.
 
 Show the user the filing manifest — counts by type and exact titles — and let them confirm before
 filing. Filing 200 items is not an undoable action to take on your own initiative.
