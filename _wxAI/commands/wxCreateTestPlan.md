@@ -1,5 +1,5 @@
 ---
-description: Build a requirement-traceable test plan for the wxKanban app (Express routes, Drizzle tables, services, UI/UX page-to-page flows, and any MCP tools) — then optionally --Execute it through three signoff gates: smoke, true CRUD & execute, and final user verification.
+description: Build a requirement-traceable test plan for the stack declared in stack.md (routes/services/commands, data tables, UI page-to-page flows, and any tool surface) — then optionally --Execute it through three signoff gates: smoke, true CRUD & execute, and final user verification. Stack-neutral method; machinery comes from a per-stack adapter.
 args: "{{args}}"
 ai-compat: universal
 claude-code: true
@@ -12,7 +12,7 @@ blackboxai: true
 ## Purpose
 
 Produce a complete, requirement-traceable **test plan** for wxKanban and, on demand, drive it to a
-signed-off run. Inventory every callable unit — Express route handlers, Drizzle tables, services,
+signed-off run. Inventory every callable unit — route handlers or commands, data tables, services,
 **UI/UX page-to-page flows and per-screen functionality**, and any MCP tools — classify and
 risk-rank them, write a gated plan plus atomic test items, and file everything into the spec system.
 With `--Execute`, run the plan through **three signoff gates**: smoke, true CRUD & execute, and final
@@ -44,15 +44,22 @@ fixed test-item schema.
 
 1. **Preflight:** confirm the skill exists at `_wxAI/skills/wxCreateTestPlan/SKILL.md`, read it, and
    follow its phases in order.
-2. **PLAN mode (default):**
+2. **Resolve the stack adapter FIRST:** read `stack.md` at the repo root and load the matching
+   adapter from `_wxAI/skills/wxCreateTestPlan/adapters/`. The method is stack-neutral; the
+   inventory command, schema source, harness and UI driver all come from the adapter. **If no
+   adapter matches the declared stack, stop and say so** — never run the TypeScript extractor
+   speculatively, because a zero-unit inventory from the wrong stack reads exactly like a real one.
+3. **PLAN mode (default):**
    - **Phase 0 — Scope & DB posture:** resolve the target, read the relevant `specs/NNN-*/spec.md`
      first (SPEC-FIRST is mandatory), and announce the DB posture out loud.
-   - **Phase 1 — Inventory (deterministic):** run the skill's extractor to enumerate every unit,
-     including Express routes, Drizzle tables, and UI routes / navigation edges. Cross-check counts;
-     a mismatch is a finding.
-   - **Phase 1B — Database schema analysis:** run the schema auditor over `src/db/schema` — a
-     **referential-integrity score (0–10)** plus actionable `file:line` findings for field/table
-     definitions, orphaned tables & data, missing indexes, and excessive/redundant indexes.
+   - **Phase 1 — Inventory (deterministic):** run the adapter's inventory command to enumerate every
+     unit — routes/services/commands, data tables, and UI navigation edges. Cross-check counts;
+     a mismatch is a finding, and a zero-unit inventory is never a result to plan against.
+   - **Phase 1B — Database schema analysis:** analyze the schema from the source the adapter names —
+     a **referential-integrity score (0–10)** plus actionable `file:line` findings for field/table
+     definitions, orphaned tables & data, missing indexes, and excessive/redundant indexes. On any
+     ORM-first stack, also diff the model-built schema against the checked-in one; the diff is a
+     finding.
    - **Phase 2 — Plan (gated):** emit a coverage summary and **get approval before writing item
      bodies**; then a second **Senior Database Engineer persona** runs (after approval) with a
      data-layer **constraint-gap analysis** before expanding `layer: data` items; instantiate all
@@ -60,30 +67,35 @@ fixed test-item schema.
    - **Persistence:** the plan, items, schema analysis, and signoffs are **written to the wxKanban
      database** (source of truth) via the orchestrator; local `tests/testplans/<target>/` files are
      the rendered copies.
-3. **EXECUTE mode (`--Execute`):** build the harness (supertest against the real Express app; `pg`
-   mocked, drizzle real), then run the **three signoff gates**, filing each into wxKanban:
+4. **EXECUTE mode (`--Execute`):** build the harness the adapter prescribes — always driving units
+   through the same registration path production uses — then run the **three signoff gates**, filing
+   each into wxKanban:
    - **Gate 1 — Smoke signoff:** everything responds without crashing (read-only / mocked).
    - **Gate 2 — CRUD & execute signoff:** a real create→read→update→delete round-trip plus behavior
-     execution, **only against a non-production DB** (the MCP test-DB with **verified UAT
-     capability**, or an explicit `TEST_DATABASE_URL`). Production is forced to UAT; prod-`.env`
-     writes are hard-refused.
+     execution, **only against a target proven non-production** (the adapter names the routes and
+     how each is verified). Production is forced to UAT; writes against the production connection
+     are hard-refused.
    - **Gate 3 — Final signoff:** **user verification.** The skill presents the evidence and stops;
      the record is filed **pending** until you confirm — it never self-certifies. **You may add new
      test cases here** — each is captured, persisted to the DB, run, and folded into the report
      before you sign off.
-4. **UI/UX coverage:** the plan covers page-to-page navigation (and back), guarded-route redirects,
-   deep-link/refresh, and per-screen element functionality (Playwright).
-5. **Findings over quiet fixes:** a failing test on correct-looking logic is a **finding** — it goes
-   in the report and the spec system, never into a silent patch of `src/`. Ambiguity and untraceable
-   behavior go to **Clarifications Required**.
+5. **UI/UX coverage:** the plan covers screen-to-screen navigation (and back), guarded entry points,
+   deep-link/refresh where the platform has URLs, and per-screen element functionality — driven by
+   the adapter's UI driver (Playwright on the web, UI Automation on WPF).
+6. **Findings over quiet fixes:** a failing test on correct-looking logic is a **finding** — it goes
+   in the report and the spec system, never into a silent patch of product source. Ambiguity and
+   untraceable behavior go to **Clarifications Required**.
 
 ## Safety
 
-- **Never mutate the production RDS.** wxKanban's local `.env` points at prod; the CRUD/execute gate
-  refuses to run without a verified non-prod DB. If the MCP is chosen for the CRUD DB, its **UAT
-  capability is verified first** — unverified → hard-stop, no prod fallback.
-- No real email/SMS/Stripe/PM-system side effects in any tier.
-- Does not run git and does not edit `src/**` to make a test pass unless you ask.
+- **Resolve the adapter before anything else**, and stop if none matches the declared stack. Running
+  one stack's tooling against another returns an empty result that reads exactly like a real one.
+- **Never mutate the production database.** The CRUD/execute gate refuses to run without a target
+  proven non-production. If a shared or hosted connection is offered, its **non-prod capability is
+  verified first** — unverified → hard-stop, no prod fallback. (On wxKanban specifically, the local
+  `.env` points at prod.)
+- No real email/SMS/payment/third-party side effects in any tier.
+- Does not run git and does not edit product source to make a test pass unless you ask.
 
 ## Exit conditions
 

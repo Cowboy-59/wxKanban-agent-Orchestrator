@@ -16,6 +16,10 @@
  * Usage:
  *   node schema-analyze.mjs --root src/db/schema [--out tests/.../schema-analysis.json]
  *       [--md tests/.../SCHEMA-ANALYSIS.md] [--live]
+ *
+ * STACK SCOPE: Drizzle only. On any other schema source (EF Core, Prisma, …) this exits 3 and
+ * names what it found — it must never emit a referential-integrity score for a schema it did not
+ * read. See `_wxAI/skills/wxCreateTestPlan/adapters/` for the per-stack substitutes.
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -227,6 +231,53 @@ for (const file of files) {
 
     tables.set(tableName, { constName, file: rel, line: lineAt(text, startIdx), columns, indexes, raw: body });
   }
+}
+
+// ----------------------------------------------------------------------------- stack guard
+
+/**
+ * Census of every file extension under `dir`, so an unsupported tree can be named rather than
+ * merely reported as empty. Recursive even though the schema walk above is flat — the point is to
+ * describe what the caller actually pointed at.
+ */
+function censusExtensions(dir, tally = new Map(), depth = 0) {
+  if (depth > 4) return tally;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (['node_modules', '.git', 'dist', 'bin', 'obj', 'coverage'].includes(entry.name)) continue;
+    if (entry.isDirectory()) censusExtensions(join(dir, entry.name), tally, depth + 1);
+    else {
+      const dot = entry.name.lastIndexOf('.');
+      const ext = dot > 0 ? entry.name.slice(dot) : '(no extension)';
+      tally.set(ext, (tally.get(ext) || 0) + 1);
+    }
+  }
+  return tally;
+}
+
+// This auditor targets Drizzle. Run against any other schema source it used to parse nothing and
+// still emit a report — including a referential-integrity SCORE — about a schema it never read. A
+// silently wrong audit is worse than no audit, because it gets acted on. So: an unsupported tree
+// is a hard stop that names the stack, not a 10/10 on an empty set.
+if (files.length === 0 || tables.size === 0) {
+  const census = [...censusExtensions(root)]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([ext, n]) => `${n} ${ext}`)
+    .join(', ');
+  const cause =
+    files.length === 0
+      ? `no TypeScript files found under "${rootArg}"`
+      : `parsed ${files.length} TypeScript file(s) under "${rootArg}" but found no pgTable(...) definitions`;
+  console.error(
+    `schema-analyze: ${cause}.\n` +
+      '  This auditor targets Drizzle schema declarations (pgTable).\n' +
+      `  Found instead: ${census || 'nothing'}.\n` +
+      '  Pick the adapter for the stack this project declares in stack.md:\n' +
+      '    _wxAI/skills/wxCreateTestPlan/adapters/\n' +
+      '  (EF Core, Prisma, ActiveRecord and friends need their own schema source — reconcile the\n' +
+      '   ORM model against information_schema rather than running this script.)',
+  );
+  process.exit(3);
 }
 
 // ----------------------------------------------------------------------------- analysis

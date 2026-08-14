@@ -17,8 +17,14 @@
  *   --out <file>   JSON output path. Default: <root>/tests/inventory.json
  *   --md <file>    Markdown output path. Omit to skip.
  *   --quiet        suppress the stdout summary
+ *   --allow-empty  do not hard-stop when the tree holds no TypeScript (see below)
  *
  * Resolves `typescript` from the target package first, then this repo's root.
+ *
+ * STACK SCOPE: TypeScript only. On any other stack (C#/.NET, Python, Java, …) this exits 3 and
+ * names what it found — it must never emit an empty-but-valid inventory, because the phases
+ * downstream cannot tell that apart from a codebase that genuinely has nothing in it. See
+ * `_wxAI/skills/wxCreateTestPlan/adapters/` for the per-stack substitutes.
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -45,6 +51,67 @@ if (!existsSync(root)) {
 const outJson = resolve(repoRoot, arg('out', join(rootArg, 'tests', 'inventory.json')));
 const outMd = arg('md') ? resolve(repoRoot, arg('md')) : null;
 const quiet = flag('quiet');
+const allowEmpty = flag('allow-empty');
+
+// ---------------------------------------------------------------------------- file walk
+
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'drizzle-out', '.git', 'coverage', '__pycache__']);
+const SKIP_FILE = /\.(test|spec|d)\.ts$/;
+
+function walk(dir, acc = []) {
+  for (const entry of readdirSync(dir)) {
+    if (SKIP_DIRS.has(entry)) continue;
+    const full = join(dir, entry);
+    const st = statSync(full);
+    if (st.isDirectory()) walk(full, acc);
+    else if (/\.(ts|mts|tsx)$/.test(entry) && !SKIP_FILE.test(entry)) acc.push(full);
+  }
+  return acc;
+}
+
+const scanDirs = ['src', 'scripts'].map((d) => join(root, d)).filter(existsSync);
+const files = (scanDirs.length ? scanDirs : [root]).flatMap((d) => walk(d)).sort();
+
+// ---------------------------------------------------------------------------- stack guard
+
+/**
+ * Census of every file extension under `dir`, so an unsupported tree can be named rather than
+ * merely reported as empty. Same skip-list as `walk`, so the numbers describe the same tree.
+ */
+function censusExtensions(dir, tally = new Map()) {
+  for (const entry of readdirSync(dir)) {
+    if (SKIP_DIRS.has(entry)) continue;
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) censusExtensions(full, tally);
+    else {
+      const dot = entry.lastIndexOf('.');
+      const ext = dot > 0 ? entry.slice(dot) : '(no extension)';
+      tally.set(ext, (tally.get(ext) || 0) + 1);
+    }
+  }
+  return tally;
+}
+
+// This extractor targets TypeScript. Run against any other stack it used to walk the tree, match
+// nothing, write a valid-looking inventory of ZERO units and exit 0 — and the phases downstream
+// would then build a confident, empty test plan on top of it. An empty result that reads as a real
+// one is worse than an error, so an unsupported tree is a hard stop with the stack named.
+if (files.length === 0 && !allowEmpty) {
+  const census = [...censusExtensions(root)]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([ext, n]) => `${n} ${ext}`)
+    .join(', ');
+  console.error(
+    `inventory: no supported source files found under "${rootArg}".\n` +
+      '  This extractor targets TypeScript (Express routes, Drizzle tables, MCP tools).\n' +
+      `  Found instead: ${census || 'nothing'}.\n` +
+      '  Pick the adapter for the stack this project declares in stack.md:\n' +
+      '    _wxAI/skills/wxCreateTestPlan/adapters/\n' +
+      '  If an empty result is genuinely expected here, re-run with --allow-empty.',
+  );
+  process.exit(3);
+}
 
 // ---------------------------------------------------------------------------- typescript
 
@@ -65,25 +132,6 @@ async function loadTypeScript(...from) {
   );
   process.exit(1);
 }
-
-// ---------------------------------------------------------------------------- file walk
-
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'drizzle-out', '.git', 'coverage', '__pycache__']);
-const SKIP_FILE = /\.(test|spec|d)\.ts$/;
-
-function walk(dir, acc = []) {
-  for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const full = join(dir, entry);
-    const st = statSync(full);
-    if (st.isDirectory()) walk(full, acc);
-    else if (/\.(ts|mts|tsx)$/.test(entry) && !SKIP_FILE.test(entry)) acc.push(full);
-  }
-  return acc;
-}
-
-const scanDirs = ['src', 'scripts'].map((d) => join(root, d)).filter(existsSync);
-const files = (scanDirs.length ? scanDirs : [root]).flatMap((d) => walk(d)).sort();
 
 // ---------------------------------------------------------------------------- classification
 
@@ -173,10 +221,53 @@ function stringProp(sf, objLiteral, key) {
   return /^['"`]/.test(t) ? t.slice(1, -1).replace(/\s+/g, ' ').slice(0, 240) : '';
 }
 
+/**
+ * Names bound to an Express router in this file, resolved from their initialiser rather than
+ * assumed from a fixed allow-list.
+ *
+ * The idiomatic one-Router-per-resource layout names each router after its resource
+ * (`applicationsrouter`, `authRouter`), so matching only `router|app|r` finds whichever file
+ * happens to use the bare name and misses every other — an under-count, not an empty result, so
+ * nothing downstream can tell it apart from a small codebase. Resolving the binding matches a
+ * router whatever it is called.
+ */
+function routerBindings(sf) {
+  const names = new Set();
+
+  const initialisesRouter = (init) => {
+    if (!init || !ts.isCallExpression(init)) return false;
+    const callee = init.expression;
+    if (ts.isIdentifier(callee)) return /^(Router|express)$/.test(callee.text); // Router() | express()
+    if (ts.isPropertyAccessExpression(callee)) return callee.name.text === 'Router'; // express.Router()
+    return false;
+  };
+
+  const walkBindings = (node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      initialisesRouter(node.initializer)
+    ) {
+      names.add(node.name.text);
+    }
+    ts.forEachChild(node, walkBindings);
+  };
+  walkBindings(sf);
+  return names;
+}
+
+/**
+ * Fallback for routers this file receives rather than creates — a router passed in as a parameter
+ * or imported from a barrel has no local initialiser to resolve.
+ */
+const ROUTER_NAME = /^(app|r|.*router)$/i;
+
 // ---------------------------------------------------------------------------- extraction
 
 const units = [];
 const seenIds = new Set();
+/** Files that declare a router but yielded no routes — see the under-count guard below. */
+const silentRouterFiles = [];
 
 function push(unit) {
   let id = unit.id;
@@ -195,21 +286,55 @@ for (const file of files) {
   const isClient = /[\\/](client|frontend)[\\/]/.test(rel);
   const isPage = isClient && /[\\/]pages[\\/]/.test(rel);
 
-  const visit = (node, enclosing) => {
-    // --- Express routes: router.get/post/put/patch/delete('/path', ...middleware, handler)
+  const routerNames = routerBindings(sf);
+  let routesInFile = 0;
+
+  /** True for an identifier this file uses as a router. */
+  const isRouterRef = (n) =>
+    ts.isIdentifier(n) && (routerNames.has(n.text) || ROUTER_NAME.test(n.text));
+
+  /**
+   * Resolve the receiver of a `.get(...)`/`.post(...)` call to a router, covering both registration
+   * styles: `router.get('/path', handler)` and the chained `router.route('/path').get(handler)`.
+   * Returns the path carried by the chain, or null when the receiver is not a router — most
+   * `.get(...)` calls in a codebase are Map/cache reads, not routes.
+   */
+  const routerChain = (receiver) => {
+    if (isRouterRef(receiver)) return { chainedPath: null };
     if (
+      ts.isCallExpression(receiver) &&
+      ts.isPropertyAccessExpression(receiver.expression) &&
+      receiver.expression.name.text === 'route' &&
+      isRouterRef(receiver.expression.expression)
+    ) {
+      const p = receiver.arguments[0];
+      return { chainedPath: p && ts.isStringLiteralLike(p) ? p.text : '<dynamic>' };
+    }
+    return null;
+  };
+
+  const visit = (node, enclosing) => {
+    // --- Express routes: <router>.get('/path', ...middleware, handler)
+    //     and the chained form: <router>.route('/path').get(handler)
+    const chain =
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
-      ts.isIdentifier(node.expression.expression) &&
-      /^(router|app|r)$/i.test(node.expression.expression.text) &&
       /^(get|post|put|patch|delete|all)$/.test(node.expression.name.text)
-    ) {
+        ? routerChain(node.expression.expression)
+        : null;
+
+    if (chain) {
+      routesInFile += 1;
       const verb = node.expression.name.text.toLowerCase();
-      const pathArg = node.arguments[0];
+      const pathArg = chain.chainedPath === null ? node.arguments[0] : null;
       const routePath =
-        pathArg && ts.isStringLiteralLike(pathArg) ? pathArg.text : `<dynamic@${lineOf(sf, node)}>`;
+        chain.chainedPath !== null
+          ? chain.chainedPath
+          : pathArg && ts.isStringLiteralLike(pathArg)
+            ? pathArg.text
+            : `<dynamic@${lineOf(sf, node)}>`;
       // middleware = identifier/call args between the path and the final handler
-      const rest = node.arguments.slice(1);
+      const rest = chain.chainedPath === null ? node.arguments.slice(1) : node.arguments.slice(0);
       const handler = rest[rest.length - 1];
       const middleware = rest
         .slice(0, -1)
@@ -469,6 +594,29 @@ for (const file of files) {
   };
 
   ts.forEachChild(sf, (n) => visit(n, null));
+
+  if (routerNames.size > 0 && routesInFile === 0) {
+    silentRouterFiles.push(`${rel} (declares ${[...routerNames].join(', ')})`);
+  }
+}
+
+// ---------------------------------------------------------------------------- under-count guard
+
+// The stack guard above catches an inventory of ZERO. It cannot catch an inventory of ONE drawn
+// from a tree holding hundreds, which is what a route matcher that misses most routers produces —
+// and a plausible small number reads as a real result far more readily than an empty one does. A
+// file that builds a router and registers nothing on it is the signature of that miss, so it is a
+// hard stop naming the files rather than a warning printed above a test plan built on the gap.
+if (silentRouterFiles.length > 0 && !allowEmpty) {
+  console.error(
+    `inventory: ${silentRouterFiles.length} file(s) declare an Express router but produced no routes.\n` +
+      '  This is almost always the extractor missing route registrations, not a codebase with\n' +
+      '  empty routers — the resulting inventory would be short but plausible, and every phase\n' +
+      '  downstream would treat it as complete.\n' +
+      silentRouterFiles.map((f) => `    ${f}`).join('\n') +
+      '\n  If these routers are genuinely empty, re-run with --allow-empty.',
+  );
+  process.exit(3);
 }
 
 // ---------------------------------------------------------------------------- output
@@ -541,6 +689,18 @@ if (outMd) {
   rows.push('');
   mkdirSync(dirname(outMd), { recursive: true });
   writeFileSync(outMd, rows.join('\n'), 'utf8');
+}
+
+// Files were found but nothing in them classified. Unlike the zero-files case this is a real, if
+// rare, legitimate state (a subtree of pure type declarations or re-exports), so it warns rather
+// than stops — but it must not pass silently, because a plan built on zero units is worthless.
+if (units.length === 0) {
+  console.error(
+    `inventory: WARNING — parsed ${files.length} TypeScript file(s) under "${rootArg}" but ` +
+      'classified 0 callable units.\n' +
+      '  Do not plan against this inventory until you have established why. Check that --root ' +
+      'points at implementation code rather than types/re-exports.',
+  );
 }
 
 if (!quiet) {

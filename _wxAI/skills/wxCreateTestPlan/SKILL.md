@@ -1,12 +1,17 @@
 ---
 name: wxCreateTestPlan
-description: Build a full, requirement-traceable test plan for the wxKanban app — Express routes, Drizzle tables, services, UI/UX page-to-page flows and per-screen functionality, plus a database schema analysis (referential integrity 0–10, field/table review, orphaned tables/data, missing & excessive indexes) — authored by a QA Architect and a Database Engineer persona, then optionally EXECUTE it through three signoff gates: smoke, true CRUD & execute, and final user verification. Use when asked to create or execute a test plan, audit test coverage, "test all routes/services/tools", test the UI flows, analyze the database schema / referential integrity / indexes, build a QA plan or test suite, or produce a signoff / pass-fail QA report. Accepts no argument (whole app), a SCOPE-NNN / SPEC-NNN (requirement-driven), or a path. Add --Execute to run the plan and produce signoffs.
+description: Build a full, requirement-traceable test plan for any stack the project declares in stack.md — routes/services/commands, data tables, UI page-to-page flows and per-screen functionality, plus a database schema analysis (referential integrity 0–10, field/table review, orphaned tables/data, missing & excessive indexes) — authored by a QA Architect and a Database Engineer persona, then optionally EXECUTE it through three signoff gates: smoke, true CRUD & execute, and final user verification. The method is stack-neutral; the machinery comes from a per-stack adapter (TypeScript/Express/Drizzle and .NET/WPF/EF Core ship today). Use when asked to create or execute a test plan, audit test coverage, "test all routes/services/tools", test the UI flows, analyze the database schema / referential integrity / indexes, build a QA plan or test suite, or produce a signoff / pass-fail QA report. Accepts no argument (whole app), a SCOPE-NNN / SPEC-NNN (requirement-driven), or a path. Add --Execute to run the plan and produce signoffs.
 ---
 
 # wxCreateTestPlan
 
-A requirement-traceable QA workflow for **wxKanban** (Express + React + PostgreSQL/Drizzle, custom
-bcrypt+JWT auth, optional hosted MCP tool surface). Two modes:
+A requirement-traceable QA workflow. The **method** below — phases, gates, personas, risk tiers,
+caps, item schema — is stack-neutral. The **machinery** that makes it executable (inventory command,
+schema source, harness, UI driver, DB posture) comes from a per-stack **adapter**, resolved from
+`stack.md` before Phase 0. See *Stack adapters* below; do not assume wxKanban's own Express /
+Drizzle / Vitest defaults.
+
+Two modes:
 
 - **PLAN mode** (default) — inventory every callable unit, derive a gated test plan and atomic test
   items, and file them into wxKanban via the orchestrator. Writes tests only after approval; does
@@ -46,6 +51,35 @@ not just local Markdown.
 - **A path** → subtree filter, same as the inventory `--root`.
 
 `--Execute` (any casing) switches to EXECUTE mode. Without it, you stop after filing the plan.
+
+---
+
+## Stack adapters — resolve before Phase 0
+
+**Read `stack.md` at the repo root first**, exactly as `wxUIUXCodeReview` does under SPEC-056, and
+resolve the adapter that matches. Announce it out loud before Phase 0 does anything else.
+
+| Declared stack | Adapter |
+|---|---|
+| TypeScript · Express · Drizzle · PostgreSQL · Vitest/supertest · Playwright | `adapters/wxkanban-express.md` |
+| C# · .NET · WPF/MVVM · EF Core · xUnit | `adapters/dotnet-wpf.md` |
+| anything else, or no `stack.md` | **stop — see below** |
+
+The adapter answers six questions and nothing else: inventory source (Phase 1), schema source
+(Phase 1B), harness (Phase 3), UI driver (UI/UX coverage), DB posture (Phase 0 step 3), and which
+constraints the test substitutes **cannot** enforce (Phase 2A risk register). Everything else in
+this file applies unchanged on every stack. Contract and how to add one: `adapters/README.md`.
+
+**Why this is a gate and not a note.** The machinery used to assume wxKanban's stack silently. Run
+against a C# repository, the TypeScript extractor walked 316 `.cs` files, matched nothing, wrote a
+valid-looking inventory of **zero units**, and exited 0 — and Phase 2 would then have built a
+confident, empty test plan on top of it. A confident empty result is worse than an error, because it
+reads as a result. The scripts now hard-stop with exit 3 on an unsupported tree, but the stop is a
+backstop; resolving the adapter first is the actual fix.
+
+**No adapter matches → stop and say so.** Do not run the extractor speculatively to see what comes
+back. Offer three honest options: write an adapter for this stack first, run the method by hand with
+substitutes agreed out loud, or narrow the target to a subtree an existing adapter covers.
 
 ---
 
@@ -137,135 +171,113 @@ tests. Data items are tagged `layer: data` and carry the extra fields from
 
 ## Why the inventory step is non-negotiable
 
-`grep "export function" src/server` finds a small fraction of the surface. The real product is
-mostly **Express route handlers registered as call sites** —
-`router.post("/signin", authenticateToken, validateBody(...), async (req,res) => {...})` — which are
-not exported and invisible to that grep. A single `routes/*.ts` file registers a dozen endpoints.
-The inventory must extract every `router.<verb>(...)` call site as a first-class unit (method + path
-+ middleware chain + handler), alongside exported functions/services, Drizzle `pgTable` definitions,
-class methods, and — **if the target has one** — MCP tool registrations. The harness then drives
-routes through the real Express app (supertest) so middleware, zod validation, and auth run too.
+Grepping for exported symbols finds a small fraction of the surface, on every stack. **Most of a
+real product is registered, not exported** — and registration sites are invisible to that grep:
+
+- On Express, `router.post("/signin", authenticateToken, validateBody(...), async (req,res) => {…})`
+  is not exported, and a single `routes/*.ts` file registers a dozen endpoints. The unit is the call
+  site: method + path + middleware chain + handler.
+- On a DI-based desktop app, the composition root registers every service, ViewModel and window.
+  The unit is the registration, and the behavior units are the commands hanging off it.
+
+So the inventory must enumerate from **wherever the framework does its registering** — which is
+exactly what the adapter's *Inventory source* names — alongside exported functions and services,
+data-table declarations, class methods, and, if the target has one, its tool/plugin registrations.
+
+The harness then drives those units **through the same registration path production uses**, so
+middleware, validation and auth run rather than being bypassed.
 
 ---
 
 ## UI/UX flow coverage (mandatory)
 
-The plan is **not** backend-only. It must cover the React client as a first-class dimension:
+The plan is **not** backend-only. The client is a first-class dimension on every stack — only the
+driver changes, and the adapter names it (§ *UI driver*): Playwright for URL-addressable web
+screens, UI Automation for a desktop app, the platform's own harness elsewhere.
 
-- **Page-to-page flow, and back.** Every navigation edge the inventory finds (`navigate("/x")`,
-  `<Link to="/x">`, `<Route path="/x">`) is a flow to test: the source screen reaches the
-  destination, and **back-navigation** (browser back and any in-app "back") returns correctly and
-  preserves expected state.
-- **Guarded routes.** An auth-gated route hit while unauthenticated redirects to login and, after
-  login, returns to the intended destination. A deep-link / hard refresh on a nested route resolves,
-  not 404s.
+- **Screen-to-screen flow, and back.** Every navigation edge the inventory finds is a flow to test:
+  the source screen reaches the destination, and **back-navigation** returns correctly and preserves
+  expected state. On the web those edges are `navigate("/x")` / `<Link to="/x">` / `<Route
+  path="/x">`; on desktop they are the navigation-service registrations.
+- **Guarded entry points.** A gated screen reached while unauthenticated sends the user to login
+  and, after login, returns to the intended destination. On the web, also: a deep-link or hard
+  refresh on a nested route resolves rather than 404s.
 - **Per-screen functionality.** On each screen, every link, button, tab, and field does what it
-  claims — submit, validation-error display, disabled/loading/empty/error states, toasts. Each is a
-  machine-checkable Playwright assertion (pathname equals, element visible, text equals), never a
-  subjective "looks right."
+  claims — submit, validation-error display, disabled/loading/empty/error states, notifications.
+  Each must be a **machine-checkable assertion** (location equals, element present, text equals),
+  never a subjective "looks right."
+- **Re-entry with a new parameter.** Where the framework reuses a screen instance rather than
+  constructing a fresh one, assert it re-binds to the new record. A reused screen showing the
+  *previous* record while the caller believes it navigated is a defect no single-navigation test
+  reaches.
 
-These items carry `gate: ui-flow` and run under Playwright. Trace them to the owning screen's spec
-`FR-###` where one exists; a flow with no requirement is a Clarifications-Required entry, not a guess.
+These items carry `gate: ui-flow`. Trace them to the owning screen's spec `FR-###` where one exists;
+a flow with no requirement is a Clarifications-Required entry, not a guess.
 
 ---
 
 ## Phase 0 — Scope, DB posture, and gates
 
+0. **Read `stack.md` and resolve the adapter** per *Stack adapters* above, and announce it. If no
+   adapter matches, stop here — every step below depends on one. Read the resolved adapter now; the
+   rest of this phase refers to it.
 1. **Resolve the target** per *Target resolution* above and announce it.
 2. **Read the specs first** (CLAUDE.md SPEC-FIRST is mandatory). In requirement-driven mode this is
    your oracle for "is this a bug or is it unimplemented?" — enumerate the `FR-###` set before any
    code reading.
-3. **Announce the DB posture out loud** before writing anything. wxKanban's local `.env`
-   `DATABASE_URL` points at the **production RDS** (this is confirmed project reality). Therefore:
-   - **Unit tier** — wxKanban has **two** DB drivers: `src/db/client.ts` (a `pg` `Pool`, used by
-     libs/middleware) and `src/server/db/client.ts` (a `postgres-js` client, used by routes/services).
-     **Mock both** — `pg` mocked with **drizzle left real** so generated SQL against `src/db/schema/*`
-     is exercised, and `postgres` mocked as a hermetic safety net (route tests should stub the
-     service layer rather than fake postgres-js result rows). External services (Stripe, SES, S3,
-     Gemini, PM-system SDKs) stubbed. Forced fake env — note `src/server/config.ts` calls
-     `process.exit(1)` at import on invalid env, so the setup file must assign fakes with `=` before
-     any `src/` import. Touches nothing real. Always runs.
-   - **CRUD / live tier** — writes are allowed **only against a non-production database**, obtained
-     one of two ways, and **never** the prod-pointing `.env`:
-     - **MCP test-DB connection** — if the target exposes an MCP (it *may or may not*), the CRUD tier
-       may use the MCP's test-DB connection. **Before using it you MUST verify the MCP's UAT
-       capability is genuinely non-prod** — a reachable connection whose **host differs from the prod
-       RDS host**. (Today the hosted MCP shares the same `wxkanban` RDS as `.env`, so this
-       verification will *fail* until a real UAT connection exists — that is the correct outcome, not
-       a reason to proceed.) If UAT capability cannot be verified, **hard-stop the CRUD tier** — do
-       not fall back to the prod connection.
-     - **Explicit `TEST_DATABASE_URL`** — a disposable non-prod URL the user sets for this session.
-       The guard hard-refuses any URL resolving to the `.env` host or `*.rds.amazonaws.com` prod host.
-     - **A cloned TEST SCHEMA (preferred when no separate host exists).** Postgres isolates by
-       schema as well as by database, so the CRUD tier can run against a disposable schema in the
-       *same* database without a second host and without touching production tables. **Offer this
-       before hard-stopping** — a hard-stop when a safe path exists is a worse answer than using it.
-
-       ```bash
-       node _wxAI/skills/wxCreateTestPlan/scripts/clone-test-schema.mjs --create   # → wxktest_<id>
-       # run the gate with:  SET search_path TO wxktest_<id>, public;
-       node _wxAI/skills/wxCreateTestPlan/scripts/clone-test-schema.mjs --drop --name wxktest_<id>
-       ```
-
-       What it does and why it is trustworthy:
-       - Clones the **live** schema (not the migration files — this repo's drizzle snapshots stop at
-         `0009` while migrations run past `0055`, so the files no longer describe reality).
-       - Two passes: `CREATE TABLE (LIKE … INCLUDING ALL)` for structure, indexes and CHECKs, then
-         foreign keys re-emitted from `pg_constraint`. **`INCLUDING ALL` does not copy foreign keys** —
-         a one-pass clone silently loses them, and a clone without FKs lets a test pass that
-         production would reject.
-       - **Verifies fidelity** and prints `clone / source` counts for tables, FKs, CHECKs and indexes.
-         If they do not match it says `faithful: false` and exits non-zero — **do not run the CRUD
-         gate against an unfaithful clone.**
-       - Safety: every clone name carries the `wxktest_` prefix, and `--drop` refuses any name
-         without it, so the teardown can never reach `public`.
-       - The clone is **structure-only — it starts empty.** Seed a *coherent* FK chain before the
-         first write (a naive one-row-per-table seed fails, because the clone enforces referential
-         integrity exactly as production does). Each `layer: data` item's `seedScript` covers this.
-
-       Verified on wxKanban 2026-07-25: 127/127 tables, 179/179 FKs, 342/342 indexes; the
-       `chk_testsignoffs_executor_match` and `fk_testsignoffs_item_executor` constraints both fired
-       inside the clone, and `public` row counts were unchanged.
-   - **Production is forced to UAT.** Any target that would resolve to production is redirected to
-     UAT; there is no PROD write path.
-4. **Hard stops** — refuse and say why:
-   - Any test whose DB connection resolves to the **production RDS host** and mutates **against the
-     `public` schema**. A cloned `wxktest_` schema is not this case: the writes cannot reach
-     production tables.
-   - CRUD tier requested but no verified non-prod DB **and** no cloned test schema — i.e. only after
-     the clone route above has been offered and declined or has failed.
-   - A clone that reports `faithful: false` — its constraint set does not match production, so a
-     pass proves nothing.
-   - Any test that would send real email/SMS, charge Stripe, or push to a live PM system.
+3. **Announce the DB posture out loud** before writing anything. The rule is the same on every
+   stack; only the addresses change, and those come from the adapter's *DB posture* section.
+   - **Identify the production connection from configuration** and say what it is. Never infer that
+     a connection is safe because it is local or because a test is "read-only".
+   - **Unit tier** — the real database, external services and clock are substituted per the
+     adapter's *Harness*. Touches nothing real. Always runs.
+   - **CRUD / live tier** — writes are allowed **only against a database you have proven is not
+     production.** "Proven" means a positive check — a host, database or schema that demonstrably
+     differs from the production one — not the absence of evidence that it is production. If the
+     project's MCP or CI offers a test connection, **verify its non-prod capability before using
+     it**; unverified means hard-stop, never fall back.
+   - **Prefer a disposable target** — a cloned schema, a throwaway container, or a database built
+     from the ORM model. Offer it **before** hard-stopping: a hard-stop when a safe path exists is a
+     worse answer than using it. The adapter names the disposable option for this stack and how to
+     verify it faithfully reproduces production's constraints.
+   - **Production is forced to UAT.** Any target that would resolve to production is redirected;
+     there is no PROD write path.
+4. **Hard stops** — refuse and say why. These are policy and apply on every stack:
+   - Any test whose connection resolves to the **production database** and mutates the **production
+     schema**. A verified disposable clone is not this case: the writes cannot reach production
+     tables.
+   - CRUD tier requested but no verified non-prod target **and** no disposable option — i.e. only
+     after the disposable route has been offered and declined or has failed.
+   - A disposable target that cannot be shown faithful to production's constraint set — a pass
+     against a weaker schema proves nothing.
+   - Any test that would send real email/SMS, take real payment, or push to a live third-party
+     system.
 
 ---
 
 ## Phase 1 — Inventory (deterministic)
 
-Run the extractor (it auto-detects Express routes, exported functions, services, Drizzle tables,
-class methods, and MCP `registerTool` sites):
+**Run the inventory command from the resolved adapter** (§ *Inventory source*), scoped to the
+resolved target. Output goes to `tests/testplans/<target>/inventory.json` and `INVENTORY.md`
+regardless of stack — the format is the contract, the command is not.
 
-```bash
-node _wxAI/skills/wxCreateTestPlan/scripts/inventory-functions.mjs \
-  --root src/server --out tests/testplans/<target>/inventory.json \
-  --md tests/testplans/<target>/INVENTORY.md
-```
+For requirement-driven runs, still inventory the code, then **join** each unit to its `FR-###` via
+the code fence and route/service search.
 
-Use the resolved target as `--root` (e.g. `src/server`, or a subtree for a path arg). For
-requirement-driven runs, still inventory the code, then **join** each unit to its `FR-###` via the
-code fence and route path.
+**Then verify completeness — the inventory's numbers are a floor, not gospel:**
 
-**Then verify completeness — the script's numbers are a floor, not gospel:**
-
-- Cross-check the route count against the running server if launchable, or against
-  `src/server/routes/*.ts` registration counts.
+- Cross-check the unit count against a second source: the running server if launchable, the
+  registration site, or the framework's own route/command listing. The adapter names which.
 - In requirement-driven mode, cross-check against the spec's stated behavior. An `FR-###` with no
   matching unit, or a unit implementing behavior no `FR-###` describes, is a **finding**.
-- Note anything the script can't see: dynamically-mounted routers, re-exports, and the MCP tool
-  surface if it's registered through a registry rather than inline `registerTool` (wxKanban's
-  `mcp-server/` uses a registry — reconcile against it and say so). Schema tables are data, not
-  behavior units — the script lists them as `drizzle-table` units for CRUD targeting but they carry
-  no logic to unit-test.
+- **Note what the command cannot see** — the adapter lists these per stack (dynamic registration,
+  re-exports, reflection, registry-based tool surfaces). Say explicitly what you reconciled by hand.
+- Data tables are data, not behavior units — they are listed for CRUD targeting but carry no logic
+  to unit-test.
+
+An inventory of **zero units** is never a result to plan against. On a supported stack the command
+hard-stops rather than emitting one; if you somehow hold an empty inventory, establish why before
+Phase 2.
 
 Read `references/case-catalog.md` (unit category → cases owed) and `references/test-item-schema.md`
 (record shape) now.
@@ -274,29 +286,28 @@ Read `references/case-catalog.md` (unit category → cases owed) and `references
 
 ## Phase 1B — Database schema analysis (deterministic)
 
-Run the schema auditor over the Drizzle schema — it is static and read-only, so it always runs in
-PLAN mode and feeds the DBA persona:
+**Analyze the schema from the source the adapter names** (§ *Schema source*). This step is static
+and read-only, so it always runs in PLAN mode and feeds the DBA persona. Whatever the stack, the
+output owes the same five dimensions plus a **referential-integrity score 0–10** (rubric in
+`references/schema-analysis.md`), each finding carrying `file:line` or an object name:
 
-```bash
-node _wxAI/skills/wxCreateTestPlan/scripts/schema-analyze.mjs \
-  --root src/db/schema --out tests/testplans/<target>/schema-analysis.json \
-  --md tests/testplans/<target>/SCHEMA-ANALYSIS.md
-```
-
-It emits actionable, `file:line`-referenced findings across five dimensions and a **referential-
-integrity score 0–10** (see `references/schema-analysis.md` for the rubric):
-
-1. **Referential integrity (0–10)** — unenforced FKs (`*id` columns with no `.references()`), FKs
-   missing an `onDelete` rule, FK columns with no covering index.
-2. **Field mapping & table definitions** — wxKanban naming conventions, PK is UUID v7, `createdat`/
-   `updatedat` present, `varchar` lengths, type appropriateness.
-3. **Orphaned tables & data** — island tables (no incoming/outgoing FK); plus ready-to-run READ-ONLY
-   orphan-row SQL per FK (`--live` executes it against a **non-prod DB only** — same guard as the
-   CRUD tier; without `--live` the SQL is emitted for a human).
+1. **Referential integrity (0–10)** — unenforced FKs (`*id`-shaped columns with no declared
+   reference), FKs missing a delete rule, FK columns with no covering index.
+2. **Field mapping & table definitions** — the project's naming conventions, primary-key type,
+   created/updated timestamps present, string lengths, type appropriateness.
+3. **Orphaned tables & data** — island tables (no incoming/outgoing FK), plus ready-to-run READ-ONLY
+   orphan-row SQL per FK. Executing it requires a **non-prod database** — the same guard as the CRUD
+   tier; otherwise emit the SQL for a human.
 4. **Missing indexes** — FK columns (and common filter columns) with no covering index, with the
    `CREATE INDEX` remediation.
 5. **Excessive / redundant indexes** — duplicates, composite left-prefix redundancy, unique-shadowed
-   indexes, with the `DROP INDEX` remediation (confirm `idx_scan=0` first).
+   indexes, with the `DROP INDEX` remediation (confirm the index is unused first).
+
+**Schema provenance (mandatory on any ORM-first stack).** Never assume a checked-in `.sql` or a
+migration folder describes the model that ships. Build the schema **from the model**, diff it
+against the checked-in artifact, and treat the difference as a **finding** — it is the class of
+defect that blocks an entire release, and no other phase catches it. The adapter says how to build
+from the model on this stack.
 
 File `SCHEMA-ANALYSIS.md` into wxKanban as a `schemaanalysis` document (Phase 6). The RI score and
 the orphan/constraint findings are the **input to the DBA persona's gap analysis** in Phase 2C.
@@ -331,7 +342,8 @@ dominate, and ask whether to raise the cap, narrow scope, or drop the lowest-val
 
 **Stop and present the coverage summary**: total items, breakdown by area × variant × tier, cap
 pressure, top risk-register entries, Clarifications Required, and the CRUD-tier DB ask (which non-prod
-DB, MCP-UAT vs `TEST_DATABASE_URL`). List the ~15 highest-priority item *titles* as a quality sample.
+target, and how it will be proven non-prod — the adapter's *DB posture* names the options). List the
+~15 highest-priority item *titles* as a quality sample.
 Do not write item bodies or test code until the user responds.
 
 ### Phase 2B — Expand to atomic items (after approval)
@@ -376,45 +388,40 @@ reconcile local artifacts to the DB copy, not the reverse.
 
 ## Phase 3 — Harness (EXECUTE mode)
 
-Read `references/harness-setup.md` and follow it exactly — it encodes the wxKanban gotchas that
-otherwise break every generated test at import time:
+**Build the harness per the resolved adapter** (§ *Harness*). It encodes the stack's import-time
+gotchas — the ones that otherwise break every generated test before a single assertion runs. On
+wxKanban that detail also lives in `references/harness-setup.md`; follow the adapter first.
 
-1. Mock **both** DB drivers — the `pg` `Pool` in `src/db/client.ts` (DATABASE_URL needs
-   `sslmode=require`) and the `postgres-js` client in `src/server/db/client.ts` — in a `setupFiles`
-   module that runs before any `src/` import, so the unit tier never dials the prod RDS.
-2. `src/server/config.ts` calls `process.exit(1)` at import on invalid env. The setup file must
-   assign fake env with `=` (not `??=`) so real (prod-pointing) credentials can never leak in and the
-   process can't exit under test.
-3. Reuse the repo's existing `vitest.config.ts` aliases (`~`, `@`, `@client`, `@server`, `@shared`).
-   Put new tests under `tests/**` so the existing `include` picks them up; keep live/CRUD tests in a
-   suffix (`*.live.test.ts`) excluded from the default run.
-4. Route handlers aren't exported, and routes mount under **`/api/...`**. Drive them through
-   **supertest against the real Express app** (`src/server/app.ts` builds it via `createApp()`;
-   `index.ts` is the entry — `index2.ts` is dead) so middleware, zod validation, and auth are
-   exercised. Mint JWTs with the app's own signer (`signToken`) for authed cases.
+Three rules hold on every stack:
 
-Leave **drizzle real** so schema SQL is exercised; route tests stub the service layer rather than
-faking postgres-js rows. Stub Stripe, SES, S3, Gemini, and PM-system SDKs. `vitest` is already a root
-devDep — no per-package install needed.
+1. **Drive units the way production wires them.** Resolve through the real container / app / router
+   rather than constructing the unit directly, so registration, middleware, validation and auth are
+   exercised rather than bypassed. A test that news-up the class skips exactly the wiring defects
+   worth catching.
+2. **Substitute at the edge, not in the middle.** Keep the layer under test real — the ORM, the
+   query builder, the validation — and stub the outside world (payment, email, storage, third-party
+   SDKs, the clock). Faking the layer you are testing produces assertions against data the test
+   itself invented.
+3. **The unit tier must be unable to reach production**, structurally rather than by convention:
+   fake credentials assigned before any application import, and live/CRUD tests in a separately
+   named suite excluded from the default run.
 
-### Running the CRUD tier against a cloned schema
+### Running the CRUD tier against a disposable target
 
-When the CRUD tier is using a `wxktest_` clone (Phase 0), the harness needs three things and nothing
-else — the application's own queries are unqualified, so they follow `search_path` without a single
-code change:
+When Phase 0 resolved to a disposable database or schema, the harness owes three things:
 
-1. **Set the search path on every connection**, not once globally:
-   `SET search_path TO wxktest_<id>, public`. A pooled connection that misses this writes to
-   `public` — i.e. production. Set it in a `beforeEach`/connection hook, never assume it persists.
-2. **Seed a coherent FK chain first.** The clone is empty and enforces referential integrity
-   exactly as production does, so parents must exist before children. Copy a *related* set
-   (company → user → project → spec), not one arbitrary row per table.
-3. **Drop the clone in teardown**, and treat failure to drop as a finding — an orphaned
-   `wxktest_` schema is clutter in a production database. `--list` enumerates any left behind.
+1. **Point every connection at it, not once globally.** A pooled connection that misses the
+   redirect writes to the production namespace. Set it in a per-connection hook and never assume it
+   persists.
+2. **Seed a coherent parent-child chain first.** A faithful disposable target enforces referential
+   integrity exactly as production does, so a naive one-row-per-table seed fails. Copy a *related*
+   set. Each `layer: data` item's `seedScript` covers this.
+3. **Tear it down**, and treat failure to tear down as a finding — an orphaned test schema or
+   container is clutter in a production system.
 
-A test that mutates while `search_path` still points at `public` is the one failure mode this
-arrangement cannot catch for you. Assert the path inside the harness:
-`SELECT current_schema()` must return the clone before the first write.
+A test that mutates while still pointed at production is the one failure mode this arrangement
+cannot catch for you. **Assert the target inside the harness before the first write** — the adapter
+names the check (on PostgreSQL, `SELECT current_schema()`).
 
 ---
 
@@ -440,8 +447,8 @@ mocked — no writes. Produce `SMOKE-SIGNOFF.md` (pass/fail per unit, counts fro
 file it into wxKanban (Phase 6). **Stop and report** before Gate 2.
 
 ### Gate 2 — CRUD & execute signoff
-Prerequisite: a **verified non-prod DB** (Phase 0 — MCP-UAT verified, or `TEST_DATABASE_URL`). If not
-verified, **do not run this gate** — report it blocked and why.
+Prerequisite: a **target proven non-prod** (Phase 0, by the adapter's route). If it is not proven,
+**do not run this gate** — report it blocked and why.
 For each persistent entity in scope, run a real **create → read → update → delete** round-trip and
 assert each step's DB state; for services/jobs, **execute the real behavior** and assert outputs.
 Produce `CRUD-SIGNOFF.md` (round-trip evidence per entity, execute results, counts) and file it into
@@ -580,12 +587,14 @@ tests). Re-plan only the delta.
 
 ## Guardrails
 
-- **Never mutate the production RDS.** No CRUD/live tier without a verified non-prod DB (MCP-UAT
-  verified, or an explicit `TEST_DATABASE_URL`). Production is forced to UAT.
-- If MCP is chosen for the CRUD DB, **verify its UAT capability first**; unverified → hard-stop, no
-  prod fallback.
-- No real email/SMS/Stripe/PM-system side effects in any tier.
-- Don't edit `src/**` to make a test pass unless the user asks for the fix.
+- **Resolve the adapter before Phase 0**, and stop if none matches. Never run a stack's tooling
+  speculatively against another stack — an empty result is indistinguishable from a real one.
+- **Never mutate the production database.** No CRUD/live tier without a target proven non-prod.
+  Production is forced to UAT.
+- If a shared or hosted connection is offered as the CRUD target, **verify its non-prod capability
+  first**; unverified → hard-stop, never a prod fallback.
+- No real email/SMS/payment/third-party side effects in any tier.
+- Don't edit product source to make a test pass unless the user asks for the fix.
 - Report real numbers from the runner output; if something didn't run, say it didn't run.
 - **No item bodies before the Phase 2A coverage summary is approved**, and never past the caps or the
   250-item ceiling without the user raising it.

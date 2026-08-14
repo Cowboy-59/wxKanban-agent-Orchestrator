@@ -64,6 +64,58 @@ the code:
 **Generic fallback.** With no `stack.md` and no recognizable idiom, review the dimensions that remain
 evaluable, and state explicitly which could not be assessed and why. Never silently skip a dimension.
 
+### Adapter — .NET / C# / WPF / EF Core (desktop)
+
+SPEC-056 says review against the declared stack; the checklists below are worded for the web (ARIA,
+breakpoints, CSS tokens, routes). On a WPF desktop target every dimension still applies, but the
+construct you cite changes. Verified across an 18-surface audit of a WPF/EF Core rebuild, 2026-08-11.
+
+**Where the wiring lives.** `App.xaml.cs` `BuildServices` is the composition root and the authoritative
+capability list; `RegisterWindows` is the navigation graph. Design tokens are a `ResourceDictionary`
+(`Themes/Tokens.xaml`), not CSS custom properties. The localization catalog is `.resx` per culture,
+not a JSON catalog. Screens are `Window` subclasses registered per ViewModel type, not routes.
+
+**Dimension translation:**
+
+| Dimension | Web construct | WPF construct |
+|---|---|---|
+| Accessible name | `<label for>`, `aria-label` | `AutomationProperties.Name` / `.LabeledBy`. A sibling `TextBlock` is **not** an association — screen readers get an unnamed field. |
+| Initial focus | autofocus / focus management | `FocusManager.FocusedElement`. `grep -c FocusManager` over the views is a one-command first-run audit. |
+| Layout range | breakpoints | `Window` default size, `MinWidth`/`MinHeight`, `ResizeMode`, `SizeToContent`, and OS display scaling. |
+| Overflow | `overflow`, media queries | `ItemsControl` has **no** scrolling of its own; `Button.Content` bound to a string does **not** wrap. Both silently clip. |
+| Theming | CSS variables | `StaticResource` vs `DynamicResource` — `StaticResource` resolves once, so a product claiming runtime theme switching needs `DynamicResource`. |
+| i18n | catalog + interpolation | `.resx`; and note WPF's `FrameworkElement.Language` defaults to `en-US` **independently of `CurrentCulture`**, so `StringFormat=d` renders US dates in an otherwise-Italian app unless overridden. |
+| Async status | `aria-live` | no equivalent; a busy flag bound to nothing announces nothing. |
+
+**Stack-specific checks worth making every time** — each of these produced a real finding here:
+
+- **Is the busy flag bound?** `grep -l IsBusy ViewModels/` against `grep IsBusy Views/*.xaml`. Found 26 ViewModels declaring it and **zero** XAML bindings — every screen inert during async work, with the primary button still enabled and re-entrant.
+- **Do singleton ViewModels get re-navigated?** A navigation service that reuses an open window must still call `OnNavigatedTo` with the new parameter. Reusing without re-navigating means the window shows the *previous* record while the caller believes it navigated — here it let a stopwatch bill time to the wrong customer.
+- **Does the EF model match the shipped schema?** Compare `DbSet` count to the schema's table count and entity properties to its columns. A checked-in `.sql` with no migrations drifts silently; here it was 53 tables against 55, and the app could not start on its own schema.
+- **Are global query filters actually activated?** A filter that reads context state is inert unless something sets that state. Search for production callers of the setter, not just its definition.
+- **Is authorization uniform?** `grep -c "Demand"` (or the project's equivalent) per service. An inverted profile — reference tables gated, core business entities not — is the finding, and it is invisible file by file.
+- **Column widths.** Silent `Truncate(value, n)` before a uniqueness check, or truncation that removes a file extension, are data defects that read as defensive code.
+
+**Live walkthrough on WPF.** The default static mode is correct and cheap. When a walkthrough is
+requested, the driver is **UI Automation** (`System.Windows.Automation`) plus `PrintWindow` for
+pixels — not Playwright. Full recipe and the five pitfalls that cost real time (inner `TextBlock`
+shadowing the `Button` on `FindFirst` by name; `GetCurrentPattern` constant resolution; `PasswordBox`
+having no writable `ValuePattern`; `CopyFromScreen` capturing the wrong window; needing to wait on
+the window rather than sleep) are documented in
+`_wxAI/skills/wxCreateTestPlan/adapters/dotnet-wpf.md` § *WPF walkthrough recipe*. Do not duplicate
+them here — follow that section.
+
+What the walkthrough adds over static review, concretely: rendered contrast, real focus, actual
+control geometry (a `UniformGrid` allocating 37px rows to 44px buttons overlaps them — visible only
+when rendered), truncated `DataGrid` headers, and startup timing. Four must-fix findings here were
+reachable no other way.
+
+**Test substitutes on this stack.** EF Core's InMemory provider enforces no foreign keys, `varchar`
+lengths, unique indexes or cascades — so any test asserting "the database rejects this" against it
+cannot fail. Check whether a real-engine tier exists and whether it **skips silently** when the
+engine is unreachable. Under `test-validity`, also check xUnit's per-class parallelism against any
+test mutating process-wide culture or environment without a `finally`.
+
 ## Review contract
 
 The job is to review — not to approve blindly, not to rewrite the whole patch, and not to redesign the
