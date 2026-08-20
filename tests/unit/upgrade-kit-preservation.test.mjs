@@ -132,7 +132,7 @@ async function upgrade(consumerRoot, archive, { firstRun }) {
   const m = await loadKit(consumerRoot);
   const staging = path.join(consumerRoot, '.wxai', `stg-${Math.abs(archive.length)}-${firstRun ? 1 : 2}`);
   fs.rmSync(staging, { recursive: true, force: true });
-  m.snapshotBeforeUpgrade(archive);
+  const snapshot = m.snapshotBeforeUpgrade(archive);
   m.extractArchive(archive, staging);
 
   const manifest = m.readKitManifest();
@@ -151,6 +151,10 @@ async function upgrade(consumerRoot, archive, { firstRun }) {
     changes = { preserved: [], kitNew: [], replaced: written, counts: {} };
   }
   m.writeKitManifest(staging, firstRun ? 'v1' : 'v2');
+  // main() merges here, while staging still holds the kit's own package.json. The
+  // harness omitted this step while claiming to mirror the sequence, which is why
+  // the merge defect had no test that could see it.
+  m.mergePackageJson(snapshot.dir, staging);
   fs.rmSync(staging, { recursive: true, force: true });
   return { m, changes };
 }
@@ -249,6 +253,58 @@ describe('package.json merge', () => {
     expect(merged.scripts['build:server']).toBe('esbuild custom');
     // Kit-owned dependency versions still track the kit.
     expect(merged.dependencies.express).toBe('4.19.2');
+  });
+
+  it('kit dependency and script updates still arrive on the SECOND upgrade', async (ctx) => {
+    // From the second upgrade onward, reconcileStaging classifies a customized
+    // package.json as `modified` and deliberately does NOT write the kit's copy to
+    // the root. mergePackageJson read its kit half FROM the root, so `before` and
+    // `kit` were the same bytes: it found nothing of the kit's to apply and returned
+    // null without a word. Kit-owned dependency bumps and newly shipped scripts
+    // stopped arriving for every consumer past their first upgrade.
+    //
+    // The test above cannot catch that. It extracts straight over the root first,
+    // which puts the kit's package.json exactly where the broken code expected to
+    // find it — the test constructs the state the function needs in order to work.
+    const consumer = path.join(tmp, 'consumer');
+    buildConsumer(consumer);
+
+    const k1 = path.join(tmp, 'mk1');
+    const k2 = path.join(tmp, 'mk2');
+    buildKitTree(k1, 1);
+    buildKitTree(k2, 2);
+    // v2 of the KIT's package.json: a dependency range it owns, plus a script it
+    // newly ships. Neither can reach the consumer except through the merge.
+    write(
+      path.join(k2, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'kit',
+          scripts: { 'build:server': 'tsc', 'kit:start': 'node scripts/kit-start.mjs' },
+          dependencies: { express: '4.20.1' },
+        },
+        null,
+        2
+      ) + '\n'
+    );
+    const a1 = makeArchive(k1, path.join(tmp, 'mk1.tar.gz'), 'tar.gz');
+    const a2 = makeArchive(k2, path.join(tmp, 'mk2.tar.gz'), 'tar.gz');
+    if (!a1 || !a2) ctx.skip('no tar archiver on this platform');
+
+    await upgrade(consumer, a1, { firstRun: true });   // establishes the manifest baseline
+    await upgrade(consumer, a2, { firstRun: false });  // reconcile path — the one that regressed
+
+    const pkg = JSON.parse(fs.readFileSync(path.join(consumer, 'package.json'), 'utf8'));
+
+    // The consumer's half is still theirs.
+    expect(pkg.name).toBe('customer');
+    expect(pkg.dependencies['@me/lib']).toBe('file:local/lib');
+    expect(pkg.scripts['dev:mine']).toBe('vite');
+    expect(pkg.scripts['build:server']).toBe('esbuild custom'); // their collision still wins
+
+    // ...and the kit's half actually arrived.
+    expect(pkg.dependencies.express).toBe('4.20.1');
+    expect(pkg.scripts['kit:start']).toBe('node scripts/kit-start.mjs');
   });
 });
 

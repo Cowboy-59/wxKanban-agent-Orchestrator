@@ -471,23 +471,36 @@ function pruneSnapshots(keepDir) {
 
 // ─── [SPEC 121 / T005] Merge package.json instead of overwriting it ───────────
 //
-// The archive carries the kit's own package.json and the extract lands it on
-// top, taking the consumer's scripts and declared dependencies with it. The loss
-// is latent: node_modules survives, so typecheck, tests and build all stay green
-// until some later `npm install` prunes the tree and the project breaks pointing
-// at the wrong change. Merge from the snapshot copy taken before extraction.
+// The archive carries the kit's own package.json. The loss it causes is latent:
+// node_modules survives an overwrite, so typecheck, tests and build all stay
+// green until some later `npm install` prunes the tree and the project breaks
+// pointing at the wrong change. Merge from the snapshot copy taken before
+// extraction, so every consumer key survives.
+//
+// THE KIT HALF DOES NOT COME FROM THE PROJECT ROOT. It used to, and that was
+// only ever true on the no-manifest overwrite path — the FIRST upgrade after
+// SPEC-121 shipped. On every upgrade after that, reconcileStaging classifies a
+// customized package.json as `modified` and deliberately does NOT write the
+// kit's copy to the root; it leaves a `package.json.kit-new` sidecar instead.
+// So `before` and the root file were the same bytes, the merge found nothing of
+// the kit's to apply, and returned null without a word. Kit-owned dependency
+// bumps and newly shipped scripts stopped arriving, silently, for every consumer
+// past their first upgrade. The kit's copy exists only inside the staging tree,
+// which is why `kitDir` is passed and why the call now happens before staging is
+// removed. `root` stays the default so the overwrite path is unchanged.
 
-function mergePackageJson(snapshotDir) {
+function mergePackageJson(snapshotDir, kitDir = root) {
   const beforePath = path.join(snapshotDir, 'package.json');
   const livePath = path.join(root, 'package.json');
+  const kitPath = path.join(kitDir, 'package.json');
   // Absent from the snapshot ⇒ the archive did not carry it ⇒ nothing was overwritten.
-  if (!fs.existsSync(beforePath) || !fs.existsSync(livePath)) return null;
+  if (!fs.existsSync(beforePath) || !fs.existsSync(livePath) || !fs.existsSync(kitPath)) return null;
 
   let before;
   let kit;
   try {
     before = JSON.parse(fs.readFileSync(beforePath, 'utf8'));
-    kit = JSON.parse(fs.readFileSync(livePath, 'utf8'));
+    kit = JSON.parse(fs.readFileSync(kitPath, 'utf8'));
   } catch (err) {
     log('warn', `package.json merge skipped — could not parse: ${err.message}`);
     log('warn', `  your original is preserved at ${beforePath}`);
@@ -986,14 +999,16 @@ async function main() {
 
     // [SPEC 121 / T001] Record what this kit shipped, as shipped.
     writeKitManifest(stagingDir, download.toVersion);
+
+    // [SPEC 121 / T005] Put the consumer's half of package.json back before
+    // anything installs against the archive's copy. Inside the try, because the
+    // kit's own package.json exists only in stagingDir on the reconcile path and
+    // the finally below removes it.
+    mergePackageJson(snapshot.dir, stagingDir);
   } finally {
     try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch { /* ignore */ }
     try { fs.unlinkSync(download.archivePath); } catch { /* ignore */ }
   }
-
-  // [SPEC 121 / T005] Put the consumer's half of package.json back before
-  // anything installs against the archive's copy.
-  mergePackageJson(snapshot.dir);
 
   // Remove files the new kit renamed/removed (overlay-extract never deletes).
   const deleted = cleanupStaleAfterExtract();
