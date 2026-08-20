@@ -141,8 +141,16 @@ function isPreV110(currentVersion) {
   return major < 1 || (major === 1 && minor < 1);
 }
 
-function cleanupLegacyMcpIfNeeded(currentVersion) {
-  if (!isPreV110(currentVersion)) return;
+function cleanupLegacyMcpIfNeeded(currentVersion, { dryRun = false } = {}) {
+  if (!isPreV110(currentVersion)) return [];
+  if (dryRun) {
+    return [
+      'mcp-server',
+      'scripts/setup-mcp.mjs',
+      'scripts/mcp-health-check.mjs',
+      '.mcp-server.pid',
+    ].filter(rel => fs.existsSync(path.join(root, rel)));
+  }
   log('info', `Pre-v1.1.0 install detected (${currentVersion}); removing legacy local-MCP files`);
   const targets = [
     'mcp-server',
@@ -165,6 +173,7 @@ function cleanupLegacyMcpIfNeeded(currentVersion) {
   if (removed > 0) {
     log('ok', `Legacy cleanup complete: ${removed} path(s) removed`);
   }
+  return targets.filter(rel => !fs.existsSync(path.join(root, rel)));
 }
 
 // Post-extract cleanup of files the new kit RENAMED or REMOVED. The upgrade
@@ -203,11 +212,21 @@ const STALE_SOURCE_TREES = [
   'wxkanban-agent/dbpush.ts',
 ];
 
-function cleanupStaleAfterExtract({ dryRun = false } = {}) {
+// `willWrite` is the list of paths reconcile is about to place in the root (or
+// just placed there). The question this function asks is "does the path exist
+// AFTER the upgrade", and before T013 it asked the root on its own — correct in
+// a real run, where the overlay had already landed, and wrong in a dry run,
+// where it had not. The visible cost was the dist cutover: an archive that ships
+// `wxkanban-agent/dist/cli.cjs` flips `distPresent` and takes SIX source trees
+// with it, none of which the preview mentioned.
+
+function cleanupStaleAfterExtract({ dryRun = false, willWrite = [] } = {}) {
   const renamed = STALE_RENAMED;
+  const incoming = new Set(willWrite);
+  const existsAfter = (rel) => incoming.has(rel) || fs.existsSync(path.join(root, rel));
 
   // Until distribution flips to dist-only this stays a no-op, so it's safe to ship now.
-  const distPresent = fs.existsSync(path.join(root, 'wxkanban-agent', 'dist', 'cli.cjs'));
+  const distPresent = existsAfter('wxkanban-agent/dist/cli.cjs');
   const sourceTrees = distPresent
     ? [
         'wxkanban-agent/core',
@@ -224,11 +243,12 @@ function cleanupStaleAfterExtract({ dryRun = false } = {}) {
   const removed = [];
   for (const rel of [...renamed, ...sourceTrees]) {
     const abs = path.join(root, rel);
-    if (!fs.existsSync(abs)) continue;
+    if (!existsAfter(rel)) continue;
     if (dryRun) {
       removed.push(rel);
       continue;
     }
+    if (!fs.existsSync(abs)) continue;
     try {
       fs.rmSync(abs, { recursive: true, force: true });
       removed.push(rel);
@@ -390,7 +410,7 @@ function listArchiveEntries(archivePath) {
   return result.stdout.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 }
 
-function snapshotBeforeUpgrade(archivePath) {
+function snapshotBeforeUpgrade(archivePath, { dryRun = false } = {}) {
   const entries = listArchiveEntries(archivePath);
   if (!entries || entries.length === 0) {
     die(
@@ -416,6 +436,14 @@ function snapshotBeforeUpgrade(archivePath) {
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const dir = path.join(root, '.wxai', `${SNAPSHOT_PREFIX}${stamp}`);
+
+  if (dryRun) {
+    // The snapshot is a WRITE like any other, so a preview counts it and stops.
+    // `dir: root` is what makes the merge preview correct: with nothing extracted
+    // over the project, the live tree still IS the pre-upgrade state.
+    const would = [...targets].filter(rel => fs.existsSync(path.join(root, rel)));
+    return { dir: root, saved: would.length, planned: true };
+  }
 
   let saved = 0;
   try {
@@ -446,7 +474,7 @@ function snapshotBeforeUpgrade(archivePath) {
 }
 
 /** Keep the current snapshot plus one previous; older ones are pruned. */
-function pruneSnapshots(keepDir) {
+function pruneSnapshots(keepDir, { dryRun = false } = {}) {
   const base = path.join(root, '.wxai');
   let dirs;
   try {
@@ -456,6 +484,13 @@ function pruneSnapshots(keepDir) {
       .sort()
       .reverse();
   } catch {
+    return;
+  }
+  if (dryRun) {
+    // The real run creates one snapshot before it prunes, so of the dirs that exist
+    // now it keeps one fewer. Slicing at SNAPSHOT_RETAIN here would under-count by one.
+    const stale = dirs.slice(Math.max(0, SNAPSHOT_RETAIN - 1));
+    if (stale.length > 0) log('info', `${stale.length} old snapshot(s) would be pruned`);
     return;
   }
   for (const name of dirs.slice(SNAPSHOT_RETAIN)) {
@@ -489,7 +524,7 @@ function pruneSnapshots(keepDir) {
 // which is why `kitDir` is passed and why the call now happens before staging is
 // removed. `root` stays the default so the overwrite path is unchanged.
 
-function mergePackageJson(snapshotDir, kitDir = root) {
+function mergePackageJson(snapshotDir, kitDir = root, { dryRun = false } = {}) {
   const beforePath = path.join(snapshotDir, 'package.json');
   const livePath = path.join(root, 'package.json');
   const kitPath = path.join(kitDir, 'package.json');
@@ -546,7 +581,18 @@ function mergePackageJson(snapshotDir, kitDir = root) {
   const kitText = JSON.stringify(kit);
   if (JSON.stringify(merged) === kitText) return null; // nothing of theirs to restore
 
-  fs.writeFileSync(livePath, JSON.stringify(merged, null, 2) + '\n', 'utf8');
+  const live = fs.readFileSync(livePath, 'utf8');
+  const out = JSON.stringify(merged, null, 2) + '\n';
+  if (out === live) return null; // already says what the merge would say
+
+  if (dryRun) {
+    log('info', `package.json would be rewritten (${notes.length} change(s))`);
+    for (const note of notes.slice(0, 12)) log('info', `  ${note}`);
+    if (notes.length > 12) log('info', `  …and ${notes.length - 12} more`);
+    return { notes, planned: true };
+  }
+
+  fs.writeFileSync(livePath, out, 'utf8');
   log('ok', 'package.json merged — your scripts and dependencies are preserved');
   for (const note of notes.slice(0, 12)) log('info', `  ${note}`);
   if (notes.length > 12) log('info', `  …and ${notes.length - 12} more`);
@@ -646,7 +692,7 @@ function readKitManifest() {
   }
 }
 
-function writeKitManifest(stagingDir, version) {
+function writeKitManifest(stagingDir, version, { dryRun = false } = {}) {
   const files = {};
   for (const rel of walkRelative(stagingDir)) {
     try {
@@ -654,6 +700,10 @@ function writeKitManifest(stagingDir, version) {
     } catch {
       /* unreadable file in staging — omit rather than record a wrong hash */
     }
+  }
+  if (dryRun) {
+    log('info', `kit manifest would be written (${Object.keys(files).length} files)`);
+    return Object.keys(files).length;
   }
   try {
     fs.mkdirSync(path.dirname(MANIFEST_PATH()), { recursive: true });
@@ -810,7 +860,7 @@ function reconcileStaging(stagingDir, manifest, { dryRun = false } = {}) {
 // Counts print even when zero. An absence of warnings should be something the
 // run states, not something the reader infers from silence.
 
-function reportChanges({ preserved = [], kitNew = [], deleted = [], replaced = [], dryRun = false, acknowledged = false }) {
+function reportChanges({ preserved = [], kitNew = [], deleted = [], replaced = [], alsoWrites = [], dryRun = false, acknowledged = false }) {
   const atRisk = preserved.length + deleted.length;
 
   console.log('');
@@ -826,6 +876,13 @@ function reportChanges({ preserved = [], kitNew = [], deleted = [], replaced = [
   }
   for (const rel of deleted) {
     log('warn', `  DELETED ${rel}  (recoverable from the snapshot above)`);
+  }
+
+  // [SPEC 121 / T013] Writes that are not file replacements were absent from this
+  // manifest entirely, so the count above read as the whole story when it was not.
+  if (alsoWrites.length > 0) {
+    log('info', `  ${dryRun ? 'also writes' : 'also written'}  : ${alsoWrites.length}`);
+    for (const what of alsoWrites) log('info', `  ALSO   ${what}`);
   }
 
   if (atRisk === 0) {
@@ -845,9 +902,13 @@ function reportChanges({ preserved = [], kitNew = [], deleted = [], replaced = [
   return 2;
 }
 
-function updateProjectConfigVersion(toVersion) {
+function updateProjectConfigVersion(toVersion, { dryRun = false } = {}) {
   const configPath = path.join(root, '.wxkanban-project.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  if (dryRun) {
+    log('info', `.wxkanban-project.json version would go ${config.kitVersion || config.version || 'unknown'} → ${toVersion}`);
+    return;
+  }
   // Per AC5: only update the two version fields, preserve everything else.
   config.version = toVersion;
   config.kitVersion = toVersion;
@@ -855,7 +916,14 @@ function updateProjectConfigVersion(toVersion) {
   log('ok', `.wxkanban-project.json version → ${toVersion}`);
 }
 
-function runInit() {
+function runInit({ dryRun = false } = {}) {
+  if (dryRun) {
+    // Never spawned in a preview: init installs dependencies and restarts
+    // services. Named rather than modelled, because "we do not know what this
+    // writes" is itself the honest answer and beats an invented file list.
+    log('info', 'init.mjs would run (installs platform deps, rewrites MCP config, restarts services)');
+    return;
+  }
   log('info', 'Re-running init.mjs to install platform-correct deps + restart services');
   // init.mjs hides its OWN children, but the upgrade path spawns init.mjs itself —
   // without this the upgrade still flashes a window even though init.mjs is clean.
@@ -898,13 +966,25 @@ async function main() {
   log('info', `wxKanban: ${apiUrl}`);
   console.log('');
 
-  log('info', 'Stopping services');
-  stopService('.mcp-server.pid', 'MCP server');
-  stopService('.orchestrator-gateway.pid', 'orchestrator gateway');
+  // [SPEC 121 / T013] Both of these WRITE, and both used to run before the dry-run
+  // branch was reached — so `--dry-run` stopped the consumer's services and, on a
+  // pre-v1.1.0 kit, deleted mcp-server/ outright, then printed "Nothing was changed."
+  const pendingWrites = [];
+  if (dryRun) {
+    log('info', 'Dry run — services stay up and nothing is removed');
+    pendingWrites.push('stop the MCP server and the orchestrator gateway');
+    for (const rel of cleanupLegacyMcpIfNeeded(currentVersion, { dryRun: true })) {
+      pendingWrites.push(`delete legacy ${rel} (pre-v1.1.0 cutover)`);
+    }
+  } else {
+    log('info', 'Stopping services');
+    stopService('.mcp-server.pid', 'MCP server');
+    stopService('.orchestrator-gateway.pid', 'orchestrator gateway');
 
-  // [SPEC 019 R15 AC#5] v1.1.0 cutover — remove legacy local-MCP files when upgrading
-  // from a pre-v1.1.0 kit. Hosted MCP (spec 028) means no consumer-side mcp-server/.
-  cleanupLegacyMcpIfNeeded(currentVersion);
+    // [SPEC 019 R15 AC#5] v1.1.0 cutover — remove legacy local-MCP files when upgrading
+    // from a pre-v1.1.0 kit. Hosted MCP (spec 028) means no consumer-side mcp-server/.
+    cleanupLegacyMcpIfNeeded(currentVersion);
+  }
 
   let download;
   try {
@@ -930,66 +1010,62 @@ async function main() {
   }
 
   // [SPEC 121 / T010] A dry run answers the only question worth asking before an
-  // upgrade — "what of mine does this touch?" — using the real comparison, and
-  // writes nothing into the project. Staging goes to the OS temp dir so even
-  // .wxai/ is left alone, and it exits non-zero exactly where a real run would
-  // have stopped, so it works as a scripted pre-upgrade check.
+  // upgrade — "what of mine does this touch?" — and writes nothing into the project.
   const manifest = readKitManifest();
+  ({ code: process.exitCode } = await applyUpgrade({ download, manifest, dryRun, assumeYes, pendingWrites }));
+}
 
-  if (dryRun) {
-    const tmpStaging = fs.mkdtempSync(path.join(os.tmpdir(), 'wxkanban-kit-dry-'));
-    try {
-      extractArchive(download.archivePath, tmpStaging);
-      if (!manifest) {
-        log('warn', 'No kit manifest — a real run would overwrite everything and rely on the snapshot.');
-        log('info', `  ${walkRelative(tmpStaging).length} file(s) would be written.`);
-        console.log('');
-        log('info', 'Dry run complete. Nothing was changed.');
-        process.exitCode = 2;
-        return;
-      }
-      const changes = reconcileStaging(tmpStaging, manifest, { dryRun: true });
-      const deleted = cleanupStaleAfterExtract({ dryRun: true });
-      const code = reportChanges({ ...changes, deleted, dryRun: true, acknowledged: assumeYes });
-      console.log('');
-      log('info', 'Dry run complete. Nothing was changed.');
-      process.exitCode = code;
-      return;
-    } finally {
-      try { fs.rmSync(tmpStaging, { recursive: true, force: true }); } catch { /* ignore */ }
-      try { fs.unlinkSync(download.archivePath); } catch { /* ignore */ }
-    }
-  }
+// ─── [SPEC 121 / T013] ONE upgrade sequence, two modes ───────────────────────
+//
+// The preview and the real upgrade used to be two hand-written sequences, and
+// they drifted the way two copies of anything drift. The preview called the
+// stale cleanup against a project root the overlay had not been applied to, and
+// it modelled none of the manifest, package.json, project-config or init writes
+// at all — so its change manifest was a strict under-count of what a real run
+// does, presented as the whole answer. A safety check that under-reports is
+// worse than no safety check, because someone trusted it.
+//
+// There is now one sequence and a `dryRun` flag. Every step either performs its
+// write or names it. A step added here is modelled by the preview for free,
+// which is the only version of this that stays true.
+
+async function applyUpgrade({ download, manifest, dryRun, assumeYes, pendingWrites = [] }) {
+  const alsoWrites = [...pendingWrites];
 
   // [SPEC 121 / T003] Snapshot before the first write, on every download path.
   // die()s rather than continuing unprotected.
-  const snapshot = snapshotBeforeUpgrade(download.archivePath);
+  const snapshot = snapshotBeforeUpgrade(download.archivePath, { dryRun });
+  if (dryRun) alsoWrites.push(`save a pre-upgrade snapshot of ${snapshot.saved} path(s) under .wxai/`);
 
-  // [SPEC 121 / T002+T004] With a manifest we can tell an edited file from a
-  // pristine one, so extract to staging and copy selectively. Without one — the
-  // first upgrade after this ships, for every existing consumer — there is no
-  // baseline to compare against, so fall back to the historic overwrite. T003's
-  // snapshot is what protects that run, and the manifest written below makes
-  // every subsequent upgrade guarded.
-  const stagingDir = path.join(root, '.wxai', `kit-staging-${Date.now()}`);
+  // Staging goes to the OS temp dir on a preview so even .wxai/ is left alone.
+  const stagingDir = dryRun
+    ? fs.mkdtempSync(path.join(os.tmpdir(), 'wxkanban-kit-dry-'))
+    : path.join(root, '.wxai', `kit-staging-${Date.now()}`);
+
   let changes = { preserved: [], kitNew: [], replaced: [] };
+  let deleted = [];
 
   try {
+    extractArchive(download.archivePath, stagingDir);
+
+    // [SPEC 121 / T002+T004] With a manifest we can tell an edited file from a
+    // pristine one, so copy selectively. Without one — the first upgrade after
+    // this ships, for every existing consumer — there is no baseline, so fall
+    // back to the historic overwrite. T003's snapshot is what protects that run.
     if (manifest) {
-      extractArchive(download.archivePath, stagingDir);
-      changes = reconcileStaging(stagingDir, manifest);
+      changes = reconcileStaging(stagingDir, manifest, { dryRun });
     } else {
       log('warn', 'No kit manifest found — this upgrade cannot tell your edits from stock files.');
       log('warn', '  Falling back to a full overwrite. Your snapshot above is the safety net.');
       log('warn', '  A manifest is written at the end, so the NEXT upgrade will preserve your edits.');
-      extractArchive(download.archivePath, stagingDir);
       const written = [];
       for (const rel of walkRelative(stagingDir)) {
+        written.push(rel);
+        if (dryRun) continue;
         const dest = path.join(root, rel);
         try {
           fs.mkdirSync(path.dirname(dest), { recursive: true });
           fs.copyFileSync(path.join(stagingDir, rel), dest);
-          written.push(rel);
         } catch (err) {
           log('warn', `could not write ${rel}: ${err.message}`);
         }
@@ -998,39 +1074,60 @@ async function main() {
     }
 
     // [SPEC 121 / T001] Record what this kit shipped, as shipped.
-    writeKitManifest(stagingDir, download.toVersion);
+    const manifestFiles = writeKitManifest(stagingDir, download.toVersion, { dryRun });
+    if (dryRun) alsoWrites.push(`write .wxai/kit-manifest.json (${manifestFiles} files)`);
 
     // [SPEC 121 / T005] Put the consumer's half of package.json back before
     // anything installs against the archive's copy. Inside the try, because the
     // kit's own package.json exists only in stagingDir on the reconcile path and
     // the finally below removes it.
-    mergePackageJson(snapshot.dir, stagingDir);
+    const merged = mergePackageJson(snapshot.dir, stagingDir, { dryRun });
+    if (dryRun && merged) {
+      alsoWrites.push(`rewrite package.json (${merged.notes.length} change(s)) and re-derive package-lock.json`);
+    }
+
+    // Remove files the new kit renamed/removed (overlay-extract never deletes).
+    // `willWrite` is what makes the preview honest: the deletion list depends on
+    // the root AFTER the overlay, and on a preview the overlay has not landed.
+    deleted = cleanupStaleAfterExtract({ dryRun, willWrite: changes.replaced });
   } finally {
     try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch { /* ignore */ }
     try { fs.unlinkSync(download.archivePath); } catch { /* ignore */ }
   }
 
-  // Remove files the new kit renamed/removed (overlay-extract never deletes).
-  const deleted = cleanupStaleAfterExtract();
-
-  updateProjectConfigVersion(download.toVersion);
+  updateProjectConfigVersion(download.toVersion, { dryRun });
+  if (dryRun) alsoWrites.push(`set .wxkanban-project.json version to ${download.toVersion}`);
 
   console.log('');
-  runInit();
+  runInit({ dryRun });
+  if (dryRun) alsoWrites.push('run init.mjs (installs deps, rewrites MCP config, restarts services)');
 
-  pruneSnapshots(snapshot.dir);
+  pruneSnapshots(snapshot.dir, { dryRun });
 
   console.log('');
-  log('ok', `${colors.bold}Upgrade complete${colors.reset}`);
-  log('ok', `${download.fromVersion || 'unknown'} → ${download.toVersion} via ${download.source}`);
-  log('info', `Pre-upgrade snapshot: ${snapshot.dir}`);
-  log('info', '  Anything of yours this upgrade overwrote can be restored from there.');
+  if (dryRun) {
+    log('ok', `${colors.bold}Dry run complete — nothing was changed${colors.reset}`);
+    log('ok', `${download.fromVersion || 'unknown'} → ${download.toVersion} via ${download.source}`);
+  } else {
+    log('ok', `${colors.bold}Upgrade complete${colors.reset}`);
+    log('ok', `${download.fromVersion || 'unknown'} → ${download.toVersion} via ${download.source}`);
+    log('info', `Pre-upgrade snapshot: ${snapshot.dir}`);
+    log('info', '  Anything of yours this upgrade overwrote can be restored from there.');
+  }
 
   // [SPEC 121 / T007] Never finish silently over at-risk files. Exit code 2 says
-  // "upgraded, and there is something for you to look at" — distinct from the 1
-  // a failure returns.
-  process.exitCode = reportChanges({ ...changes, deleted, acknowledged: assumeYes });
+  // "there is something for you to look at" — distinct from the 1 a failure returns.
+  let code = reportChanges({ ...changes, deleted, alsoWrites, dryRun, acknowledged: assumeYes });
+  if (dryRun && !manifest) {
+    // No baseline means a real run overwrites everything, which is worth a non-zero
+    // exit even when nothing is listed as "yours" yet. Preserved from the old path.
+    code = Math.max(code, 2);
+  }
   console.log('');
+  // The change set is returned, not just the exit code, so a test can assert what the
+  // preview CLAIMED against what a real run actually does. A dry run whose claims are
+  // untestable is the same untrustworthy check in a new shape.
+  return { code, changes, deleted, alsoWrites };
 }
 
 main().catch(err => {
