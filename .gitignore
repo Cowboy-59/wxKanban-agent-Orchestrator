@@ -30,3 +30,8 @@ kit.tar.gz
 kit.zip
 *.tgz
 *.sha256
+
+# Release-notes scratch. sync-to-orchestrator.mjs --release writes the body here
+# for `gh release create --notes-file` and removes it in a finally; a killed run
+# leaves it behind, and it must never be committed or published.
+.release-notes.tmp.md
