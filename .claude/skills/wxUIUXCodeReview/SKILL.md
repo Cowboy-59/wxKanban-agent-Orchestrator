@@ -123,7 +123,8 @@ UI.
 
 Always:
 1. Understand the stated intent of the change (or, for `--audit`, what the surface is meant to do).
-2. Inspect the changed files/screens and identify risk by layer and dimension.
+2. Inspect the changed files/screens and identify risk by layer and dimension, then run the
+   recurring defect shapes (§5) over the same material.
 3. Collapse repeated symptoms into their cross-cutting cause.
 4. Report findings ordered by severity, tagged with provenance.
 5. Explain why each finding matters (user or system impact).
@@ -284,30 +285,120 @@ verify the assertion against the code it describes. Report as
 `[severity] claim — file:line — comment asserts X; code does Y`. A false claim about a safety property
 is at least should-fix: it is why nobody re-checked.
 
+Two passes make this dimension pay for itself:
+
+- **Falsify each claim, do not confirm it.** Extract every claim the names and doc-strings make —
+  "non-overlap is enforced", "exact", "converged", "complete", "atomic", "idempotent", "safe to
+  re-run" — and try to *break* it against the implementation. Claims worded as guarantees are the ones
+  to attack first: a guarantee nobody has falsified is the one everybody has stopped re-checking.
+- **Test the verification, not only the code.** Wherever a check exists to *prove* correctness — a
+  second run moving 0 rows, a cycle emitting `finished`, a checksum that matches, a round-trip that
+  compares equal — ask what that check would report **if the thing it verifies were broken**. If the
+  answer is "the same thing", the check is decorative and the code behind it is effectively
+  unreviewed. Shapes 3, 4 and 6 in §5 are the recurring instances of this.
+
 **Defaults & first-run state.** What the surface shows *before the user touches anything*: default
 filters and date ranges, preselection, remembered choices, initial focus, sort order, proposed period.
 Losing a default removes no feature and breaks no test, so nothing else catches it — but it decides
 whether the screen opens ready to work.
 
-### 5. Project-specific checks (when the project is wxKanban or kanban-shaped)
+### 5. Recurring defect shapes
+
+Ten shapes that survive dimension-by-dimension reading *and* a green unit-test suite, because each one
+looks correct locally and only fails against state the tests do not create. Run them as questions over
+the diff and report every hit under its natural dimension — these are prompts, not a new category.
+
+They are diff-bounded, so they apply on an **auto-run** as well. The two exceptions are shapes 3 and 7,
+whose evidence can need a repo-wide search (they lean on claim-vs-code and wiring); on an auto-run note
+those in one line under residual risk, per *Dimension scope by invocation*, instead of running the
+searches.
+
+**Concurrency and guard state**
+
+1. **Invalidation racing an in-flight refresh.** A refresh that *started* before `invalidate()`
+   *resolves* after it and repopulates the cache with pre-invalidation data, which then serves for a
+   full TTL. Ask: at each invalidation site, can a read already be in flight? Does the cache reject a
+   write whose snapshot predates the last invalidation (generation counter, token, timestamp)?
+
+2. **Clearing a guard flag is not cancelling the work it guards.** Resetting an "in progress" flag from
+   outside the guarded operation lets a second run start while the first is still running, and each run
+   then releases the other's guard. Ask: find every write to the flag other than the guarded block's
+   own acquire/release, and check that release is scoped to the run that acquired it.
+
+**Verification that cannot fail**
+
+3. **A correctness claim contradicted by a query hint or isolation level.** `countRowsExact` executing
+   `WITH (NOLOCK)`; a planner estimate (`reltuples`, a statistics view) presented as a count; a
+   "consistent snapshot" read at read-committed. Ask: does the name or doc-string promise a guarantee
+   that the execution mode gives away?
+
+4. **Terminal status reported without checking the terminal condition.** A bounded retry or convergence
+   loop that emits `finished` / `converged` / `up to date` after exiting via its iteration bound rather
+   than by reaching the condition. Ask: is the success message on the path that *proves* success, or on
+   the path that merely left the loop?
+
+5. **A dry run computing eligibility from different state than the real run.** The preview reads
+   pre-mutation state, or a different collection, or skips a filter the real run applies — so it
+   reports work the real run will not do, or hides work it will. Ask: do both paths derive their
+   candidate set from the same expression?
+
+**Data fidelity across a boundary**
+
+6. **Naive vs zone-aware temporal values across two drivers.** Two drivers disagree about which zone to
+   attach to a `timestamp without time zone` / `DATETIME`, so read-then-write-back shifts the stored
+   value by the UTC offset. Because the shift is *consistent*, the value round-trips and a
+   comparison-based sync reports the tables as converged — **silent production data corruption that
+   its own verification confirms as healthy.** Ask: for every temporal value crossing between two
+   drivers, is the type zone-aware on both sides? And does any convergence check compare two values
+   that were both produced by the same shifting path?
+
+**Silent success on a path that should not exist**
+
+7. **A write path reachable for an unimplemented capability.** The danger is not the exception — it is
+   the branch that falls through to a default and reports success for something else (a wrong-key
+   insert reported as the requested key). Ask: for each unimplemented or unsupported case, does the
+   write path *reject* it, or does it write something?
+
+8. **Fail-open on an optional completeness signal.** `if (x.complete === false)` passes when `complete`
+   is `undefined`; `if (!x.errors?.length)` passes when the errors were never populated. Ask: for each
+   gate on an optional field, what does the gate do when the field is absent — and is absent the safe
+   direction?
+
+**Controls stranded by control flow**
+
+9. **An early return that strands a pagination or recovery control.** An empty-state early return
+   rendered *above* the "load more" / "retry" / "reconnect" control removes the only way out of the
+   empty state. Ask: for each early return in a render path, what is rendered below it that the user
+   may still need?
+
+10. **A cached on-demand value with no path to recompute.** Writes invalidate some derived state but
+    not all, and the surface replaces the "compute" control with the now-stale value — so nothing can
+    refresh it. Ask: for each cached derived value, does *every* write that affects it invalidate it,
+    and does the surface keep a way to recompute when one does not?
+
+In the review this catalogue came from, shapes 1, 2, 4 and 6 were each reachable from the falsify pass
+in §4 alone — every one of them asserted an invariant in a name or doc-string that the code did not
+enforce.
+
+### 6. Project-specific checks (when the project is wxKanban or kanban-shaped)
 
 **Code/workflow** — board/lane/card permission boundaries; move operations and ordering consistency; WIP-limit enforcement; blocked-state handling; archived/soft-deleted behavior; filter/search/reporting consistency; event/webhook side effects after updates; optimistic UI vs. server truth conflicts; auditability for admin/workflow changes.
 
 **UI** — board/lane/card layout at high card counts and long titles; drag-and-drop affordance, drop targets, keyboard-accessible reordering; WIP-limit visual cues (not colour-only); blocked/archived/deleted states clearly indicated; discoverable filter/search controls with clear results/empty states; dense data tables (alignment, sticky headers, responsive collapse, row actions); dialogs/sheets/toasts (focus trap, scroll lock, dismissal, stacking).
 
-### 6. Integration tooling (when relevant)
+### 7. Integration tooling (when relevant)
 For agent/MCP changes: schema validation for tool inputs/outputs; timeout and retry limits; tool
 invocation permissions/scope; partial-failure behavior; logging of sensitive payloads; deterministic
 behavior and fallback handling. For bespoke UI where the project uses shadcn/ui, consult the shadcn-ui
 MCP and `_wxAI/rules/shadcn.md` to recommend the canonical component/variant.
 
-### 7. Collapse into cross-cutting causes
+### 8. Collapse into cross-cutting causes
 Before writing anything up, group repeated symptoms by their shared cause. Emit each as `C-1 … C-n`
 with a one-line statement, the fan-out count, and the surfaces it explains. Individual findings then
 **reference `C-n` instead of restating it**. Fixing a cause should visibly close its downstream
 symptoms — that is what makes the list actionable at scale.
 
-### 8. Classify severity and provenance
+### 9. Classify severity and provenance
 
 Severity — use exactly these labels:
 - **must-fix**: likely bug, exploit, data loss, broken behavior, merge blocker (code); broken/unusable UI, WCAG-blocking a11y violation, unreadable content, action with no feedback, layout broken at a supported size (UI)
@@ -325,7 +416,7 @@ Provenance — separate from severity, because it changes *ownership*, not urgen
 Never let provenance soften severity: a pre-existing data-loss defect is still must-fix. It just isn't
 this author's regression.
 
-### 9. Write findings first
+### 10. Write findings first
 Lead with findings, not praise. For each: severity, category, file:line (or screen/state), concise
 title, provenance, why it matters, recommended fix. If there are none, say what was checked and list
 residual risks / unverified areas.

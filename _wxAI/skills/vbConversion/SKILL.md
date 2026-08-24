@@ -75,6 +75,30 @@ exactly this way, in an `analysis/*.json` that no script produces.
 4. **Never reproduce a value in chat either** — not truncated, not masked. A partial mask is a
    disclosure.
 
+### A credential is not always in a credential-shaped field
+
+Two shapes found in the field defeat a reader who only checks field names — and the second defeats
+the scripts too, so **you are the control that catches it**:
+
+- **The field names the credential in a word the scan does not know.** `SMSPortal_Authorization` is
+  as credential-bearing as `Password`, and so is anything named for a bearer token, a signature or
+  an auth header. Treat the name, not the matcher, as the test.
+- **The field is innocuous and only an adjacent comment gives it away.** When the real field was not
+  wired up yet, a developer routes the value through whatever field was to hand and leaves the
+  intended one behind in a comment:
+
+  ```
+  MyMessage.Subject = "<uuid-shaped value>"
+  //CompanyDetail.SMSPortal_Authorization
+  ```
+
+  The assignment reads as a subject line; the comment is the only evidence. This is a recurring
+  workaround, not a one-off — the same shape turned up independently in two conversions of the same
+  legacy codebase family. `wxconv_redact` now redacts the bare-field-reference form of it, but a
+  comment carrying prose around the field name is deliberately left alone to avoid blanking out real
+  captions and subjects. **Whenever a comment near a literal names a credential-shaped field, treat
+  the literal as a credential** regardless of what it was assigned to.
+
 ### Checking what is already exposed
 
 Artifacts produced before redaction existed are **already disclosed** and rewriting them does not

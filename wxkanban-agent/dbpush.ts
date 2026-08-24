@@ -532,10 +532,17 @@ async function phase2Compare(projectId: string): Promise<DbState> {
     // exact failure being fixed, so it is routed to the `unreachable` path that already
     // refuses to push outside a dry run. An older MCP without T006, or a project past
     // SPEC_IDENTITY_CAP, therefore stops with a message instead of writing duplicates.
-    if (!Array.isArray(resp.specs) || resp.specsComplete === false) {
+    // `specsComplete !== true`, not `=== false`: an ABSENT flag is not a passing one. The server
+    // emits `specs[]` and `specsComplete` from the same object literal, so today they arrive
+    // together — but this client talks to an independently-versioned hosted MCP across a network,
+    // and the whole point of the check is that it cannot assume which server answered. A gate on
+    // an optional field must name the value it accepts, never the one value it rejects.
+    if (!Array.isArray(resp.specs) || resp.specsComplete !== true) {
       const why = !Array.isArray(resp.specs)
         ? 'the MCP did not return a specs[] collection (server predates SCOPE-124/T006)'
-        : 'the specs[] collection was truncated (specsComplete: false)';
+        : resp.specsComplete === false
+          ? 'the specs[] collection was truncated (specsComplete: false)'
+          : 'the MCP did not report whether specs[] was complete (specsComplete absent)';
       console.warn(
         `dbpush: cannot establish which specs already exist — ${why}. ` +
           'Refusing to push rather than risk creating duplicates.',

@@ -56,6 +56,13 @@ CRED_KEYS = (
     "login",
     "apikey", "api_key", "api-key",
     "token", "secret",
+    # `authorization` is how Bearer tokens, OAuth secrets and API auth headers are named in
+    # the field that holds them, and it was absent entirely -- a field called
+    # `CompanyDetail.SMSPortal_Authorization` was invisible to every matcher here. Bare `auth`
+    # is safe to add despite being a common word fragment, because KEYED_RE requires the key to
+    # be followed immediately by an assignment: `Author = "Fabrice"` and `authcode = "x"` do not
+    # match, only `auth = "..."` does.
+    "authorization", "auth",
     "data source", "initial catalog",
     "connectionstring", "connection string",
 )
@@ -276,7 +283,74 @@ def _key_start_ok(text: str, start: int) -> bool:
 # [SCOPE 125 / T001] END
 
 
+# [SCOPE 125 / T020] BEGIN — Credential named by an adjacent comment rather than by its own key
+# Comment markers across the three legacy languages this module serves: `//` (WLanguage and
+# modern-style VB), `'` (VB6/VBA), `!` (Clarion), `--` (SQL embedded in .txa/.dct exports).
+_COMMENT_MARKER_RE = re.compile(r"\A[^\S\r\n]*(?://|--|!|')[^\S\r\n]*(?P<body>[^\r\n]*)")
+
+# The credential keys again, unanchored. Inside a comment there is no `=` to key off, so the
+# assignment-anchored KEYED_RE cannot be reused; the end-of-identifier check moves into code.
+_KEY_ONLY_RE = re.compile("(?i)" + _key_alternation())
+
+_WS_RE = re.compile(r"\s")
+
+
+def _comment_key(line: str):
+    """
+    Return the credential key a comment LINE names as a bare field reference, or None.
+
+    The body must be a SINGLE token — `//CompanyDetail.SMSPortal_Authorization`, never
+    `// move the password to config`. That restriction is the entire safety margin of this rule:
+    the value it redacts is chosen by the COMMENT rather than by the assignment, so a prose comment
+    that merely mentions a credential must not be able to blank out an unrelated string beside it.
+    The cost is that a field reference trailed by prose is missed. The observed real-world shape is
+    the bare reference, and over-redacting a subject line or a caption would destroy rebuild signal
+    for no security gain — the same trade the `.Caption` exclusion in KEYED_RE makes.
+
+    The key must also END its identifier component, so `//Customer.UserName` and `//passwordhash`
+    are rejected. KEYED_RE gets that check for free from the `=` that must follow it; here it is
+    explicit. A trailing `_` or `.` still terminates, so `//User_ID` and `//Config.Auth.Value` hit.
+    """
+    m = _COMMENT_MARKER_RE.match(line)
+    if not m:
+        return None
+    body = m.group("body").strip()
+    if not body or _WS_RE.search(body):
+        return None
+    for km in _KEY_ONLY_RE.finditer(body):
+        end = km.end()
+        if _key_start_ok(body, km.start()) and (end >= len(body) or not body[end].isalnum()):
+            return km.group(0).lower()
+    return None
+
+
+def _adjacent_comment_key(text: str, after: int):
+    """
+    Return the credential key named by the comment adjacent to a quoted literal ending at `after`.
+
+    Checks the remainder of the literal's OWN line first, then the line below it. Both are the same
+    developer workaround: a credential routed through an unrelated, non-credential-shaped field
+    because the real one was not wired up yet, with the intended field name left behind in a
+    comment. PDF text extraction is what pushes the comment down onto the following line.
+
+    KEYED_RE cannot see this at all — the assignment's own key (`MyMessage.Subject`) is innocuous
+    and only the comment gives it away. A value in this shape evades every other matcher in this
+    module and the conversion then reports success, which is worse than a scan that fails loudly:
+    the developer gets no signal to go looking for it by hand.
+    """
+    line_end = text.find("\n", after)
+    tail = text[after:] if line_end == -1 else text[after:line_end]
+    key = _comment_key(tail)
+    if key or line_end == -1:
+        return key
+    next_end = text.find("\n", line_end + 1)
+    below = text[line_end + 1:] if next_end == -1 else text[line_end + 1:next_end]
+    return _comment_key(below)
+# [SCOPE 125 / T020] END
+
+
 # [SCOPE 125 / T001] BEGIN — Collect every redactable span in a block of text
+# [SCOPE 125 / T020] MODIFIED-BY — smuggled-credential-via-adjacent-comment collector
 def _find_spans(text: str):
     """
     Return [(start, end, key)] for every credential VALUE in `text`, quote characters excluded.
@@ -307,12 +381,22 @@ def _find_spans(text: str):
             if key and ve > vs:
                 spans.append((vs, ve, key))
 
-    # A connection string carries its credentials unquoted inside one literal, so the keyed pattern
-    # cannot reach them. Redact the whole literal when its CONTENT proves it is one.
+    # Two rules that key on the literal itself rather than on what introduces it, sharing one
+    # pass over the quoted literals:
+    #  * a connection string carries its credentials unquoted inside one literal, so the keyed
+    #    pattern cannot reach them — redact the whole literal when its CONTENT proves it is one;
+    #  * a credential smuggled into an unrelated field is named only by an adjacent comment
+    #    pointing at the credential-shaped field it belonged in (see _adjacent_comment_key).
     for m in QUOTED_RE.finditer(text):
         val = m.group("val")
-        if val and CONNSTR_CRED_RE.search(val):
+        if not val:
+            continue
+        if CONNSTR_CRED_RE.search(val):
             spans.append((m.start("val"), m.end("val"), "connection string"))
+            continue
+        key = _adjacent_comment_key(text, m.end())
+        if key:
+            spans.append((m.start("val"), m.end("val"), key + " (smuggled via adjacent comment)"))
 
     spans.sort(key=lambda s: (s[0], -(s[1] - s[0])))
     merged = []

@@ -30,6 +30,7 @@ Usage:
 import argparse
 import os
 import re
+import unicodedata
 import sys
 
 import os as _wmos, sys as _wmsys
@@ -115,6 +116,50 @@ WRAPPER_SEGS = {"Data files and items", "Files and items", "Analysis", "Project"
 # use "Files and items"; some WebDev variants use "Data files and items".
 TABLE_SUBSECTIONS = ("Data files and items", "Files and items")
 
+# Exact-string matching against English cost one customer 48 tables: their export used a heading
+# variant not in the tuple, every data-file page fell through to the "schema" bucket, and the run
+# reported success having written zero .table.md files. PCSoft is a French product and exports are
+# generated in the IDE's language, so the string is not even reliably English.
+#
+# Match on MEANING instead: a data-file word AND an item word in the same heading. That tolerates
+# word order, connectors, articles and pluralisation, which exact strings do not. Accents are
+# stripped before comparison so "données" matches "donnees".
+_DATAFILE_WORDS = (
+    "data file", "datafile", "file",           # en
+    "fichier", "fichiers de donnees",          # fr
+    "fichero", "archivo",                      # es
+    "datei", "datendatei",                     # de
+    "arquivo", "ficheiro",                     # pt
+    # it uses "file" (borrowed) - covered above
+)
+_ITEM_WORDS = (
+    "item", "iten",                            # en / pt ("itens" is the pt plural)
+    "rubrique",                                # fr - WinDev's word for a field
+    "campo", "rubrica",                        # es / pt / it
+    "element", "feld",                         # de
+    "voce", "voci",                            # it
+)
+
+
+def _fold(text):
+    """Lowercase and strip accents, so localized headings compare on their letters."""
+    decomposed = unicodedata.normalize("NFKD", text or "")
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
+
+
+def is_table_subsection(sub, extra=()):
+    """True when this breadcrumb subsection names a per-data-file item dump, in any language."""
+    if not sub:
+        return False
+    if sub in TABLE_SUBSECTIONS or sub in extra:
+        return True
+    folded = _fold(sub)
+    if any(_fold(e) == folded for e in extra):
+        return True
+    has_file = any(w in folded for w in _DATAFILE_WORDS)
+    has_item = any(w in folded for w in _ITEM_WORDS)
+    return has_file and has_item
+
 # Map the breadcrumb *Type* segment (segs[1]) to an output kind. Keyed on the Type, not the
 # Part number, because part numbering is not stable across PCSoft exports (queries: Part 4 or
 # Part 6; procedure sets: Part 5 or Part 7). Keying on the number silently dropped elements.
@@ -131,6 +176,66 @@ TYPE_KIND = {
 # Any Type naming a window/page/template ("WINDEV window", "WINDEV window template",
 # "WEBDEV page", "Internal window", "Mobile window", ...) is a UI element -> page.
 PAGE_TYPE_RE = re.compile(r"\b(window|page)\b", re.I)
+
+
+EXTRA_TABLE_SUBSECTIONS = []   # filled from --table-subsection
+
+# A breadcrumb segment PCSoft replaced because the path was too wide to print.
+ELIDED_RE = re.compile(r"^\.{2,}$|^…$")
+
+# The per-data-file page opens with "<name> data file items" (and its localized equivalents),
+# which is how an elided breadcrumb is recovered from content.
+ITEM_HEADER_RE = re.compile(
+    r"^(?P<name>\S+)\s+(?:data\s+file\s+items"          # en
+    r"|rubriques\s+du\s+fichier"                        # fr
+    r"|campos\s+del\s+(?:fichero|archivo)"              # es
+    r"|elemente\s+der\s+datei|felder\s+der\s+datei"     # de
+    r"|voci\s+del\s+file"                               # it
+    r"|itens\s+do\s+(?:arquivo|ficheiro))",             # pt
+    re.I,
+)
+
+
+# The Analysis "General information" page prints its counts as a block of labels followed by a
+# block of numbers, in the same order:
+#     Generation #  /  Number of data files  /  Nb items  /  Nb links  /  Nb connections  /  Nb groups
+#     1  /  25  /  130  /  26  /  0  /  0
+# The label wraps ("Number of data" / "files"), so the labels are matched on their leading words.
+_COUNT_LABELS = (
+    re.compile(r"^generation\s*#", re.I),
+    re.compile(r"^(number of data|nb (data )?files|nombre de fichiers)", re.I),
+)
+
+
+def declared_datafile_count(pages):
+    """The data-file count the analysis states about itself, or None if not found."""
+    for p in pages:
+        if p.get("kind") != "schema":
+            continue
+        lines = [l.strip() for l in (p.get("body") or "").split("\n") if l.strip()]
+        for i, line in enumerate(lines):
+            if not _COUNT_LABELS[1].match(line):
+                continue
+            # Numbers follow the label block; the data-file count is the one after the
+            # generation number, so take the first run of integers and read its second entry.
+            nums = []
+            for cand in lines[i:]:
+                if re.fullmatch(r"\d+", cand):
+                    nums.append(int(cand))
+                elif nums:
+                    break
+            if len(nums) >= 2:
+                return nums[1]
+    return None
+
+
+def recover_table_name(body):
+    """Find the data-file name from a page body when the breadcrumb could not supply it."""
+    for line in (body or "").split("\n")[:40]:
+        m = ITEM_HEADER_RE.match(line.strip())
+        if m:
+            return m.group("name")
+    return None
 
 
 def classify(segs):
@@ -150,7 +255,7 @@ def classify(segs):
     if kind == "project":
         return (part, "project", None, sub)
     if kind == "analysis":
-        if sub in TABLE_SUBSECTIONS:
+        if is_table_subsection(sub, EXTRA_TABLE_SUBSECTIONS):
             cand = [s for s in segs[:-1]
                     if s not in WRAPPER_SEGS and not s.startswith("Part")
                     and ".wda" not in s and ".ana" not in s and "\\" not in s]
@@ -199,8 +304,14 @@ def main():
     ap.add_argument("--pdf")
     ap.add_argument("--out", default="pre-convert")
     ap.add_argument("--dry-run", action="store_true", help="report grouping, write nothing")
+    ap.add_argument("--table-subsection", action="append", metavar="HEADING", default=[],
+                    help="Treat this breadcrumb subsection as the per-data-file item list. "
+                         "Repeatable. Report it to wxKanban so it ships recognised.")
+    ap.add_argument("--allow-no-tables", action="store_true",
+                    help="Permit an Analysis that yields zero data files (rare but legitimate).")
     rd.add_redaction_args(ap)
     args = ap.parse_args()
+    EXTRA_TABLE_SUBSECTIONS.extend(args.table_subsection or [])
 
     # [SCOPE 125 / T008] Scan mode reads artifacts that already exist and never opens a PDF, so it
     # returns before fitz is used. That is also why wxconv_redact imports nothing but `re` — a
@@ -227,6 +338,24 @@ def main():
         part, kind, name, sub = classify(segs)
         typ = segs[1] if len(segs) > 1 else ""
         body = strip_header(raw, project_name, i + 1)
+
+        # Recover pages whose breadcrumb PCSoft elided.
+        #
+        # When the full breadcrumb is too wide, PCSoft replaces segments with "..." — so the Type
+        # segment reads "..." and classify() cannot place the page. It was then dropped as
+        # unclassifiable and listed in _discarded.md under a Type of "...", which reads as noise
+        # next to that file's advice that discards are "mostly the cover and section dividers".
+        # Since only long names get elided, the pages lost this way are the ones with the longest
+        # names, not the least important ones: it cost a real conversion two data files whose
+        # columns then existed nowhere in the output.
+        #
+        # The body still says "<name> data file items", so the element is recoverable from content
+        # when the breadcrumb is not.
+        if kind in (None, "other") and ELIDED_RE.match(typ or ""):
+            recovered = recover_table_name(body)
+            if recovered:
+                kind, name, sub = "table", recovered, "Data files and items"
+
         pages.append(dict(no=i + 1, part=part, kind=kind, name=name, sub=sub, typ=typ, body=body))
 
     # Pass 2: group into elements
@@ -380,6 +509,68 @@ def main():
     if state.findings:
         write(sidecar_path, rd.render_sidecar(state))
     print(rd.summary_line(state, sidecar_path))
+
+    # ---- completeness gate: an Analysis that yielded no data files
+    #
+    # This is the failure that cost one customer 48 tables. Their export used a subsection heading
+    # the matcher did not know, so every data-file page fell through to the "schema" bucket. The
+    # pages WERE captured, so nothing appeared in _discarded.md, and the run printed a summary and
+    # exited 0. A conversion that reports success having read no tables is worse than one that
+    # crashes, because the next stage builds a schema on the gap.
+    #
+    # An Analysis with genuinely zero data files is possible but rare, so this is a hard stop with
+    # an explicit opt-out rather than a warning nobody reads.
+    # ---- reconcile against the export's OWN declared count
+    #
+    # The Analysis "General information" page states how many data files the analysis holds. That
+    # number is the export's own truth, so comparing it against what was written catches every
+    # cause of loss at once — an unrecognised heading, an elided breadcrumb, a page-grouping slip —
+    # including causes not yet known. Three separate reporters converged on asking for exactly this.
+    declared = declared_datafile_count(pages)
+    written = by_kind.get("table", [0, 0])[0]
+    if declared is not None and written != declared and not args.allow_no_tables:
+        print("", file=sys.stderr)
+        print(f"doc-split: the analysis declares {declared} data file(s) but {written} were "
+              "extracted.", file=sys.stderr)
+        missing = declared - written
+        if missing > 0:
+            print(f"  {missing} data file(s) produced no .table.md. Their columns will be absent "
+                  "from the generated schema,", file=sys.stderr)
+            print("  and nothing downstream can tell that apart from a smaller database.",
+                  file=sys.stderr)
+            print("  Check _discarded.md: a breadcrumb Type of '...' means PCSoft elided a long "
+                  "name, and those pages", file=sys.stderr)
+            print("  are real elements, not dividers.", file=sys.stderr)
+        else:
+            print("  More tables than declared - likely a page-grouping error splitting one file "
+                  "in two.", file=sys.stderr)
+        print("  Re-run with --allow-no-tables only if you have confirmed the difference is real.",
+              file=sys.stderr)
+        return 3
+
+    tables_written = by_kind.get("table", [0, 0])[0]
+    analysis_pages = [p for p in pages if p.get("kind") in ("table", "schema")]
+    if analysis_pages and tables_written == 0 and not args.allow_no_tables:
+        seen_subs = sorted({p.get("sub") for p in analysis_pages if p.get("sub")})
+        print("", file=sys.stderr)
+        print(f"doc-split: the Analysis has {len(analysis_pages)} page(s) but produced ZERO data "
+              "files.", file=sys.stderr)
+        print("  Almost always this is a subsection heading the splitter does not recognise, not an "
+              "analysis with no tables.", file=sys.stderr)
+        print("  Subsection headings seen under Analysis:", file=sys.stderr)
+        for sub in seen_subs[:12]:
+            print(f"      {sub}", file=sys.stderr)
+        if len(seen_subs) > 12:
+            print(f"      ...and {len(seen_subs) - 12} more", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("  If one of those names the per-data-file item list, re-run with:", file=sys.stderr)
+        print('      --table-subsection "<that heading>"', file=sys.stderr)
+        print("  then report it to wxKanban (project_submit_feedback) so it ships recognised.",
+              file=sys.stderr)
+        print("  If this analysis genuinely has no data files, re-run with --allow-no-tables.",
+              file=sys.stderr)
+        return 3
+
     return rd.exit_code(len(state.findings), args.fail_on_secrets)
 
 

@@ -139,4 +139,23 @@ describe('SCOPE-124 T009 — the identity call carries no truncation bound', () 
     expect(report.push.errors.join(' ')).toMatch(/no specs pushed/i);
     expect(report.push.specsCreated).toBe(0);
   });
+
+  it('fails closed when the answer omits specsComplete entirely', async () => {
+    // The gate used to read `specsComplete === false`, so an envelope carrying specs[] but NO
+    // completeness flag sailed through and was trusted as authoritative identity. This server
+    // emits both fields together, but dbpush talks to an independently-versioned hosted MCP:
+    // the client cannot assume which server answered. Absent is UNKNOWN, and unknown must refuse.
+    const { fixture, cwdBefore } = await setupFixture();
+    callMcpToolMock.mockImplementation((tool: unknown) =>
+      tool === 'project.list_open_items'
+        ? Promise.resolve({ specs: manySpecs(), tasks: [], documents: [], events: [] })
+        : Promise.resolve({}),
+    );
+
+    const report = await dbpush({ spec: '150' });
+    teardownFixture(fixture, cwdBefore);
+
+    expect(report.push.errors.join(' ')).toMatch(/no specs pushed/i);
+    expect(report.push.specsCreated).toBe(0);
+  });
 });

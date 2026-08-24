@@ -43,9 +43,15 @@ If `stack.md` does **not** exist, proceed exactly as today — no change in beha
 ### Phase 3: Generate Report
 - [ ] Calculate completion percentage
 - [ ] Generate implementation summary
-- [ ] Call `project.capture_event` with:
+- [ ] Call `project.capture_event` with all five required fields — `projectId`,
+      `type`, `source`, `actor`, `rawContent`. Omitting `source` or `actor` fails
+      validation before `type` is even reached.
+  - `projectId`: the project UUID
   - `type`: "spec_implementation_progress"
+  - `source`: "cli" (or "vscode" when run from the Cockpit)
+  - `actor`: the user or system running the implement command
   - `rawContent`: Implementation summary
+  - `specId` (optional): the spec UUID, so the report is traceable to its spec
 
 ### Phase 4: Advisory Review (wxUIUXCodeReview)
 After the implementation report, run an **advisory** combined code + UI/UX review over
@@ -98,6 +104,23 @@ separate, explicit user action).
   at that command's manifest-confirm gate.
 
 ### Phase 5b: Author the scope's seed (SCOPE-120 / T006)
+
+**Stack gate — evaluate this before anything else in the phase.** Everything below assumes this
+project's stack seeds through a TypeScript harness (`tests/seeds/`, a Drizzle idiom, `runSeed`).
+That is one stack's machinery, not a universal one. Read `stack.md` first:
+
+- [ ] If the declared stack does not use that harness — or `tests/seeds/run.ts` does not exist in
+  this repo — **skip Phase 5b**. Say so in the run output, naming the declared stack and the
+  reason, and carry on to Phase 6.
+- [ ] When skipping, do **not** transliterate the steps below into the project's own language, and
+  do **not** introduce a Node/TypeScript seeding harness into a repo whose `stack.md` forbids one.
+  A phase skipped for a named reason is a correct outcome; stack drift is not.
+- [ ] Meet the scope's data needs through whatever test tiers the project already has (in-memory
+  providers, an existing fixture or container, a hand-run setup step) and name what you used.
+- [ ] A skip taken under this gate is **not** a kit defect — do not file it at Phase 6. The
+  per-stack seeding adapter that removes the gate is SCOPE-127 FR-002; until it ships, this is the
+  intended behavior and is already tracked.
+
 A test plan describes what to verify; a **seed** is what makes verifying it possible. `/preTest`
 stands up a clone of the live schema — structure only, **zero rows** — so without a seed the app
 boots against empty screens and nothing can be driven.

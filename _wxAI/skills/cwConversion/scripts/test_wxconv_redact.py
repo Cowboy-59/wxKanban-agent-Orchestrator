@@ -407,6 +407,109 @@ def test_module_imports_without_pymupdf():
     assert "fitz" not in sys.modules
 
 
+# ------------------------------------------------- SCOPE-125 / T020: field-reported gaps
+# Both of these let a real, currently-valid SMS-gateway authorization token sit in cleartext in
+# pre-convert/ output while the conversion reported success. A credential that evades automated
+# redaction is worse than one that fails loudly: the developer gets no signal to go looking.
+
+def test_keyed_authorization_and_auth_keys():
+    # CRED_KEYS carried no `authorization` and no `auth` at all, so `SMSPortal_Authorization` --
+    # about as credential-shaped as a field name gets -- was invisible to every matcher here.
+    for src in (
+        'CompanyDetail.SMSPortal_Authorization = "TOKENVALUE"',
+        'Authorization = "TOKENVALUE"',
+        'auth = "TOKENVALUE"',
+        'sAuthorization = "TOKENVALUE"',
+    ):
+        out, found, _ = _red(src)
+        assert len(found) == 1, "missed authorization-shaped credential: %r" % src
+        assert "TOKENVALUE" not in out
+
+
+def test_negative_auth_does_not_overmatch_ordinary_words():
+    # Bare `auth` is only safe because KEYED_RE demands an assignment immediately after the key.
+    for src in ('Author = "Fabrice"', 'authcode = "x"', 'AuthorName = "Fabrice"'):
+        out, found, _ = _red(src)
+        assert out == src, "over-matched %r -> %r" % (src, out)
+
+
+def test_smuggled_credential_named_by_next_line_comment():
+    # The confirmed field instance: an auth token assigned to an UNRELATED, non-credential-shaped
+    # field as a workaround, with the field it belonged in left behind in a trailing comment. The
+    # assignment's own key (`Subject`) is innocuous, so KEYED_RE cannot see this at all. The same
+    # shape surfaced independently in a sibling conversion of the same legacy codebase family.
+    src = 'MyMessage.Subject = "TOKENVALUE"\n//CompanyDetail.SMSPortal_Authorization\n'
+    out, found, _ = _red(src)
+    assert len(found) == 1, "smuggled credential not caught"
+    assert "TOKENVALUE" not in out
+    assert "//CompanyDetail.SMSPortal_Authorization" in out, "the comment is signal; keep it"
+    assert "MyMessage.Subject" in out, "the assignment is signal; keep it"
+
+
+def test_smuggled_credential_named_by_same_line_comment():
+    src = 'MyMessage.Subject = "TOKENVALUE" //CompanyDetail.SMSPortal_Authorization'
+    out, found, _ = _red(src)
+    assert len(found) == 1, "same-line trailing comment not caught"
+    assert "TOKENVALUE" not in out
+
+
+def test_smuggled_comment_markers_for_all_three_languages():
+    # One module serves WLanguage (//), VB6 ('), Clarion (!) and embedded SQL (--).
+    for comment in ("//Cfg.Password", "'Globals.gsPassword", "!Cfg.Password", "--Cfg.Password"):
+        src = 'X = "TOKENVALUE"\n%s\n' % comment
+        out, found, _ = _red(src)
+        assert len(found) == 1, "marker not recognised: %r" % comment
+        assert "TOKENVALUE" not in out
+
+
+def test_smuggled_finding_records_the_key_the_comment_named():
+    src = 'MyMessage.Subject = "TOKENVALUE"\n//CompanyDetail.SMSPortal_Authorization\n'
+    _out, found, _ = _red(src)
+    assert found[0].key == "authorization (smuggled via adjacent comment)", found[0].key
+    assert found[0].line == 1, "the finding must point at the VALUE, not at the comment"
+
+
+def test_negative_prose_comment_does_not_redact_its_neighbour():
+    # This rule picks its victim from the COMMENT, not from the assignment, so a comment that
+    # merely mentions a credential must never be able to blank out an unrelated string.
+    for src in (
+        'Const APP_NAME = "MyApp"\n// move the password to config later',
+        'sBody = "Hello"\n// Password handling below',
+        'sTitle = "Report"\n// TODO: CompanyDetail.SMSPortal_Authorization',
+    ):
+        out, found, _ = _red(src)
+        assert out == src, "prose comment over-matched %r -> %r" % (src, out)
+
+
+def test_negative_comment_key_must_end_its_identifier():
+    # `//Customer.UserName` and `//passwordhash` name ordinary fields, not credentials.
+    for src in (
+        'sName = "Bob"\n//Customer.UserName',
+        'sTitle = "Report"\n//passwordhash',
+        'sLabel = "Fluid"\n//Tank.fluid',
+    ):
+        out, found, _ = _red(src)
+        assert out == src, "comment key over-matched %r -> %r" % (src, out)
+
+
+def test_negative_comment_two_lines_below_is_not_adjacent():
+    src = 'sName = "Bob"\n\n//Cfg.Password'
+    out, found, _ = _red(src)
+    assert out == src, "only the literal's own line and the one below it are adjacent"
+
+
+def test_smuggled_redaction_is_idempotent():
+    # write_text() re-scrubs every emitted file after clean_text() already scrubbed the page, so
+    # this rule runs twice over the same text by design and must not tokenise its own token.
+    src = 'MyMessage.Subject = "TOKENVALUE"\n//CompanyDetail.SMSPortal_Authorization\n'
+    state = rd.RedactionState()
+    once, _ = rd.redact(src, state)
+    twice, second = rd.redact(once, state)
+    assert twice == once, "second pass changed the text"
+    assert second == []
+    assert state.distinct_count == 1
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = 0

@@ -73,6 +73,7 @@ HFSQL = [
     ("8-byte real", "double"),
     ("Unicode Text Memo", "text"),
     ("Unicode string", "uvarchar"),
+    ("Binary string", "blob"),    # field-reported; developer-confirmed via --type-map
     ("Other binary memo", "blob"),
     ("Image (binary memo)", "blob"),
     ("Binary memo", "blob"),
@@ -87,14 +88,47 @@ HFSQL = [
     ("Currency", "numeric"),
     ("Monetary", "numeric"),
     ("Numeric", "numeric"),
+    ("Decimal", "numeric"),      # field-reported; confirmed by the developer via --type-map
     ("Real", "double"),
     ("Double", "double"),
     ("String", "varchar"),
 ]
 TYPE_STARTS = [lbl for lbl, _ in HFSQL]
 
+# The field-dictionary table's OWN column headers. Every one of these must be listed: the strip
+# below walks the header block until it meets a line that is not a header, so a single missing
+# label ends the strip early and the rest of the block is read as field data — the first surviving
+# label becomes the first field's NAME and every field after it shifts by one position.
+# "GDPR" is a fixed column in this document family (the analysis records per-item GDPR flagging);
+# it was absent here, which is exactly how that one-position cascade was reaching real conversions.
 HEADER_LABELS = {"Caption", "Type", "Size", "Unique Key", "Key with Duplicates",
-                 "Direction", "Default value"}
+                 "Direction", "GDPR", "Default value"}
+
+# A line whose whole content is a date/time FORMAT annotation, e.g. "(yyyymmddhhmmssccc)".
+# PCSoft prints it as a continuation line immediately under the type label of a Date / Time /
+# Date and Time item. It belongs to the type, not to the next field, so it must be consumed with
+# the type — left in place it is read as the NEXT field's name and shifts everything after it.
+DATE_FORMAT_ANNOTATION_RE = re.compile(r"^\([ymdhsc]+\)$")
+
+# A bare single capitalized word in the TYPE position, immediately followed by a purely numeric
+# line, is the "Type / Size" shape this document family uses for every sized type (String width,
+# Composite key member count, and so on). When that word is not a type we know, it is an unmapped
+# type — the same defect class SUSPECT_TYPE_RE catches for the "<n>-byte <word>" family, which a
+# one-word type such as "Decimal" slips straight past.
+BARE_TYPE_RE = re.compile(r"^[A-Z][A-Za-z]*$")
+NUMERIC_LINE_RE = re.compile(r"^\d+$")
+
+# An HFSQL item name is an identifier: no spaces, no punctuation, accents allowed (Complément).
+# Some items carry a free-text NOTE under their default value — an enumeration legend such as
+#     FR:
+#     1 : Monsieur
+#     2 : Madame
+# Those lines are neither a field nor a stray the scan can skip: one of them starts a "record"
+# whose type search reaches down into the NEXT field's type line, so the note line becomes a
+# column and the real field below it is consumed as part of its caption. Requiring the name to
+# look like an identifier costs nothing real — an item name cannot contain a space — and it puts
+# the scan back on the next genuine item.
+ITEM_NAME_RE = re.compile(r"^[A-Za-z_À-ɏ][A-Za-z0-9_À-ɏ]*$")
 
 
 # "<n>-byte integer" / "<n>-byte real" is a WIDTH, not a distinct type, so it does not need a table
@@ -139,11 +173,28 @@ def derive_byte_type(label):
 _CAPTION_NOT_TYPE_RE = re.compile(r"^Composite key\s+added\b", re.I)
 
 
+# A type line carries the label and NOTHING ELSE — optionally a parenthesised tail
+# ("Automatic identifier (4 ", "Date (yyyymmdd)") or a colon ("Composite key: "). Plain startswith
+# made every line merely BEGINNING with a type word into a type, and that is the single widest
+# source of corruption in this parser, in two directions:
+#   - identifiers: StringValue, RealValue, DateNewsCreation, CurrencyCode, DateOfLanding
+#   - captions:    "Date time", "String value", "Real value", "Integer value"
+# It matters far beyond a mislabelled column, because the parser asks "is this line a type?" to
+# decide where one field ends and the next begins. On a real export, an item named StringValue
+# made the parser reject the PREVIOUS field's default, which then became the next field's name and
+# shifted the remainder of the table; SITE_CONFIGURATION lost three of its six columns that way.
+_TYPE_TAIL_RE = re.compile(r"^\s*$|^\s*[(:]")
+
+
+def _label_ends_cleanly(line, lbl):
+    return bool(_TYPE_TAIL_RE.match(line[len(lbl):]))
+
+
 def match_type(line):
     if _CAPTION_NOT_TYPE_RE.match(line or ""):
         return None, None
     for lbl, key in HFSQL:
-        if line.startswith(lbl):
+        if line.startswith(lbl) and _label_ends_cleanly(line, lbl):
             return lbl, key
     derived = derive_byte_type(line)
     if derived:
@@ -158,6 +209,24 @@ def match_type(line):
 # An unmapped type is not a cosmetic gap — the field is dropped from the DDL entirely, so the
 # column silently disappears from the converted schema.
 SUSPECT_TYPE_RE = re.compile(r"^(unsigned\s+)?\d+-byte\s+[a-z]+", re.I)
+
+
+def looks_like_type_label(line):
+    """Could this line plausibly be an HFSQL type label we simply do not know?
+
+    Kept permissive on shape but strict on obvious non-labels: the cost of a false positive is one
+    question to the developer, while the cost of a false negative is a column deleted from the
+    schema without a word.
+    """
+    if not line or len(line) > 48:
+        return False
+    if line in HEADER_LABELS:
+        return False
+    if re.fullmatch(r"[-*_=.,:;/\\|#<>()\[\]{}\s]+", line):
+        return False       # rules, punctuation runs, separator noise
+    if re.fullmatch(r"-?[\d.,]+", line):
+        return False       # a size or a default value, not a type
+    return bool(re.match(r"^[A-Za-z]", line))
 
 
 def register_type_overrides(pairs):
@@ -189,28 +258,137 @@ def register_type_overrides(pairs):
     HFSQL.sort(key=lambda pair: len(pair[0]), reverse=True)
 
 
+def drop_watermark_trailer(body):
+    """Cut our OWN generated watermark block off the end of the field stream.
+
+    Every .table.md ends with a separator, an HTML comment and a '*Converted with wxKanban...'
+    line. They are not source content, but they sit in the field stream and land in the type
+    position for the last field — so the unmapped-type gate, which reports whatever it finds
+    there, would raise one false alarm per table (206 across the corpora tested) and drown the
+    handful of real unmapped types in noise.
+    """
+    for idx, line in enumerate(body):
+        if line.startswith("<!-- wxkanban:watermark")  \
+                or line.startswith("*Converted with wxKanban"):
+            # the '---' rule directly above the marker belongs to the block too
+            while idx and set(body[idx - 1]) == {"-"}:
+                idx -= 1
+            return body[:idx]
+    return body
+
+
+def find_header_block(lines):
+    """Index of the LAST line of the first run of >=3 field-dictionary header labels, or None."""
+    stripped = [l.strip() for l in lines]
+    i, n = 0, len(stripped)
+    while i < n:
+        if stripped[i] in HEADER_LABELS:
+            j = i
+            while j < n and stripped[j] in HEADER_LABELS:
+                j += 1
+            if j - i >= 3:
+                return j - 1
+            i = j
+        else:
+            i += 1
+    return None
+
+
+def strip_repeated_headers(body):
+    """
+    Remove the field-dictionary header block wherever it reappears inside the field list.
+
+    A field list longer than one PDF page reprints the whole 8-column header on every later page,
+    and the splitter emits one '## <subsection>' heading per source page, so a 2-page data file
+    carries a second '## Data files and items' plus '<name> data file items' plus all 8 labels in
+    the MIDDLE of the stream. Stripping only at the start of the body leaves them there.
+
+    They do not simply get skipped as strays. None of the labels can satisfy match_type() on its
+    own, so most are skipped one at a time — but the LAST one ('Default value') ends up close
+    enough to the next real field's type line to be captured as that field's NAME, silently
+    renaming a real column and losing its true name.
+
+    A header label is only dropped as part of a RUN of them, never on its own. Several labels are
+    ordinary English words ('Type', 'Size', 'Direction', 'Default value') and a real item may
+    legitimately carry one as its caption; deleting those single lines would corrupt the very
+    fields this is meant to protect. A reprint always emits the whole block in order, so a run is
+    both sufficient to catch it and impossible for field data to produce by accident.
+
+    Note: like the start-of-body anchor above, the 'data file items' test here is English-only.
+    pcsoft-doc-split.py matches this same subsection across six locales; this step does not yet,
+    so a non-English export is a known gap in BOTH places, not a regression introduced here.
+    """
+    MIN_RUN = 3
+    out = []
+    i, n = 0, len(body)
+    while i < n:
+        line = body[i]
+        if line.startswith("## ") or line.lower().endswith("data file items"):
+            i += 1
+            continue
+        if line in HEADER_LABELS:
+            j = i
+            while j < n and body[j] in HEADER_LABELS:
+                j += 1
+            if j - i >= MIN_RUN:
+                i = j                        # reprinted header block -> drop the whole run
+                continue
+            out.extend(body[i:j])            # a lone label is real field content
+            i = j
+            continue
+        out.append(line)
+        i += 1
+    return out
+
+
 def parse_table(path, unmapped=None):
     name = os.path.basename(path).split(".")[0]
     lines = [l.rstrip() for l in open(path, encoding="utf-8").read().split("\n")]
-    # body = lines after "<name> data file items" + the 7 header labels
-    try:
-        start = next(i for i, l in enumerate(lines)
-                     if l.strip().endswith("data file items"))
-    except StopIteration:
-        return name, []
+    # body = lines after "<name> data file items" + the header labels
+    start = next((i for i, l in enumerate(lines)
+                  if l.strip().endswith("data file items")), None)
+    if start is None:
+        # Not every export prints that line. Some emit the field-dictionary header block directly
+        # under the '## Data files and items' heading with no '<name> data file items' line at all
+        # — and with the line as the ONLY anchor, those files returned zero fields. Silently: the
+        # table still appeared in the run summary, and the generated DDL simply had no columns for
+        # it. Verified on a real 211-table export where every single table parsed to nothing.
+        # The header block itself is the more reliable anchor, so fall back to it.
+        start = find_header_block(lines)
+        if start is None:
+            return name, []
     body = [l.strip() for l in lines[start + 1:] if l.strip()]
-    # drop leading header labels
-    while body and body[0] in HEADER_LABELS:
-        body.pop(0)
+    body = drop_watermark_trailer(body)
+    # Drop the leading header block. Each label appears exactly once in it, so a REPEAT means the
+    # block has ended and we are looking at field data — which matters because 'Type', 'Size',
+    # 'Caption' and 'Direction' are all plausible item names, and a table whose first item is one
+    # of them had that item swallowed by an unbounded pop.
+    seen = set()
+    while body and body[0] in HEADER_LABELS and body[0] not in seen:
+        seen.add(body.pop(0))
+    body = strip_repeated_headers(body)
 
     fields = []
     i = 0
     n = len(body)
     while i < n:
         fname = body[i]
-        # locate this field's type line within a small window (caption may be multi-line)
-        j = i + 1
-        while j < n and match_type(body[j])[0] is None and j - i <= 6:
+        if not ITEM_NAME_RE.match(fname):
+            i += 1                       # not an item name -> note text, legend, stray
+            continue
+        # Locate this field's type line. The search starts at i+2, NOT i+1: this document family
+        # always prints a caption line between the item name and its type (when the developer left
+        # the caption empty PCSoft fills it with the name itself), so position i+1 is the caption by
+        # construction and can never be the type.
+        #
+        # This is the fix for the widest desync shape. Captions are frequently type WORDS —
+        # 'Date', 'Time', 'Currency', 'String' are ordinary English captions for date, time, money
+        # and text columns. Taking the first type-looking line from i+1 matched the CAPTION, left
+        # the real type line unconsumed, and that line then became the next field's name: a real
+        # export produced items literally named 'Date (yyyymmdd)', 'Time (hhmm)' and 'String'.
+        # Every one of those phantoms is a real column lost.
+        j = i + 2
+        while j < n and match_type(body[j])[0] is None and j - i <= 7:
             j += 1
         # Anything in the caption span that LOOKS like a type but is not one is an unmapped type
         # being absorbed as caption text. This must be checked whether or not a type was found
@@ -218,18 +396,59 @@ def parse_table(path, unmapped=None):
         # silently AND the scan slides past the next field, so one unknown label both mistypes its
         # own column and deletes the following one.
         if unmapped is not None:
-            for cand in body[i + 1:min(j + 1, n)]:
-                if SUSPECT_TYPE_RE.match(cand) and match_type(cand)[0] is None:
+            for c in range(i + 1, min(j + 1, n)):
+                cand = body[c]
+                if match_type(cand)[0] is not None:
+                    continue
+                if SUSPECT_TYPE_RE.match(cand):
+                    unmapped.append({"type": cand, "table": name, "field": fname})
+                    continue
+                # Second shape: a bare capitalized word followed by a size. 'Decimal' reached real
+                # conversions this way — SUSPECT_TYPE_RE only knows the '<n>-byte <word>' family,
+                # so a one-word unknown type was absorbed as caption text and never reported, and
+                # the gate that exists to hard-stop on an unmapped type never fired.
+                nxt = body[c + 1] if c + 1 < n else ""
+                if (cand not in HEADER_LABELS and BARE_TYPE_RE.match(cand)
+                        and NUMERIC_LINE_RE.match(nxt)):
                     unmapped.append({"type": cand, "table": name, "field": fname})
 
         if j >= n or match_type(body[j])[0] is None:
-            i += 1                       # no type found near here -> stray line, skip
+            # No type anywhere in the window. Today that just drops the field: the scan moves on
+            # one line and the column never reaches the DDL. The line sitting in the TYPE position
+            # is the most likely culprit, so report it rather than lose the column in silence —
+            # this is what caught 'Character' and 'Array of 20 String' in real exports, neither of
+            # which the shape-based patterns below can match.
+            if unmapped is not None and i + 2 < n:
+                cand = body[i + 2]
+                # One unknown type desyncs the scan, so the NEXT window fails too and reports
+                # whatever it finds — which is usually a caption. When the developer left the
+                # caption empty PCSoft repeats the item name, so a candidate identical to the line
+                # above it is a caption, not a type. Without this, one unknown type ('Array of 20
+                # String') was reported as two, the second being a real column name.
+                if cand != body[i + 1] and looks_like_type_label(cand):
+                    unmapped.append({"type": cand, "table": name, "field": fname})
+                    # Step over the whole record we just judged unreadable (name, caption, type)
+                    # instead of one line. Advancing by one walks the scan back into the same
+                    # record from its caption, and each pass reports something else it finds —
+                    # turning one unknown type into a list of imaginary ones.
+                    i += 3
+                    continue
+            i += 1
             continue
         caption = " ".join(body[i + 1:j]).strip()
         lbl, key = match_type(body[j])
         k = j + 1
         # consume 2-line type tails like "Automatic identifier (8 " + "bytes)"
         if k < n and body[k] in ("bytes)", "byte)"):
+            k += 1
+        # ...and the date/time FORMAT annotation, printed on its own line under the type label:
+        #     Date and Time
+        #     (yyyymmddhhmmssccc)
+        # It is part of the type, so it is consumed here. Left behind it became the NEXT field's
+        # name and shifted every field after it — once per Date/Time item, so a table with several
+        # of them drifted several positions.
+        if key in ("date", "time", "datetime") and k < n \
+                and DATE_FORMAT_ANNOTATION_RE.match(body[k]):
             k += 1
         size = None
         default = None
@@ -252,15 +471,52 @@ def parse_table(path, unmapped=None):
 
         if k < n and re.fullmatch(r"\d+", body[k]) and (key in ("varchar", "uvarchar", "composite")):
             size = int(body[k]); k += 1
-        # optional trailing default: a numeric whose following line is NOT a type
-        if k < n and re.fullmatch(r"-?\d+", body[k]):
-            nxt = body[k + 1] if k + 1 < n else ""
-            if match_type(nxt)[0] is None:
+        # optional trailing default: a numeric whose following line is NOT a type.
+        # Decimal defaults are printed in full ("0.000000" for a Currency item), so an
+        # integers-only pattern left that line behind to be read as the next field's name.
+        if k < n and re.fullmatch(r"-?\d+(?:[.,]\d+)?", body[k]):
+            # Decide by POSITION, not by "is the very next line a type". If this number is a
+            # default the next record starts one line later, so its type sits at k+3 and k+2 holds
+            # a caption; if the number were itself the next field's NAME, the type would sit at
+            # k+2. Asking about k+1 got this wrong whenever the following item was NAMED after a
+            # type — a real export has an item called DateTime, and it cost the field before it
+            # its default and the field after it its name.
+            follower_is_type = k + 2 < n and match_type(body[k + 2])[0] is not None
+            if not follower_is_type:
                 default = body[k]; k += 1
         fields.append(dict(name=fname, caption=caption, hfsql=lbl, key=key,
                            size=size, default=default, components=components))
         i = k
     return name, fields
+
+
+def declared_item_count(schema_path):
+    """The item count the analysis states about itself ("Nb items"), or None if not found.
+
+    The Analysis "General information" page prints its counts as a block of labels followed by a
+    block of numbers in the same order:
+        Generation # / Number of data files / Nb items / Nb links / Nb connections / Nb groups
+        1 / 25 / 130 / 26 / 0 / 0
+    "Nb items" counts DISTINCT item names across the analysis, not columns: an export declaring 130
+    items parsed to 185 columns over 130 distinct names, because an item reused in several data
+    files is one dictionary entry and several columns. Verified against a full real export.
+    """
+    if not os.path.exists(schema_path):
+        return None
+    lines = [l.strip() for l in open(schema_path, encoding="utf-8").read().split("\n") if l.strip()]
+    for i, line in enumerate(lines):
+        if not re.match(r"^generation\s*#", line, re.I):
+            continue
+        j = i
+        while j < len(lines) and not re.fullmatch(r"\d+", lines[j]):
+            j += 1
+        nums = []
+        while j < len(lines) and re.fullmatch(r"\d+", lines[j]):
+            nums.append(int(lines[j]))
+            j += 1
+        if len(nums) >= 3:
+            return nums[2]
+    return None
 
 
 def parse_links(schema_path):
@@ -290,6 +546,227 @@ def parse_links(schema_path):
         if l not in seen:
             seen.add(l); out.append(l)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Truncated item-name recovery
+# ---------------------------------------------------------------------------
+#
+# The per-table pages print each item name into a fixed-width PDF column, and a name wider than
+# that column is CUT: "CompanyBankAccountNo" arrives as "CompanyBankAccount". Nothing downstream
+# can tell a cut name from a short one, so the DDL gets a plausible column with the WRONG name and
+# every query later written against it is wrong. Reported from the field eight times before it was
+# recognised as one defect, every time found by hand weeks after the conversion.
+#
+# Two other places in the same document print the name in a wider column and disagree with the
+# table page exactly where it was cut:
+#   * the analysis Item dictionary, a flat listing carrying "Used by..." — which data files use the
+#     item — so a candidate can be tied to THIS table instead of merely existing somewhere;
+#   * the UI control data bindings ("<DataFile>.<Item>"), which are not column-truncated at all.
+#
+# Neither is authoritative alone, which is why this is a gated repair and not a substitution. The
+# field recommendation was to treat the dictionary as authoritative; measured over four real
+# exports (642 tables) that alone proposes 254 renames that are WRONG, in two shapes: a genuine
+# short column that merely prefixes a longer item ("BusinessPartner" -> "BusinessPartnerChargeCode")
+# and the optimizer's composite-key entries, which are concatenations of member names and so prefix
+# half the table. The gates below reduce that to zero renames on the two exports that have no
+# truncation at all — the property that actually matters, since an export this stage already reads
+# correctly must come out of it unchanged.
+
+DICT_HEADER_LABELS = {"Item", "Type", "Size", "Unique Key", "Key with Duplicates",
+                      "Used by...", "Analysis", "Item dictionary", "Caption"}
+
+# Character slack between the longest name a document printed intact and the shortest one it could
+# have cut. The column is measured in POINTS, not characters, so the cut lands in a BAND rather
+# than at one length: a real export cuts between 19 and 23 characters depending on glyph widths.
+# Anything shorter than (longest seen - band) demonstrably fitted, so it cannot be a casualty, and
+# that single test is what removes the short-name false positives the dictionary invites.
+TRUNCATION_BAND = 4
+
+_BINDING_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\b")
+
+
+def parse_item_dictionary(schema_path, known_tables):
+    """Map each Item-dictionary entry to the lower-cased data files that use it.
+
+    The dictionary prints a name ONCE, then one "Type / Size / keys / <data file>" group per data
+    file that uses it — the name is not reprinted for the second and later usages. Groups are
+    therefore delimited by a known data-file name, and that is also what keeps an item NAMED after
+    a type ("Date", "DateTime", "Caption") from vanishing: the name is whatever precedes a type
+    inside a group, not whatever fails to look like one.
+    """
+    if not os.path.exists(schema_path):
+        return {}
+    tables_lc = {t.lower() for t in known_tables}
+    items, cur, buf, in_dict = {}, None, [], False
+    for raw in open(schema_path, encoding="utf-8").read().split("\n"):
+        line = raw.strip()
+        if not line:
+            continue
+        if line == "Item dictionary" or (line.startswith("#") and "Item dictionary" in line):
+            in_dict, cur, buf = True, None, []
+            continue
+        if line.startswith("#"):
+            in_dict = False
+            continue
+        if not in_dict or line in DICT_HEADER_LABELS:
+            continue
+        if line.lower() in tables_lc:
+            if buf:
+                if len(buf) >= 2 and match_type(buf[1])[0] is not None:
+                    cur = buf[0]                       # name printed, even if type-shaped
+                elif match_type(buf[0])[0] is None and buf[0] != "<Unused>":
+                    cur = buf[0]
+            if cur:
+                items.setdefault(cur, set()).add(line.lower())
+            buf = []
+            continue
+        buf.append(line)
+    return items
+
+
+def harvest_control_bindings(src_dir, known_tables):
+    """Return {data file: {item names}} from "<DataFile>.<Item>" bindings on the non-table pages.
+
+    A control's Data binding names the item in full — it is printed in a far wider column than the
+    per-table field list — so where the two disagree on a prefix, this is the intact spelling. Only
+    pages OTHER than the per-table extracts are read, so a truncated name cannot seed this oracle
+    from the very pages it is meant to correct.
+    """
+    by_table, lookup = {}, {t.lower(): t for t in known_tables}
+    for path in sorted(glob.glob(os.path.join(src_dir, "*.md"))):
+        if path.endswith(".table.md"):
+            continue
+        try:
+            text = open(path, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        for m in _BINDING_RE.finditer(text):
+            table = lookup.get(m.group(1).lower())
+            if table:
+                by_table.setdefault(table, set()).add(m.group(2))
+    return by_table
+
+
+def recover_truncated_names(tables, src_dir):
+    """Restore item names the per-table page cut at its column width, in place.
+
+    Returns (applied, unresolved): applied is (table, cut, restored, oracle); unresolved is
+    (table, cut, candidates, why). Unresolved is REPORTED, never guessed — swapping one wrong name
+    for another wrong name is not a repair, and this parser's history is of confident corruption.
+    """
+    known = [t for t, _ in tables]
+    dictionary = parse_item_dictionary(os.path.join(src_dir, "_schema.md"), known)
+    bindings = harvest_control_bindings(src_dir, known)
+
+    lengths = [len(f["name"]) for _, fl in tables for f in fl if f["key"] != "composite"]
+    if not lengths:
+        return [], []
+    floor = max(lengths) - TRUNCATION_BAND
+
+    # The dictionary is printed in a wider column, but it is a PDF column too and it cuts its own
+    # longest entries. A candidate sitting at that width is itself suspect, so it is reported
+    # instead of written into the DDL.
+    dict_lengths = [len(k) for k in dictionary]
+    dict_floor = (max(dict_lengths) - TRUNCATION_BAND) if dict_lengths else None
+
+    applied, unresolved = [], []
+    for tname, fields in tables:
+        present = {f["name"].lower() for f in fields}
+        bound_pool = bindings.get(tname, set())
+        dict_pool = [k for k, used in dictionary.items() if tname.lower() in used]
+        for f in fields:
+            if f["key"] == "composite":
+                continue
+            name = f["name"]
+            if len(name) < floor:
+                continue
+
+            def extend(pool):
+                return sorted({c for c in pool
+                               if c.lower().startswith(name.lower())
+                               and len(c) > len(name)
+                               and c.lower() not in present},
+                              key=lambda c: (len(c), c))
+
+            # The caption sits in a WIDER column on the very same row, and where it is a bare
+            # identifier that extends the name, it is the name — no cross-referencing needed and
+            # no ambiguity possible. This is also the only oracle that can separate several
+            # columns the cut collapsed onto one string: one export has six distinct items all
+            # printed as "mse_thoughtproduction", which emitted six identically named columns and
+            # made the CREATE TABLE invalid SQL. Their captions differ, so the rows come apart.
+            cap = (f.get("caption") or "").strip()
+            if (len(cap) > len(name) and cap.lower().startswith(name.lower())
+                    and ITEM_NAME_RE.match(cap) and cap.lower() not in present):
+                f["name"] = cap
+                present.add(cap.lower())
+                applied.append((tname, name, cap, "row caption"))
+                continue
+
+            bound, from_dict = extend(bound_pool), extend(dict_pool)
+            if len(bound) == 1:
+                choice, oracle = bound[0], "control binding"
+            elif bound:
+                unresolved.append((tname, name, bound, "several bindings extend this name"))
+                continue
+            elif len(from_dict) == 1:
+                choice, oracle = from_dict[0], "item dictionary"
+                if dict_floor is not None and len(choice) >= dict_floor:
+                    unresolved.append((tname, name, from_dict,
+                                       "the dictionary entry is itself at its column width"))
+                    continue
+            elif from_dict:
+                unresolved.append((tname, name, from_dict,
+                                   "several dictionary items extend this name"))
+                continue
+            else:
+                continue
+            f["name"] = choice
+            present.discard(name.lower())
+            present.add(choice.lower())
+            applied.append((tname, name, choice, oracle))
+    return applied, unresolved
+
+
+def apply_renames_to_links(links, applied):
+    """Re-point FK endpoints at the restored column names.
+
+    emit_ddl writes each link's item name straight into the ALTER TABLE, and never checks that the
+    column exists — so renaming a column without this leaves a foreign key referencing a name that
+    is no longer in the table, and the DDL fails at run time instead of at review.
+    """
+    remap = {(t.lower(), old.lower()): new for t, old, new, _ in applied}
+    out = []
+    for src_tbl, src_item, dst_tbl, dst_item in links:
+        src_item = remap.get((src_tbl.lower(), src_item.lower()), src_item)
+        dst_item = remap.get((dst_tbl.lower(), dst_item.lower()), dst_item)
+        out.append((src_tbl, src_item, dst_tbl, dst_item))
+    return out
+
+
+def render_truncation_report(applied, unresolved):
+    """Markdown sidecar listing every name restored and every one left alone."""
+    out = ["# Item names cut by the PDF column", "",
+           "The per-table pages print item names into a fixed-width column and cut the ones that "
+           "do not fit. Names below were checked against the analysis Item dictionary "
+           "(with its \"Used by...\" column) and the UI control data bindings.", ""]
+    if applied:
+        out += [f"## Restored ({len(applied)})", "",
+                "These are already corrected in the generated DDL and ER diagram.", "",
+                "| Data file | As printed | Restored to | Source |", "|---|---|---|---|"]
+        out += [f"| {t} | `{old}` | `{new}` | {src} |" for t, old, new, src in sorted(applied)]
+        out.append("")
+    if unresolved:
+        out += [f"## Left as printed ({len(unresolved)})", "",
+                "These look cut, but the evidence was not conclusive, so the DDL keeps the name "
+                "exactly as the PDF printed it. Check each against the source before building on "
+                "it.", "",
+                "| Data file | As printed | Possible full name(s) | Why not applied |",
+                "|---|---|---|---|"]
+        out += [f"| {t} | `{name}` | {', '.join('`%s`' % c for c in cands)} | {why} |"
+                for t, name, cands, why in sorted(unresolved)]
+        out.append("")
+    return "\n".join(out) + "\n"
 
 
 def col_type(f, dialect):
@@ -599,7 +1076,14 @@ def main():
                  f"{', '.join(empty[:8])}{' …' if len(empty) > 8 else ''}\n"
                  "  The item block was not recognised. Refusing to emit empty tables.")
 
+    # Restore item names the per-table page cut at its column width, before anything downstream
+    # sees them: the DDL, the ER diagram and the distinct-name reconciliation must all agree, and
+    # a name corrected afterwards would leave the foreign keys pointing at the cut spelling.
+    renamed, unresolved_names = recover_truncated_names(tables, args.src)
+
     links = parse_links(os.path.join(args.src, "_schema.md"))
+    if renamed:
+        links = apply_renames_to_links(links, renamed)
 
     os.makedirs(args.out, exist_ok=True)
     sql_path = os.path.join(args.out, f"schema.{args.dialect}.sql")
@@ -616,6 +1100,55 @@ def main():
     print(f"  -> {er_path}")
     for t, f in tables:
         print(f"    {t}: {len(f)} fields")
+
+    # Reconcile against the analysis's own declared item count. Field loss in this parser has
+    # always been SILENT — the run prints a summary and exits 0 whether it read every column or
+    # two thirds of them — and every field-reported instance was found by a developer reading the
+    # DDL against the source weeks later. This is the same self-check the splitter already does
+    # for its data-file count, one stage further down.
+    #
+    # Reported, not enforced. The count reconciles exactly on some exports and not on others, and
+    # a shortfall can equally mean the SPLITTER dropped a page upstream (its per-table extract is
+    # then short before this parser ever sees it). Until that is separated, exiting non-zero here
+    # would block conversions this stage did nothing wrong in. A visible number the developer can
+    # act on is the honest version.
+    declared = declared_item_count(os.path.join(args.src, "_schema.md"))
+    if declared:
+        distinct = len({f["name"] for _, fl in tables for f in fl})
+        if distinct < declared:
+            print(f"  !! INCOMPLETE: the analysis declares {declared} items; this run recovered "
+                  f"{distinct} distinct item names ({declared - distinct} short).")
+            print("     Columns are missing from the generated DDL. Check the source PDF for the "
+                  "affected tables before building on this schema, and report the shortfall.")
+        else:
+            print(f"  items: {distinct} distinct / {declared} declared by the analysis")
+
+    if renamed or unresolved_names:
+        trunc_path = os.path.join(args.out, "truncated-names.md")
+        rd.write_text(trunc_path, render_truncation_report(renamed, unresolved_names), state)
+        if renamed:
+            print(f"  names restored: {len(renamed)} item name(s) were cut by the PDF column and "
+                  f"have been restored from the analysis.")
+        if unresolved_names:
+            print(f"  !! {len(unresolved_names)} further name(s) look cut but could not be "
+                  f"resolved safely; the DDL keeps them exactly as printed.")
+        print(f"  -> {trunc_path}")
+
+    # A cut can collapse two different items onto the same string, and two columns of one name is
+    # not merely untidy — the CREATE TABLE will not run. Recovery separates almost all of them;
+    # what survives is named here rather than discovered when the DDL is executed.
+    collided = []
+    for tname, fields in tables:
+        seen = {}
+        for f in fields:
+            if f["key"] != "composite":
+                seen[f["name"].lower()] = seen.get(f["name"].lower(), 0) + 1
+        collided += [(tname, n) for n, c in seen.items() if c > 1]
+    if collided:
+        print(f"  !! {len(collided)} column name(s) appear TWICE in their table, because the cut "
+              f"collapsed distinct items onto one name - this DDL will not run as written:")
+        for tname, n in collided[:8]:
+            print(f"       {tname}.{n}")
 
     sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
     if state.findings:
