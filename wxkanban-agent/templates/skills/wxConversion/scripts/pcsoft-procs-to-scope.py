@@ -28,7 +28,15 @@ import os as _wmos, sys as _wmsys
 _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
 import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
 
-PROC_RE = re.compile(r"^PROCEDURE\s+([A-Za-z_]\w*)\s*\(([^)]*)\)", re.M)
+# Case-insensitive, with the optional Global/Internal/Server qualifier PCSoft prints in front of
+# the keyword. Requiring uppercase PROCEDURE reported "procedures=0" for whole procedure layers
+# that were present and parsed fine: 259 declarations across 20 sets on one export, 3 sets on
+# another, both silently (wxKanban b9942029, 11207b9f). The '^' anchor stays, so the
+# "Global procedure X (server)" heading form is not counted a second time.
+PROC_RE = re.compile(
+    r"^(?:(?:global|internal|local|server)\s+)?PROCEDURE\s+([A-Za-z_]\w*)\s*\(([^)]*)\)",
+    re.M | re.I,
+)
 SRVPROC_RE = re.compile(r'HExecuteProcedure\s*\([^,]*,\s*"([^"]+)"')
 QRY_RE = re.compile(r"\bQRY_\w+")
 

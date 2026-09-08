@@ -62,16 +62,55 @@ def build_edges(links):
 
 def block_after(lines, header, stops):
     """Return the lines between `header` and the next stop header."""
-    try:
-        i = lines.index(header)
-    except ValueError:
-        return []
-    out = []
-    for l in lines[i + 1:]:
+    return [l for blk in blocks_after(lines, header, stops) for l in blk]
+
+
+def blocks_after(lines, header, stops):
+    """
+    Every block introduced by `header`, not just the first.
+
+    A query whose documentation spans several PDF pages reprints its section heading on each one,
+    so "Result items" occurs more than once in a single .qry.md. Reading only the first occurrence
+    means the continuation columns live in a block nothing looks at - they were previously picked
+    up by accident, because the single block ran on past the SQL box and swallowed the reprinted
+    heading with it. Once the SQL box became a stop (it has to be - it was contaminating the list),
+    that accident stopped paying, and QRY_InvoiceChargesQCOFClientDate lost seven real columns.
+    """
+    out, cur, collecting = [], [], False
+    for l in lines:
+        if l == header:
+            if collecting and cur:
+                out.append(cur)
+            cur, collecting = [], True
+            continue
+        if not collecting:
+            continue
         if l in stops:
-            break
-        out.append(l)
+            out.append(cur)
+            cur, collecting = [], False
+            continue
+        cur.append(l)
+    if collecting and cur:
+        out.append(cur)
     return out
+
+
+# A line belonging to the verbatim SQL box rather than to the Result-items table. Both a trailing
+# comma and an " AS " alias are SQL punctuation the documentation table never prints.
+_SQL_LINE_RE = re.compile(r"\s+AS\s+|,$|^(SELECT|FROM|WHERE|ORDER\s+BY|GROUP\s+BY|JOIN)\b", re.I)
+_SQL_START_RE = re.compile(r"^(SELECT)\b|^SQL code of", re.I)
+
+
+def _looks_like_sql(line):
+    return bool(_SQL_LINE_RE.search(line or ""))
+
+
+def _sql_box_start(block):
+    """Index at which the verbatim SQL box begins, or len(block) if it does not appear."""
+    for i, line in enumerate(block):
+        if _SQL_START_RE.match(line):
+            return i
+    return len(block)
 
 
 def parse_query(path):
@@ -87,27 +126,50 @@ def parse_query(path):
 
     # result items: records of (alias, origin Table.Col, type) — anchor on origin containing '.'
     ITEM_STOPS = {"Query parameters", "Advanced settings", "Image", "Additional information"}
-    blk = block_after(lines, "Result items", ITEM_STOPS)
+    blk = [l for b in blocks_after(lines, "Result items", ITEM_STOPS)
+           for l in b[:_sql_box_start(b)]]
+    # The verbatim SQL box follows the Result-items table on the SAME page, and its lines are
+    # shaped like origins ("SiteOwners.UniqueID AS UniqueID,"), so the walk ran straight off the
+    # end of the table and kept pairing SQL line N with line N+1 as (alias, origin). It
+    # contaminated 19 of 141 queries on one export and left two of them documented ENTIRELY by
+    # junk, while the run reported success (wxKanban 899bdd0b). Stop at the SQL box.
     j = 0
     while j < len(blk):
-        if "." in blk[j] and re.match(r"^\w+\.\w+", blk[j]):
+        # A result origin may name a whole table ("Table.*"): anchoring on \w+\.\w+ dropped every
+        # wildcard item, so a query selecting five whole tables documented zero result columns
+        # (wxKanban a075d21f).
+        if re.match(r"^\w+\.(?:\w+|\*)", blk[j]) and not _looks_like_sql(blk[j]):
             origin = blk[j].strip()
             alias = blk[j - 1].strip() if j > 0 else origin.split(".")[-1]
-            q["items"].append((alias, origin))
+            if not _looks_like_sql(alias):
+                q["items"].append((alias, origin))
         j += 1
 
-    # parameters (pXxx tokens that appear under "Query parameters")
+    # parameters. "p\w+_?" never matched this document family's real parameter names
+    # ("ParamStartDate_Start", "ParamusGUIDAreaID"), so ALL parameters of ALL queries were reported
+    # as none - a query that takes arguments read as one that does not (wxKanban a075d21f).
     pblk = block_after(lines, "Query parameters", {"Advanced settings", "Image",
                                                    "Additional information"})
     for l in pblk:
-        if re.fullmatch(r"p\w+_?", l):
+        if re.fullmatch(r"p\w+_?", l) or re.fullmatch(r"[Pp]aram\w*", l):
             if l not in q["params"]:
                 q["params"].append(l)
 
-    # selection conditions (lines that contain a comparison phrase)
+    # Selection conditions. Requiring a "." dropped every condition on an UNQUALIFIED column
+    # ("RecordDeleted  is equal to 0"), which is most of them, so queries read as unfiltered. Inside
+    # the Selection-conditions block the comparison phrase is a safe anchor on its own; outside it,
+    # keep requiring the qualifier so prose elsewhere on the page cannot become a condition.
+    cblk = block_after(lines, "Selection conditions", {"Result items", "Query parameters",
+                                                       "Advanced settings", "Image",
+                                                       "Additional information"})
+    for l in cblk:
+        if COND_RE.search(l):
+            q["conds"].append(re.sub(r"\s{2,}", " ", l).strip())
     for l in lines:
         if COND_RE.search(l) and "." in l:
-            q["conds"].append(re.sub(r"\s{2,}", " ", l).strip())
+            cond = re.sub(r"\s{2,}", " ", l).strip()
+            if cond not in q["conds"]:
+                q["conds"].append(cond)
 
     # literal SQL fragment present in the doc
     for i, l in enumerate(lines):
@@ -182,6 +244,27 @@ def main():
 
     files = sorted(glob.glob(os.path.join(args.src, "*.qry.md")))
     queries = [parse_query(f) for f in files]
+
+    # A query whose source clearly HAS a result-items table but whose result set came out empty is
+    # an extractor failure, not a query without columns - and it used to pass silently, leaving two
+    # report-feeding queries undocumented on a green run (wxKanban 899bdd0b). Named here, with the
+    # source file, so it is actionable rather than merely counted.
+    empty = []
+    for path, q in zip(files, queries):
+        if q["items"]:
+            continue
+        if re.search(r"^\s*Result items\s*$",
+                     open(path, encoding="utf-8", errors="replace").read(), re.M):
+            empty.append((q["name"], os.path.basename(path)))
+    if empty:
+        print(f"queries-to-scope: !! {len(empty)} query/queries have a 'Result items' table in the "
+              "source but ZERO result columns were recovered:", file=sys.stderr)
+        for name, fn in empty[:12]:
+            print(f"      {name}  ({fn})", file=sys.stderr)
+        if len(empty) > 12:
+            print(f"      ...and {len(empty) - 12} more", file=sys.stderr)
+        print("  Their result sets are UNDOCUMENTED in the scope below. Recover them from the "
+              "source PDF, and report this to wxKanban.", file=sys.stderr)
     edges = build_edges(parse_links(os.path.join(args.src, "_schema.md")))
     os.makedirs(args.out, exist_ok=True)
 

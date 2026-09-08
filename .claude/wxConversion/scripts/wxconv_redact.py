@@ -82,6 +82,21 @@ POSITIONAL_CALLS = {
     "hdescribeconnection": {1: "user", 2: "password"},
     "hopenconnection": {1: "user", 2: "password"},
     "open": {1: "user", 2: "password"},
+    # A secret passed as a bare positional argument has NO key anywhere near it, so no key-based
+    # matcher can ever reach it. A live third-party SMTP password reached pre-convert/ this way,
+    # was read into AI context, and was then certified clean by this scanner's own --scan-only
+    # report; rotation was the only remedy left (wxKanban 6217e40a). These are the credential-taking
+    # PCSoft/WLanguage APIs confirmed in the field. Indices are ZERO-based and count only QUOTED
+    # arguments, matching _quoted_args - the same convention the three entries above already use.
+    # Getting an index wrong here is worse than omitting the call: it redacts a hostname (real
+    # rebuild signal) and leaves the secret in place. SocketConnect and AuthIdentify were also
+    # suggested in that report but its signatures were not confirmed, so they are deliberately
+    # NOT listed - an unverified index would be exactly that failure.
+    "emailstartsmtpsession": {0: "user", 1: "password"},
+    "emailstartpop3session": {0: "user", 1: "password"},
+    "emailstartimapsession": {0: "user", 1: "password"},
+    "emailstartsession": {0: "user", 1: "password"},
+    "ftpconnect": {1: "user", 2: "password"},
 }
 
 MAX_CALL_SCAN = 2000  # cap the argument scan so a malformed call cannot walk the whole document
@@ -145,8 +160,21 @@ CONNSTR_CRED_RE = re.compile(
     r"(?i)\b(?:" + "|".join(k.replace(" ", r"\s*") for k in CONNSTR_CRED_KEYS) + r")\s*=\s*[^;\r\n]"
 )
 
+# Which POSITIONAL_CALLS entries are METHODS, reached through a member access (`cn.Open ...`)
+# rather than called by bare name. Everything else in the table is a bare function.
+_DOTTED_CALLS = {"open"}
+
+# Built FROM POSITIONAL_CALLS rather than repeating it. The two lists were maintained separately,
+# so adding a call to the table did nothing until this pattern was edited too - a silent way to
+# believe a credential API is covered when it is not. The trailing guard stops a longer identifier
+# (HOpenConnectionEx) from matching the shorter name inside it.
 CALL_RE = re.compile(
-    r"(?i)(?:(?<=\.)\s*(?P<dotted>Open)|\b(?P<named>HDescribeConnection|HOpenConnection))\s*(?P<paren>\()?"
+    r"(?i)(?:(?<=\.)\s*(?P<dotted>"
+    + "|".join(sorted(_DOTTED_CALLS, key=len, reverse=True))
+    + r")|\b(?P<named>"
+    + "|".join(sorted((k for k in POSITIONAL_CALLS if k not in _DOTTED_CALLS),
+                      key=len, reverse=True))
+    + r"))(?![A-Za-z0-9_])\s*(?P<paren>\()?"
 )
 
 
@@ -622,8 +650,18 @@ def scan_tree(root: str):
 def render_scan_report(findings, root: str) -> str:
     """Console report for scan mode. Explicit when clean, so silence is never read as 'skipped'."""
     if not findings:
+        # "no credential literals found" reads as an all-clear, and a developer acted on it as one
+        # while a working SMTP credential sat in the scanned output - it was reachable by no
+        # matcher this scanner has, so it was never going to be found (wxKanban 6217e40a). The
+        # scanner's limits belong in the line that reports success, not only in the rule doc: a
+        # clean scan is evidence about the MATCHERS, not about the source.
         return (
-            "SCAN: {r}\n  no credential literals found in existing conversion output.".format(r=root)
+            "SCAN: {r}\n"
+            "  no credential literals matched in existing conversion output.\n"
+            "  This is not proof the output is clean: values built by concatenation, held in\n"
+            "  unconventionally-named variables, or passed to a call this scanner does not know\n"
+            "  are not matched. Read the integration code (email, FTP, HTTP, connections)\n"
+            "  before treating the artifact as safe to share.".format(r=root)
         )
     lines = [
         "SCAN: {r}".format(r=root),

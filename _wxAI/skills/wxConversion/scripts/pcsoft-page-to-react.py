@@ -34,7 +34,7 @@ PREFIX_KIND = {
     "EDT": "input", "SAIT": "input", "BTN": "button", "IMG": "image", "STC": "static",
     "LIB": "static", "LINK": "link", "COMBO": "select", "SELECT": "select",
     "CBOX": "checkbox", "CHK": "checkbox", "RADIO": "radio", "MENU": "menu",
-    "PGB": "progress", "CPTCH": "captcha",
+    "PGB": "progress", "PROGBAR": "progress", "JAUGE": "progress", "CPTCH": "captcha",
     "RTA": "richtext", "HTM": "richtext", "GAL": "gallery", "GR": "groupbox",
     "POPUP": "popup", "OPT": "radio",
 }
@@ -46,6 +46,10 @@ CONTROL_PREFIXES = set(PREFIX_KIND)
 
 # Property labels that mark the *start of a new key* (mined from the dumps).
 PROP_KEYS = {
+    # "HFSQL link" and its two sub-labels print unconditionally, even when nothing is linked;
+    # missing from this set they were swallowed into the value being read, so an UNBOUND
+    # control read back as bound (wxKanban a38f7c27, 11207b9f defect 4b).
+    "HFSQL link", "Browsed file", "Browsed item", "Scrollbar width", "Generated HTML tag",
     "Width", "Height", "Visible", "Background image", "Note", "Note title", "Min width.",
     "Plane(s) containing the control", "Generate if invisible", "Hover cursor", "State",
     "Min. Height", "Max. width", "Horizontal position of background image",
@@ -96,6 +100,9 @@ TYPE_HEADER_KIND = {
     "Group Box": "groupbox", "Zone": "zone", "Cell": "cell", "Menu": "menu",
     "Looper": "looper", "Looper break": "static", "RTF": "richtext", "Tab": "tabcontrol",
     "Splitter": "splitter", "Spin": "input",
+    # A WebDev progress bar rendered generically because neither its prefix nor its type label
+    # was recognised (wxKanban b91866bf).
+    "Progress Bar": "progress", "Progress bar": "progress",
 }
 
 # A second document layout exists alongside the compact "type header + shared
@@ -226,7 +233,7 @@ def parse_controls(path):
     current_kind = None
     current_table_owner = None
     seen_any_label = False
-    header_idx, header_kind, header_full = [], {}, {}
+    header_idx, header_kind, header_full, header_via = [], {}, {}, {}
 
     for i, raw_line in enumerate(lines):
         s = raw_line.strip()
@@ -244,6 +251,7 @@ def parse_controls(path):
                 header_idx.append(i)
                 header_kind[i] = "column"
                 header_full[i] = full
+                header_via[i] = "header"
                 current_kind = "column"
             elif type_word in TYPE_HEADER_KIND:
                 # unambiguous "<Type> : <Name>" block - take the name directly and stop
@@ -252,6 +260,7 @@ def parse_controls(path):
                 header_idx.append(i)
                 header_kind[i] = TYPE_HEADER_KIND[type_word]
                 header_full[i] = name_part
+                header_via[i] = "header"
             elif type_word in NON_CONTROL_SECTIONS:
                 # The page/window/report itself, not a control on it. Ends whatever
                 # block-style section preceded it and contributes nothing.
@@ -275,6 +284,7 @@ def parse_controls(path):
                 header_idx.append(i)
                 header_kind[i] = "control"
                 header_full[i] = name_part
+                header_via[i] = "header"
                 UNKNOWN_TYPES.setdefault(type_word, []).append(name_part)
             else:
                 # Not a control declaration at all - front matter, a path, a URL.
@@ -302,10 +312,17 @@ def parse_controls(path):
         last = s.split(".")[-1]
         m = PREFIX_RE.match(last)
         kind = None
+        # How the name was recognised is recorded, not just the kind. "prefix" and "typed" are
+        # positive evidence that this line IS a control; "loose" means only that an identifier-
+        # shaped word appeared somewhere after a property label, which is also true of an
+        # unrecognised property label. See the geometry gate in main().
+        via = None
         if m and m.group(1).upper() in CONTROL_PREFIXES:
-            kind = PREFIX_KIND[m.group(1).upper()]
-        elif seen_any_label or current_kind is not None:
-            kind = current_kind or "control"
+            kind, via = PREFIX_KIND[m.group(1).upper()], "prefix"
+        elif current_kind is not None:
+            kind, via = current_kind, "typed"
+        elif seen_any_label:
+            kind, via = "control", "loose"
         if kind is None:
             continue
 
@@ -313,6 +330,7 @@ def parse_controls(path):
         header_idx.append(i)
         header_kind[i] = kind
         header_full[i] = full
+        header_via[i] = via
 
     nodes = {}
     order = 0
@@ -333,8 +351,12 @@ def parse_controls(path):
             state=read_value(block, "State"),
             visible=read_value(block, "Visible"),
             width=read_value(block, "Width"),
-            password=("Password" in block),
+            password=("Password" in block
+                      and read_value(block, "Password").strip().lower()
+                      not in ("no", "false", "0")),
+            binding=read_value(block, "HFSQL link"),
             x=num("X position"), y=num("Y position"),
+            via=header_via.get(s_i, "loose"),
             order=order, children=[],
         )
         nodes[full] = node
@@ -346,8 +368,8 @@ def parse_controls(path):
             seg = path.split(".")[-1]
             nodes[path] = dict(path=path, seg=seg, kind=kind_of(seg), caption="",
                                title="", state="", visible="", width="",
-                               password=False, x=None, y=None,
-                               order=order, children=[], synth=True)
+                               password=False, binding="", x=None, y=None,
+                               via="synth", order=order, children=[], synth=True)
         return nodes[path]
 
     for full in list(nodes):
@@ -407,25 +429,84 @@ class V:
 
 # --- WLanguage event handlers extracted from the controls dump -------------------------
 # Each block looks like:  "Click on BTN_X ( CTPL_Y ) (server) ..."  followed by code lines.
-HANDLER_RE = re.compile(r"^([A-Z][\w ]*?) (?:on|of|in) (\w+)\s*\(")
+HANDLER_RE = re.compile(r"^([A-Z][\w ]*? (?:on|of|in)) (\w+)\s*\(")
+
+# WinDev event phrases that name their control with NO connecting word ("Click BTN_Add ( … )",
+# "Whenever modifying BillingOrder ( TBL_PatientDiag )"). An unrecognised header does not merely
+# go unwired: parse_handlers keeps collecting, so the header and its code are appended to the
+# PRECEDING handler's body, attributing one control's WLanguage to another. That was happening on
+# 14 of the 905 real pages on this machine.
+#
+# This is an allow-list and not a general "<phrase> <name> (" pattern on purpose: measured over
+# those pages, the general form also matches 1,038 `IF …(` lines, 341 `PROCEDURE …(` declarations
+# and assorted prose. The vocabulary is finite; a phrase missing from it costs one unwired
+# handler, while a wrong entry costs invented code.
+SEPARATORLESS_EVENTS = (
+    "Click", "Enter", "Exit", "Whenever modifying", "Move mouse over",
+    "Drag over drop target", "Drop on target",
+    "Receive files uploaded from", "After reception of the files uploaded from",
+)
+HANDLER_RE2 = re.compile(
+    r"^(" + "|".join(sorted(SEPARATORLESS_EVENTS, key=len, reverse=True)) + r") (\w+)\s*\(")
+
 HANDLERS = {}        # control seg -> list of (event, [code lines])
+HANDLER_SRC = {}     # id(code list) -> the header line verbatim, annotations and all
 HANDLERS_USED = {}   # handler fn name -> (seg, event, code) actually wired this page
 
+# The gate that decides whether the token after "Click on" is a control name or ordinary prose.
+#
+# It used to be `^[A-Z]{2,}\w*_`, which requires an UPPERCASE prefix AND an underscore. That is the
+# IDE's default naming convention, not a rule: one WebDev project named its controls BTNFindRecord
+# and btnClear, so every handler header was rejected and all four converted pages wired no
+# behaviour whatsoever — while the run reported a healthy control count (wxKanban 7ce2f50a).
+#
+# Accept a known control prefix in any casing, with or without the underscore. After a BARE prefix
+# an uppercase letter or digit is required, so that an ordinary English word that happens to open
+# with a prefix ("link", "menu") cannot pass as a control name. The old pattern is still honoured
+# alongside it, so nothing that parsed before stops parsing.
+HANDLER_NAME_RE = re.compile(
+    r"^(?i:" + "|".join(sorted(CONTROL_PREFIXES, key=len, reverse=True)) + r")"
+    r"(?:_\w*|[A-Z0-9]\w*)$")
+LEGACY_HANDLER_NAME_RE = re.compile(r"^[A-Z]{2,}\w*_")
 
-def parse_handlers(*paths):
+
+def is_handler_control_name(token, known=()):
+    """True when a handler header's second token names a control rather than prose."""
+    if token in known:          # the dump's own control list — the strongest evidence there is
+        return True
+    return bool(HANDLER_NAME_RE.match(token) or LEGACY_HANDLER_NAME_RE.match(token))
+
+
+def match_handler_header(line, known=()):
+    """Return (event phrase, control seg) for a WLanguage event header, else None."""
+    for rx in (HANDLER_RE, HANDLER_RE2):
+        m = rx.match(line)
+        if m and is_handler_control_name(m.group(2), known):
+            return m.group(1).strip(), m.group(2)
+    return None
+
+
+def event_label(event):
+    """The event phrase without its trailing connector, for listing it beside a control name."""
+    return re.sub(r"\s+(?:on|of|in)$", "", event)
+
+
+def parse_handlers(*paths, known=()):
     """Extract WLanguage event-handler blocks from any of the given files (controls + page)."""
     HANDLERS.clear()
+    HANDLER_SRC.clear()
     for path in paths:
         if not path or not os.path.exists(path):
             continue
         lines = [l.rstrip() for l in open(path, encoding="utf-8").read().split("\n")]
         cur = None
         for l in lines:
-            m = HANDLER_RE.match(l.strip())
-            if m and re.match(r"^[A-Z]{2,}\w*_", m.group(2)):   # 2nd token is a control name
-                event, seg = m.group(1).strip(), m.group(2)
+            m = match_handler_header(l.strip(), known)
+            if m:
+                event, seg = m
                 cur = [seg, event, []]
                 HANDLERS.setdefault(seg, []).append((event, cur[2]))
+                HANDLER_SRC[id(cur[2])] = l.strip()
             elif cur is not None:
                 if l.strip().startswith("## "):   # next doc section ends the block
                     cur = None
@@ -481,6 +562,13 @@ def build_vnode(node):
         return None
     k = node["kind"]
     lbl, todo = label(node)
+    # An RTA_/HTM_ control is classified richtext by NAME PREFIX alone, and on a real project every
+    # single one was static formatted text - site header branding, a copyright footer, help-popup
+    # copy, a session-timeout message - while the actual editable content field was a plain EDT_.
+    # So nearly every page carried a spurious "pull in TipTap" gap for what needs a <div>. An
+    # editor is only warranted where the control is actually bound to data (wxKanban a38f7c27).
+    if k == "richtext" and not (node.get("binding") or "").strip():
+        return V("p", "wx-static", text=lbl, todo=todo)
     if k in GAP_RECO and k not in ("table", "looper"):
         GAPS_HIT.add(k)
         return V("div", "wx-gap", text=f"[{node['seg']}] {GAP_RECO[k]}", attrs={"data-gap": k})
@@ -797,8 +885,13 @@ def emit_handlers():
         for ln in code:
             procs.update(PROC_RE.findall(ln))
         wl = "\n".join(f"  //   {ln}" for ln in code) or "  //   (no code captured)"
+        # The header line verbatim, not a reconstruction: its "( Owner ) (template)" and
+        # "(server)" / "(onclick browser event)" annotations say WHICH instance of the control the
+        # code belongs to and where it ran, and a rebuild needs both. The old comment hardcoded
+        # "(server)", which is wrong for every browser-side event.
+        src = HANDLER_SRC.get(id(code)) or f"{event} {seg}"
         out.append(
-            f"  // {event} on {seg} — ported from WLanguage (server). TODO: implement.\n"
+            f"  // {src} — ported from WLanguage. TODO: implement.\n"
             f"  async function {fn}() {{\n"
             f"  // --- original WLanguage ---\n{wl}\n"
             f"    // TODO: call the API endpoint(s) backing the procedure(s) above\n"
@@ -806,15 +899,47 @@ def emit_handlers():
     return "\n\n".join(out), procs
 
 
+def unwired_handler_note():
+    """
+    Carry every handler block the page does not attach to an element.
+
+    Two ways a block goes unattached, and both used to lose their WLanguage outright:
+
+      * the control is not rendered clickable — a template, a cell, a table column. Only buttons
+        and links take an onClick;
+      * the control IS wired, but has SEVERAL events. handler_for() attaches one.
+
+    Before the header regex recognised these blocks they were appended to the PRECEDING handler's
+    body, so the code appeared in the output attributed to the wrong control. Now that the headers
+    are recognised, the code has to land somewhere or it is simply gone — hence this block. The
+    header line is reproduced verbatim, since its "( Owner ) (template)" annotation says which
+    instance of the control the code belongs to.
+    """
+    used = {id(code) for _, _, code in HANDLERS_USED.values()}
+    lines = []
+    for seg in sorted(HANDLERS):
+        for _event, code in HANDLERS[seg]:
+            if id(code) in used:
+                continue
+            lines.append(f"//   {HANDLER_SRC.get(id(code), seg)}")
+            lines.extend(f"//     {ln}" for ln in code)
+    if not lines:
+        return ""
+    return ("// Event handlers this page does not attach to an element — the control is not "
+            "clickable\n// (template, cell, table column), or it has further events beyond the "
+            "one wired below.\n// Not wired, but their legacy logic is kept rather than "
+            "dropped:\n" + "\n".join(lines) + "\n")
+
+
 def render_tsx(page, roots):
     body = to_jsx(build_page(roots), 2)
     comp = re.sub(r"\W", "", page)
     handlers, procs = emit_handlers()
-    proc_note = ""
+    proc_note = unwired_handler_note()
     if procs:
-        proc_note = ("// Server procedures referenced by this page (become API endpoints — "
-                     "see the converted .proc.md):\n//   "
-                     + ", ".join(sorted(procs)) + "\n")
+        proc_note += ("// Server procedures referenced by this page (become API endpoints — "
+                      "see the converted .proc.md):\n//   "
+                      + ", ".join(sorted(procs)) + "\n")
     handler_block = ("\n" + handlers + "\n") if handlers else ""
     return f"""// {page}.tsx - regenerated from legacy WebDev page {page}
 // Stack: React + Tailwind + shadcn/ui (stack.md). Primary = indigo-600.
@@ -832,6 +957,133 @@ export default function {comp}() {{{handler_block}
 """
 
 
+# ---- geometry gate: refuse rather than invent -----------------------------------------
+
+def geometry_is_unavailable(nodes):
+    """
+    True when a page's control tree rests on nothing but coincidence.
+
+    parse_controls orders and nests siblings from each control's "X/Y position". When a dump
+    carries no positions at all AND every control was matched LOOSELY — an identifier-shaped word
+    somewhere after a property label, which is equally the shape of a property label this parser
+    does not know — the resulting tree is not a weak reading of the page, it is an invention. One
+    WebDev export produced a 1,243-byte .tsx from a 4,689-line dump whose six "controls" were the
+    property labels Img1, Simple, Hotkey, Toolbar, Step and Autocompletion, and it exited 0
+    reporting "~24 captions needing review", which reads like a healthy run (wxKanban 7ce2f50a).
+
+    A single control matched by name prefix, by declared type, or by a "<Type> : <Name>" header is
+    positive evidence that the page was really read, so a page that merely lacks geometry — an
+    export in a language whose position labels this parser does not know, say — is unaffected.
+    """
+    real = [n for n in nodes.values() if not n.get("synth")]
+    if not real:
+        return False
+    if any(n["x"] is not None or n["y"] is not None for n in real):
+        return False
+    return all(n.get("via") == "loose" for n in real)
+
+
+def wire_all_handlers():
+    """
+    Mark EVERY extracted handler as used, for the layout-less fallback render.
+
+    handler_for() takes only a control's first event because it attaches one onClick; here there is
+    no element to attach to and the point is the inventory, so a control with several events keeps
+    all of them, suffixed to stay distinct.
+    """
+    for seg, hs in sorted(HANDLERS.items()):
+        for i, (event, code) in enumerate(hs):
+            fn = f"on{seg}" if i == 0 else f"on{seg}_{i + 1}"
+            HANDLERS_USED[fn] = (seg, event, code)
+
+
+def render_tsx_names_only(page, reason):
+    """
+    The page's controls and behaviour WITHOUT a layout, for a dump that carries no geometry.
+
+    Emitting an <Input placeholder="Hotkey"> is worse than emitting nothing, because a rebuild
+    team has to first work out that it is wrong. What IS trustworthy here are the control names and
+    events printed in the handler headers ("Click on BTNFindRecord (onclick browser event)"), which
+    come from the dump verbatim. Hand those over and leave the layout to the rebuild — which is the
+    skill's "Modernize, don't replicate 1:1" principle applied to a case where replicating is not
+    even possible.
+    """
+    comp = re.sub(r"\W", "", page)
+    handlers, procs = emit_handlers()
+    proc_note = ""
+    if procs:
+        proc_note = ("// Server procedures referenced by this page (become API endpoints — "
+                     "see the converted .proc.md):\n//   "
+                     + ", ".join(sorted(procs)) + "\n")
+    if HANDLERS:
+        inventory = "\n".join(
+            f"//   {seg}: " + ", ".join(event_label(ev) for ev, _ in hs)
+            for seg, hs in sorted(HANDLERS.items()))
+    else:
+        inventory = "//   (no handler headers found either — nothing about this page is recoverable)"
+    handler_block = ("\n" + handlers + "\n") if handlers else ""
+    return f"""// {page}.tsx - NOT GENERATED. See rebuild/COMPONENT-GAPS.md.
+//
+// LAYOUT NOT RECOVERABLE: {reason}
+//
+// No layout is emitted rather than a speculative one. The controls below and their events are
+// taken verbatim from the dump's WLanguage handler headers and ARE reliable; build the layout
+// from the running application or its screenshots.
+//
+// Controls and events found:
+{inventory}
+{proc_note}
+export default function {comp}() {{{handler_block}
+  return (
+    <div className="p-6 text-sm">
+      {{/* TODO: lay out this page. See the control inventory in the header comment. */}}
+    </div>
+  );
+}}
+"""
+
+
+GAPS_HEADER = """# Component & layout gaps
+
+Pages listed here were NOT laid out. Each entry says why, and lists the controls and events that
+*were* recovered — those names come from the dump verbatim and can be trusted. Build the layout
+from the running application or its screenshots.
+"""
+
+
+# The watermark front matter and trailer rd.write_text() adds. This file is read-modify-written
+# once per refused page, so both have to come off before it is written back — otherwise the
+# re-stamp appends a second set of wxkanban* keys on every page after the first.
+_WM_TRAILER_RE = re.compile(r"\n+---\s*\n+<!-- wxkanban:watermark -->.*\Z", re.S)
+_WM_FRONTMATTER_RE = re.compile(r"\A---\r?\n(?:wxkanban\w+:[^\r\n]*\r?\n)+---\r?\n\s*")
+
+
+def unstamp(md):
+    """Strip the watermark front matter and trailer, so the content can be rewritten and re-stamped."""
+    return _WM_FRONTMATTER_RE.sub("", _WM_TRAILER_RE.sub("", md or "")).strip()
+
+
+def record_layout_gap(gaps_path, page, src, reason, state):
+    """Append this page to the rebuild's gaps report, creating it if this is the first one."""
+    os.makedirs(os.path.dirname(gaps_path) or ".", exist_ok=True)
+    existing = ""
+    if os.path.exists(gaps_path):
+        existing = unstamp(open(gaps_path, encoding="utf-8").read())
+    if not existing.strip():
+        existing = GAPS_HEADER
+    marker = f"\n## {page} — no layout emitted\n"
+    if marker in existing:      # a re-run of the same page replaces its entry, never duplicates it
+        existing = existing.split(marker)[0].rstrip() + "\n"
+    controls = "\n".join(f"- `{seg}` — " + ", ".join(event_label(ev) for ev, _ in hs)
+                         for seg, hs in sorted(HANDLERS.items())) \
+        or "- (no handler headers found either — nothing about this page is recoverable)"
+    entry = (f"{marker}\n"
+             f"**Source:** `{src}`\n\n"
+             f"**Why:** {reason}.\n\n"
+             f"**Controls and events recovered from the handler headers:**\n\n{controls}\n")
+    rd.write_text(gaps_path, existing.rstrip() + "\n" + entry, state)
+
+
 # ---- silent-failure guard ------------------------------------------------------------
 # The control parser recognizes a control by a known WinDev type PREFIX (EDT_, BTN_,
 # TABLE_, ...) OR, since the 2026-07 fix above, by its declared type header (prefix-less /
@@ -840,6 +1092,22 @@ export default function {comp}() {{{handler_block}
 # was very likely still not recognized — turn that silent miss into a loud warning rather
 # than writing an empty .tsx that looks like success.
 CANDIDATE_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$")
+
+
+_DATA_FILE_CACHE = {}
+
+
+def _known_data_files(src_dir):
+    """Lower-cased data-file names, from the splitter's own *.table.md filenames."""
+    cached = _DATA_FILE_CACHE.get(src_dir)
+    if cached is None:
+        try:
+            cached = {fn[:-len(".table.md")].lower() for fn in os.listdir(src_dir or ".")
+                      if fn.endswith(".table.md")}
+        except OSError:
+            cached = set()
+        _DATA_FILE_CACHE[src_dir] = cached
+    return cached
 
 
 def warn_low_yield(path, n_ctl):
@@ -859,9 +1127,15 @@ def warn_low_yield(path, n_ctl):
         raw = open(path, encoding="utf-8").read().split("\n")
     except OSError:
         return
+    # A dotted identifier whose first segment names a DATA FILE is an HFSQL binding
+    # ("SiteOwners.Owner_UniqueID"), not a control. Counted as control-shaped names they inflated
+    # the denominator and tripped this warning on 10 pages whose extraction was in fact complete -
+    # the @@CONTROL marker count matched the parsed count on every one of them (wxKanban 11207b9f).
+    known_tables = _known_data_files(os.path.dirname(path))
     candidates = {
         l.strip() for l in raw
         if CANDIDATE_NAME_RE.match(l.strip() or "") and ("_" in l or "." in l)
+        and l.strip().split(".")[0].lower() not in known_tables
     }
     if len(candidates) >= 10 and n_ctl < len(candidates) * 0.8:
         print(f"  !! WARNING: {n_ctl} controls parsed, but the dump names "
@@ -885,6 +1159,11 @@ def main():
     ap.add_argument("--page", required=True, help="path to <PAGE>.controls.md")
     ap.add_argument("--out", default="rebuild/pages")
     ap.add_argument("--preview-out", default="scratch-render")
+    ap.add_argument("--gaps-out", default="rebuild/COMPONENT-GAPS.md",
+                    help="Where pages that could not be laid out are recorded.")
+    ap.add_argument("--force-layout", action="store_true",
+                    help="Emit a layout even when the dump carries no control geometry. "
+                         "The result is speculative — see rebuild/COMPONENT-GAPS.md.")
     rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
 
@@ -893,7 +1172,10 @@ def main():
     roots, nodes = parse_controls(args.page)
     GAPS_HIT.clear()
     HANDLERS_USED.clear()
-    parse_handlers(args.page, args.page.replace(".controls.md", ".page.md"))
+    parse_handlers(args.page, args.page.replace(".controls.md", ".page.md"),
+                   known={n["seg"] for n in nodes.values()})
+
+    no_layout = geometry_is_unavailable(nodes) and not args.force_layout
 
     os.makedirs(args.out, exist_ok=True)
     os.makedirs(args.preview_out, exist_ok=True)
@@ -903,17 +1185,35 @@ def main():
     # applies redaction but no watermark — matching the behaviour these two writes already had.
     # Generated TSX embeds handler code lifted from the legacy source, which is exactly where a
     # hardcoded connection literal would end up.
-    rd.write_text(tsx_path, render_tsx(page, roots), state)
-    rd.write_text(html_path, render_html(page, roots), state)
+    if no_layout:
+        reason = ("the dump carries no control geometry (no X/Y position on any control), and "
+                  "every control-shaped name in it was matched loosely, so the names are as "
+                  "likely to be property labels as controls")
+        wire_all_handlers()
+        rd.write_text(tsx_path, render_tsx_names_only(page, reason), state)
+        record_layout_gap(args.gaps_out, page, args.page, reason, state)
+        # A preview left over from an earlier run (or from --force-layout) would sit beside a .tsx
+        # that says NO LAYOUT and show the invented one as if it were this page.
+        if os.path.exists(html_path):
+            os.remove(html_path)
+        print(f"{page}: NO LAYOUT EMITTED — {reason}.")
+        print(f"     {len(HANDLERS)} control(s) and their events recovered from the handler "
+              f"headers and written to the .tsx as an inventory.")
+        print(f"  -> {tsx_path}")
+        print(f"  -> {args.gaps_out}")
+        print("     Re-run with --force-layout to emit the speculative layout anyway.")
+    else:
+        rd.write_text(tsx_path, render_tsx(page, roots), state)
+        rd.write_text(html_path, render_html(page, roots), state)
 
-    n_ctl = len(nodes)
-    n_todo = sum(1 for n in nodes.values()
-                 if (n["caption"] or n["title"]).upper() in ("", "GB"))
-    print(f"{page}: {n_ctl} controls parsed, {len(roots)} root zones")
-    warn_low_yield(args.page, n_ctl)
-    print(f"  -> {tsx_path}")
-    print(f"  -> {html_path}")
-    print(f"  captions needing review (GB/empty): ~{n_todo}")
+        n_ctl = len(nodes)
+        n_todo = sum(1 for n in nodes.values()
+                     if (n["caption"] or n["title"]).upper() in ("", "GB"))
+        print(f"{page}: {n_ctl} controls parsed, {len(roots)} root zones")
+        warn_low_yield(args.page, n_ctl)
+        print(f"  -> {tsx_path}")
+        print(f"  -> {html_path}")
+        print(f"  captions needing review (GB/empty): ~{n_todo}")
     if GAPS_HIT:
         print("  component gaps (no shadcn primitive — see rebuild/COMPONENT-GAPS.md):")
         for g in sorted(GAPS_HIT):

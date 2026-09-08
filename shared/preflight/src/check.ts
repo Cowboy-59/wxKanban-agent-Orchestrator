@@ -123,11 +123,20 @@ export function runPreflight(content: string): ScopeValidationResult {
   if (!minimumCriteriaStatus.businessProblem) {
     blockingIssues.push('Business Problem must be specific and non-placeholder.');
   }
+  // [SCOPE 124 / T023] Field report 3a463856: the accepted form was stated only inside the
+  // createspecs runtime prompt, so a 50-scope corpus sat at score 79 while seven reasonable
+  // markdown shapes were tried against the live server. A gate that refuses without naming what it
+  // would accept costs every new corpus the same afternoon. The rule is unchanged; it explains
+  // itself now.
   if (!minimumCriteriaStatus.primaryActor) {
-    blockingIssues.push('Actors section must identify a primary actor.');
+    blockingIssues.push(
+      'Actors section must identify a primary actor. Expected form: a line reading "- Primary: <actor>" under "## Actors" (or a "Primary Actor" row in a Core Design table).',
+    );
   }
   if (!minimumCriteriaStatus.secondaryActors) {
-    blockingIssues.push('Actors section must identify at least one secondary actor.');
+    blockingIssues.push(
+      'Actors section must identify at least one secondary actor. Expected form: a line reading "- Secondary: <actor>, <actor>" under "## Actors" (or a "Secondary Actors" row in a Core Design table).',
+    );
   }
   if (!minimumCriteriaStatus.measurableSuccessMetrics) {
     blockingIssues.push('Success Metrics must include at least 3 measurable outcomes.');

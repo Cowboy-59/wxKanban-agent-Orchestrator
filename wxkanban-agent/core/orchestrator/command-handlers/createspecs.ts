@@ -43,7 +43,7 @@ Hard rules:
   {
     "specNumber": "NNN",                        // three-digit, next free under specs/
     "featureName": "<title-case feature name>",
-    "scopeContent": "<multi-paragraph markdown body for Spec ## Overview section>",
+    "scopeContent": "<the FULL scope markdown — see the required headings below, NOT just an Overview body>",
     "phase": "design",                          // or implementation/qaTesting/...
     "priority": "low" | "medium" | "high",
     "tasks": [
@@ -57,6 +57,12 @@ Hard rules:
     "generateLifecycle": true,
     "generateTests": true
   }
+- scopeContent MUST carry the canonical headings the server preflight gates on, or create_specs
+  is blocked with one failed gate per missing section: "## Overview", "## Business Problem",
+  "## Actors" (containing "- Primary: ..." and "- Secondary: ..." lines), "## Success Metrics"
+  (three or more measurable statements), "## Scope Boundary", "## Out of Scope". Add
+  "## Open Questions" too — its absence is a warning rather than a block. Prose that says all of
+  this without the headings does NOT pass; the gates read headings, not meaning.
 - specNumber MUST be three digits with leading zeros.
 - featureName should match the title used in the parent Project-Scope file (if any).
 - tasks SHOULD cover the main functional requirements; each task description should be

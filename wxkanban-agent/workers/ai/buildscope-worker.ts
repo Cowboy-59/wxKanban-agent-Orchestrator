@@ -33,6 +33,7 @@ function pickSuccessMetrics(value: unknown): string[] {
 	return [];
 }
 
+// [SCOPE 124 / T020] BEGIN — buildscope reports what it actually did
 export class BuildScopeWorker {
 	static async generateScopeDraft(input: Partial<ScopeDraft> & Record<string, unknown>): Promise<ScopeDraft> {
 		const args = mapInputsToMcpArgs(input as Record<string, unknown>);
@@ -60,7 +61,9 @@ export class BuildScopeWorker {
 			success?: boolean;
 			error?: string;
 			mode?: string;
-			status?: 'created' | 'updated' | 'template_only' | 'draft_interview';
+			// [SCOPE 124 / T020] The server drafts; this client is what creates the file. It answers
+			// 'drafted' / 'draft_updated' now, and the older words still arrive from older servers.
+			status?: 'drafted' | 'draft_updated' | 'created' | 'updated' | 'template_only' | 'draft_interview';
 			specNumber?: string;
 			shortName?: string;
 			questions?: string[];
@@ -123,7 +126,12 @@ export class BuildScopeWorker {
 		const problemStatement =
 			typeof args['businessProblem'] === 'string' ? (args['businessProblem'] as string) : 'See generated spec file.';
 		const objectives = pickSuccessMetrics(args['successMetrics']);
-		const verb = mcpResult.status === 'updated' ? 'updated' : mcpResult.status === 'template_only' ? 'scaffolded from template' : 'created';
+		const verb =
+			mcpResult.status === 'updated' || mcpResult.status === 'draft_updated'
+				? 'updated'
+				: mcpResult.status === 'template_only'
+					? 'scaffolded from template'
+					: 'created';
 		// [SCOPE 077 / FR-008] Surface the orchestrator reuse check inline so the
 		// developer sees overlapping existing scopes while authoring (warn-only).
 		const reuseNote = mcpResult.reuseWarning ? `\n\n${mcpResult.reuseWarning}` : '';
@@ -139,3 +147,4 @@ export class BuildScopeWorker {
 		};
 	}
 }
+// [SCOPE 124 / T020] END

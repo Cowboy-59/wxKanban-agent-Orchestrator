@@ -4,8 +4,8 @@
 
 This applies to:
 
-- The `wxAIGit` skill (commits, checkpoints, merges, branch operations)
-- Direct git commands (which are blocked anyway, but the principle applies)
+- The `wxAIGit` skill (branch + merge only — see the section below)
+- Direct git commands: `git commit`, `git push`, `git merge`, and every other write
 
 **Forbidden Behaviors**:
 
@@ -52,7 +52,7 @@ This applies to:
 
 **ONLY Exception**: User explicitly says "revert the file" or "checkout the file" or "reset the changes"
 
-**Enforcement**: A PreToolUse hook will BLOCK these operations. If user explicitly requests a destructive git operation, they must set environment variable: `SKIP_GIT_GUARD=1`
+**Enforcement**: a PreToolUse git guard MAY be installed — check `.claude/settings.json` for this project before relying on it, and only mention `SKIP_GIT_GUARD=1` if a guard is actually there to skip. Where no hook exists, this rule holds because you follow it.
 
 **Violation Consequences**: Using these commands without explicit instruction is a CRITICAL ERROR equivalent to data loss.
 
@@ -73,60 +73,43 @@ This applies to:
 - **Debugging workflows**: Use `systematic-debugging` or `root-cause-tracing` for structured investigation
 - **Development workflows**: Use `subagent-driven-development` for spec-kit task execution
 - **Documentation**: Use `feature-documentation-cleanup` after completing features
-- **Git operations**: Use `wxAIGit` for ALL git operations (see ABSOLUTE RULE below)
+- **Git operations**: only on explicit request; `wxAIGit` covers branch + merge, commits and pushes are plain `git` (see the section below)
 
 **Principle**: Skills and agents handle their own orchestration. Trust them to dispatch subagents when beneficial. Use them proactively to save context, enable parallelism, and leverage specialized workflows.
 
-## ABSOLUTE RULE: Git Operations via wxAIGit Skill ONLY
+## ABSOLUTE RULE: Git Only on Explicit Request — and wxAIGit is branch + merge ONLY
 
-**FORBIDDEN**: You are FORBIDDEN from running ANY of these git commands directly:
+**What `wxAIGit` actually is.** SPEC-058 Amendment B (FR-009) reduced it to a scope-branch lifecycle
+helper with exactly two subcommands:
 
-- `git commit` - ALWAYS use wxAIGit skill instead
-- `git add` - ALWAYS use wxAIGit skill instead (handles staging as part of workflow)
-- `git push` - ALWAYS use wxAIGit skill instead (automatic after commits)
-- `git merge` - ALWAYS use wxAIGit skill instead
-- `git checkout -b` / `git switch -b` - ALWAYS use wxAIGit skill instead (branch creation)
-- `git branch -m` - ALWAYS use wxAIGit skill instead (branch renaming)
+- `wxAIGit branch --create <name>` — create (if absent) and switch to a branch
+- `wxAIGit merge --source-branch <branch>` — merge a `scope/*` branch into integration, locally
 
-**REQUIRED**: ALWAYS invoke the wxAIGit skill when user says:
+Both launchers reject anything else with *"unsupported subcommand (only 'branch' and 'merge')"*, and
+`scripts/wxaigit/` contains only `gitbranch.sh` and `gitmerge.sh`. **There is no `wxAIGit commit`,
+no `checkpoint`, no `push`.** It does not write changelog entries, bump versions, or push for you —
+nothing does those automatically.
 
-- "commit" or "do a commit" → Invoke Skill tool: `{"skill": "wxAIGit"}`
-- "checkpoint" or "do a checkpoint" → Invoke Skill tool: `{"skill": "wxAIGit"}`
-- "merge" or "merge the branch" → Invoke Skill tool: `{"skill": "wxAIGit"}`
-- "rename branch" or "rename the branch to X" → Invoke Skill tool: `{"skill": "wxAIGit"}`
-- "create new branch" or "create branch called X" → Invoke Skill tool: `{"skill": "wxAIGit"}`
+**So commits and pushes are plain `git`, and that is the intended path, not a bypass.** An earlier
+version of this file mandated `wxAIGit` for commit / add / push and credited it with all of the
+above; following it stalled real sessions on a command that does not exist (field report
+`e699f326`). Use `git commit` / `git push` directly when — and only when — the user asks.
 
-**Why This Rule Exists**: The wxAIGit skill ensures:
+**The permission rule is unchanged, and it is the part that matters:**
 
-- Conventional commit format with emojis (e.g., `✨ feat:`, `🐛 fix:`)
-- Automatic changelog updates (reads format, adds entry for today)
-- Proper semantic version bumping (analyzes commits for major/minor/patch)
-- Automatic push to remote (non-main branches)
-- Consistent workflow across all git operations
-- Single source of truth for git workflows
+- **NEVER initiate any git operation without the user asking in the current message.** Not after
+  finishing a task, not at a "good stopping point", not because previous commits happened this
+  session. Each one needs fresh, explicit instruction.
+- **NEVER suggest "let me commit this"** as a way of obtaining that instruction.
+- **A push deploys to production.** Never push unless the user says to push, in this message.
+- Write the commit message as several plain `-m` flags rather than an inline here-string, which
+  leaks a stray `@` into the subject.
 
-**Violation Consequences**:
+**What counts as an explicit request**: the user says commit / push / merge / create a branch, or
+asks you to save or preserve the work in git. **What does not**: completing a task, "done", "looks
+good", or your own judgement that the work is worth saving.
 
-- Bypassing wxAIGit breaks changelog tracking
-- Skips version management
-- Loses conventional commit format
-- Creates inconsistent git history
-- **PreToolUse hook will BLOCK these operations** - you will receive a denial message
-
-**Emergency Override**: If wxAIGit skill has a bug and you need to bypass:
-
-1. Request user to set environment variable: `SKIP_GIT_GUARD=1`
-2. Only then run git commands directly
-3. Immediately inform user that wxAIGit was bypassed and why
-
-**Read-Only Operations ALLOWED** (without wxAIGit):
-
-- `git status` - Check repository state
-- `git log` - View commit history
-- `git diff` - View changes
-- `git show` - Show commit details
-- `git branch` - List branches (without flags)
-- `git fetch` - Fetch from remote
-- `git stash` - Stash changes temporarily
-
-**ONLY Exception**: User explicitly instructs you to use direct git commands (extremely rare edge cases).
+**Enforcement, stated honestly.** Whether a PreToolUse git guard is installed is per-project — check
+`.claude/settings.json` before relying on one, and do not tell a user to set `SKIP_GIT_GUARD=1`
+unless a guard is actually present to skip. Absent a hook, this rule is enforced by you following
+it.

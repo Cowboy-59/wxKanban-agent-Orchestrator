@@ -78,14 +78,21 @@ describe('runPreflight — section checks', () => {
     const result = runPreflight(noPrimary);
     expect(result.checks.hasActors).toBe(false);
     expect(result.missingSections).toContain('actors');
-    expect(result.blockingIssues).toContain('Actors section must identify a primary actor.');
+    // [SCOPE 124 / T023] The message now carries the accepted form (report 3a463856), so this
+    // asserts the claim and the form separately rather than pinning one long literal.
+    const actorIssue = result.blockingIssues.find((issue) => issue.startsWith('Actors section must identify a primary actor'));
+    expect(actorIssue).toBeDefined();
+    expect(actorIssue).toContain('- Primary: <actor>');
   });
 
   it('hasActors false when Secondary: line is missing', () => {
     const noSecondary = COMPLETE_SCOPE.replace(/- Secondary: Hosted MCP server[^\n]+/, '- Hosted MCP server receives the call');
     const result = runPreflight(noSecondary);
     expect(result.checks.hasActors).toBe(false);
-    expect(result.blockingIssues).toContain('Actors section must identify at least one secondary actor.');
+    // [SCOPE 124 / T023] Same as the primary-actor assertion above: the message now names the form.
+    const secondaryIssue = result.blockingIssues.find((issue) => issue.startsWith('Actors section must identify at least one secondary actor'));
+    expect(secondaryIssue).toBeDefined();
+    expect(secondaryIssue).toContain('- Secondary: <actor>');
   });
 
   it('hasSuccessMetrics false when heading is absent', () => {

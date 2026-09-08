@@ -495,6 +495,48 @@ def test_the_dictionary_keeps_an_item_named_after_a_type():
     assert items == {"Date": {"invoice"}, "Amount": {"invoice"}}, items
 
 
+def _bool_field(name, default):
+    return dict(name=name, caption="", hfsql="Boolean", key="boolean",
+                size=None, default=default, components=None)
+
+
+def test_a_boolean_default_is_emitted_as_a_boolean_literal_not_a_number():
+    """
+    wxKanban ee8dc32e: HFSQL prints a boolean default as 0/1, and passing that through emitted
+    'BOOLEAN DEFAULT 0'. PostgreSQL and Firebird reject an integer default on a BOOLEAN column,
+    and the error aborts the whole statement - so ONE such column lost the entire CREATE TABLE.
+    """
+    tables = [("User_360", [_bool_field("SingleOwner", "0"), _bool_field("Flagged", "1")])]
+    expected = {"postgres": ("false", "true"), "firebird": ("FALSE", "TRUE"),
+                "mssql": ("0", "1"), "mysql": ("0", "1")}
+    for dialect, (off, on) in expected.items():
+        ddl = M.emit_ddl(tables, [], dialect)
+        assert ("DEFAULT %s," % off) in ddl, (dialect, ddl)
+        assert ("DEFAULT %s" % on) in ddl, (dialect, ddl)
+        for bad in ("BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT 1"):
+            assert bad not in ddl, (dialect, bad, ddl)
+
+
+def test_a_non_boolean_default_is_still_passed_through_unchanged():
+    """The boolean translation must not touch the integer defaults that were always correct."""
+    f = dict(name="Retries", caption="", hfsql="4-byte integer", key="int4",
+             size=None, default="7", components=None)
+    assert "Retries INTEGER DEFAULT 7" in M.emit_ddl([("T", [f])], [], "postgres")
+
+
+def test_an_unreadable_boolean_default_is_dropped_and_named():
+    """A boolean default that is neither true nor false is not guessed at - and never emitted."""
+    ddl = M.emit_ddl([("T", [_bool_field("Odd", "7")])], [], "postgres")
+    assert "DEFAULT" not in ddl.split("CREATE TABLE")[1], ddl
+    assert "REVIEW: Odd is a boolean" in ddl, ddl
+
+
+def test_review_notes_sit_above_the_create_table_not_inside_it():
+    """A comment emitted between 'CREATE TABLE x (' and the first column reads as a broken file."""
+    ddl = M.emit_ddl([("T", [_bool_field("Odd", "maybe")])], [], "postgres")
+    assert ddl.index("-- REVIEW: Odd") < ddl.index("CREATE TABLE"), ddl
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failures = []

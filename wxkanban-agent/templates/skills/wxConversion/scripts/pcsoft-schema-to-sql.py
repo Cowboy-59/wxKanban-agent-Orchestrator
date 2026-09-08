@@ -34,7 +34,8 @@ TYPEMAP = {
         "varchar": "VARCHAR({n})", "uvarchar": "VARCHAR({n})",
         "text": "BLOB SUB_TYPE TEXT", "blob": "BLOB SUB_TYPE BINARY",
         "boolean": "BOOLEAN", "date": "DATE", "time": "TIME", "datetime": "TIMESTAMP",
-        "numeric": "NUMERIC(18,4)", "double": "DOUBLE PRECISION",
+        "numeric": "NUMERIC(18,4)", "money": "NUMERIC(24,6)",
+        "double": "DOUBLE PRECISION",
     },
     "postgres": {
         "uint2": "INTEGER", "float4": "REAL",
@@ -42,6 +43,7 @@ TYPEMAP = {
         "uint1": "INTEGER", "varchar": "VARCHAR({n})", "uvarchar": "VARCHAR({n})",
         "text": "TEXT", "blob": "BYTEA", "boolean": "BOOLEAN", "date": "DATE",
         "time": "TIME", "datetime": "TIMESTAMPTZ", "numeric": "NUMERIC(18,4)",
+        "money": "NUMERIC(24,6)",
         "double": "DOUBLE PRECISION",
     },
     "mssql": {
@@ -50,6 +52,7 @@ TYPEMAP = {
         "uint1": "INT", "varchar": "NVARCHAR({n})", "uvarchar": "NVARCHAR({n})",
         "text": "NVARCHAR(MAX)", "blob": "VARBINARY(MAX)", "boolean": "TINYINT", "date": "DATE",
         "time": "TIME", "datetime": "DATETIME2", "numeric": "DECIMAL(18,4)",
+        "money": "DECIMAL(24,6)",
         "double": "FLOAT",
     },
     "mysql": {
@@ -57,8 +60,42 @@ TYPEMAP = {
         "identifier": "BIGINT", "int8": "BIGINT", "int4": "INT", "uint4": "INT UNSIGNED",
         "uint1": "INT", "varchar": "VARCHAR({n})", "uvarchar": "VARCHAR({n})",
         "text": "LONGTEXT", "blob": "LONGBLOB", "boolean": "TINYINT(1)", "date": "DATE",
-        "time": "TIME", "datetime": "DATETIME", "numeric": "DECIMAL(18,4)", "double": "DOUBLE",
+        "time": "TIME", "datetime": "DATETIME", "numeric": "DECIMAL(18,4)",
+        "money": "DECIMAL(24,6)", "double": "DOUBLE",
     },
+}
+
+# Boolean DEFAULT literals, per dialect. HFSQL prints a boolean item's default as the NUMBER 0 or
+# 1, and passing that straight through is only valid where the target maps boolean onto an integer
+# type. PostgreSQL and Firebird map it onto a real BOOLEAN, which rejects an integer default
+# outright ("column is of type boolean but default expression is of type integer") - and because
+# that error aborts the WHOLE statement, one such column costs the entire CREATE TABLE, every index
+# on it, and any foreign key referencing it. Reported from the field (wxKanban ee8dc32e): 12
+# columns took out 7 tables, among them a 104-column detail table and the app's permission table.
+# The client's own WinDev PostgreSQL export writes DEFAULT false, so this is the demonstrated
+# behavior of the tool being reverse-engineered rather than a guess on our part.
+BOOL_DEFAULTS = {
+    "firebird": ("FALSE", "TRUE"),   # Firebird 3+ BOOLEAN takes TRUE/FALSE/UNKNOWN, never 0/1
+    "postgres": ("false", "true"),
+    "mssql": ("0", "1"),             # TINYINT - the numeric default is already the correct one
+    "mysql": ("0", "1"),             # TINYINT(1) - ditto
+}
+
+# What the analysis may print in the 'Default value' column for a boolean item. Anything else is
+# not translated (see default_clause): a boolean default we cannot read is left out and named.
+BOOL_LITERALS = {"0": 0, "1": 1, "false": 0, "true": 1, "no": 0, "yes": 1}
+
+# Nothing in this pipeline executes what it generates, and a syntax check would not have caught the
+# defect above - 'BOOLEAN DEFAULT 0' parses perfectly and fails at execution. Firebird is worse
+# still: it ACCEPTS the column and then fails on the first INSERT that relies on the default
+# ("conversion error from string \"0\""), so the DDL applies green and the data load breaks later.
+# Until the run can verify itself, it at least tells the operator how to.
+VERIFY_HINT = {
+    "postgres": 'createdb ddlcheck && psql -d ddlcheck -f "{f}" 2>&1 | grep "ERROR:"',
+    "firebird": 'isql -i "{f}" -o /dev/null <newdb.fdb>   # then INSERT one row per table:'
+                ' a bad boolean default only fails on use',
+    "mssql": 'sqlcmd -S <server> -d ddlcheck -i "{f}"',
+    "mysql": 'mysql --database=ddlcheck < "{f}"',
 }
 
 # HFSQL type label (as it appears in the doc) -> internal key. Order matters (longest first).
@@ -85,8 +122,8 @@ HFSQL = [
     ("DateTime", "datetime"),
     ("Date", "date"),
     ("Time", "time"),
-    ("Currency", "numeric"),
-    ("Monetary", "numeric"),
+    ("Currency", "money"),
+    ("Monetary", "money"),
     ("Numeric", "numeric"),
     ("Decimal", "numeric"),      # field-reported; confirmed by the developer via --type-map
     ("Real", "double"),
@@ -109,6 +146,11 @@ HEADER_LABELS = {"Caption", "Type", "Size", "Unique Key", "Key with Duplicates",
 # Date and Time item. It belongs to the type, not to the next field, so it must be consumed with
 # the type — left in place it is read as the NEXT field's name and shifts everything after it.
 DATE_FORMAT_ANNOTATION_RE = re.compile(r"^\([ymdhsc]+\)$")
+
+# A per-language caption override marker: a two-letter language code and a colon, alone on a line
+# ("ES:", "FR:", "GB:"). Deliberately exactly two letters - an item name cannot contain a colon, so
+# this cannot swallow a real field.
+LANG_MARKER_RE = re.compile(r"^[A-Za-z]{2}:$")
 
 # A bare single capitalized word in the TYPE position, immediately followed by a purely numeric
 # line, is the "Type / Size" shape this document family uses for every sized type (String width,
@@ -484,6 +526,20 @@ def parse_table(path, unmapped=None):
             follower_is_type = k + 2 < n and match_type(body[k + 2])[0] is not None
             if not follower_is_type:
                 default = body[k]; k += 1
+        # A caption translated in the WinDev/WebDev IDE prints after the field's type/size/default
+        # as a language marker line ("ES:", "FR:") followed by the translated text. The marker
+        # itself fails ITEM_NAME_RE and is skipped harmlessly, but the translated word on the next
+        # line looks exactly like an identifier and was adopted as the NEXT field's name - the real
+        # field then lost its name and inherited the bogus one's position. One export carried 18 of
+        # these, each destroying one column (wxKanban 04c3c5d0). Consume both lines here, where the
+        # field they belong to is still in hand.
+        #
+        # An enumeration legend uses the same marker with SEVERAL following lines ("FR:" / "1 :
+        # Monsieur" / "2 : Madame"); consuming the first costs nothing, because the rest do not
+        # look like identifiers and are skipped as strays exactly as they are today.
+        while k + 1 < n and LANG_MARKER_RE.match(body[k]):
+            k += 2
+
         fields.append(dict(name=fname, caption=caption, hfsql=lbl, key=key,
                            size=size, default=default, components=components))
         i = k
@@ -519,13 +575,29 @@ def declared_item_count(schema_path):
     return None
 
 
-def parse_links(schema_path):
-    """Return list of (src_tbl, src_item, dst_tbl, dst_item) FK relationships."""
+# The Links section's row label for the table pair. Exports disagree on the word: WinDev prints
+# "Data file", WinDev desktop English prints "File", and WebDev prints "Table". Anchoring on the
+# one spelling returned an empty link list with NO warning, so a schema kept all its tables and
+# columns and lost EVERY relationship - which looks plausible rather than broken, and so went
+# unnoticed. One report went from 0 to 84 real FKs on widening this (wxKanban 6ff76692, 11207b9f).
+LINK_ROW_LABELS = ("Data file", "File", "Table")
+
+
+def parse_links(schema_path, known_tables=None):
+    """
+    Return list of (src_tbl, src_item, dst_tbl, dst_item) FK relationships.
+
+    `known_tables` gates the broadened anchor: "File" and "Table" are ordinary words that can occur
+    outside a Links row, so when the caller knows the real table names a candidate whose two
+    following lines are not both tables is rejected rather than emitted as a bogus FK.
+    """
     txt = [l.strip() for l in open(schema_path, encoding="utf-8").read().split("\n")]
     links = []
     i = 0
     while i < len(txt):
-        if txt[i] == "Data file" and i + 2 < len(txt):
+        if txt[i] in LINK_ROW_LABELS and i + 2 < len(txt) \
+                and (known_tables is None
+                     or (txt[i + 1] in known_tables and txt[i + 2] in known_tables)):
             src_tbl, dst_tbl = txt[i + 1], txt[i + 2]
             # next "Item" then two item lines
             j = i + 3
@@ -587,7 +659,41 @@ _BINDING_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\
 
 
 def parse_item_dictionary(schema_path, known_tables):
-    """Map each Item-dictionary entry to the lower-cased data files that use it.
+    """Map each Item-dictionary entry to the lower-cased data files that use it."""
+    return _parse_item_dictionary_full(schema_path, known_tables)[0]
+
+
+def declared_column_items(schema_path, known_tables):
+    """
+    How many dictionary entries could ever BE a column, and why the rest cannot.
+
+    Returns (usable_count, composite_count, usable_names). The analysis's own "Nb items" figure
+    counts every entry in
+    the Item dictionary, and two whole classes of entry are never columns:
+
+      <Unused>      an item belonging to no data file at all (543 of 1272 on one export)
+      Composite key a key over other columns, emitted as an INDEX, never as a column (~109 on
+                    another)
+
+    Comparing the recovered column names against the raw figure therefore under-counts by design,
+    and the run printed "!! INCOMPLETE ... 574 short" / "210 short" over schemas that were in fact
+    complete - verified on one of them against the client's own WinDev DDL, column for column. That
+    warning sends the developer hunting columns that were never missing, and worse, it trains them
+    to ignore the one warning that would matter when something IS lost (wxKanban a075d21f,
+    11207b9f).
+    """
+    items, types = _parse_item_dictionary_full(schema_path, known_tables)
+    composite = {n for n, ts in types.items() if any(_is_composite_type(t) for t in ts)}
+    usable = {n for n in items if n not in composite}
+    return len(usable), len(composite), usable
+
+
+def _is_composite_type(label):
+    return bool(label) and match_type(label)[1] == "composite"
+
+
+def _parse_item_dictionary_full(schema_path, known_tables):
+    """Map each Item-dictionary entry to the lower-cased data files that use it, and its type(s).
 
     The dictionary prints a name ONCE, then one "Type / Size / keys / <data file>" group per data
     file that uses it — the name is not reprinted for the second and later usages. Groups are
@@ -597,8 +703,10 @@ def parse_item_dictionary(schema_path, known_tables):
     """
     if not os.path.exists(schema_path):
         return {}
+    if not os.path.exists(schema_path):
+        return {}, {}
     tables_lc = {t.lower() for t in known_tables}
-    items, cur, buf, in_dict = {}, None, [], False
+    items, types, cur, buf, in_dict = {}, {}, None, [], False
     for raw in open(schema_path, encoding="utf-8").read().split("\n"):
         line = raw.strip()
         if not line:
@@ -619,10 +727,15 @@ def parse_item_dictionary(schema_path, known_tables):
                     cur = buf[0]
             if cur:
                 items.setdefault(cur, set()).add(line.lower())
+                # The type sits in the group next to the name when the name was printed, and
+                # first in the group on a reused item where it was not.
+                for cand in (buf[1:2] or buf[0:1]):
+                    if match_type(cand)[0] is not None:
+                        types.setdefault(cur, set()).add(cand)
             buf = []
             continue
         buf.append(line)
-    return items
+    return items, types
 
 
 def harvest_control_bindings(src_dir, known_tables):
@@ -721,6 +834,13 @@ def recover_truncated_names(tables, src_dir):
                 continue
             else:
                 continue
+            # Take the CASING from the printed name and only the missing TAIL from the oracle.
+            # The dictionary Titlecases camelCase identifiers, so adopting its spelling wholesale
+            # turned pacePlanningIntergratio into Paceplanningintergration - and a driver keys each
+            # result row by the column's exact spelling, so a Titlecased name reads back undefined
+            # in TypeScript. The printed prefix came from the same PDF and its casing is
+            # trustworthy; only the part the column cut off is unknown (wxKanban a31aac60).
+            choice = name + choice[len(name):]
             f["name"] = choice
             present.discard(name.lower())
             present.add(choice.lower())
@@ -789,6 +909,31 @@ def col_type(f, dialect):
     return t
 
 
+def default_clause(f, dialect):
+    """
+    Render " DEFAULT <literal>" for a field, plus a REVIEW note when one is needed.
+
+    Returns (clause, note). Both may be empty. Only the types that carried a default before are
+    considered - widening that set is a separate question from rendering the ones we already emit.
+
+    A boolean's literal is chosen per dialect instead of passed through, because the HFSQL number
+    is only valid SQL on the targets that map boolean onto an integer (see BOOL_DEFAULTS). An
+    unreadable boolean default is DROPPED and named rather than emitted: this file's standing rule
+    is that a visible gap beats a value that parses and is wrong, and here a wrong value would not
+    even parse - it would silently cost the whole table.
+    """
+    d = f["default"]
+    if d is None or f["key"] not in ("boolean", "int4", "int8", "uint4", "uint1"):
+        return "", ""
+    if f["key"] != "boolean":
+        return f" DEFAULT {d}", ""
+    lit = BOOL_LITERALS.get(str(d).strip().lower())
+    if lit is None:
+        return "", (f"-- REVIEW: {f['name']} is a boolean whose default reads {d!r}, which is "
+                    f"neither true nor false - default omitted, set it by hand if it matters")
+    return f" DEFAULT {BOOL_DEFAULTS[dialect][lit]}", ""
+
+
 def report_unmapped(unmapped, out_dir):
     """
     Stop the run, name every unknown type, and leave a payload for upstream.
@@ -852,12 +997,59 @@ IDENT_RULES = {
 # left exactly as they are today.
 _BARE_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
-# Words that would parse as syntax rather than a name. Not exhaustive per dialect — the common
-# ones a legacy schema actually collides with.
+# Words that would parse as syntax rather than a name.
+#
+# This was a hand-picked list of "the common ones a legacy schema actually collides with", and a
+# partial list here does not degrade gracefully: an unquoted reserved word is a SYNTAX error, which
+# aborts the whole statement, so ONE such column costs the entire CREATE TABLE, every index on it
+# and any foreign key into it - the same blast radius as the boolean-default defect, and invisible
+# for the same reason (nothing in the pipeline executed the DDL). Executing the generated DDL for
+# four real converted applications found `Analyse` and `Binary` doing exactly that: eBusiness lost
+# three tables of twenty-three, BlueCube lost SysAudit.
+#
+# So it is now the UNION of the reserved words of all four target dialects. Over-quoting a name is
+# harmless; under-quoting one deletes a table.
 _RESERVED = {
-    "user", "order", "group", "table", "index", "key", "select", "from", "where", "check",
-    "default", "primary", "foreign", "references", "column", "value", "values", "date", "time",
-    "timestamp", "year", "month", "day", "level", "size", "type", "status", "language", "position",
+    # SQL / PostgreSQL reserved and type-function keywords
+    "all", "analyse", "analyze", "and", "any", "array", "as", "asc", "asymmetric", "authorization",
+    "between", "binary", "both", "case", "cast", "check", "collate", "collation", "column",
+    "concurrently", "constraint", "create", "cross", "current_catalog", "current_date",
+    "current_role", "current_schema", "current_time", "current_timestamp", "current_user",
+    "default", "deferrable", "desc", "distinct", "do", "else", "end", "except", "false", "fetch",
+    "for", "foreign", "freeze", "from", "full", "grant", "group", "having", "ilike", "in",
+    "initially", "inner", "intersect", "into", "is", "isnull", "join", "lateral", "leading",
+    "left", "like", "limit", "localtime", "localtimestamp", "natural", "not", "notnull", "null",
+    "offset", "on", "only", "or", "order", "outer", "overlaps", "placing", "primary", "references",
+    "returning", "right", "select", "session_user", "similar", "some", "symmetric", "table",
+    "tablesample", "then", "to", "trailing", "true", "union", "unique", "user", "using",
+    "variadic", "verbose", "when", "where", "window", "with",
+    # Types and near-keywords that are unsafe or confusing as bare names across these targets
+    "date", "time", "timestamp", "interval", "year", "month", "day", "hour", "minute", "second",
+    "index", "key", "value", "values", "level", "size", "type", "status", "language", "position",
+    "text", "char", "character", "varchar", "integer", "int", "smallint", "bigint", "decimal",
+    "numeric", "real", "double", "float", "boolean", "blob", "clob", "national",
+    # MySQL / MSSQL / Firebird additions that are not PostgreSQL-reserved
+    "change", "condition", "database", "databases", "delayed", "describe", "distinctrow", "div",
+    "dual", "each", "elseif", "enclosed", "escaped", "exit", "explain", "float4", "float8",
+    "force", "fulltext", "high_priority", "if", "ignore", "infile", "keys", "kill", "leave",
+    "lines", "load", "lock", "long", "longblob", "longtext", "low_priority", "match", "mediumblob",
+    "mediumint", "mediumtext", "middleint", "mod", "modifies", "no_write_to_binlog", "optimize",
+    "optionally", "out", "outfile", "purge", "read", "reads", "regexp", "rename", "repeat",
+    "replace", "require", "return", "revoke", "rlike", "schemas", "separator", "show", "spatial",
+    "sql_big_result", "sql_calc_found_rows", "sql_small_result", "ssl", "starting",
+    "straight_join", "terminated", "tinyblob", "tinyint", "tinytext", "trigger", "undo", "unlock",
+    "unsigned", "usage", "use", "utc_date", "utc_time", "utc_timestamp", "varbinary", "varcharacter",
+    "while", "write", "xor", "zerofill",
+    "backup", "browse", "bulk", "checkpoint", "clustered", "commit", "compute", "contains",
+    "containstable", "convert", "dbcc", "deny", "disk", "dump", "errlvl", "exec", "execute",
+    "file", "fillfactor", "freetext", "freetexttable", "goto", "holdlock", "identity",
+    "identity_insert", "identitycol", "nocheck", "nonclustered", "nullif", "of", "off", "offsets",
+    "open", "opendatasource", "openquery", "openrowset", "openxml", "over", "percent", "pivot",
+    "plan", "precision", "print", "proc", "procedure", "public", "raiserror", "read", "readtext",
+    "reconfigure", "restore", "restrict", "revert", "rollback", "rowcount", "rowguidcol", "rule",
+    "save", "schema", "securityaudit", "semantickeyphrasetable", "setuser", "shutdown",
+    "statistics", "textsize", "top", "tran", "transaction", "truncate", "try_convert", "tsequal",
+    "unpivot", "updatetext", "waitfor", "within", "writetext",
 }
 
 
@@ -941,7 +1133,10 @@ def emit_indexes(tname, fields, composites, dialect, used_names):
 
 
 def emit_ddl(tables, links, dialect):
-    out = [f"-- Firebird-ready DDL is dialect={dialect}. Generated from the HFSQL analysis.",
+    # The dialect word is interpolated, not spelled out: the header used to open "Firebird-ready
+    # DDL is dialect=mssql", naming one dialect in the prose and a different one in the value, in
+    # a file handed to a rebuild team (wxKanban 7ce2f50a defect 4).
+    out = [f"-- {dialect}-ready DDL. Generated from the HFSQL analysis.",
            "-- Names and types kept FAITHFUL (1:1) per the conversion choice.",
            "-- HFSQL composite keys are emitted as NON-UNIQUE indexes below each table.",
            "--",
@@ -953,14 +1148,18 @@ def emit_ddl(tables, links, dialect):
            "--      the legacy app allowed.",
            "--   2. Whether each index is still worth carrying. Ones captioned 'added by the",
            "--      optimizer' are HFSQL query-plan artifacts, marked as such below.",
-           "-- HFSQL has no unsigned/boolean parity on every target - verify edge cases.", ""]
+           "-- HFSQL has no unsigned/boolean parity on every target - verify edge cases.",
+           "--",
+           "-- NOT YET EXECUTED. This file has been generated, not run. Apply it to a THROWAWAY",
+           "-- database before you build on it - a statement can parse and still fail to execute:",
+           "--   " + VERIFY_HINT[dialect].format(f=f"schema.{dialect}.sql"),
+           ""]
     ident_clause = {
         "firebird": " GENERATED BY DEFAULT AS IDENTITY", "postgres": " GENERATED BY DEFAULT AS IDENTITY",
         "mssql": " IDENTITY(1,1)", "mysql": " AUTO_INCREMENT",
     }[dialect]
     used_names = set()          # constraint names must be unique after length-truncation
     for tname, fields in tables:
-        out.append(f"CREATE TABLE {quote_ident(tname, dialect)} (")
         cols, notes, pk = [], [], None     # cols get commas; notes are comment-only lines
         composites = []                    # HFSQL composite keys -> indexes, below
         for f in fields:
@@ -972,9 +1171,10 @@ def emit_ddl(tables, links, dialect):
             if f["key"] == "identifier":
                 coldef += ident_clause
                 pk = f["name"]
-            if f["default"] is not None and f["key"] in ("boolean", "int4", "int8",
-                                                          "uint4", "uint1"):
-                coldef += f" DEFAULT {f['default']}"
+            clause, note = default_clause(f, dialect)
+            coldef += clause
+            if note:
+                notes.append(note)
             cols.append((coldef, f["caption"]))
         if pk:
             pkname = constraint_name("PK", [tname], dialect, used_names)
@@ -984,7 +1184,8 @@ def emit_ddl(tables, links, dialect):
             comma = "," if idx < len(cols) - 1 else ""
             cmt = f"  -- {cap}" if cap else ""
             lines.append(f"  {coldef}{comma}{cmt}")
-        out.extend(notes)
+        out.extend(notes)              # comment-only lines belong ABOVE the statement, not inside it
+        out.append(f"CREATE TABLE {quote_ident(tname, dialect)} (")
         out.append("\n".join(lines))
         out.append(");")
         out.extend(emit_indexes(tname, fields, composites, dialect, used_names))
@@ -1000,8 +1201,28 @@ def emit_ddl(tables, links, dialect):
     return "\n".join(out) + "\n"
 
 
-def emit_er(tables, links, dialect):
-    out = ["# WW_Newsletter — Database (ER diagram & field reference)", "",
+def project_name(src_dir):
+    """
+    The converted application's name, from the splitter's own _project.md heading.
+
+    emit_er() used to hardcode "WW_Newsletter" - this skill's internal example project - into the
+    title of EVERY ER diagram it generated, so every customer handed their rebuild team a data
+    model named after an unrelated app (wxKanban 899d56da, 11207b9f). Falls back to "Application"
+    rather than guessing, since a wrong name is worse than a generic one.
+    """
+    for fn in ("_project.md", "index.md"):
+        path = os.path.join(src_dir, fn)
+        if not os.path.isfile(path):
+            continue
+        for line in open(path, encoding="utf-8").read().splitlines()[:40]:
+            m = re.match(r"^#\s+(.+?)(?:\s+[-–—]\s+.*)?$", line.strip())
+            if m and m.group(1).strip():
+                return m.group(1).strip()
+    return "Application"
+
+
+def emit_er(tables, links, dialect, app_name="Application"):
+    out = [f"# {app_name} — Database (ER diagram & field reference)", "",
            f"_Generated from the HFSQL analysis. Target dialect: **{dialect}**. "
            f"Field names/types kept faithful (1:1)._", "",
            "## Entity-relationship diagram", "", "```mermaid", "erDiagram"]
@@ -1081,7 +1302,8 @@ def main():
     # a name corrected afterwards would leave the foreign keys pointing at the cut spelling.
     renamed, unresolved_names = recover_truncated_names(tables, args.src)
 
-    links = parse_links(os.path.join(args.src, "_schema.md"))
+    schema_md = os.path.join(args.src, "_schema.md")
+    links = parse_links(schema_md, known_tables={t for t, _ in tables})
     if renamed:
         links = apply_renames_to_links(links, renamed)
 
@@ -1092,7 +1314,7 @@ def main():
     # findings and stamps the watermark on .md, so the manual stamp_markdown call that used to wrap
     # the ER diagram is gone rather than duplicated.
     rd.write_text(sql_path, emit_ddl(tables, links, args.dialect), state)
-    rd.write_text(er_path, emit_er(tables, links, args.dialect), state)
+    rd.write_text(er_path, emit_er(tables, links, args.dialect, project_name(args.src)), state)
 
     nfields = sum(len(f) for _, f in tables)
     print(f"dialect={args.dialect}  tables={len(tables)}  fields={nfields}  links={len(links)}")
@@ -1112,16 +1334,28 @@ def main():
     # then short before this parser ever sees it). Until that is separated, exiting non-zero here
     # would block conversions this stage did nothing wrong in. A visible number the developer can
     # act on is the honest version.
-    declared = declared_item_count(os.path.join(args.src, "_schema.md"))
+    declared = declared_item_count(schema_md)
     if declared:
-        distinct = len({f["name"] for _, fl in tables for f in fl})
-        if distinct < declared:
-            print(f"  !! INCOMPLETE: the analysis declares {declared} items; this run recovered "
-                  f"{distinct} distinct item names ({declared - distinct} short).")
+        distinct = len({f["name"] for _, fl in tables for f in fl if f["key"] != "composite"})
+        # Compare like with like: the raw "Nb items" figure counts dictionary entries that can
+        # never be a column. Where the Item dictionary is readable, count only the entries that
+        # could be one; where it is not, say which number is being used rather than implying a
+        # precision this check does not have.
+        usable, ncomposite, _ = declared_column_items(schema_md, {t for t, _ in tables})
+        if usable:
+            basis = (f"{usable} of {declared} dictionary items can be columns "
+                     f"({declared - usable - ncomposite} unused, {ncomposite} composite keys)")
+            target = usable
+        else:
+            basis = f"{declared} declared by the analysis (Item dictionary not readable)"
+            target = declared
+        if distinct < target:
+            print(f"  !! INCOMPLETE: {basis}; this run recovered {distinct} distinct column names "
+                  f"({target - distinct} short).")
             print("     Columns are missing from the generated DDL. Check the source PDF for the "
                   "affected tables before building on this schema, and report the shortfall.")
         else:
-            print(f"  items: {distinct} distinct / {declared} declared by the analysis")
+            print(f"  items: {distinct} distinct columns / {basis}")
 
     if renamed or unresolved_names:
         trunc_path = os.path.join(args.out, "truncated-names.md")

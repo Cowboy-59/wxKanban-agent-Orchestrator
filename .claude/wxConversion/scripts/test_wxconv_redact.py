@@ -83,6 +83,37 @@ def test_positional_skips_nested_call_arguments():
     assert '"a"' in out and '"b"' in out
 
 
+def test_positional_email_session_secret():
+    """
+    wxKanban 6217e40a: a live SMTP secret sat in the SECOND positional argument of
+    EmailStartSMTPSession. No key appears anywhere near it, so no key-based matcher could reach it
+    - the split reported "REDACTED 2 credential literal(s)" and every later --scan-only pass
+    reported the artifact clean while the credential sat in it in plaintext.
+    """
+    out, found, _ = _red(
+        'EmailStartSMTPSession("support@example.com", "hunter2", "smtp.example.org", "587", '
+        'False, emailOptionSecuredTLS)')
+    assert [f.key for f in found] == ["user", "password"], found
+    assert "hunter2" not in out
+    # Everything else in that call is legitimate rebuild signal and must survive untouched.
+    for keep in ('"smtp.example.org"', '"587"', "emailOptionSecuredTLS"):
+        assert keep in out, keep
+
+
+def test_positional_ftp_connect_secret_is_the_third_argument():
+    out, found, _ = _red('FTPConnect("ftp.example.org", "ftpuser", "hunter2")')
+    assert [f.key for f in found] == ["user", "password"], found
+    assert "hunter2" not in out and "ftpuser" not in out
+    assert '"ftp.example.org"' in out
+
+
+def test_positional_pop3_and_imap_sessions():
+    for fn in ("EmailStartPOP3Session", "EmailStartIMAPSession"):
+        out, found, _ = _red('%s("box@example.com", "hunter2", "mail.example.org")' % fn)
+        assert [f.key for f in found] == ["user", "password"], (fn, found)
+        assert "hunter2" not in out, fn
+
+
 # ------------------------------------------------------------------- embedded connection strings
 
 def test_embedded_connection_string_is_redacted_whole():
@@ -397,7 +428,8 @@ def test_console_output_is_ascii_only():
 
 def test_scan_report_is_explicit_when_clean():
     report = rd.render_scan_report([], "/proj")
-    assert "no credential literals found" in report, "silence must never look like a skipped run"
+    assert "no credential literals matched" in report, "silence must never look like a skipped run"
+    assert "not proof the output is clean" in report, "a clean scan must not read as an all-clear"
 
 
 # ---------------------------------------------------------------------------- dependencies

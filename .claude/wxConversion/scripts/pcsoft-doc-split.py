@@ -109,12 +109,12 @@ def strip_header(page_text: str, project_name: str, page_no: int) -> str:
 
 # ---- element-key extraction per part -------------------------------------------------
 
-WRAPPER_SEGS = {"Data files and items", "Files and items", "Analysis", "Project", "Page",
-                "Query", "Set of procedures", "..."}
+WRAPPER_SEGS = {"Data files and items", "Files and items", "Tables and items", "Analysis",
+                "Database schema", "Project", "Page", "Query", "Set of procedures", "..."}
 
 # Breadcrumb subsection labels that mark a per-data-file structure dump. WinDev desktop docs
 # use "Files and items"; some WebDev variants use "Data files and items".
-TABLE_SUBSECTIONS = ("Data files and items", "Files and items")
+TABLE_SUBSECTIONS = ("Data files and items", "Files and items", "Tables and items")
 
 # Exact-string matching against English cost one customer 48 tables: their export used a heading
 # variant not in the tuple, every data-file page fell through to the "schema" bucket, and the run
@@ -166,6 +166,11 @@ def is_table_subsection(sub, extra=()):
 TYPE_KIND = {
     "Project": "project",
     "Analysis": "analysis",                  # -> table (per data file) or schema (overview)
+    # WebDev exports name the analysis "Database schema" and its per-table subsection "Tables and
+    # items". Unmapped, the Type classified as nothing and the ENTIRE data model went to
+    # _discarded.md while the run exited 0 - 296 pages and all 112 tables on one report
+    # (wxKanban 11207b9f), 27 of 30 pages and all 12 tables on another (b9942029).
+    "Database schema": "analysis",
     "Query": "qry",
     "Report": "report",
     "Set of procedures": "proc",
@@ -186,7 +191,11 @@ ELIDED_RE = re.compile(r"^\.{2,}$|^…$")
 # The per-data-file page opens with "<name> data file items" (and its localized equivalents),
 # which is how an elided breadcrumb is recovered from content.
 ITEM_HEADER_RE = re.compile(
-    r"^(?P<name>\S+)\s+(?:data\s+file\s+items"          # en
+    # "data" is optional: WinDev desktop English prints "<name> file items" and WebDev prints
+    # "<name> table items", where other exports print "<name> data file items". Requiring the
+    # full phrase cost one conversion all 145 data files - 151 pages went to _discarded.md and
+    # Stage 3 refused for want of any *.table.md (wxKanban 3060d36a, b9942029).
+    r"^(?P<name>\S+)\s+(?:(?:data\s+)?(?:file|table)\s+items"   # en
     r"|rubriques\s+du\s+fichier"                        # fr
     r"|campos\s+del\s+(?:fichero|archivo)"              # es
     r"|elemente\s+der\s+datei|felder\s+der\s+datei"     # de
@@ -203,7 +212,11 @@ ITEM_HEADER_RE = re.compile(
 # The label wraps ("Number of data" / "files"), so the labels are matched on their leading words.
 _COUNT_LABELS = (
     re.compile(r"^generation\s*#", re.I),
-    re.compile(r"^(number of data|nb (data )?files|nombre de fichiers)", re.I),
+    # "Number of tables" is the WebDev wording; PPE prints the label WRAPPED across two lines
+    # ("Number of data" / "files"), so the file-word tail must stay optional or the gate that
+    # compares declared-vs-written silently never runs (wxKanban 11207b9f).
+    re.compile(r"^(number of (data|tables?)|nb (data )?(files?|tables?)"
+               r"|nombre de (fichiers|tables))", re.I),
 )
 
 
@@ -238,6 +251,113 @@ def recover_table_name(body):
     return None
 
 
+# Words that mean "the data model" in a breadcrumb Type, across the export languages this kit has
+# met. Used only by the safety gate below - never to classify a page - so a loose match here costs
+# at most a warning, while a miss costs the entire schema.
+_ANALYSIS_TYPE_WORDS = ("analys", "analis", "schema", "schéma", "esquema", "datenmodell", "modele")
+
+
+def _looks_like_analysis_type(typ):
+    """True when a breadcrumb Type names the data model, whether or not TYPE_KIND maps it."""
+    folded = _fold(typ or "")
+    return any(w in folded for w in (_fold(x) for x in _ANALYSIS_TYPE_WORDS))
+
+
+def recover_element_name(body):
+    """
+    Find an element's name from a page body when the breadcrumb carried no Element segment.
+
+    The first content page of each Part carries a divider-style breadcrumb ("Part N > Type") with
+    no Element, so classify() places the Type but leaves name None and key_for() then drops the
+    page. It is real content: on one export it cost a class its opening declarations and a
+    procedure set its first procedure, and on another an entire query's General information
+    section (wxKanban 19db1f08, a075d21f).
+
+    Such a page opens with the element name and then its subsection. The Part DIVIDER page itself
+    opens with "Part N", which is what excludes it from this recovery.
+    """
+    lines = [l.strip() for l in (body or "").split("\n") if l.strip()]
+    if not lines or re.match(r"^Part\s+\d+", lines[0]):
+        return None
+    # An element name is an identifier, never a sentence: this is the same shape test the item
+    # parser uses, and it is what keeps prose pages from inventing an element.
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.\-]*", lines[0]) and len(lines[0]) <= 64:
+        return lines[0]
+    return None
+
+
+# A breadcrumb segment that is a filesystem path to the analysis. Analysis breadcrumbs embed it,
+# which is precisely why they are the ones PCSoft elides for width.
+# No trailing word boundary: this replaced a plain `".ana" in s` substring test, and a boundary
+# would stop excluding a segment like "Model.analysis" that the substring test excluded.
+ANALYSIS_PATH_RE = re.compile(r"\.(?:wda|ana)", re.I)
+
+
+def name_from_breadcrumb(segs, extra=()):
+    """
+    The element name a breadcrumb carries, ignoring wrapper labels and filesystem paths.
+
+    An elided Type does not erase the name. 'Part 2 > ... > Tables and items > Job_Spec >
+    Tables and items' still says Job_Spec, which is why this is a stronger recovery than reading
+    the page body: the body header is printed only on a table's FIRST page, and only in wordings
+    the header regex happens to know.
+
+    Subsection labels are excluded BY MEANING as well as by the wrapper set, because a heading
+    variant that only is_table_subsection() recognises would otherwise survive the filter and be
+    returned as the table's own name.
+    """
+    cand = [s for s in segs[:-1]
+            if s not in WRAPPER_SEGS and not s.startswith("Part")
+            and not ANALYSIS_PATH_RE.search(s) and "\\" not in s
+            and not is_table_subsection(s, extra)]
+    return cand[-1] if cand else None
+
+
+def breadcrumb_is_analysis(segs, extra=()):
+    """
+    True when a breadcrumb belongs to the data model even though its Type segment was elided.
+
+    Two independent signals, either of which is conclusive: a segment that is the .wda/.ana path,
+    or a segment that names a per-data-file item dump.
+    """
+    return any(ANALYSIS_PATH_RE.search(s) or is_table_subsection(s, extra) for s in (segs or []))
+
+
+def place_elided_page(typ, sub, segs, body, extra=()):
+    """
+    Place a page whose breadcrumb Type PCSoft elided to "...", or return None to leave it alone.
+
+    PCSoft elides when the breadcrumb is too wide, and Analysis breadcrumbs embed the full
+    .ana/.wda filesystem path — so Analysis pages are exactly the ones that get elided, and the
+    pages lost this way are the ones with the LONGEST names, not the least important ones.
+
+    Three sources of truth, strongest first:
+
+    1. the page body's "<name> ... items" header — but it is printed only on a table's FIRST page,
+       and only in the wordings ITEM_HEADER_RE knows;
+    2. the BREADCRUMB, which names the table on EVERY page of it. One WEBDEV export lost all 43
+       tables and its entire analysis because only (1) was tried and its body header used a
+       wording ITEM_HEADER_RE did not have — 109 pages discarded on a run that exited 0
+       (wxKanban 7ce2f50a). `--table-subsection` could not rescue it either: that flag feeds only
+       is_table_subsection(), which classify() consults on its 'Analysis' branch, and an elided
+       Type never reaches that branch. Consulting it HERE is what makes the documented remedy work
+       for the case that actually needs it;
+    3. failing a name, whether the breadcrumb proves this is the data model at all — the Item
+       dictionary, the ER chart, General information, Links carry no element name, and _schema.md
+       is what reads them. Without them Stage 3 has no dictionary to reconcile against.
+    """
+    if not ELIDED_RE.match(typ or ""):
+        return None
+    name = recover_table_name(body)
+    if not name and is_table_subsection(sub, extra):
+        name = name_from_breadcrumb(segs, extra)
+    if name:
+        return ("table", name, "Data files and items")
+    if breadcrumb_is_analysis(segs, extra):
+        return ("schema", None, sub or "Analysis")
+    return None
+
+
 def classify(segs):
     """
     Map a page's breadcrumb to (part_num, group_kind, element_name, subsection).
@@ -256,10 +376,7 @@ def classify(segs):
         return (part, "project", None, sub)
     if kind == "analysis":
         if is_table_subsection(sub, EXTRA_TABLE_SUBSECTIONS):
-            cand = [s for s in segs[:-1]
-                    if s not in WRAPPER_SEGS and not s.startswith("Part")
-                    and ".wda" not in s and ".ana" not in s and "\\" not in s]
-            name = cand[-1] if cand else None
+            name = name_from_breadcrumb(segs, EXTRA_TABLE_SUBSECTIONS)
             if name:
                 return (part, "table", name, "Data files and items")
         return (part, "schema", None, sub)
@@ -351,12 +468,50 @@ def main():
         #
         # The body still says "<name> data file items", so the element is recoverable from content
         # when the breadcrumb is not.
-        if kind in (None, "other") and ELIDED_RE.match(typ or ""):
-            recovered = recover_table_name(body)
-            if recovered:
-                kind, name, sub = "table", recovered, "Data files and items"
+        placed = place_elided_page(typ, sub, segs, body, EXTRA_TABLE_SUBSECTIONS) \
+            if kind in (None, "other") else None
+        if placed:
+            kind, name, sub = placed
 
         pages.append(dict(no=i + 1, part=part, kind=kind, name=name, sub=sub, typ=typ, body=body))
+
+    # Pass 1b: recover pages the breadcrumb alone could not place.
+    #
+    # Two shapes, both of which discarded real content while the run exited 0:
+    #
+    #  (a) An ELIDED Type ("...") on a page of the Analysis. PCSoft elides when the breadcrumb is
+    #      too wide, and Analysis breadcrumbs embed the full .ana/.wda filesystem path, so Analysis
+    #      pages are exactly the ones that get elided. The content-based recovery above only reaches
+    #      a table's FIRST page, because "<name> ... items" is printed only there - so continuation
+    #      pages, composite keys, and the whole Item dictionary were still lost (one export's
+    #      _schema.md came out 14KB instead of 100KB, and a table vanished entirely). Which Part
+    #      carries the Analysis is LEARNED from the pages whose Type classified normally, because
+    #      part numbering is not stable across exports and must not be hardcoded.
+    #
+    #  (b) A Part-DIVIDER breadcrumb, which names a Type but no Element (see recover_element_name).
+    analysis_parts = {p["part"] for p in pages if p["kind"] in ("schema", "table")}
+    for idx, p in enumerate(pages):
+        if p["kind"] in (None, "other") and ELIDED_RE.match(p["typ"] or "") \
+                and p["part"] in analysis_parts:
+            recovered = recover_table_name(p["body"])
+            if recovered:
+                p.update(kind="table", name=recovered, sub="Data files and items")
+            else:
+                # A continuation page, the Item dictionary, General information or Links. It
+                # belongs to the analysis even though no name is recoverable from it; "schema"
+                # is the bucket that keeps it, and _schema.md is what reads it downstream.
+                p.update(kind="schema", sub=p["sub"] or "Analysis")
+
+        if p["kind"] in ("table", "page", "qry", "report", "proc") and not p["name"]:
+            recovered = recover_element_name(p["body"])
+            if not recovered:
+                # A title-only lead-in page carries no name of its own; it belongs to the element
+                # that starts on the next page, which does carry the full breadcrumb.
+                nxt = pages[idx + 1] if idx + 1 < len(pages) else None
+                if nxt and nxt["kind"] == p["kind"] and nxt["name"]:
+                    recovered = nxt["name"]
+            if recovered:
+                p["name"] = recovered
 
     # Pass 2: group into elements
     elements = {}
@@ -549,14 +704,28 @@ def main():
         return 3
 
     tables_written = by_kind.get("table", [0, 0])[0]
-    analysis_pages = [p for p in pages if p.get("kind") in ("table", "schema")]
+    # The gate used to look only at pages ALREADY classified as analysis, which is precisely the
+    # set that is empty when the failure is an unrecognised Type: one export named the analysis
+    # "Database schema", nothing classified as analysis, and so the hard stop built for exactly
+    # this case never saw it - 296 pages and all 112 tables were discarded on a green run
+    # (wxKanban 11207b9f). Trigger on the Type WORD as well, so a Type wording nobody has met yet
+    # still stops the run instead of silently emptying the data model.
+    analysis_pages = [p for p in pages if p.get("kind") in ("table", "schema")
+                      or _looks_like_analysis_type(p.get("typ"))]
     if analysis_pages and tables_written == 0 and not args.allow_no_tables:
         seen_subs = sorted({p.get("sub") for p in analysis_pages if p.get("sub")})
+        unmapped_types = sorted({p.get("typ") for p in analysis_pages
+                                 if p.get("kind") in (None, "other") and p.get("typ")})
         print("", file=sys.stderr)
         print(f"doc-split: the Analysis has {len(analysis_pages)} page(s) but produced ZERO data "
               "files.", file=sys.stderr)
         print("  Almost always this is a subsection heading the splitter does not recognise, not an "
               "analysis with no tables.", file=sys.stderr)
+        if unmapped_types:
+            print("  Breadcrumb Type(s) that look like an analysis but are NOT mapped:",
+                  file=sys.stderr)
+            for t in unmapped_types[:8]:
+                print(f"      {t}", file=sys.stderr)
         print("  Subsection headings seen under Analysis:", file=sys.stderr)
         for sub in seen_subs[:12]:
             print(f"      {sub}", file=sys.stderr)
