@@ -377,8 +377,25 @@ function resolveTarBinary() {
 // projects. Unconditional and on every path: an upgrade that proceeds without
 // one is exactly the upgrade people lost files to.
 
+// [SPEC 121 / T019] The snapshot used to land as an EXPANDED directory tree at
+// .wxai/kit-upgrade-snapshot-<stamp>/. That put a second, byte-identical copy of
+// every kit file — 50 `*.test.ts` among them — inside the project, where any
+// glob-driven tool finds it: vitest/jest discovery, `tsc` includes, eslint and
+// biome sweeps, ripgrep. Reported from the field as a known-failing kit test that
+// silently doubled to two failing files on any day an upgrade had run, with
+// nothing to say the second was a backup copy rather than a new regression.
+// `.wxai/` being a dot-directory does not help — vitest globs with `dot: true`.
+//
+// So the durable artifact is now a single ARCHIVE file, which no source-file glob
+// can match. The expanded copy still exists for the length of the run — T005's
+// package.json merge reads it — but it is staged in the OS temp dir, outside the
+// project, and removed when the run ends.
 const SNAPSHOT_PREFIX = 'kit-upgrade-snapshot-';
 const SNAPSHOT_RETAIN = 2;
+// zip on Windows: Explorer opens it natively and Expand-Archive restores it, so a
+// hand recovery needs no extra tooling. bsdtar writes both formats.
+const SNAPSHOT_EXT = process.platform === 'win32' ? '.zip' : '.tar.gz';
+const STAGING_PREFIX = 'kit-staging-';
 
 /**
  * Every path the archive carries, so the snapshot covers what will actually be
@@ -435,23 +452,25 @@ function snapshotBeforeUpgrade(archivePath, { dryRun = false } = {}) {
   }
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const dir = path.join(root, '.wxai', `${SNAPSHOT_PREFIX}${stamp}`);
 
   if (dryRun) {
     // The snapshot is a WRITE like any other, so a preview counts it and stops.
     // `dir: root` is what makes the merge preview correct: with nothing extracted
     // over the project, the live tree still IS the pre-upgrade state.
     const would = [...targets].filter(rel => fs.existsSync(path.join(root, rel)));
-    return { dir: root, saved: would.length, planned: true };
+    return { dir: root, archive: null, saved: would.length, planned: true, staged: false };
   }
 
+  // [SPEC 121 / T019] Stage outside the project. mkdtemp, not a fixed name, so
+  // two upgrades racing on the same tree cannot stage into each other.
+  let stage;
   let saved = 0;
   try {
-    fs.mkdirSync(dir, { recursive: true });
+    stage = fs.mkdtempSync(path.join(os.tmpdir(), 'wxkanban-kit-snapshot-'));
     for (const rel of targets) {
       const abs = path.join(root, rel);
       if (!fs.existsSync(abs)) continue; // new file — nothing of the consumer's to lose
-      const dest = path.join(dir, rel);
+      const dest = path.join(stage, rel);
       if (fs.statSync(abs).isDirectory()) {
         fs.cpSync(abs, dest, { recursive: true });
       } else {
@@ -461,46 +480,127 @@ function snapshotBeforeUpgrade(archivePath, { dryRun = false } = {}) {
       saved++;
     }
   } catch (err) {
+    if (stage) { try { fs.rmSync(stage, { recursive: true, force: true }); } catch { /* ignore */ } }
+    die(
+      `Pre-upgrade snapshot failed: ${err.message}\n` +
+      '  Aborting before anything is written. Nothing has been changed.\n' +
+      '  Free up disk space or fix permissions on the temp directory and re-run.'
+    );
+  }
+
+  fs.mkdirSync(path.join(root, '.wxai'), { recursive: true });
+  const archive = path.join(root, '.wxai', `${SNAPSHOT_PREFIX}${stamp}${SNAPSHOT_EXT}`);
+
+  if (archiveDirectory(stage, archive)) {
+    log('ok', `Snapshot saved (${saved} existing path(s))`);
+    log('info', `  ${archive}`);
+    return { dir: stage, archive, saved, staged: true };
+  }
+
+  // No archiver, or it failed. Protection outranks tidiness: fall back to the
+  // expanded directory rather than extracting unprotected, and say plainly why
+  // it should not be left lying in the project.
+  const legacy = path.join(root, '.wxai', `${SNAPSHOT_PREFIX}${stamp}`);
+  try {
+    fs.cpSync(stage, legacy, { recursive: true });
+  } catch (err) {
+    try { fs.rmSync(stage, { recursive: true, force: true }); } catch { /* ignore */ }
     die(
       `Pre-upgrade snapshot failed: ${err.message}\n` +
       '  Aborting before anything is written. Nothing has been changed.\n' +
       '  Free up disk space or fix permissions on .wxai/ and re-run.'
     );
   }
-
   log('ok', `Snapshot saved (${saved} existing path(s))`);
-  log('info', `  ${dir}`);
-  return { dir, saved };
+  log('warn', 'Could not archive it — saved as a plain directory instead:');
+  log('warn', `  ${legacy}`);
+  log('warn', '  Delete it once the upgrade looks right. An expanded copy of the kit inside');
+  log('warn', '  the project is picked up by test-file globs, tsc includes and lint sweeps,');
+  log('warn', '  which makes one failing test look like two.');
+  return { dir: stage, archive: legacy, saved, staged: true };
+}
+
+/**
+ * Pack `sourceDir` into `archivePath`. Returns false — never throws — when no
+ * archiver is available, so the caller can fall back rather than fail the upgrade.
+ */
+function archiveDirectory(sourceDir, archivePath) {
+  const tarBin = resolveTarBinary();
+  // `-a` picks the format from the extension, so Windows gets a real zip.
+  const args = archivePath.endsWith('.zip')
+    ? ['-a', '-cf', archivePath, '.']
+    : ['-czf', archivePath, '.'];
+  let result;
+  try {
+    // cwd rather than -C: bsdtar reads a drive-letter -C argument as a remote host.
+    result = spawnSync(tarBin, args, { cwd: sourceDir, stdio: 'ignore', windowsHide: true });
+  } catch {
+    return false;
+  }
+  if (result.status === 0 && fs.existsSync(archivePath)) return true;
+  try { fs.rmSync(archivePath, { force: true }); } catch { /* ignore */ }
+  return false;
 }
 
 /** Keep the current snapshot plus one previous; older ones are pruned. */
-function pruneSnapshots(keepDir, { dryRun = false } = {}) {
+function pruneSnapshots(keep, { dryRun = false } = {}) {
   const base = path.join(root, '.wxai');
-  let dirs;
+  let entries;
   try {
-    dirs = fs.readdirSync(base, { withFileTypes: true })
-      .filter(e => e.isDirectory() && e.name.startsWith(SNAPSHOT_PREFIX))
-      .map(e => e.name)
-      .sort()
-      .reverse();
+    entries = fs.readdirSync(base, { withFileTypes: true });
   } catch {
     return;
   }
+
+  // Archives and pre-T019 expanded directories share the prefix and the same
+  // fixed-width ISO stamp, so one lexical sort orders both together and a
+  // consumer upgrading from an older kit ages its legacy directories out.
+  const snapshots = entries
+    .filter(e => e.name.startsWith(SNAPSHOT_PREFIX))
+    .map(e => e.name)
+    .sort()
+    .reverse();
+
+  // A run that was killed or crashed leaves .wxai/kit-staging-<ms>/ behind: a
+  // full expanded copy of the kit inside the project, the same discovery hazard
+  // the archived snapshot exists to avoid. Nothing reads it after the run, so
+  // any that survive to here are orphans.
+  const orphanStaging = entries
+    .filter(e => e.isDirectory() && e.name.startsWith(STAGING_PREFIX))
+    .map(e => e.name);
+
   if (dryRun) {
-    // The real run creates one snapshot before it prunes, so of the dirs that exist
-    // now it keeps one fewer. Slicing at SNAPSHOT_RETAIN here would under-count by one.
-    const stale = dirs.slice(Math.max(0, SNAPSHOT_RETAIN - 1));
+    // The real run creates one snapshot before it prunes, so of the entries that
+    // exist now it keeps one fewer. Slicing at SNAPSHOT_RETAIN would under-count by one.
+    const stale = snapshots.slice(Math.max(0, SNAPSHOT_RETAIN - 1));
     if (stale.length > 0) log('info', `${stale.length} old snapshot(s) would be pruned`);
+    if (orphanStaging.length > 0) {
+      log('info', `${orphanStaging.length} abandoned staging director(ies) would be removed`);
+    }
     return;
   }
-  for (const name of dirs.slice(SNAPSHOT_RETAIN)) {
+
+  for (const name of [...snapshots.slice(SNAPSHOT_RETAIN), ...orphanStaging]) {
     const abs = path.join(base, name);
-    if (abs === keepDir) continue;
+    if (abs === keep) continue;
     try {
       fs.rmSync(abs, { recursive: true, force: true });
     } catch {
       /* a snapshot we cannot prune is not worth failing an upgrade over */
     }
+  }
+
+  // Retained but still expanded: pre-T019, or this run's archiver fallback.
+  const retainedDirs = snapshots
+    .slice(0, SNAPSHOT_RETAIN)
+    .filter(name => {
+      try { return fs.statSync(path.join(base, name)).isDirectory(); } catch { return false; }
+    });
+  if (retainedDirs.length > 0) {
+    log('warn', `${retainedDirs.length} snapshot(s) are still expanded directories under .wxai/:`);
+    for (const name of retainedDirs) log('warn', `  .wxai/${name}`);
+    log('warn', '  Test-file globs, tsc includes and lint sweeps pick these up as if they were');
+    log('warn', '  project sources. Delete them once you no longer need the restore point.');
   }
 }
 
@@ -1035,7 +1135,11 @@ async function applyUpgrade({ download, manifest, dryRun, assumeYes, pendingWrit
   // [SPEC 121 / T003] Snapshot before the first write, on every download path.
   // die()s rather than continuing unprotected.
   const snapshot = snapshotBeforeUpgrade(download.archivePath, { dryRun });
-  if (dryRun) alsoWrites.push(`save a pre-upgrade snapshot of ${snapshot.saved} path(s) under .wxai/`);
+  if (dryRun) {
+    alsoWrites.push(
+      `save a pre-upgrade snapshot of ${snapshot.saved} path(s) to .wxai/${SNAPSHOT_PREFIX}<stamp>${SNAPSHOT_EXT}`
+    );
+  }
 
   // Staging goes to the OS temp dir on a preview so even .wxai/ is left alone.
   const stagingDir = dryRun
@@ -1092,6 +1196,13 @@ async function applyUpgrade({ download, manifest, dryRun, assumeYes, pendingWrit
     deleted = cleanupStaleAfterExtract({ dryRun, willWrite: changes.replaced });
   } finally {
     try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    // [SPEC 121 / T019] The expanded snapshot is temp-dir scratch that only T005's
+    // merge above needed. The durable copy is snapshot.archive; drop this one so an
+    // aborted run cannot leave a second kit tree behind. `staged` guards the dry-run
+    // case, where `dir` is the project root itself.
+    if (snapshot.staged) {
+      try { fs.rmSync(snapshot.dir, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
     try { fs.unlinkSync(download.archivePath); } catch { /* ignore */ }
   }
 
@@ -1102,7 +1213,7 @@ async function applyUpgrade({ download, manifest, dryRun, assumeYes, pendingWrit
   runInit({ dryRun });
   if (dryRun) alsoWrites.push('run init.mjs (installs deps, rewrites MCP config, restarts services)');
 
-  pruneSnapshots(snapshot.dir, { dryRun });
+  pruneSnapshots(snapshot.archive, { dryRun });
 
   console.log('');
   if (dryRun) {
@@ -1111,8 +1222,13 @@ async function applyUpgrade({ download, manifest, dryRun, assumeYes, pendingWrit
   } else {
     log('ok', `${colors.bold}Upgrade complete${colors.reset}`);
     log('ok', `${download.fromVersion || 'unknown'} → ${download.toVersion} via ${download.source}`);
-    log('info', `Pre-upgrade snapshot: ${snapshot.dir}`);
+    log('info', `Pre-upgrade snapshot: ${snapshot.archive}`);
     log('info', '  Anything of yours this upgrade overwrote can be restored from there.');
+    if (snapshot.archive && /\.(zip|tar\.gz)$/.test(snapshot.archive)) {
+      log('info', process.platform === 'win32'
+        ? `  Expand-Archive -LiteralPath '${snapshot.archive}' -DestinationPath <somewhere>`
+        : `  tar -xzf '${snapshot.archive}' -C <somewhere>`);
+    }
   }
 
   // [SPEC 121 / T007] Never finish silently over at-risk files. Exit code 2 says

@@ -53,7 +53,8 @@ async function loadKit(consumerRoot) {
   src = src.slice(0, cut);
   src +=
     '\nexport { snapshotBeforeUpgrade, extractArchive, mergePackageJson, readKitManifest,' +
-    ' writeKitManifest, reconcileStaging, walkRelative, classifyFile, reportChanges, isPreserveTree, applyUpgrade, cleanupStaleAfterExtract };\n';
+    ' writeKitManifest, reconcileStaging, walkRelative, classifyFile, reportChanges, isPreserveTree, applyUpgrade, cleanupStaleAfterExtract,' +
+    ' pruneSnapshots };\n';
   const dir = path.join(consumerRoot, 'scripts');
   fs.mkdirSync(dir, { recursive: true });
   // Unique filename per load: ESM caches modules by URL.
@@ -497,5 +498,164 @@ describe('snapshot', () => {
     const r = spawnSync('node', [probe], { encoding: 'utf8', windowsHide: true });
     expect(r.status).not.toBe(0);
     expect(r.stdout + r.stderr).toMatch(/Refusing to extract unprotected/);
+  });
+});
+
+// ─── [SPEC 121 / T019] ───────────────────────────────────────────────────────
+//
+// Field report eb54b9e5: the pre-T019 snapshot wrote an expanded copy of the kit
+// to .wxai/kit-upgrade-snapshot-<stamp>/, including all 50 of the kit's own
+// `*.test.ts` files. A consumer whose vitest config leaves `include` at the
+// default recursive glob then ran the same known-failing kit test twice — once
+// live, once from the backup — with nothing to mark the second as a duplicate.
+
+/** Every `*.test.ts` under `dir`, excluding the harness's own scripts/ copy. */
+function walkTests(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === 'scripts') continue; // loadKit() writes the module under test here
+      out.push(...walkTests(abs));
+    } else if (entry.name.endsWith('.test.ts')) {
+      out.push(abs);
+    }
+  }
+  return out;
+}
+
+describe('snapshot is inert to source-file discovery', () => {
+  it('leaves no second copy of a *.test.ts inside the project', async (ctx) => {
+    const consumer = path.join(tmp, 'consumer');
+    buildConsumer(consumer);
+    const live = path.join(consumer, 'wxkanban-agent/tests/unit/auditfences.test.ts');
+    write(live, 'stock test v1\n');
+
+    const kit = path.join(tmp, 'kit');
+    buildKitTree(kit, 2);
+    write(path.join(kit, 'wxkanban-agent/tests/unit/auditfences.test.ts'), 'stock test v2\n');
+    const archive = makeArchive(kit, path.join(tmp, 'kit.tar.gz'), 'tar.gz');
+    if (!archive) ctx.skip('no tar archiver on this platform');
+
+    const m = await loadKit(consumer);
+    const snap = m.snapshotBeforeUpgrade(archive);
+
+    try {
+      // The durable artifact is one file, not a tree.
+      expect(snap.archive).toMatch(/\.(zip|tar\.gz)$/);
+      expect(fs.statSync(snap.archive).isFile()).toBe(true);
+
+      // The one thing the report is about: discovery finds the live test only.
+      expect(walkTests(consumer)).toEqual([live]);
+
+      // And the expanded copy the merge still needs is outside the project.
+      expect(snap.dir.startsWith(consumer)).toBe(false);
+      expect(fs.existsSync(path.join(snap.dir, 'wxkanban-agent/tests/unit/auditfences.test.ts'))).toBe(true);
+    } finally {
+      fs.rmSync(snap.dir, { recursive: true, force: true });
+    }
+  });
+
+  it('restores a byte-identical original out of the archive', async (ctx) => {
+    const consumer = path.join(tmp, 'consumer');
+    buildConsumer(consumer);
+    write(path.join(consumer, '.claude/wxConversion/scripts/split.py'), 'MY EDITED SCRIPT\n');
+
+    const kit = path.join(tmp, 'kit');
+    buildKitTree(kit, 2);
+    const archive = makeArchive(kit, path.join(tmp, 'kit.tar.gz'), 'tar.gz');
+    if (!archive) ctx.skip('no tar archiver on this platform');
+
+    const m = await loadKit(consumer);
+    const snap = m.snapshotBeforeUpgrade(archive);
+    fs.rmSync(snap.dir, { recursive: true, force: true }); // recovery must not depend on the temp stage
+
+    // A recovery a consumer could actually perform: unpack the snapshot, copy back.
+    const restored = path.join(tmp, 'restored');
+    m.extractArchive(snap.archive, restored);
+    expect(
+      fs.readFileSync(path.join(restored, '.claude/wxConversion/scripts/split.py'), 'utf8')
+    ).toBe('MY EDITED SCRIPT\n');
+  });
+
+  it('sweeps abandoned staging trees and ages out pre-T019 expanded snapshots', async () => {
+    const consumer = path.join(tmp, 'consumer');
+    buildConsumer(consumer);
+    const m = await loadKit(consumer);
+
+    // Three legacy expanded snapshots, oldest first, plus a staging tree left by a
+    // run that was killed mid-extract. Both shapes carry *.test.ts into discovery.
+    const legacy = [
+      'kit-upgrade-snapshot-2026-08-01T00-00-00-000Z',
+      'kit-upgrade-snapshot-2026-08-02T00-00-00-000Z',
+      'kit-upgrade-snapshot-2026-08-03T00-00-00-000Z',
+    ];
+    for (const name of legacy) {
+      write(path.join(consumer, '.wxai', name, 'wxkanban-agent/tests/unit/auditfences.test.ts'), 'copy\n');
+    }
+    write(path.join(consumer, '.wxai', 'kit-staging-1750000000000', 'wxkanban-agent/tests/unit/auditfences.test.ts'), 'copy\n');
+
+    const keep = path.join(consumer, '.wxai', 'kit-upgrade-snapshot-2026-08-04T00-00-00-000Z.zip');
+    write(keep, 'PK\n');
+
+    m.pruneSnapshots(keep);
+
+    const left = fs.readdirSync(path.join(consumer, '.wxai')).sort();
+    expect(left).toEqual([
+      'kit-upgrade-snapshot-2026-08-03T00-00-00-000Z',
+      'kit-upgrade-snapshot-2026-08-04T00-00-00-000Z.zip',
+    ]);
+    // The one surviving legacy directory is retained on purpose — it is a distinct
+    // restore point — so the run has to say it is still visible to discovery.
+    expect(walkTests(consumer)).toHaveLength(1);
+  });
+
+  it('survives a REAL upgrade end to end, not just the snapshot call', async (ctx) => {
+    // The three tests above exercise pieces. Every other applyUpgrade test in this
+    // file runs with dryRun:true, so nothing yet proves the finished sequence —
+    // snapshot, extract, merge off the temp stage, prune, cleanup — leaves the
+    // project clean. That whole sequence is what the field report observed.
+    const consumer = path.join(tmp, 'consumer');
+    buildUpgradeableConsumer(consumer);
+    const live = path.join(consumer, 'wxkanban-agent/tests/unit/auditfences.test.ts');
+    write(live, 'stock test v1\n');
+    write(path.join(consumer, '.claude/wxConversion/scripts/split.py'), 'MY EDITED SCRIPT\n');
+
+    const kit = path.join(tmp, 'e2e-kit');
+    buildKitTree(kit, 2);
+    write(path.join(kit, 'wxkanban-agent/tests/unit/auditfences.test.ts'), 'stock test v2\n');
+    const arch = makeArchive(kit, path.join(tmp, 'e2e.tar.gz'), 'tar.gz');
+    if (!arch) ctx.skip('no tar archiver on this platform');
+
+    const m = await loadKit(consumer);
+    // runInit spawns scripts/init.mjs next to the module under test; a real run fails
+    // outright without it, so stub it rather than skip the step being tested.
+    write(path.join(consumer, 'scripts/init.mjs'), 'process.exit(0);\n');
+
+    const run = path.join(tmp, 'e2e-run.tar.gz');
+    fs.copyFileSync(arch, run);
+    await m.applyUpgrade({
+      download: { archivePath: run, toVersion: 'v2', fromVersion: 'v1', source: 'test' },
+      manifest: null,
+      dryRun: false,
+      assumeYes: true,
+    });
+
+    const wxai = fs.readdirSync(path.join(consumer, '.wxai'), { withFileTypes: true });
+    const snaps = wxai.filter(e => e.name.startsWith('kit-upgrade-snapshot-'));
+    expect(snaps).toHaveLength(1);
+    expect(snaps[0].isFile()).toBe(true);
+    expect(wxai.filter(e => e.isDirectory() && e.name.startsWith('kit-staging-'))).toHaveLength(0);
+
+    // The upgrade landed, and discovery still sees exactly one test file.
+    expect(fs.readFileSync(live, 'utf8')).toBe('stock test v2\n');
+    expect(walkTests(consumer)).toEqual([live]);
+
+    // Recoverability is the whole point of the snapshot; assert it from the archive.
+    const restored = path.join(tmp, 'e2e-restored');
+    m.extractArchive(path.join(consumer, '.wxai', snaps[0].name), restored);
+    expect(
+      fs.readFileSync(path.join(restored, '.claude/wxConversion/scripts/split.py'), 'utf8')
+    ).toBe('MY EDITED SCRIPT\n');
   });
 });
