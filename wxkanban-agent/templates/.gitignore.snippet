@@ -28,6 +28,28 @@
 # Kit runtime logs.
 logs/
 
+# SCOPE-083 Amendment A FR-009 (T013) — the session-start kit update check rewrites this
+# on every boot. Per-developer state; nothing here is meaningful to a teammate.
+.wxai/kit-update-check.json
+
+# SCOPE-121 FR-015 — upgrade snapshots. The archive is the current form; the bare
+# directory is the pre-Amendment-B form and the staging dir is what a crashed run
+# leaves behind. Each is a full copy of the kit, so none belong in the repository.
+.wxai/kit-upgrade-snapshot-*
+.wxai/kit-staging-*
+
+# SCOPE-083 Amendment A FR-009 (T013) — the kit's own build and dependency output.
+# These are also why the pre-amendment author-repo heuristic misfired: it ran
+# `git status --porcelain` over these paths, --porcelain reports UNTRACKED files,
+# and so any consumer who had installed the kit's dependencies read as the kit
+# AUTHOR and silently lost their update check. The heuristic is gone, but the kit
+# should not be dirtying the tree with its own artifacts either way.
+wxkanban-agent/node_modules/
+wxkanban-agent/dist/
+mcp-server/node_modules/
+mcp-server/dist/
+mcp-server/logs/
+
 # Local env overrides.
 .env
 .env.local

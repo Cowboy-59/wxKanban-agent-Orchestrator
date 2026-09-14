@@ -1,4 +1,3 @@
-import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as http from "http";
@@ -28,21 +27,28 @@ import { trustSystemCertificates } from "../bootstrap/system-ca";
 // once per process and time-cached ~6h in .wxai/kit-update-check.json.
 //
 // Author/source-repo safety: this repo is the kit source-of-truth, so it must
-// NEVER be told to "upgrade". We treat a dirty kit working tree (developers edit
-// the kit here; consumers never do) as the author signal and stay silent.
-// WXKANBAN_NO_KIT_UPDATE_CHECK is the belt-and-suspenders opt-out.
+// NEVER be told to "upgrade". Detected by the author-only marker file — see
+// isAuthorCheckout. WXKANBAN_NO_KIT_UPDATE_CHECK is the belt-and-suspenders
+// opt-out for a full clone that lacks the marker.
 const KIT_UPDATE_OPT_OUT_ENV = "WXKANBAN_NO_KIT_UPDATE_CHECK";
 const CHECK_TTL_MS = 6 * 60 * 60 * 1000; // 6h
 const CACHE_REL_PATH = path.join(".wxai", "kit-update-check.json");
 const REQUEST_TIMEOUT_MS = 8000;
-// Kit paths a consumer never edits — any local change here means this is a dev/
-// author checkout, so we stay silent.
-const KIT_DIRTY_PATHS = ["wxkanban-agent", "mcp-server", "_wxAI"];
 let kitUpdateChecked = false;
 
 // Shape persisted to .wxai/kit-update-check.json. The Dev Cockpit reads this
 // file directly (no extra network call) to decide whether to show its
 // "Kit update available -> Install" row.
+//
+// [SCOPE 083 / T010] `outcome` + `lastError` exist because the
+// pre-amendment record could not distinguish "checked, you are current" from
+// "the check never ran": both persisted upgradeAvailable=false with null
+// versions. A negative that looks measured and is not is worse than no answer.
+// `upgradeAvailable` and `authorRepo` keep their meaning and position so a
+// Cockpit built before this amendment still reads a new record correctly; a
+// record written before it has no `outcome` and is read as "checked".
+type KitCheckOutcome = "checked" | "failed" | "author-repo";
+
 interface KitUpdateStatus {
   checkedAt: number;
   upgradeAvailable: boolean;
@@ -50,6 +56,9 @@ interface KitUpdateStatus {
   currentVersion: string | null;
   latestVersion: string | null;
   releaseUrl: string | null;
+  outcome: KitCheckOutcome;
+  /** Short human-readable reason when outcome is "failed"; null otherwise. */
+  lastError: string | null;
 }
 
 function cachePath(): string {
@@ -74,22 +83,26 @@ function writeCache(status: KitUpdateStatus): void {
 }
 
 // True when this is the kit author/source checkout rather than a consumer.
-// Primary signal: scripts/sync-to-orchestrator.mjs is author-only — it never
-// ships to consumers (scripts/ is not mirrored to the orchestrator), so its
-// presence is a deterministic, git-state-independent author marker. Secondary:
-// a dirty kit working tree (a developer mid-edit in a full clone). A consumer
-// has neither.
+// scripts/sync-to-orchestrator.mjs is author-only — scripts/ is not mirrored to
+// the orchestrator, so no consumer ever receives it — which makes its presence a
+// deterministic author marker, independent of git state, working-tree
+// cleanliness, and whether this is a git repository at all.
+//
+// [SCOPE 083 / T011] A second signal used to live here: a dirty
+// kit working tree, via `git status --porcelain -- wxkanban-agent mcp-server
+// _wxAI`. It disabled the update check in the field. --porcelain reports
+// UNTRACKED files, and the kit's own .gitignore.snippet named none of the kit's
+// node_modules/ or dist/ output, so a consumer who had ever installed the kit's
+// dependencies — every consumer — read as the kit author forever and the check
+// returned before any network call. It could not reproduce here, where all of
+// those paths are gitignored and the marker above fires first regardless.
+// Narrowing it to --untracked-files=no was rejected: a consumer applying a local
+// patch under wxkanban-agent/ is ordinary and must not silently lose their
+// update check. Removing it also drops a subprocess and a 5s timeout from every
+// session start.
 function isAuthorCheckout(): boolean {
   try {
-    if (fs.existsSync(path.join(process.cwd(), "scripts", "sync-to-orchestrator.mjs"))) return true;
-    const res = spawnSync("git", ["status", "--porcelain", "--", ...KIT_DIRTY_PATHS], {
-      cwd: process.cwd(),
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 5000,
-    });
-    if (res.error || res.status !== 0 || typeof res.stdout !== "string") return false;
-    return res.stdout.split(/\r?\n/).some((l) => l.trim().length > 0);
+    return fs.existsSync(path.join(process.cwd(), "scripts", "sync-to-orchestrator.mjs"));
   } catch {
     return false;
   }
@@ -153,7 +166,14 @@ interface LatestVersionResponse {
   publishedAt: string | null;
 }
 
-function httpGetJson(url: string, token: string): Promise<LatestVersionResponse | null> {
+// [SCOPE 083 / T010] Reports WHY it failed rather than collapsing
+// every failure to null, so the persisted record can carry a reason the operator
+// can act on ("http 401" and "connection failed" want different responses).
+type FetchResult =
+  | { ok: true; data: LatestVersionResponse }
+  | { ok: false; reason: string };
+
+function httpGetJson(url: string, token: string): Promise<FetchResult> {
   return new Promise((resolveP) => {
     const lib = url.startsWith("https:") ? https : http;
     const req = lib.get(
@@ -167,19 +187,28 @@ function httpGetJson(url: string, token: string): Promise<LatestVersionResponse 
         let body = "";
         res.on("data", (d) => (body += d));
         res.on("end", () => {
-          if (res.statusCode !== 200) return resolveP(null);
+          if (res.statusCode !== 200) {
+            return resolveP({ ok: false, reason: `server returned HTTP ${res.statusCode ?? "?"}` });
+          }
           try {
-            resolveP(JSON.parse(body) as LatestVersionResponse);
+            resolveP({ ok: true, data: JSON.parse(body) as LatestVersionResponse });
           } catch {
-            resolveP(null);
+            resolveP({ ok: false, reason: "server returned a malformed response" });
           }
         });
       },
     );
-    req.on("error", () => resolveP(null));
+    req.on("error", (err: NodeJS.ErrnoException) => {
+      // Surface the CA case by name — it is the one failure a consumer can fix.
+      const code = err.code ?? "";
+      const reason = /CERT|SELF_SIGNED|UNABLE_TO_VERIFY/i.test(code)
+        ? `TLS certificate not trusted (${code})`
+        : `could not reach the server (${code || err.message || "network error"})`;
+      resolveP({ ok: false, reason });
+    });
     req.on("timeout", () => {
       req.destroy();
-      resolveP(null);
+      resolveP({ ok: false, reason: `no response within ${REQUEST_TIMEOUT_MS / 1000}s` });
     });
   });
 }
@@ -196,10 +225,28 @@ function printBanner(status: KitUpdateStatus): void {
   console.error(`[kit]   Or in the Dev Cockpit: "Kit update available -> Install"`);
 }
 
+// [SCOPE 083 / T010] BEGIN — record a failed check as a failed check
+// The TTL still applies to a failure, so a persistent outage is recorded once
+// per window rather than retried harder — but it is never again written with
+// the same shape as "checked, you are current".
+function writeFailure(reason: string): void {
+  writeCache({
+    checkedAt: Date.now(),
+    upgradeAvailable: false,
+    authorRepo: false,
+    currentVersion: null,
+    latestVersion: null,
+    releaseUrl: null,
+    outcome: "failed",
+    lastError: reason,
+  });
+}
+// [SCOPE 083 / T010] END
+
 async function runCheck(): Promise<void> {
   const config = readJson(path.join(process.cwd(), ".wxkanban-project.json"));
   const projectId = typeof config?.["projectId"] === "string" ? (config["projectId"] as string) : null;
-  if (!projectId) return; // not a kit install
+  if (!projectId) return; // not a kit install — genuinely nothing to report
 
   const envBag = {
     ...loadEnvFile(path.join(process.cwd(), ".env")),
@@ -208,27 +255,33 @@ async function runCheck(): Promise<void> {
   const aiSettings = readJson(path.join(process.cwd(), "ai-settings.json"));
   const apiUrl = resolveApiUrl(envBag);
   const token = resolveApiToken(envBag, aiSettings);
-  if (!token) return; // can't reach the server — stay silent
+  if (!token) {
+    // [SCOPE 083 / T010] Was a silent return that wrote nothing,
+    // so the Cockpit showed no state at all and the network path re-ran every
+    // session. An unconfigured token is a check that could not run, and the
+    // operator can fix it once they are told.
+    writeFailure("no API token configured (run kit:configure)");
+    return;
+  }
 
   trustSystemCertificates();
   const url = `${apiUrl}/api/projects/${projectId}/kit/latest-version`;
   const result = await httpGetJson(url, token);
 
-  const now = Date.now();
-  if (!result) {
-    // Network/CA/auth failure — stamp the check time so we honour the TTL and
-    // don't hammer the server every open.
-    writeCache({ checkedAt: now, upgradeAvailable: false, authorRepo: false, currentVersion: null, latestVersion: null, releaseUrl: null });
+  if (!result.ok) {
+    writeFailure(result.reason);
     return;
   }
 
   const status: KitUpdateStatus = {
-    checkedAt: now,
-    upgradeAvailable: result.upgradeAvailable === true,
+    checkedAt: Date.now(),
+    upgradeAvailable: result.data.upgradeAvailable === true,
     authorRepo: false,
-    currentVersion: result.currentVersion ?? null,
-    latestVersion: result.latestVersion ?? null,
-    releaseUrl: result.releaseUrl ?? null,
+    currentVersion: result.data.currentVersion ?? null,
+    latestVersion: result.data.latestVersion ?? null,
+    releaseUrl: result.data.releaseUrl ?? null,
+    outcome: "checked",
+    lastError: null,
   };
   writeCache(status);
   if (status.upgradeAvailable) printBanner(status);
@@ -242,7 +295,16 @@ export function ensureKitUpToDate(): void {
     // Author/source repo — never nag the developer editing the kit. Stamp the
     // cache so the Cockpit also stays silent here.
     if (isAuthorCheckout()) {
-      writeCache({ checkedAt: Date.now(), upgradeAvailable: false, authorRepo: true, currentVersion: null, latestVersion: null, releaseUrl: null });
+      writeCache({
+        checkedAt: Date.now(),
+        upgradeAvailable: false,
+        authorRepo: true,
+        currentVersion: null,
+        latestVersion: null,
+        releaseUrl: null,
+        outcome: "author-repo",
+        lastError: null,
+      });
       return;
     }
 
