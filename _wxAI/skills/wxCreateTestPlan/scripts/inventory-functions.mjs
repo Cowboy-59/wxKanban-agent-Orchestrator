@@ -24,7 +24,7 @@
  * STACK SCOPE: TypeScript only. On any other stack (C#/.NET, Python, Java, …) this exits 3 and
  * names what it found — it must never emit an empty-but-valid inventory, because the phases
  * downstream cannot tell that apart from a codebase that genuinely has nothing in it. See
- * `_wxAI/skills/wxCreateTestPlan/adapters/` for the per-stack substitutes.
+ * `_wxAI/adapters/` for the per-stack substitutes.
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -107,7 +107,7 @@ if (files.length === 0 && !allowEmpty) {
       '  This extractor targets TypeScript (Express routes, Drizzle tables, MCP tools).\n' +
       `  Found instead: ${census || 'nothing'}.\n` +
       '  Pick the adapter for the stack this project declares in stack.md:\n' +
-      '    _wxAI/skills/wxCreateTestPlan/adapters/\n' +
+      '    _wxAI/adapters/\n' +
       '  If an empty result is genuinely expected here, re-run with --allow-empty.',
   );
   process.exit(3);

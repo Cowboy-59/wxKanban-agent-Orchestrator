@@ -41,36 +41,48 @@ into green-but-meaningless. Present the delta and stop for approval before proce
 *(Phase 0 is delivered by T013–T014. Until then, run from the scope's existing test plan and say so
 in the report rather than skipping silently.)*
 
-### Phase 1 — Clone
+### Phase 1 — Stand up the disposable target (SCOPE-127 / FR-003)
+
+**Resolve the adapter first. It decides the posture; this phase decides what happens on it.**
 
 ```bash
-node _wxAI/skills/wxPreTest/scripts/clone-guard.mjs --scope 119 --create
+node _wxAI/adapters/resolve-adapter.mjs --json
 ```
 
-`clone-guard.mjs` drops this scope's previous clone, invokes SCOPE-111's
-`clone-test-schema.mjs`, parses its result, and **refuses the run when `faithful` is false**.
+Announce the resolved adapter before touching anything. Non-zero means no adapter covers this
+stack — stop and say so. Do not clone speculatively: a target built for the wrong stack is worse
+than no target, because the run that follows it reports results.
 
-`CREATE TABLE (LIKE … INCLUDING ALL)` does not copy foreign keys — they are reflected from
-`pg_constraint` in a second pass and counted against source. A clone that quietly lost constraints
-lets a test pass that production would reject. The faithfulness check is blocking, not advisory.
+Read the adapter's **Disposable target** answer. It names the posture and the exact commands. Three
+postures are supported and an adapter answers with exactly one:
 
-The clone engine is reused at its current path under `wxCreateTestPlan/scripts/`. It is working,
-fenced code; relocating it for folder tidiness would be churn without benefit.
+| Posture | The disposable target is |
+|---|---|
+| **schema** | A clone inside the same database instance |
+| **file** | A database file created for this run |
+| **container** | A database container started for this run |
+
+Run the adapter's stated creation command. Whatever the posture, two properties are required and
+the adapter says how each is proven here:
+
+- **Faithful** — the target's structure matches what production would enforce. A target that
+  quietly lost constraints lets a test pass that production would reject, so where the adapter
+  names a faithfulness check it is **blocking, not advisory**.
+- **Disposable** — this run created it and this run may destroy it. A pre-existing target is not
+  proof of anything.
 
 ### Phase 2 — Isolation proof (before any write)
 
-```bash
-node _wxAI/skills/wxPreTest/scripts/clone-guard.mjs --scope 119 --verify wxktest_119_xxxx
-```
+Run the adapter's stated isolation command and treat its assertions as blocking.
 
-Two assertions, both blocking:
+The assertions differ by posture and the adapter names them, because the same check does not
+transfer. A schema-prefix assertion is meaningful when the disposable target shares an instance
+with production and meaningless when it does not; on a container posture the equivalent guarantee
+is that the host and port differ from the production connection **and** that this run created the
+target.
 
-1. `current_schema()` resolves to a `wxktest_`-prefixed name.
-2. An unqualified canary object created in that session is **invisible from `public`**.
-
-**`DATABASE_URL` on this machine is production.** A `search_path` that silently falls back to
-`public` is the one failure mode that must be impossible rather than unlikely. This is an asserted
-invariant, not a convention — never skip it because the clone "was just created."
+**No write of any kind happens before this proof passes.** That ordering is the whole guarantee —
+a proof taken afterwards documents what already happened rather than preventing it.
 
 ### Phase 3 — Pending DDL
 

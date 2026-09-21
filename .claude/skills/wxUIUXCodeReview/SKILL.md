@@ -102,7 +102,7 @@ pixels — not Playwright. Full recipe and the five pitfalls that cost real time
 shadowing the `Button` on `FindFirst` by name; `GetCurrentPattern` constant resolution; `PasswordBox`
 having no writable `ValuePattern`; `CopyFromScreen` capturing the wrong window; needing to wait on
 the window rather than sleep) are documented in
-`_wxAI/skills/wxCreateTestPlan/adapters/dotnet-wpf.md` § *WPF walkthrough recipe*. Do not duplicate
+`_wxAI/adapters/dotnet-wpf.md` § *WPF walkthrough recipe*. Do not duplicate
 them here — follow that section.
 
 What the walkthrough adds over static review, concretely: rendered contrast, real focus, actual
@@ -490,3 +490,27 @@ Stop and ask for clarification when:
 - the intended behavior or target screen/flow is too unclear to judge
 
 Otherwise proceed with a best-effort review and state assumptions.
+
+## Brand schema criteria (SCOPE-129)
+
+If the project carries a **brand schema**, review the diff against it.
+`renderRulesForReview` in `src/shared/brand-rule-delivery.ts` produces the criteria, already split.
+
+**Do not spend attention on the mechanical half.** These already run as gates, and re-raising them
+by eye wastes the reviewer's credibility on findings a machine produced:
+
+- style literals — a colour, radius, row height or font stack written directly in a component
+- structural properties — a mode selector setting `display`, `grid-template`, `order`, `position`
+  or `content`
+- contrast — every pairing measured against WCAG AA, including the status and action colours
+
+**Do read for the advisory half**, which no gate can decide: whether identity colour has crept onto
+an action, whether a status colour is carrying a meaning it was not given, whether a control has
+quietly become a native browser one.
+
+A finding from the mechanical list is a defect. A finding from the advisory list is a judgement,
+and should be raised as one.
+
+**Announce it.** State that brand criteria were applied and name the schema — or say plainly that
+one was declared and did not resolve, so a clean review is not mistaken for a checked one.
+

@@ -3,6 +3,10 @@
 **Stack:** TypeScript · Express · Drizzle ORM · PostgreSQL 15+ · Vitest + supertest · Playwright ·
 custom bcrypt+JWT auth · optional hosted MCP tool surface.
 
+**Application type:** web
+**Matches:** typescript express drizzle postgresql vitest playwright react node
+
+
 This is the reference adapter — the stack `wxCreateTestPlan` was originally written against. Read
 `SKILL.md` for the method; this file is only the machinery. See [`README.md`](README.md) for the
 adapter contract.
@@ -122,6 +126,24 @@ arrangement cannot catch for you. Assert the path inside the harness:
 
 ---
 
+### Seeding form (Phase 5b)
+
+*This is what `implement` Phase 5b reads. Phase 5b itself says nothing about files, languages or
+ORM idiom — it asks here.*
+
+| Question | Answer on this stack |
+|---|---|
+| Where does a seed live? | `tests/seeds/<NNN-name>/seed.ts` |
+| What runs it? | `npx tsx tests/seeds/run.ts --schema <target> --scope <n>` |
+| How is it made idempotent? | Drizzle's `onConflictDoNothing`, matching the property the migrations already rely on |
+| How is a shared base reused? | Declare `requires: [baseSeed]` (`tests/seeds/_base/seed.ts`) — `runSeed` resolves each dependency once, so a diamond inserts base rows exactly once |
+| Where may a seed be written? | A `wxktest_` clone and nowhere else; the harness refuses any other schema |
+| How is it verified? | `node _wxAI/skills/wxPreTest/scripts/clone-guard.mjs --scope <n> --create`, then run the seed against that clone |
+
+Rules that are not stack-specific — smallest set of rows, deterministic identifiers rather than
+random UUIDs, compose rather than re-author — live in Phase 5b, because they are true on every
+stack. Do not repeat them here.
+
 ## UI driver (UI/UX coverage)
 
 **Playwright**, against the React client. The screens are URL-addressable, so the navigation edges
@@ -189,6 +211,23 @@ The **Hard stops** that follow from this posture live in `SKILL.md` Phase 0 — 
 they apply on every stack.
 
 ---
+
+### Disposable target (/preTest Phase 1-2)
+
+*This is what `/preTest` reads. The phase itself names no schema prefix and no clone script — it
+asks here.*
+
+| Question | Answer on this stack |
+|---|---|
+| Posture | **schema** — a clone inside the same PostgreSQL instance |
+| Create it | `node _wxAI/skills/wxPreTest/scripts/clone-guard.mjs --scope <n> --create` |
+| Prove isolation | `node _wxAI/skills/wxPreTest/scripts/clone-guard.mjs --scope <n> --verify <target>` |
+| Isolation assertions | `current_schema()` resolves to a `wxktest_`-prefixed name, and an unqualified canary object created in that session is invisible from `public` |
+| Faithfulness | `clone-guard.mjs` invokes `clone-test-schema.mjs` and **refuses the run when `faithful` is false**. `CREATE TABLE (LIKE ... INCLUDING ALL)` does not copy foreign keys; they are reflected from `pg_constraint` in a second pass and counted against source. Blocking, not advisory |
+| Write boundary | A `wxktest_` schema and nowhere else. Any DDL may be run freely inside one, with no per-statement approval |
+
+This posture is unchanged from before adapters existed. A clone that quietly lost constraints lets
+a test pass that production would reject, which is why the faithfulness check blocks.
 
 ## Test substitutes — what they cannot enforce
 

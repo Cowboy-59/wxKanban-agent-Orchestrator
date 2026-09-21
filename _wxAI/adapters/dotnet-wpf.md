@@ -3,6 +3,10 @@
 **Stack:** C# · .NET 8 · WPF (XAML) / MVVM · EF Core 8 · PostgreSQL · xUnit + FluentAssertions.
 No REST/GraphQL tier — the desktop client reaches the database through EF Core directly.
 
+**Application type:** desktop
+**Matches:** csharp dotnet wpf mvvm "ef core" entityframework xunit fluentassertions
+
+
 Verified on the HourGlass2025 desktop rebuild, 2026-08-11: an 18-of-18-surface audit over 32,758
 lines of product code (28,320 `.cs` + 4,438 `.xaml`) and 991 existing test cases across 87 files,
 including a live walkthrough of 16 of 31 views. Every concrete number below is an observation from
@@ -105,6 +109,28 @@ database and is **not** a release strategy — say so in the plan.
 
 ---
 
+### Seeding form (Phase 5b)
+
+*This is what `implement` Phase 5b reads. Phase 5b itself says nothing about files, languages or
+ORM idiom — it asks here.*
+
+| Question | Answer on this stack |
+|---|---|
+| Where does a seed live? | `tests/Seeds/<NNN-Name>/Seed.cs`, a class implementing the suite's seed interface |
+| What runs it? | The xUnit fixture that owns the disposable target invokes it during setup |
+| How is it made idempotent? | Check-then-insert against the natural key. EF Core has no `onConflictDoNothing`; do not reach for raw SQL to emulate one |
+| How is a shared base reused? | A base seed class the scope seed calls, not inheritance — composition keeps the insert order explicit |
+| Where may a seed be written? | The disposable target named by **DB posture** above, never the shared development database |
+| How is it verified? | Run the fixture against a fresh disposable target and assert the row counts the scope expects |
+
+**No Node or TypeScript file is introduced into this repository for seeding.** If following Phase
+5b would produce one, the resolution was wrong — stop and say so rather than transliterating the
+Express machinery into C#.
+
+Rules that are not stack-specific — smallest set of rows, deterministic identifiers rather than
+random UUIDs, compose rather than re-author — live in Phase 5b, because they are true on every
+stack. Do not repeat them here.
+
 ## UI driver (UI/UX coverage)
 
 **UI Automation** (`System.Windows.Automation`) plus `PrintWindow` for pixels. Playwright does not
@@ -161,6 +187,23 @@ the target differs, prefer a disposable database. Only the addresses change.
   because it is also the diff that finds the drift.
 
 ---
+
+### Disposable target (/preTest Phase 1-2)
+
+*This is what `/preTest` reads. The phase itself names no schema prefix and no clone script — it
+asks here.*
+
+| Question | Answer on this stack |
+|---|---|
+| Posture | **container** — a disposable database built from the model, on a non-default port with throwaway credentials |
+| Create it | Start the container, then `EnsureCreated()` from the model (see *Schema source*) — not from the checked-in `.sql` |
+| Prove isolation | The connection string names the container's host and port, and neither matches the production connection read from configuration |
+| Isolation assertions | The target host/port differ from production, **and** the database was created by this run rather than found already present. A pre-existing database is not proof of isolation — it may be someone's shared instance |
+| Faithfulness | The model build IS the schema of record here, so there is no clone to be unfaithful to. What must be checked instead is model-versus-checked-in-`.sql` drift, which is the *Schema source* question |
+| Write boundary | The container created for this run. Never the shared development database, and never a target the run did not create |
+
+A schema-prefix check is meaningless on this posture — there is no shared instance to be isolated
+*within*. Proving a different host, and proving this run created it, is the equivalent guarantee.
 
 ## Test substitutes — what they cannot enforce
 

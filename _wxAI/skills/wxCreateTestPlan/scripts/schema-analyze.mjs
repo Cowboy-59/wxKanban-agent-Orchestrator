@@ -19,7 +19,7 @@
  *
  * STACK SCOPE: Drizzle only. On any other schema source (EF Core, Prisma, …) this exits 3 and
  * names what it found — it must never emit a referential-integrity score for a schema it did not
- * read. See `_wxAI/skills/wxCreateTestPlan/adapters/` for the per-stack substitutes.
+ * read. See `_wxAI/adapters/` for the per-stack substitutes.
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -273,7 +273,7 @@ if (files.length === 0 || tables.size === 0) {
       '  This auditor targets Drizzle schema declarations (pgTable).\n' +
       `  Found instead: ${census || 'nothing'}.\n` +
       '  Pick the adapter for the stack this project declares in stack.md:\n' +
-      '    _wxAI/skills/wxCreateTestPlan/adapters/\n' +
+      '    _wxAI/adapters/\n' +
       '  (EF Core, Prisma, ActiveRecord and friends need their own schema source — reconcile the\n' +
       '   ORM model against information_schema rather than running this script.)',
   );

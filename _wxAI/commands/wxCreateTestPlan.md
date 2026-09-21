@@ -45,7 +45,7 @@ fixed test-item schema.
 1. **Preflight:** confirm the skill exists at `_wxAI/skills/wxCreateTestPlan/SKILL.md`, read it, and
    follow its phases in order.
 2. **Resolve the stack adapter FIRST:** read `stack.md` at the repo root and load the matching
-   adapter from `_wxAI/skills/wxCreateTestPlan/adapters/`. The method is stack-neutral; the
+   adapter from `_wxAI/adapters/`. The method is stack-neutral; the
    inventory command, schema source, harness and UI driver all come from the adapter. **If no
    adapter matches the declared stack, stop and say so** — never run the TypeScript extractor
    speculatively, because a zero-unit inventory from the wrong stack reads exactly like a real one.

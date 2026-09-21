@@ -474,6 +474,27 @@ End every response with these six lines. Keep each to one sentence; write "none"
 - **Tradeoffs** — what the chosen design gives up.
 - **Stopped short** — where you hit a boundary and why.
 
+## Brand schema (SCOPE-129)
+
+If the project carries a **brand schema**, compose against ITS tokens — not against the
+application's own stylesheet and not against an approximation.
+
+Resolve it before designing. `src/shared/brand-rule-delivery.ts` renders the design context:
+role map, the four faces, and the invariants and prohibitions that constrain a design.
+
+Three things that change what you draw:
+
+- **Identity is never an action.** If the schema names an identity token, it may appear on a logo
+  or a rail marker and never on a button or a link.
+- **A mode changes appearance only.** Every mode must contain the same fields, rows and controls.
+  If a design would differ in *content* between modes, it is two designs, not one.
+- **Status meanings are fixed.** A semantic role means the same thing in every mode. A mode may
+  re-pitch a hue; it may never reassign what the role means.
+
+**Announce it.** State that a brand schema is active and name it — and say plainly when one is
+declared but could not be resolved. A design composed against no brand, silently, is how drift
+starts.
+
 ## Boundaries with neighbouring surfaces
 
 This repo already has design surfaces. Do not duplicate them:

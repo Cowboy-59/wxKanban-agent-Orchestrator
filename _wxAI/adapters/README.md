@@ -1,4 +1,23 @@
-# wxCreateTestPlan — stack adapters
+# Stack adapters
+
+*Moved here from `_wxAI/skills/wxCreateTestPlan/adapters/` under SCOPE-127 / T001.*
+
+Three layers of the test pipeline resolve an adapter — `wxCreateTestPlan`, `implement` Phase 5b and
+`/preTest`. While this directory sat under one skill, only that skill could legitimately read it,
+and the other two had no seam to resolve anything through. It lives at the top of `_wxAI/` so all
+three read one place, and so a fourth skill-mirror drift trap is not created.
+
+## Where an adapter lives decides whether it ships
+
+| Directory | Ships to consumers | Holds |
+|---|---|---|
+| `_wxAI/adapters/` | **Yes** — `_wxAI` is in `KIT_DIRS` | Adapters wxperts authors and supports |
+| `.wxai/adapters/` | **No** — outside `KIT_DIRS` | Generated and user-added adapters, per project |
+
+This split is not tidiness. **Kit sync mirrors the filesystem, not git**, so a generated adapter
+written into this tree during development would ship in a public release — carrying whatever a
+customer's `stack.md` happened to say. Generated adapters therefore land in the project's own
+`.wxai/`, which the kit never packages.
 
 `SKILL.md` holds the **method**: the phases, the three signoff gates, both personas, the risk tiers
 and caps, the item schema, and the guardrails. All of it is stack-neutral and none of it belongs

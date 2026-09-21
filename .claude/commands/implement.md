@@ -103,43 +103,39 @@ separate, explicit user action).
   findings. Do **not** execute tests, mutate a database, or file 200 tasks without the user's go-ahead
   at that command's manifest-confirm gate.
 
-### Phase 5b: Author the scope's seed (SCOPE-120 / T006)
-
-**Stack gate — evaluate this before anything else in the phase.** Everything below assumes this
-project's stack seeds through a TypeScript harness (`tests/seeds/`, a Drizzle idiom, `runSeed`).
-That is one stack's machinery, not a universal one. Read `stack.md` first:
-
-- [ ] If the declared stack does not use that harness — or `tests/seeds/run.ts` does not exist in
-  this repo — **skip Phase 5b**. Say so in the run output, naming the declared stack and the
-  reason, and carry on to Phase 6.
-- [ ] When skipping, do **not** transliterate the steps below into the project's own language, and
-  do **not** introduce a Node/TypeScript seeding harness into a repo whose `stack.md` forbids one.
-  A phase skipped for a named reason is a correct outcome; stack drift is not.
-- [ ] Meet the scope's data needs through whatever test tiers the project already has (in-memory
-  providers, an existing fixture or container, a hand-run setup step) and name what you used.
-- [ ] A skip taken under this gate is **not** a kit defect — do not file it at Phase 6. The
-  per-stack seeding adapter that removes the gate is SCOPE-127 FR-002; until it ships, this is the
-  intended behavior and is already tracked.
+### Phase 5b: Author the scope's seed (SCOPE-120 / T006, SCOPE-127 / FR-002)
 
 A test plan describes what to verify; a **seed** is what makes verifying it possible. `/preTest`
-stands up a clone of the live schema — structure only, **zero rows** — so without a seed the app
+stands up a disposable target with structure only and **zero rows**, so without a seed the app
 boots against empty screens and nothing can be driven.
 
-- [ ] Write `tests/seeds/<NNN-name>/seed.ts` for the scope, populating **only** the rows this
-  scope's features need. Not a fixture library — the smallest set that makes its screens real.
-- [ ] Use **deterministic identifiers**, not random UUIDs. Assertions can then name a row without
-  querying for it, and the operator sees the same data on every run. A screen full of fresh random
-  UUIDs is technically seeded and practically unreadable.
-- [ ] **Compose, do not re-author.** Declare `requires: [baseSeed]` (`tests/seeds/_base/seed.ts`)
-  rather than re-creating a company and a user. `runSeed` resolves each dependency once, so a
-  diamond inserts the base rows exactly once. Without composition, per-scope fixtures drift apart.
-- [ ] Make it idempotent (`onConflictDoNothing`), matching the property the migrations already rely
-  on, so re-running against an existing clone is harmless.
-- [ ] Verify against a real clone before considering the task done:
-  `node _wxAI/skills/wxPreTest/scripts/clone-guard.mjs --scope <n> --create` then
-  `npx tsx tests/seeds/run.ts --schema wxktest_<n>_<id> --scope <n>`.
+**Resolve the adapter first. It decides the form; this phase decides the content.**
 
-Seeds are written to a `wxktest_` clone and nowhere else — the harness refuses any other schema.
+- [ ] Run `node _wxAI/adapters/resolve-adapter.mjs --json` and **announce the resolved adapter**
+  before writing anything. Non-zero means no adapter covers this stack: say so, name the declared
+  stack, and carry on to Phase 6 without inventing a seeding harness.
+- [ ] Read that adapter's **Seeding form**. It answers where a seed lives on this stack, what runs
+  it, how it is made idempotent, how a shared base is reused, where it may be written, and how it
+  is verified. Follow those answers exactly.
+- [ ] Do **not** transliterate another stack's machinery into this project's language. If following
+  this phase would introduce a file in a language the declared stack does not use, the resolution
+  was wrong — stop and say so.
+
+These rules hold on every stack, so they live here rather than in any adapter:
+
+- [ ] Populate **only** the rows this scope's features need. Not a fixture library — the smallest
+  set that makes its screens real.
+- [ ] Use **deterministic identifiers**, not random values. Assertions can then name a row without
+  querying for it, and the operator sees the same data on every run. A screen full of fresh random
+  identifiers is technically seeded and practically unreadable.
+- [ ] **Compose, do not re-author.** Depend on the shared base the adapter names rather than
+  re-creating a company and a user. Without composition, per-scope fixtures drift apart.
+- [ ] Make it **idempotent**, by whatever mechanism the adapter names, so re-running against an
+  existing target is harmless.
+- [ ] **Verify against a real disposable target before considering the task done**, using the
+  adapter's stated verification step. A seed that has never been run is a guess.
+- [ ] A seed is written to the disposable target the adapter names and nowhere else. Writing to a
+  shared or production target is a defect, not a shortcut.
 
 ### Phase 6: Report field defects back to wxperts (SCOPE-063 Amendment A / FR-011)
 `implement` is where kit defects surface first — a command that errors, a gate that misfires, a
