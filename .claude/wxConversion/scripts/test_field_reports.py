@@ -221,6 +221,58 @@ def test_7ce2f50a_elided_analysis_page_with_no_name_is_still_analysis():
     assert not SPLIT.breadcrumb_is_analysis(["Part 1", "...", "Cover"])
 
 
+def test_56ad9fdb_breadcrumb_ending_in_analysis_recovers_the_table_from_the_body():
+    """
+    A WEBDEV data file's only page ended its breadcrumb in 'Analysis' instead of the table name,
+    so classify() filed it as schema and Gallery.table.md was never written (11 of 12 tables).
+    """
+    segs = ["Part 2", "Analysis", "C:\\app\\F111.wda", "Data files and items", "Analysis"]
+    body = ("Gallery\nData files and items\nGeneral information\nGallery\n"
+            "Name on disk Gallery.FIC\nGallery data file items\nID\nTitle\n")
+    # the shape as classify() sees it: schema, which is the defect
+    assert SPLIT.classify(segs)[1] == "schema"
+    assert SPLIT.place_misnamed_table_page("schema", segs, body) == "Gallery"
+    # the "Name on disk" line alone is enough when the items header wording is unknown
+    assert SPLIT.place_misnamed_table_page("schema", segs, "Name on disk Gallery.FIC\n") == "Gallery"
+
+
+def test_56ad9fdb_shared_page_keeps_the_overview_tail_in_the_schema():
+    """
+    The page is shared: the data-file overview ends at the top and the first table begins below.
+    Same shape on BlueCube p190 and PPE p177, whose first table had silently lost its opening page.
+    """
+    body = ("Abbreviation\nType\nRoster\n64\n801\nHFSQL\nClassic\n"
+            "Gallery\nData files and items\nGeneral information\nGallery\n"
+            "Name on disk Gallery.FIC\nGallery data file items\nID\n")
+    head, tail = SPLIT.split_at_table_start(body, "Gallery")
+    assert head.endswith("Classic") and "Gallery" not in head, head
+    assert tail.startswith("Gallery\nData files and items") and "ID" in tail, tail
+    # WinDev desktop wording of the same heading
+    head, tail = SPLIT.split_at_table_start("x\nAsset\nFiles and items\nAsset file items\n", "Asset")
+    assert (head, tail.split("\n")[0]) == ("x", "Asset")
+    # no start line -> the whole page is the table's, as before
+    assert SPLIT.split_at_table_start("Gallery data file items\nID\n", "Gallery")[0] == ""
+
+
+def test_56ad9fdb_ordinary_schema_pages_stay_in_the_schema():
+    """Both signals are required, so the dictionary, General information and Links never move."""
+    table_body = "Gallery data file items\nID\n"
+    # no table subsection in the breadcrumb -> never a table, whatever the body says
+    assert SPLIT.place_misnamed_table_page(
+        "schema", ["Part 2", "Analysis", "C:\\app\\F111.wda", "Item dictionary"], table_body) is None
+    # table subsection present but the body names no data file (e.g. the data-file list page)
+    assert SPLIT.place_misnamed_table_page(
+        "schema", ["Part 2", "Analysis", "C:\\app\\F111.wda", "Data files and items", "Analysis"],
+        "Data files and items\nGallery\nPhoto\n") is None
+    # the analysis's own path is never taken for a data file's physical name
+    assert SPLIT.place_misnamed_table_page(
+        "schema", ["Part 2", "Analysis", "Data files and items", "Analysis"],
+        "Name on disk F111.wda\n") is None
+    # pages classify() already placed are untouched
+    assert SPLIT.place_misnamed_table_page(
+        "table", ["Part 2", "Analysis", "Data files and items", "Analysis"], table_body) is None
+
+
 def test_7ce2f50a_handler_control_name_without_the_underscore():
     """
     Handler headers named BTNFindRecord and btnClear. The gate demanded an uppercase prefix AND an
@@ -319,6 +371,179 @@ def test_7ce2f50a_ddl_header_names_the_dialect_it_was_generated_for():
     first = ddl.split("\n")[0]
     assert "mssql-ready" in first, first
     assert "firebird" not in first.lower(), first
+
+
+# --------------------------------------------------------------- schema-to-sql: Stage 3 batch
+
+_HEADER = ["Caption", "Type", "Size", "Unique Key", "Key with Duplicates", "Direction",
+           "GDPR", "Default value"]
+_DICT_HEADER = ["Item", "Type", "Size", "Unique Key", "Key with Duplicates", "Used by..."]
+
+
+def _write_corpus(tmp, pages, dict_rows=None, extra_schema=None):
+    """pre-convert/ with one .table.md per (name, body); _schema.md only when rows are given."""
+    for name, body in pages:
+        with open(os.path.join(tmp, "%s.table.md" % name), "w", encoding="utf-8") as fh:
+            fh.write("\n".join(["# %s" % name, "", "## Data files and items", "",
+                                "%s data file items" % name] + _HEADER + body) + "\n")
+    if dict_rows is not None or extra_schema:
+        lines = ["# Analysis", "", "## Item dictionary (p80)", ""] + _DICT_HEADER + (dict_rows or [])
+        with open(os.path.join(tmp, "_schema.md"), "w", encoding="utf-8") as fh:
+            fh.write("\n".join(lines + (extra_schema or [])) + "\n")
+
+
+def _run_stage3(src, out, dialect="postgres"):
+    import subprocess
+    return subprocess.run([sys.executable, os.path.join(HERE, "pcsoft-schema-to-sql.py"),
+                           "--dialect", dialect, "--src", src, "--out", out],
+                          capture_output=True, text=True, encoding="utf-8")
+
+
+_STATE_PAGE = ["RefStateProvinceID", "RefStateProvinceID", "Automatic identifier",
+               "StateName", "State name", "String", "40",
+               "State Abrv", "State Abrv", "Unicode string", "2"]
+
+
+def test_9a90d2dd_item_name_with_a_space_is_read_when_the_dictionary_lists_it():
+    """'State Abrv' was dropped by the identifier rule - and reached the DDL only by hand."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_corpus(tmp, [("RefStateProvince", _STATE_PAGE)])
+        path = os.path.join(tmp, "RefStateProvince.table.md")
+        assert "State Abrv" not in [f["name"] for f in SCHEMA.parse_table(path)[1]]
+        names = [f["name"] for f in SCHEMA.parse_table(path, None, {"State Abrv"})[1]]
+    assert names == ["RefStateProvinceID", "StateName", "State Abrv"], names
+    ddl = SCHEMA.emit_ddl([("RefStateProvince", [
+        dict(name="State Abrv", caption="", hfsql="Unicode string", key="uvarchar", size=2,
+             default=None, components=None)])], [], "postgres")
+    assert '"State Abrv"' in ddl, ddl
+
+
+def test_9a90d2dd_stage3_run_keeps_the_spaced_item_end_to_end():
+    import tempfile
+    rows = ["RefStateProvinceID", "Automatic identifier", "RefStateProvince",
+            "StateName", "String", "40", "RefStateProvince",
+            "State Abrv", "Unicode string", "2", "RefStateProvince"]
+    with tempfile.TemporaryDirectory() as tmp:
+        src, out = os.path.join(tmp, "pc"), os.path.join(tmp, "db")
+        os.makedirs(src)
+        _write_corpus(src, [("RefStateProvince", _STATE_PAGE)], rows)
+        r = _run_stage3(src, out)
+        assert r.returncode == 0, r.stdout + r.stderr
+        ddl = open(os.path.join(out, "schema.postgres.sql"), encoding="utf-8").read()
+    assert '"State Abrv"' in ddl, ddl
+    assert "INCOMPLETE" not in r.stdout, r.stdout
+
+
+def test_9a90d2dd_d4e8ec3f_unmatched_items_are_named():
+    """A bare 'N short' names nothing. Case-only differences are not losses; a renamed id is named."""
+    tables = [
+        ("Messages", [dict(name="ID", key="identifier"), dict(name="MsgSubject", key="varchar")]),
+        ("Carriers", [dict(name="CarrierID", key="identifier")]),
+    ]
+    import tempfile
+    rows = ["MessagesID", "Automatic identifier", "Messages",
+            "MSGSubject", "String", "80", "Messages",
+            "CarrierID", "Automatic identifier", "Carriers",
+            "CarrierName", "String", "40", "Carriers",
+            "Car", "4-byte integer", "Carriers"]      # short prefix of CarrierID: still unmatched
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_corpus(tmp, [], rows)
+        got = SCHEMA.unmatched_dictionary_items(tables, os.path.join(tmp, "_schema.md"))
+    assert got == [("Car", ["Carriers"]), ("CarrierName", ["Carriers"]),
+                   ("MessagesID", ["Messages"])], got
+
+
+def test_9a90d2dd_a_cut_long_name_is_not_reported_missing():
+    tables = [("CompanyDetail", [dict(name="CompanyBankAccount", key="varchar")])]
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_corpus(tmp, [], ["CompanyBankAccountNo", "String", "50", "CompanyDetail"])
+        got = SCHEMA.unmatched_dictionary_items(tables, os.path.join(tmp, "_schema.md"))
+    assert got == [], got
+
+
+def test_d4e8ec3f_stage3_incomplete_message_names_the_lost_item():
+    """End to end: a dictionary item absent from its table page is named in the run output."""
+    import tempfile
+    rows = ["IDClient", "Automatic identifier", "Client",
+            "Name", "String", "40", "Client",
+            "Region", "String", "20", "Client"]
+    schema = ["## General information", "Generation #", "Number of data files", "Nb items",
+              "Nb links", "Nb connections", "Nb groups", "1", "1", "3", "0", "0", "0"]
+    with tempfile.TemporaryDirectory() as tmp:
+        src, out = os.path.join(tmp, "pc"), os.path.join(tmp, "db")
+        os.makedirs(src)
+        _write_corpus(src, [("Client", ["IDClient", "IDClient", "Automatic identifier",
+                                        "Name", "Name", "String", "40"])], rows,
+                      extra_schema=schema)
+        r = _run_stage3(src, out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "INCOMPLETE" in r.stdout, r.stdout
+    assert "Region  [Client]" in r.stdout, r.stdout
+
+
+def _dict(rows, known, extra=None):
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_corpus(tmp, [], rows, extra_schema=extra)
+        return SCHEMA._parse_item_dictionary_full(os.path.join(tmp, "_schema.md"), known)
+
+
+def test_0a922271_unused_entry_does_not_take_the_next_items_data_files():
+    """'Action / <Unused>' left 'Action' owning the NEXT item's type and data file."""
+    items, _ = _dict(["Action", "<Unused>",
+                      "ActionType", "String", "10", "RollbackTrace"], {"RollbackTrace"})
+    assert items == {"ActionType": {"rollbacktrace"}}, items
+
+
+def test_0a922271_item_named_type_is_an_item_not_a_header():
+    items, _ = _dict(["TwitterAccount", "String", "50", "NLMessage",
+                      "Type", "4-byte integer", "NLAttribute"], {"NLMessage", "NLAttribute"})
+    assert items == {"TwitterAccount": {"nlmessage"}, "Type": {"nlattribute"}}, items
+
+
+def test_0a922271_composite_key_named_after_its_data_file():
+    """The key's name line equals a data-file name and was read as the end of the group before."""
+    items, types = _dict(["ContainerCode", "Composite key", "50", "ExpectedContainer",
+                          "ContainerType", "Composite key", "40", "ContainerType",
+                          "ContainerTypeID", "Automatic identifier", "ContainerType"],
+                         {"ExpectedContainer", "ContainerType"})
+    assert items == {"ContainerCode": {"expectedcontainer"}, "ContainerType": {"containertype"},
+                     "ContainerTypeID": {"containertype"}}, items
+
+
+def test_0a922271_file_groups_section_does_not_extend_the_dictionary():
+    items, _ = _dict(["ZIPfile", "Text Memo", "SysArchive"], {"SysArchive", "SysCountry"},
+                     extra=["Analysis", "File groups", "Group", "File", "Caption", "System",
+                            "SysCountry", "SysCountry (shared)"])
+    assert items == {"ZIPfile": {"sysarchive"}}, items
+
+
+def test_374c9938_clipped_tooltip_is_stripped_from_link_items():
+    """A help string clipped by the PDF column has no ')' and poisoned every FK target."""
+    import tempfile
+    link = ["Data file", "COM_Compras", "COM_DetCompras", "Item",
+            "IDCompras (The <%1!s!> report can be modified in",
+            "IDCompras (Identifier of the purchase)"]
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_corpus(tmp, [], [], extra_schema=["## Links", ""] + link)
+        links = SCHEMA.parse_links(os.path.join(tmp, "_schema.md"),
+                                   known_tables={"COM_Compras", "COM_DetCompras"})
+    assert links == [("COM_Compras", "IDCompras", "COM_DetCompras", "IDCompras")], links
+
+
+def test_stage3_runs_when_the_export_has_no_schema_page():
+    """_schema.md absent crashed Stage 3 with KeyError: 0 - one early return gave {} not a pair."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        src, out = os.path.join(tmp, "pc"), os.path.join(tmp, "db")
+        os.makedirs(src)
+        _write_corpus(src, [("Client", ["IDClient", "IDClient", "Automatic identifier",
+                                        "Name", "Name", "String", "40"])])
+        r = _run_stage3(src, out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "Traceback" not in r.stderr, r.stderr
 
 
 def main():

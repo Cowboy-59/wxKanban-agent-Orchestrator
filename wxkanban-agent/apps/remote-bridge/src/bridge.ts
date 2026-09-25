@@ -6,6 +6,22 @@ import {
 } from "../../../core/yappchatt";
 import { BridgeSession } from "./session";
 import { gitPush, gitTarget, runReview } from "./push-gate";
+import { createGateHook, type OverrideRequest } from "./override-gate"; // [SCOPE 134 / T018, T035]
+import { recordOverride } from "./agent-mode"; // [SCOPE 134 / T019]
+
+// [SCOPE 134 / T018] One yes/no parser, used by BOTH the operator-initiated push
+// confirmation and the agent-initiated gate. It was inline in resolvePendingPush; two
+// copies would have drifted, and an approval parser that says yes where its twin says
+// unclear is the kind of difference nobody notices until it matters.
+// Returns undefined for "unclear" — which is neither, and must never be read as yes.
+function parseYesNo(text: string): boolean | undefined {
+  const t = text.trim().toLowerCase().replace(/[.!]+$/, "");
+  if (/^(confirmed|confirm|yes|y|yep|yeah|yup|ok|okay|go|go ahead|do it|push|push it|ship it|send it)$/.test(t)) {
+    return true;
+  }
+  if (/^(no|n|nope|nah|cancel|abort|stop|don'?t|do not)$/.test(t)) return false;
+  return undefined;
+}
 
 // [SCOPE 102 / T005] BEGIN — RemoteBridge: composes the room transport with the session
 // Outbound relay (session -> room) is the handler set passed to BridgeSession; inbound
@@ -21,6 +37,13 @@ export interface RemoteBridgeOptions {
   seedContext?: string;
   /** Resume a prior session id instead of starting fresh (GO REMOTE handoff). */
   resumeSessionId?: string;
+  // [SCOPE 134 / T019, T030] Present in project-agent mode: the audit identity and bound
+  // MCP token every gate decision is filed through.
+  agent?: { name: string; projectId: string; mcpUrl: string; mcpToken: string };
+  // [SCOPE 134 / T031] The supervising agent (KAIN). Agent-authored messages tagged with
+  // its name are input to the session and may answer a gate (FR-032, FR-033). Absent =
+  // operator-driven bridge: every agent-authored message is dropped, as before.
+  supervisor?: string;
 }
 
 export class RemoteBridge {
@@ -36,6 +59,14 @@ export class RemoteBridge {
   private verbose = false;
   private turnActive = false;
   private pendingPush?: { remote: string; branch: string };
+  // [SCOPE 134 / T018] The mirror image of pendingPush. That one is OPERATOR-initiated —
+  // the room says PUSH and the bridge asks. This one is AGENT-initiated: the session tries
+  // something gated, canUseTool suspends it, and the resolver below is what un-suspends it.
+  // It holds a RESOLVER rather than state, because something is already waiting on it.
+  private pendingApproval?: { resolve: (ok: boolean) => void; request: OverrideRequest };
+  // [SCOPE 134 / T019] Who answered the last gate prompt, for the audit record. Set by
+  // resolvePendingApproval immediately before it resolves, read by onDecision after.
+  private lastDecider?: string;
   private verboseBuffer = "";
   private verboseTimer?: ReturnType<typeof setTimeout>;
 
@@ -71,6 +102,21 @@ export class RemoteBridge {
         model: this.opts.model,
         seedContext: this.opts.seedContext,
         resumeSessionId: this.opts.resumeSessionId,
+        // [SCOPE 134 / T010, T018] Supplying a gate is what lifts the hard `git push`
+        // block: the action becomes reachable, and reaching it means suspending here
+        // until the operator answers. BridgeSession refuses to accept one without the
+        // other, so this cannot silently become "unblocked and ungated".
+        // `onDecision` is deliberately not wired to terminal output: every decision
+        // already surfaces to the operator in the room and belongs durably in
+        // project.record_override, which is where it goes once the bridge holds an
+        // agent token. A third copy in stdout would be the least reliable of the three.
+        overrideGate: createGateHook({
+          requestApproval: (req) => this.requestApproval(req),
+          // [SCOPE 134 / T019] The record is a by-product of deciding (FR-006): every
+          // decision, granted or not, is filed. Not awaited — a slow or failed record
+          // must never hold a granted action hostage or flip a refusal.
+          onDecision: (req, granted) => this.recordDecision(req, granted),
+        }),
       },
       {
         onSessionInit: (id) => console.log(`[session] init ${id}`),
@@ -110,18 +156,37 @@ export class RemoteBridge {
 
   // [SCOPE 102 / T006] BEGIN — inbound routing (room -> session), continue-and-fold
   private onRoomMessage(m: YappchattMessage): void {
-    const text = m.text.trim();
+    let text = m.text.trim();
     if (!text) return;
+    // Who said it, for the audit record if this turns out to answer a gate.
+    let from = m.from;
     // Claude's posts are now authored by the agent user (isagent), so drop our own
     // echoes by that flag — robust against YappChatt's prose translation, which changes
     // the text and would defeat content-matching. consumeSelfEcho stays as a fallback
     // for any legacy same-identity echo.
-    if (m.isAgent) return;
+    if (m.isAgent) {
+      // [SCOPE 134 / T031] Every agent in a room is the same YappChatt user, so the tag
+      // is the only discriminator (FR-032). Only the supervisor's tag is input; our own
+      // posts carry the project's tag and fall through to the drop.
+      const sup = this.opts.supervisor;
+      const tag = sup ? `[${sup}]` : "";
+      if (!sup || !text.startsWith(tag)) return;
+      text = text.slice(tag.length).trim();
+      if (!text) return;
+      from = sup;
+    }
     if (this.consumeSelfEcho(text)) return;
     // While a push confirmation is pending, the next message IS the decision (lenient yes/no) — never
     // relay it to the AI session, which is hard-blocked from pushing and would report "blocked".
     if (this.pendingPush && text.toUpperCase() !== "CANCEL REMOTE") {
       this.resolvePendingPush(text);
+      return;
+    }
+    // [SCOPE 134 / T018] Same rule for an agent-initiated gate: while one is pending the
+    // next message IS the decision. Relaying it to the session instead would leave the
+    // gate waiting forever on an answer that went somewhere else.
+    if (this.pendingApproval && text.toUpperCase() !== "CANCEL REMOTE") {
+      this.resolvePendingApproval(text, from);
       return;
     }
     if (this.handleControl(text)) return;
@@ -239,12 +304,123 @@ export class RemoteBridge {
     console.log(`[push] awaiting confirmation for ${target.branch} → ${target.remote}`);
   }
 
+  // [SCOPE 134 / T018] BEGIN — agent-initiated approval (the canUseTool side)
+  /**
+   * Surface a gated action to the operator and resolve with their answer.
+   *
+   * Handed to the session as the gate's `requestApproval`. Everything that is not an
+   * explicit yes resolves false: a denial, a disconnect, a teardown, a second request
+   * arriving while one is pending. Silence never becomes consent — the promise simply
+   * stays unresolved until something refuses it, and the action does not run meanwhile.
+   */
+  private requestApproval(request: OverrideRequest): Promise<boolean> {
+    // One at a time. A second gated action while one is pending is refused rather than
+    // queued, because the operator's next reply would be ambiguous between them.
+    if (this.pendingApproval) {
+      void this.post("Another action is already awaiting approval — refusing this one.");
+      return Promise.resolve(false);
+    }
+
+    return new Promise<boolean>((resolve) => {
+      this.pendingApproval = { resolve, request };
+      void (async () => {
+        // A push the AGENT asks for runs the same review the operator-initiated path
+        // runs. Skipping it would make the agent route WEAKER than the human one, which
+        // is the wrong direction for the route with less judgement behind it.
+        let reviewNote = "";
+        if (request.action === "gitpush") {
+          void this.post(`${this.agentLabel()} wants to push. Running the pre-push review first…`);
+          try {
+            const verdict = await runReview(this.opts.cwd, this.opts.model);
+            if (!verdict.clean) {
+              this.pendingApproval = undefined;
+              void this.post(
+                `Review is NOT clean — refusing the push without asking.\n${verdict.summary ?? ""}`.trim(),
+              );
+              resolve(false);
+              return;
+            }
+            reviewNote = "Review clean. ";
+          } catch (err) {
+            // A review that cannot run is not a review that passed.
+            this.pendingApproval = undefined;
+            void this.post(`Could not run the pre-push review — refusing. ${(err as Error).message}`);
+            resolve(false);
+            return;
+          }
+        }
+
+        void this.post(
+          [
+            `${this.agentLabel()} is asking to run a gated action.`,
+            ``,
+            `  ${request.detail}`,
+            ``,
+            `${reviewNote}Reply CONFIRMED to allow, or NO to refuse` +
+            (this.opts.supervisor ? ` (you or ${this.opts.supervisor}).` : `.`),
+          ].join("\n"),
+        );
+      })();
+    });
+  }
+
+  private resolvePendingApproval(text: string, from?: string): void {
+    const p = this.pendingApproval;
+    if (!p) return;
+    const decision = parseYesNo(text);
+    if (decision === undefined) {
+      void this.post(`Please reply CONFIRMED to allow, or NO to refuse.`);
+      return;
+    }
+    this.pendingApproval = undefined;
+    this.lastDecider = from;
+    void this.post(decision ? "Allowed." : "Refused.");
+    p.resolve(decision);
+  }
+
+  /** Refuse anything still waiting. Called on teardown and on losing the room. */
+  private abandonPendingApproval(reason: string): void {
+    const p = this.pendingApproval;
+    if (!p) return;
+    this.pendingApproval = undefined;
+    void reason; // the refusal reaches the operator via the room and the audit record
+    this.lastDecider = undefined;
+    p.resolve(false);
+  }
+
+  /** How the agent refers to itself in the room. The post prefix tags it too (FR-018). */
+  private agentLabel(): string {
+    return this.opts.agent ? "The project agent" : "The agent";
+  }
+
+  // [SCOPE 134 / T019] File the decision. Only a grant names a grantor — a refusal
+  // (including abandon-on-teardown) has no approving human, and the MCP tool rejects a
+  // grant without one, which is the constitution's "never self-approved" made concrete.
+  private recordDecision(request: OverrideRequest, granted: boolean): void {
+    const agent = this.opts.agent;
+    const decider = this.lastDecider;
+    this.lastDecider = undefined;
+    if (!agent) return; // operator-driven bridge: no agent token to file with
+    void recordOverride(agent.mcpUrl, agent.mcpToken, {
+      projectId: agent.projectId,
+      agentName: agent.name,
+      sessionId: this.session?.id,
+      action: request.action,
+      granted,
+      grantedBy: granted ? decider ?? "operator" : undefined,
+      requestText: request.detail,
+    }).then((r) => {
+      if (!r.ok) void this.post(`⚠ Could not file the audit record for that decision — ${r.detail.slice(0, 160)}`);
+    });
+  }
+  // [SCOPE 134 / T018] END
+
   private resolvePendingPush(text: string): void {
     const p = this.pendingPush;
     if (!p) return;
-    const t = text.trim().toLowerCase().replace(/[.!]+$/, "");
-    const yes = /^(confirmed|confirm|yes|y|yep|yeah|yup|ok|okay|go|go ahead|do it|push|push it|ship it|send it)$/.test(t);
-    const no = /^(no|n|nope|nah|cancel|abort|stop|don'?t|do not)$/.test(t);
+    const decision = parseYesNo(text);
+    const yes = decision === true;
+    const no = decision === false;
     console.log(`[push] decision reply "${text.slice(0, 40)}" → ${yes ? "yes" : no ? "no" : "unclear"}`);
     if (yes) {
       this.pendingPush = undefined;
@@ -270,6 +446,10 @@ export class RemoteBridge {
   async shutdown(): Promise<void> {
     if (this.tornDown) return;
     this.tornDown = true;
+    // [SCOPE 134 / T018] Refuse anything still waiting, FIRST. A gated action holding an
+    // unresolved promise while the room goes away must end as a refusal, not as a session
+    // that quietly proceeds once nobody is watching.
+    this.abandonPendingApproval("bridge shutting down");
     try {
       await this.post(`Claude on project ${this.opts.projectName} is disconnected`);
     } catch {

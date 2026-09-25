@@ -109,6 +109,15 @@ above; following it stalled real sessions on a command that does not exist (fiel
 asks you to save or preserve the work in git. **What does not**: completing a task, "done", "looks
 good", or your own judgement that the work is worth saving.
 
+**Agent mode (SCOPE-132 FR-023, 2026-09-25).** An autonomous agent on the Remote Session Bridge
+(the kit's project agent) cannot receive "the current message" the way an interactive session
+does, so for it — and only for it — the explicit instruction to push is a CONFIRMED reply to a gate
+prompt that named the exact command, from the operator or from a supervising agent (KAIN) the
+company has explicitly authorized for the project (constitution, 2026-09-25 amendment). The agent
+that asked can never answer itself. That grant covers that one push, follows a
+clean pre-push review, and is recorded via `project.record_override`. Silence, NO, or the bridge
+going away all mean the push does not happen. Interactive sessions are unchanged by this.
+
 **Enforcement, stated honestly.** Whether a PreToolUse git guard is installed is per-project — check
 `.claude/settings.json` before relying on one, and do not tell a user to set `SKIP_GIT_GUARD=1`
 unless a guard is actually present to skip. Absent a hook, this rule is enforced by you following

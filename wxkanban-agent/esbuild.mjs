@@ -32,4 +32,13 @@ await build({
   outExtension: { ".js": ".cjs" },
 });
 
-console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs");
+// [SCOPE 134 / T032] The project agent (remote bridge) ships compiled too, so the Cockpit
+// can start it with plain node in a consumer project. The Agent SDK stays external.
+await build({
+  ...common,
+  entryPoints: { "remote-bridge": "apps/remote-bridge/src/main.ts" },
+  outdir: "dist",
+  outExtension: { ".js": ".cjs" },
+});
+
+console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs + dist/remote-bridge.cjs");

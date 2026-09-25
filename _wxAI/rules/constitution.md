@@ -208,14 +208,14 @@ Toasts are deprecated. Use contextual feedback instead. See `development-guideli
 | **Role-based access** | MCP auth middleware validates API key + role before tool execution | NO |
 | **Input validation** | Zod schemas reject malformed input at the API boundary | NO |
 | **Preflight quality gates** | create_specs runs blocking quality checks before spec creation | NO |
-| **Force overrides** | `--force` logs an escalation request that is still BLOCKED — no bypass | NO |
+| **Force overrides** | `--force` logs an escalation request. BLOCKED until an authenticated human, or a supervising agent a human has explicitly authorized for that company and project, grants it — bounded, expiring, and recorded. Never self-approved by the requesting tool | NO (not self) |
 
 ### What the AI tool MUST NOT do
 
 1. **NEVER write implementation code without first calling `project.implement` through MCP.** Direct file writes that bypass the MCP gate violate the lifecycle and will not be tracked.
 2. **NEVER skip spec creation.** All scopes must be created via `buildscope` → `createspecs` → `dbpush` before implementation begins.
 3. **NEVER modify lifecycle stage directly.** Stage transitions are managed by the workflow engine.
-4. **NEVER claim a force override succeeded.** Force overrides are escalation requests — they are logged and BLOCKED, not permitted.
+4. **NEVER claim a force override succeeded.** Force overrides are escalation requests — they are logged and BLOCKED, **not self-approved**. A tool may request one; only an authenticated human, or a supervising agent a human has explicitly authorized (see the 2026-09-25 amendment), grants it. Until a grant exists, the action has not happened and must not be reported as though it had.
 
 ### Enforcement levels
 
@@ -232,4 +232,60 @@ wxKanban guarantees that **HARD-enforced rules cannot be bypassed** by any AI to
 1. Enforcement lives in the MCP server (server-side), not in the AI tool's prompt
 2. The AI tool receives error responses — it cannot "decide" to ignore them
 3. All enforcement decisions are logged in the audit trail with timestamps and actor identity
-4. Escalation requests (force overrides) are logged but BLOCKED — they require human admin approval via the wxKanban admin UI
+4. Escalation requests (force overrides) are logged but BLOCKED — they require approval by an authenticated human. The approval channel is not fixed to one screen: the wxKanban admin UI, or any other authenticated surface that records who approved what and when, satisfies this. What is fixed is that the approving party is a human and the grant is bounded, expiring, and audited.
+
+### Amendment — 2026-09-23 — the approval channel, and a contradiction closed
+
+This document said three different things about force overrides. The enforcement table said
+"still BLOCKED — no bypass"; MUST NOT #4 said "logged and BLOCKED, not permitted"; guarantee
+point 4 said "they require human admin approval via the wxKanban admin UI". The first two read as
+*never*; the third reads as *pending approval*. Those are not the same claim, and the difference
+is why SPEC-015 has carried a specced emergency override this document forbids ever since.
+
+**The gap was the mechanism, not the intent.** Point 4 always contemplated a human granting an
+override; the admin UI it names was never built, so nothing could ever be approved and "pending
+approval" collapsed into "never".
+
+The amendment is therefore narrow. **The commercial guarantee is unchanged and remains literally
+true:** a HARD-enforced rule still cannot be bypassed by any AI tool regardless of its capabilities
+or configuration. A tool does not gain the ability to decide. It gains the ability to *ask*, to
+suspend while asking, and to proceed only on a recorded human grant. Points 1, 2 and 3 of the
+guarantee are untouched.
+
+What changed is the approval *channel* — broadened from one unbuilt screen to any authenticated
+surface that records the decision. SCOPE-132 implements this: a blocked action suspends via
+`canUseTool`, the request surfaces to the operator, and the action resumes only on an explicit
+grant that is scoped, time-bounded and audited. Denial and silence both mean no.
+
+This amendment is what SPEC-134 / T001 requires before any override behaviour may be committed
+(SCOPE-132 FR-003, measured as commit ordering by SC-6).
+
+**SPEC-015's emergency override is withdrawn (2026-09-25, SCOPE-132 FR-002).** SPEC-015 US7 /
+FR-011 let the AI proceed on its own `--force`. That is self-approval, so it is withdrawn rather
+than implemented. The project now states one thing about overrides: a tool may request one, a
+human grants or refuses it, and the decision is recorded. There is no other path.
+
+### Amendment — 2026-09-25 (later) — a supervising agent may grant
+
+Decided by Andy, 2026-09-25. The 2026-09-23 amendment named a human as the only granting party.
+That is broadened by exactly one kind of principal: a **supervising agent** — today, KAIN — that
+a human has explicitly authorized for the company **and** the project:
+
+- it holds a live Company Access Token, issued by a company admin (`companyagenttokens`); and
+- a project admin has ticked it on that project (`projectagentgrants`), re-checked on every call.
+
+What does **not** change, and is the reason the commercial guarantee still holds literally:
+
+1. **The requesting agent never approves itself.** The project agent that hit the gate cannot
+   answer its own request; only a distinct principal can. Self-approval remains impossible.
+2. **Authority is delegated by a human, never assumed.** A supervising agent can grant only where
+   two human decisions — the ticket and the tick — are both live. Unticking withdraws it on the
+   next call.
+3. **Every grant is bounded and recorded.** Single action; `project.record_override` names the
+   granting principal (`grantedBy: "KAIN"` or the human's name). A grant by an agent is as
+   auditable as a grant by a person, and is distinguishable from one.
+
+HARD-enforced rules still cannot be bypassed by any AI tool acting on its own authority. A
+supervising agent's grant is not the tool's own authority: it is a human's, delegated in advance,
+scoped to one project, and revocable. This amendment precedes the code that implements it
+(SCOPE-132 FR-003, SC-6).

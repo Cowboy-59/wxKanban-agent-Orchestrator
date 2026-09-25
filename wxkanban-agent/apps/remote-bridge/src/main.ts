@@ -2,6 +2,13 @@
 import { existsSync, readFileSync } from "fs";
 import { basename, join } from "path";
 import { RemoteBridge } from "./bridge";
+import {
+  acquireWorktreeLock,
+  assertDistinctTag,
+  connectProjectAgent,
+  readProjectAgentConfig,
+  type WorktreeLock,
+} from "./agent-mode"; // [SCOPE 134]
 
 // [SCOPE 102 / T004] BEGIN — remote-bridge entry point (GO REMOTE launcher)
 // Resolves config from the repo-root .env (tolerant of inline comments), derives the
@@ -10,7 +17,9 @@ import { RemoteBridge } from "./bridge";
 // launcher when "GO REMOTE" is said to Claude). SIGINT posts the disconnect notice.
 // Run: `npx ts-node apps/remote-bridge/src/main.ts`.
 
-const REPO_ROOT = join(__dirname, "..", "..", "..", "..");
+// [SCOPE 134 / T032] The launcher passes the project root explicitly: from the compiled
+// bundle (wxkanban-agent/dist/) __dirname is a different depth than from src/.
+const REPO_ROOT = process.env.WXKANBAN_REPO_ROOT || join(__dirname, "..", "..", "..", "..");
 
 function loadRepoEnv(): void {
   const envPath = join(REPO_ROOT, ".env");
@@ -47,6 +56,56 @@ function projectName(): string {
 
 async function main(): Promise<void> {
   loadRepoEnv();
+
+  // [SCOPE 134 / T030, T022, T023] BEGIN — project-agent mode (Amendment A)
+  // The kit's per-project agent. Everything an operator used to paste by hand is fetched
+  // with the project's own kit token instead: the room (derived server-side), a room token
+  // minted once and kept locally, the read identity, and a bound MCP token for filing
+  // gate decisions. Written into process.env so the unchanged SCOPE-102 resolver and
+  // bridge pick it up exactly as before.
+  let lock: WorktreeLock | undefined;
+  let agent: { name: string; projectId: string; mcpUrl: string; mcpToken: string } | undefined;
+  let supervisor: string | undefined;
+  let paCfg: ReturnType<typeof readProjectAgentConfig> = null;
+  try {
+    paCfg = readProjectAgentConfig(process.argv, process.env, REPO_ROOT);
+  } catch (err) {
+    console.error(`[project-agent] ${(err as Error).message}`);
+    process.exit(2);
+  }
+  if (paCfg) {
+    // FR-026: refuse, before anything connects, if another session holds this tree.
+    try {
+      lock = acquireWorktreeLock(REPO_ROOT, "project agent");
+    } catch (err) {
+      console.error((err as Error).message);
+      process.exit(3);
+    }
+    // FR-020 / SCOPE-102 seed policy: a directive seed is a second autonomous Claude on
+    // this tree. The lock is what makes one safe here, so a seed runs only while it is held.
+    try {
+      const conn = await connectProjectAgent(paCfg, REPO_ROOT);
+      const tag = process.env.YAPPCHATT_DISPLAY_NAME || conn.projectName;
+      assertDistinctTag(tag, paCfg.supervisor); // FR-032
+      process.env.YAPPCHATT_ROOM = conn.conversationId;
+      process.env.YAPPCHATT_TOKEN = conn.yappchattToken;
+      process.env.YAPPCHATT_EMAIL = conn.operatorEmail;
+      // The post prefix follows the display name: every post reads [<project>] (FR-018).
+      process.env.YAPPCHATT_DISPLAY_NAME = tag;
+      process.env.WXKANBAN_PROJECT_NAME = conn.projectName;
+      supervisor = paCfg.supervisor;
+      agent = { name: conn.agentName, projectId: conn.projectId, mcpUrl: paCfg.mcpUrl, mcpToken: conn.mcpToken };
+      console.info(
+        `[project-agent] ${conn.projectName} bound to room ${conn.conversationId.slice(0, 8)}..., supervised by ${supervisor}`,
+      );
+    } catch (err) {
+      console.error(`[project-agent] ${(err as Error).message}`);
+      lock?.release();
+      process.exit(4);
+    }
+  }
+  // [SCOPE 134 / T030, T022, T023] END
+
   // Publish the resolved project name so the config resolver can use it as the
   // read session's display name (.wxai/project.json and the repo directory are
   // not visible from core/).
@@ -62,12 +121,19 @@ async function main(): Promise<void> {
     model: process.env.WXKANBAN_REMOTE_MODEL,
     seedContext: process.env.WXKANBAN_REMOTE_SEED,
     resumeSessionId: process.env.WXKANBAN_REMOTE_RESUME,
+    agent, // [SCOPE 134 / T019]
+    supervisor, // [SCOPE 134 / T031]
   });
 
   const shutdown = (signal: string) => {
     console.log(`\n[bridge] ${signal} — shutting down`);
-    void bridge.shutdown().finally(() => process.exit(0));
+    void bridge.shutdown().finally(() => {
+      lock?.release(); // [SCOPE 134 / T022]
+      process.exit(0);
+    });
   };
+  // [SCOPE 134 / T022] CANCEL REMOTE exits from inside the bridge; release on any exit.
+  process.on("exit", () => lock?.release());
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 

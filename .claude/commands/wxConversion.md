@@ -44,7 +44,7 @@ Technical Documentation export from the IDE and re-run. Do not partially convert
    - **Stage 2** — regenerate each page as a modern React + Tailwind + shadcn/ui `.tsx` under
      `rebuild/pages/`, with WLanguage behavior wired as handler stubs and non-shadcn controls
      flagged (see the skill's `references/library-gaps.md`).
-   - **Stage 3** — **ask the developer** the target database (PostgreSQL / MSSQL / MySQL / Firebird /
+   - **Stage 3** — **ask the developer** the target database (PostgreSQL / MSSQL / MySQL / Firebird / SQLite /
      None) and whether to keep field names faithful or modify; then generate DDL + ER diagram under
      `rebuild/db/`. Tell them HFSQL data must first be exported to JSON via a WLanguage global
      procedure.

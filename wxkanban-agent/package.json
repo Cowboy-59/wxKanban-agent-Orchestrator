@@ -1,6 +1,6 @@
 {
   "name": "wxkanban-agent",
-  "version": "1.7.64",
+  "version": "1.7.67",
   "description": "wxKanban Agent Orchestrator Kit — lifecycle-aware command gateway, code fencing, implement/auditfences.",
   "main": "dist/index.js",
   "files": [
@@ -25,6 +25,7 @@
     "gateway:http": "ts-node apps/command-gateway/src/http.ts",
     "dbpush": "ts-node dbpush.ts",
     "remote": "ts-node apps/remote-bridge/src/main.ts",
+    "project-agent": "ts-node apps/remote-bridge/src/main.ts --project-agent",
     "pack": "bash scripts/pack-kit.sh"
   },
   "dependencies": {

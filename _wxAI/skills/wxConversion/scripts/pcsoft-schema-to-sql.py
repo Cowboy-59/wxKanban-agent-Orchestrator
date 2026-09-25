@@ -63,6 +63,18 @@ TYPEMAP = {
         "time": "TIME", "datetime": "DATETIME", "numeric": "DECIMAL(18,4)",
         "money": "DECIMAL(24,6)", "double": "DOUBLE",
     },
+    # SQLite has type AFFINITY, not types (field request edb86afb). Integers are INTEGER - which the
+    # identifier column must be, exactly, to alias the rowid. Boolean is 0/1 INTEGER; dates and times
+    # are ISO-8601 TEXT, the form SQLite's own date functions read. VARCHAR(n) is kept as the
+    # documented width, though SQLite does not enforce it.
+    "sqlite": {
+        "uint2": "INTEGER", "float4": "REAL",
+        "identifier": "INTEGER", "int8": "INTEGER", "int4": "INTEGER", "uint4": "INTEGER",
+        "uint1": "INTEGER", "varchar": "VARCHAR({n})", "uvarchar": "VARCHAR({n})",
+        "text": "TEXT", "blob": "BLOB", "boolean": "INTEGER", "date": "TEXT",
+        "time": "TEXT", "datetime": "TEXT", "numeric": "NUMERIC(18,4)",
+        "money": "NUMERIC(24,6)", "double": "REAL",
+    },
 }
 
 # Boolean DEFAULT literals, per dialect. HFSQL prints a boolean item's default as the NUMBER 0 or
@@ -79,6 +91,7 @@ BOOL_DEFAULTS = {
     "postgres": ("false", "true"),
     "mssql": ("0", "1"),             # TINYINT - the numeric default is already the correct one
     "mysql": ("0", "1"),             # TINYINT(1) - ditto
+    "sqlite": ("0", "1"),            # INTEGER 0/1 - SQLite has no boolean type
 }
 
 # What the analysis may print in the 'Default value' column for a boolean item. Anything else is
@@ -96,6 +109,7 @@ VERIFY_HINT = {
                 ' a bad boolean default only fails on use',
     "mssql": 'sqlcmd -S <server> -d ddlcheck -i "{f}"',
     "mysql": 'mysql --database=ddlcheck < "{f}"',
+    "sqlite": 'sqlite3 ddlcheck.db < "{f}"',
 }
 
 # HFSQL type label (as it appears in the doc) -> internal key. Order matters (longest first).
@@ -168,8 +182,12 @@ NUMERIC_LINE_RE = re.compile(r"^\d+$")
 # Those lines are neither a field nor a stray the scan can skip: one of them starts a "record"
 # whose type search reaches down into the NEXT field's type line, so the note line becomes a
 # column and the real field below it is consumed as part of its caption. Requiring the name to
-# look like an identifier costs nothing real — an item name cannot contain a space — and it puts
-# the scan back on the next genuine item.
+# look like an identifier puts the scan back on the next genuine item.
+#
+# HFSQL does allow a space in an item name, though ('State Abrv'), and the identifier rule dropped
+# such a column in silence (wxKanban 9a90d2dd). A spaced line cannot be told from a note line by its
+# shape, so it is accepted only when the analysis Item dictionary lists that exact name for this
+# data file - see parse_table's `spaced_names`.
 ITEM_NAME_RE = re.compile(r"^[A-Za-z_À-ɏ][A-Za-z0-9_À-ɏ]*$")
 
 
@@ -383,7 +401,9 @@ def strip_repeated_headers(body):
     return out
 
 
-def parse_table(path, unmapped=None):
+def parse_table(path, unmapped=None, spaced_names=()):
+    """`spaced_names`: item names containing a space that the Item dictionary lists for this data
+    file. Only those are read as items; any other line that fails ITEM_NAME_RE is note text."""
     name = os.path.basename(path).split(".")[0]
     lines = [l.rstrip() for l in open(path, encoding="utf-8").read().split("\n")]
     # body = lines after "<name> data file items" + the header labels
@@ -415,7 +435,7 @@ def parse_table(path, unmapped=None):
     n = len(body)
     while i < n:
         fname = body[i]
-        if not ITEM_NAME_RE.match(fname):
+        if not ITEM_NAME_RE.match(fname) and fname not in spaced_names:
             i += 1                       # not an item name -> note text, legend, stray
             continue
         # Locate this field's type line. The search starts at i+2, NOT i+1: this document family
@@ -591,6 +611,9 @@ def parse_links(schema_path, known_tables=None):
     outside a Links row, so when the caller knows the real table names a candidate whose two
     following lines are not both tables is rejected rather than emitted as a bogus FK.
     """
+    # An export whose analysis printed no schema page has no links to read, not a crash.
+    if not os.path.exists(schema_path):
+        return []
     txt = [l.strip() for l in open(schema_path, encoding="utf-8").read().split("\n")]
     links = []
     i = 0
@@ -604,8 +627,12 @@ def parse_links(schema_path, known_tables=None):
             while j < len(txt) and txt[j] != "Item":
                 j += 1
             if j + 2 < len(txt):
-                src_item = re.sub(r"\s*\(.*\)$", "", txt[j + 1])
-                dst_item = re.sub(r"\s*\(.*\)$", "", txt[j + 2])
+                # Strip the "(tooltip)" from the first " (" to the END of the line, closing paren
+                # or not: the PDF column clips a long help string, and requiring the ")" left
+                # "IDCompras (The <%1!s!> report can be modified in" as the column name on every
+                # foreign key of one export (wxKanban 374c9938). An item name never contains "(".
+                src_item = re.sub(r"\s*\(.*$", "", txt[j + 1]).strip()
+                dst_item = re.sub(r"\s*\(.*$", "", txt[j + 2]).strip()
                 if re.match(r"^\w+$", src_tbl) and re.match(r"^\w+$", dst_tbl) \
                         and src_item and dst_item:
                     links.append((src_tbl, src_item, dst_tbl, dst_item))
@@ -688,8 +715,54 @@ def declared_column_items(schema_path, known_tables):
     return len(usable), len(composite), usable
 
 
+# The shortest name a PDF column has been seen to cut is 19 characters; below this length a prefix
+# is a different item ('ID' / 'IDCustomer'), not a cut one, so it must not count as a match.
+_MIN_CUT_LEN = 15
+
+
+def _fold(name):
+    """Lower-case and strip accents: one export prints 'Détails' in the dictionary, 'Details' on the
+    table page, for the same item."""
+    decomposed = unicodedata.normalize("NFKD", name)
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
+
+
+def unmatched_dictionary_items(tables, schema_path):
+    """
+    [(item, [data files the dictionary says use it])] for every dictionary item no column matches.
+
+    A bare "N short" total names nothing, so nobody can act on it (wxKanban d4e8ec3f, 9a90d2dd).
+
+    Matched against EVERY recovered column, not per table: the dictionary's "Used by" attribution is
+    not reliable enough to accuse one table. Measured on two exports known to be complete, it pinned
+    items on the wrong data file - an item NAMED 'Type' is skipped as a column header, and a data
+    file with no .table.md does not close its group, so the entries around both land on a neighbour.
+    The data files are therefore returned as a hint, never as the finding.
+
+    Case-insensitive ('MSGSubject' / 'MsgSubject' are one item). A name that is a prefix of a
+    column also matches when long enough to have been cut by the PDF column. Composite keys are
+    indexes, not columns, and are excluded.
+    """
+    items, types = _parse_item_dictionary_full(schema_path, {t for t, _ in tables})
+    cols = {_fold(f["name"]) for _, fl in tables for f in fl if f["key"] != "composite"}
+    display = {t.lower(): t for t, _ in tables}
+    out = []
+    for item, users in items.items():
+        if any(_is_composite_type(t) for t in types.get(item, ())):
+            continue
+        il = _fold(item)
+        if il in cols or any(min(len(c), len(il)) >= _MIN_CUT_LEN
+                             and (c.startswith(il) or il.startswith(c)) for c in cols):
+            continue
+        out.append((item, sorted(display.get(u, u) for u in users)))
+    return sorted(out, key=lambda x: x[0].lower())
+
+
 def _is_composite_type(label):
     return bool(label) and match_type(label)[1] == "composite"
+
+
+_ITEM_LIKE_LABELS = {"Item", "Type", "Size", "Caption"}
 
 
 def _parse_item_dictionary_full(schema_path, known_tables):
@@ -702,24 +775,47 @@ def _parse_item_dictionary_full(schema_path, known_tables):
     inside a group, not whatever fails to look like one.
     """
     if not os.path.exists(schema_path):
-        return {}
-    if not os.path.exists(schema_path):
         return {}, {}
     tables_lc = {t.lower() for t in known_tables}
     items, types, cur, buf, in_dict = {}, {}, None, [], False
-    for raw in open(schema_path, encoding="utf-8").read().split("\n"):
-        line = raw.strip()
-        if not line:
-            continue
+    lines = [l.strip() for l in open(schema_path, encoding="utf-8").read().split("\n") if l.strip()]
+    for n, line in enumerate(lines):
         if line == "Item dictionary" or (line.startswith("#") and "Item dictionary" in line):
             in_dict, cur, buf = True, None, []
             continue
         if line.startswith("#"):
             in_dict = False
             continue
-        if not in_dict or line in DICT_HEADER_LABELS:
+        if not in_dict:
             continue
-        if line.lower() in tables_lc:
+        # The dictionary has no closing heading of its own: the next analysis section follows as
+        # "Analysis / File groups / ...", and read as dictionary rows its group listing became
+        # items such as "CurrencyRates (shared)". An "Analysis" breadcrumb that does not introduce
+        # another dictionary page ends the dictionary.
+        if line == "Analysis":
+            if not (n + 1 < len(lines) and lines[n + 1] == "Item dictionary"):
+                in_dict = False
+            continue
+        # A header label that can also be an item name is skipped only inside the header RUN
+        # reprinted on every page ("Item / Type / Size / Unique Key / ..."). Alone it is an item:
+        # one export has an item named 'Type', and skipping it hung its entries on the item before
+        # (wxKanban 0a922271).
+        if line in DICT_HEADER_LABELS and (
+                line not in _ITEM_LIKE_LABELS
+                or (n > 0 and lines[n - 1] in DICT_HEADER_LABELS)
+                or (n + 1 < len(lines) and lines[n + 1] in DICT_HEADER_LABELS)):
+            continue
+        # "<name> / <Unused>" is a whole entry: an item no data file uses. It closes the group like
+        # a data-file name does, attributing nothing. Left in the buffer, the unused name became
+        # the owner of the NEXT item's type and data files (wxKanban 0a922271).
+        if line == "<Unused>":
+            cur, buf = None, []
+            continue
+        # An item can be NAMED after a data file (a composite key over one: "Orders / Composite key
+        # / 40 / Orders"). A group never closes empty - even a reused item prints its type first -
+        # so a data-file name arriving on an empty group with a type under it is the item's name.
+        if line.lower() in tables_lc and not (
+                not buf and n + 1 < len(lines) and match_type(lines[n + 1])[0] is not None):
             if buf:
                 if len(buf) >= 2 and match_type(buf[1])[0] is not None:
                     cur = buf[0]                       # name printed, even if type-shaped
@@ -769,7 +865,15 @@ def recover_truncated_names(tables, src_dir):
     for another wrong name is not a repair, and this parser's history is of confident corruption.
     """
     known = [t for t, _ in tables]
-    dictionary = parse_item_dictionary(os.path.join(src_dir, "_schema.md"), known)
+    dictionary, dict_types = _parse_item_dictionary_full(os.path.join(src_dir, "_schema.md"), known)
+    # The dictionary's column width is measured over EVERY entry it printed - composite keys are
+    # its longest - before they leave the candidate pool below.
+    dict_lengths = [len(k) for k in dictionary]
+    # A composite key is an index, never a column, so it cannot be the full name of a cut column.
+    # Its name is often the data file's own ("Orders"), and so a prefix of that file's cut key
+    # ("OrdersI" for OrdersID) - left in the pool it made a clean restoration look ambiguous.
+    dictionary = {k: v for k, v in dictionary.items()
+                  if not any(_is_composite_type(t) for t in dict_types.get(k, ()))}
     bindings = harvest_control_bindings(src_dir, known)
 
     lengths = [len(f["name"]) for _, fl in tables for f in fl if f["key"] != "composite"]
@@ -780,7 +884,6 @@ def recover_truncated_names(tables, src_dir):
     # The dictionary is printed in a wider column, but it is a PDF column too and it cuts its own
     # longest entries. A candidate sitting at that width is itself suspect, so it is reported
     # instead of written into the DDL.
-    dict_lengths = [len(k) for k in dictionary]
     dict_floor = (max(dict_lengths) - TRUNCATION_BAND) if dict_lengths else None
 
     applied, unresolved = [], []
@@ -990,6 +1093,7 @@ IDENT_RULES = {
     "postgres": ('"', '"', 63),
     "mssql": ("[", "]", 128),
     "mysql": ("`", "`", 64),
+    "sqlite": ('"', '"', 128),      # no hard limit; kept short so names stay readable
 }
 
 # Quote only when the bare form would not survive. Blanket quoting would change case semantics for
@@ -1050,6 +1154,11 @@ _RESERVED = {
     "save", "schema", "securityaudit", "semantickeyphrasetable", "setuser", "shutdown",
     "statistics", "textsize", "top", "tran", "transaction", "truncate", "try_convert", "tsequal",
     "unpivot", "updatetext", "waitfor", "within", "writetext",
+    # SQLite's hard keywords (the ones its parser will not fall back to reading as a name). Most
+    # are also MySQL-reserved and were missing for that target too; executing a probe table per
+    # word in sqlite3 found each of these costing the whole CREATE TABLE (feedback edb86afb).
+    "add", "alter", "autoincrement", "delete", "drop", "escape", "exists", "filter", "glob",
+    "indexed", "insert", "nothing", "set", "update",
 }
 
 
@@ -1154,9 +1263,45 @@ def emit_ddl(tables, links, dialect):
            "-- database before you build on it - a statement can parse and still fail to execute:",
            "--   " + VERIFY_HINT[dialect].format(f=f"schema.{dialect}.sql"),
            ""]
+    if dialect == "sqlite":
+        out[-1:] = [
+            "-- SQLITE: foreign keys are declared inside each CREATE TABLE (SQLite has no",
+            "-- ALTER TABLE ... ADD CONSTRAINT) and are NOT enforced unless every connection runs",
+            "--   PRAGMA foreign_keys = ON;",
+            "-- With enforcement on, the data load fails on HFSQL link items that hold 0 for",
+            "-- 'no parent' - the loader must convert a 0 foreign key to NULL.",
+            "-- Dates and times are ISO-8601 TEXT; booleans are INTEGER 0/1.",
+            "PRAGMA foreign_keys = ON;",
+            ""]
+    # SQLite takes a foreign key only inside CREATE TABLE, so its links are grouped per child
+    # table up front; forward references are legal there, so table order does not matter.
+    # A parent column that is neither PRIMARY KEY nor UNIQUE is a "foreign key mismatch" - and
+    # SQLite accepts the CREATE TABLE and raises it only on the first INSERT, UPDATE or DELETE that
+    # touches the child OR the parent, so the DDL checks out clean and the data load breaks later.
+    # Uniqueness is not recoverable from the PDF (see header), so only a link to the parent's
+    # identifier - emitted as its PRIMARY KEY - is declared; any other becomes a REVIEW note.
+    # Found running the eBusiness corpus: OrdLine.Reference -> Product.Reference.
+    inline_fks, fk_notes = {}, {}
+    valid = {t for t, _ in tables}
+    if dialect == "sqlite":
+        pk_of = {t: next((f["name"] for f in fs if f["key"] == "identifier"), None)
+                 for t, fs in tables}
+        for src_tbl, src_item, dst_tbl, dst_item in links:
+            if dst_tbl in valid and src_tbl in valid:
+                if src_item == pk_of[src_tbl]:
+                    inline_fks.setdefault(dst_tbl, []).append((src_tbl, src_item, dst_item))
+                else:
+                    fk_notes.setdefault(dst_tbl, []).append(
+                        f"-- REVIEW: foreign key {dst_item} -> {src_tbl}({src_item}) NOT declared:"
+                        f" {src_tbl}.{src_item} is not its primary key. Once it is confirmed"
+                        f" unique, add CREATE UNIQUE INDEX on {src_tbl}({src_item}) and"
+                        f" re-declare the FK here.")
     ident_clause = {
         "firebird": " GENERATED BY DEFAULT AS IDENTITY", "postgres": " GENERATED BY DEFAULT AS IDENTITY",
         "mssql": " IDENTITY(1,1)", "mysql": " AUTO_INCREMENT",
+        # Inline, and only on the first identifier: AUTOINCREMENT is legal solely on the column
+        # spelled exactly INTEGER PRIMARY KEY, and a table may have one primary key.
+        "sqlite": " PRIMARY KEY AUTOINCREMENT",
     }[dialect]
     used_names = set()          # constraint names must be unique after length-truncation
     for tname, fields in tables:
@@ -1168,7 +1313,7 @@ def emit_ddl(tables, links, dialect):
                 composites.append(f)
                 continue
             coldef = f"{quote_ident(f['name'], dialect)} {ct}"
-            if f["key"] == "identifier":
+            if f["key"] == "identifier" and not (dialect == "sqlite" and pk):
                 coldef += ident_clause
                 pk = f["name"]
             clause, note = default_clause(f, dialect)
@@ -1176,22 +1321,29 @@ def emit_ddl(tables, links, dialect):
             if note:
                 notes.append(note)
             cols.append((coldef, f["caption"]))
-        if pk:
+        if pk and dialect != "sqlite":
             pkname = constraint_name("PK", [tname], dialect, used_names)
             cols.append((f"CONSTRAINT {pkname} PRIMARY KEY ({quote_ident(pk, dialect)})", ""))
+        for src_tbl, src_item, dst_item in inline_fks.get(tname, []):
+            fkname = constraint_name("FK", [tname, src_tbl, dst_item], dialect, used_names)
+            cols.append((f"CONSTRAINT {fkname} FOREIGN KEY ({quote_ident(dst_item, dialect)}) "
+                         f"REFERENCES {quote_ident(src_tbl, dialect)} "
+                         f"({quote_ident(src_item, dialect)})", ""))
         lines = []
         for idx, (coldef, cap) in enumerate(cols):
             comma = "," if idx < len(cols) - 1 else ""
             cmt = f"  -- {cap}" if cap else ""
             lines.append(f"  {coldef}{comma}{cmt}")
         out.extend(notes)              # comment-only lines belong ABOVE the statement, not inside it
+        out.extend(fk_notes.get(tname, []))
         out.append(f"CREATE TABLE {quote_ident(tname, dialect)} (")
         out.append("\n".join(lines))
         out.append(");")
         out.extend(emit_indexes(tname, fields, composites, dialect, used_names))
         out.append("")
+    if dialect == "sqlite":
+        return "\n".join(out) + "\n"          # foreign keys already emitted inline above
     out.append("-- ---- Foreign keys (from the analysis Links) ----")
-    valid = {t for t, _ in tables}
     for src_tbl, src_item, dst_tbl, dst_item in links:
         if dst_tbl in valid and src_tbl in valid:
             fkname = constraint_name("FK", [dst_tbl, src_tbl, dst_item], dialect, used_names)
@@ -1283,8 +1435,15 @@ def main():
         sys.exit(f"schema-to-sql: no *.table.md under {args.src}. Nothing to convert — "
                  "run the splitter first, and check it reported the tables it wrote.")
 
+    # Item names containing a space are read only where the dictionary vouches for them, per data
+    # file - the shape alone cannot separate 'State Abrv' from a note line (wxKanban 9a90d2dd).
+    schema_md = os.path.join(args.src, "_schema.md")
+    file_names = [os.path.basename(p).split(".")[0] for p in table_files]
+    dictionary = parse_item_dictionary(schema_md, set(file_names))
     unmapped = []
-    tables = [parse_table(p, unmapped) for p in table_files]
+    tables = [parse_table(p, unmapped,
+                          {n for n, users in dictionary.items() if " " in n and fn.lower() in users})
+              for p, fn in zip(table_files, file_names)]
     if unmapped:
         return report_unmapped(unmapped, args.out)
 
@@ -1302,7 +1461,6 @@ def main():
     # a name corrected afterwards would leave the foreign keys pointing at the cut spelling.
     renamed, unresolved_names = recover_truncated_names(tables, args.src)
 
-    schema_md = os.path.join(args.src, "_schema.md")
     links = parse_links(schema_md, known_tables={t for t, _ in tables})
     if renamed:
         links = apply_renames_to_links(links, renamed)
@@ -1336,7 +1494,8 @@ def main():
     # act on is the honest version.
     declared = declared_item_count(schema_md)
     if declared:
-        distinct = len({f["name"] for _, fl in tables for f in fl if f["key"] != "composite"})
+        # Case- and accent-insensitive: 'MSGSubject' and 'MsgSubject' are one item (wxKanban 9a90d2dd).
+        distinct = len({_fold(f["name"]) for _, fl in tables for f in fl if f["key"] != "composite"})
         # Compare like with like: the raw "Nb items" figure counts dictionary entries that can
         # never be a column. Where the Item dictionary is readable, count only the entries that
         # could be one; where it is not, say which number is being used rather than implying a
@@ -1352,8 +1511,26 @@ def main():
         if distinct < target:
             print(f"  !! INCOMPLETE: {basis}; this run recovered {distinct} distinct column names "
                   f"({target - distinct} short).")
-            print("     Columns are missing from the generated DDL. Check the source PDF for the "
-                  "affected tables before building on this schema, and report the shortfall.")
+            # Name the candidates. A total alone cannot be acted on, and the natural response to it
+            # is to note it and move on (wxKanban d4e8ec3f). Only printed once the count says the
+            # run IS short: the dictionary is noisy enough that listing unmatched entries on every
+            # run would raise alarms over schemas that are complete.
+            unmatched = unmatched_dictionary_items(tables, schema_md) if usable else []
+            if unmatched:
+                print(f"     {len(unmatched)} dictionary item(s) match no column in the DDL "
+                      f"(the data file in brackets is the dictionary's attribution - a hint):")
+                for item, users in unmatched[:25]:
+                    hint = f"  [{', '.join(users[:3])}{', …' if len(users) > 3 else ''}]" if users else ""
+                    print(f"       {item}{hint}")
+                if len(unmatched) > 25:
+                    print(f"       … and {len(unmatched) - 25} more")
+                print("     Check each against its table page in the source PDF. An item the table "
+                      "page prints under a different name (the dictionary's 'MessagesID' printed "
+                      "as 'ID') is not lost - the DDL follows the table page. An item whose data "
+                      "file has no .table.md means that page was not split out.")
+            else:
+                print("     Columns are missing from the generated DDL. Check the source PDF for the "
+                      "affected tables before building on this schema, and report the shortfall.")
         else:
             print(f"  items: {distinct} distinct columns / {basis}")
 

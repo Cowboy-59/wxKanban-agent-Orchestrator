@@ -1,5 +1,6 @@
-import type { SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { HookCallback, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { loadAgentSdk, type QueryFn } from "./sdk-loader";
+import { GATE_HOOK_TIMEOUT_S } from "./override-gate"; // [SCOPE 134 / T035]
 
 // [SCOPE 102 / T003] BEGIN — BridgeSession: owns a driveable headless Claude session
 // Wraps the Agent SDK `query()` with a push-based input queue (so the room can feed
@@ -63,6 +64,12 @@ export interface BridgeSessionOptions {
   seedContext?: string;
   /** Tool patterns to hard-block. Defaults to blocking `git push` (FR-006 safety default). */
   disallowedTools?: string[];
+  // [SCOPE 134 / T013] When supplied, `git push` is no longer hard-blocked: it becomes
+  // REACHABLE and routed through this gate, which suspends the call until the operator
+  // answers. Removing the block without supplying a gate would remove the safeguard
+  // rather than replace it, so the two move together and `start()` refuses to separate
+  // them — see the guard there.
+  overrideGate?: HookCallback; // [SCOPE 134 / T035] a PreToolUse hook — see override-gate.ts
 }
 
 export interface BridgeSessionHandlers {
@@ -103,6 +110,23 @@ export class BridgeSession {
     if (this.opts.seedContext && !this.opts.resumeSessionId) {
       this.input.push(`Context handed off from my desk session:\n\n${this.opts.seedContext}`);
     }
+    // [SCOPE 134 / T010, T013] With a gate supplied, `git push` stops being hard-blocked
+    // and becomes reachable-but-gated: the call suspends in `canUseTool` until the
+    // operator answers. Without a gate the original hard block stands.
+    //
+    // The two must not come apart. A caller that passed `disallowedTools: []` and no gate
+    // would be removing the safeguard rather than replacing it, and it would look like
+    // configuration rather than a decision — so that combination is refused outright.
+    const gate = this.opts.overrideGate;
+    const blocked = this.opts.disallowedTools ?? (gate ? [] : ["Bash(git push:*)"]);
+
+    if (!gate && this.opts.disallowedTools && !this.opts.disallowedTools.some((t) => /git\s+push/i.test(t))) {
+      throw new Error(
+        "BridgeSession: git push was removed from disallowedTools with no overrideGate supplied. " +
+          "That removes the safeguard instead of replacing it. Pass an overrideGate, or leave the block in place.",
+      );
+    }
+
     this.handle = query({
       prompt: this.input,
       options: {
@@ -112,7 +136,12 @@ export class BridgeSession {
         allowDangerouslySkipPermissions: true,
         includePartialMessages: true,
         resume: this.opts.resumeSessionId,
-        disallowedTools: this.opts.disallowedTools ?? ["Bash(git push:*)"],
+        disallowedTools: blocked,
+        // MODIFIED-BY: [SCOPE 134 / T035] — enforced as a PreToolUse hook, NOT canUseTool.
+        // canUseTool is never consulted under bypassPermissions (found live 2026-09-25:
+        // the gate never ran and push was ungated). A PreToolUse hook runs before EVERY
+        // tool call in every permission mode and its deny beats any settings allow rule.
+        ...(gate ? { hooks: { PreToolUse: [{ matcher: "Bash", timeout: GATE_HOOK_TIMEOUT_S, hooks: [gate] }] } } : {}),
       },
     });
     this.running = true;

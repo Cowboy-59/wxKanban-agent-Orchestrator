@@ -537,6 +537,91 @@ def test_review_notes_sit_above_the_create_table_not_inside_it():
     assert ddl.index("-- REVIEW: Odd") < ddl.index("CREATE TABLE"), ddl
 
 
+def _f(name, hfsql, key, size=None, default=None):
+    return dict(name=name, caption="", hfsql=hfsql, key=key,
+                size=size, default=default, components=None)
+
+
+def test_edb86afb_sqlite_ddl_executes_with_foreign_keys_enforced():
+    """
+    wxKanban edb86afb: SQLite was not a dialect. It takes FKs only inside CREATE TABLE, and
+    AUTOINCREMENT only on a column spelled INTEGER PRIMARY KEY - so the DDL must actually run.
+    The child table comes FIRST to prove a forward reference is accepted.
+    """
+    import sqlite3
+    tables = [
+        ("Invoice", [_f("IDInvoice", "Automatic identifier", "identifier"),
+                     _f("IDCustomer", "8-byte integer", "int8"),
+                     _f("Paid", "Boolean", "boolean", default="0"),
+                     _f("Issued", "Date", "date"),
+                     _f("Scan", "Image (binary memo)", "blob")]),
+        ("Customer", [_f("IDCustomer", "Automatic identifier", "identifier"),
+                      _f("Name", "String", "varchar", size=50),
+                      _f("Order", "4-byte integer", "int4")]),     # reserved word -> quoted
+    ]
+    links = [("Customer", "IDCustomer", "Invoice", "IDCustomer")]
+    ddl = M.emit_ddl(tables, links, "sqlite")
+    assert not any(l.startswith("ALTER TABLE") for l in ddl.splitlines()), ddl
+    assert "IDInvoice INTEGER PRIMARY KEY AUTOINCREMENT" in ddl, ddl
+    assert "Paid INTEGER DEFAULT 0" in ddl and "Issued TEXT" in ddl and "Scan BLOB" in ddl, ddl
+    assert "PRAGMA foreign_keys = ON;" in ddl, ddl
+
+    db = sqlite3.connect(":memory:")
+    db.executescript(ddl)
+    db.execute("INSERT INTO Customer (Name) VALUES ('a')")
+    db.execute("INSERT INTO Invoice (IDCustomer) VALUES (1)")
+    try:
+        db.execute("INSERT INTO Invoice (IDCustomer) VALUES (0)")   # the HFSQL 0 'no parent'
+        raise AssertionError("an FK of 0 was accepted - foreign keys are not enforced")
+    except sqlite3.IntegrityError:
+        pass
+    db.execute("INSERT INTO Invoice (IDCustomer) VALUES (NULL)")
+
+
+def test_edb86afb_sqlite_fk_to_a_non_key_parent_column_is_not_declared():
+    """
+    A link to a parent column that is not its primary key (eBusiness OrdLine.Reference ->
+    Product.Reference) made SQLite raise "foreign key mismatch" on every write to either table -
+    while the DDL itself executed clean. It must become a REVIEW note, not a constraint.
+    """
+    import sqlite3
+    tables = [
+        ("Product", [_f("ProductID", "Automatic identifier", "identifier"),
+                     _f("Reference", "String", "varchar", size=20)]),
+        ("OrdLine", [_f("OrdLineID", "Automatic identifier", "identifier"),
+                     _f("ProductID", "8-byte integer", "int8"),
+                     _f("Reference", "String", "varchar", size=20)]),
+    ]
+    links = [("Product", "ProductID", "OrdLine", "ProductID"),
+             ("Product", "Reference", "OrdLine", "Reference")]
+    ddl = M.emit_ddl(tables, links, "sqlite")
+    assert "REFERENCES Product (ProductID)" in ddl, ddl
+    assert "REFERENCES Product (Reference)" not in ddl, ddl
+    assert "-- REVIEW: foreign key Reference -> Product(Reference) NOT declared" in ddl, ddl
+
+    db = sqlite3.connect(":memory:")
+    db.executescript(ddl)
+    db.execute("INSERT INTO Product (Reference) VALUES ('R1')")
+    db.execute("INSERT INTO OrdLine (ProductID, Reference) VALUES (1, 'R1')")
+    db.execute("DELETE FROM OrdLine")
+    db.execute("DELETE FROM Product")
+
+
+def test_edb86afb_sqlite_hard_keywords_are_quoted():
+    """
+    SQLite refuses a handful of words as bare column names that the shared reserved list missed
+    (most are MySQL-reserved too). One such column is a syntax error that costs the whole table,
+    so each is executed, not just string-checked.
+    """
+    import sqlite3
+    words = ["Add", "Alter", "Autoincrement", "Delete", "Drop", "Escape", "Exists", "Filter",
+             "Glob", "Indexed", "Insert", "Nothing", "Set", "Update"]
+    for w in words:
+        ddl = M.emit_ddl([("T", [_f("ID", "Automatic identifier", "identifier"),
+                                 _f(w, "String", "varchar", size=20)])], [], "sqlite")
+        sqlite3.connect(":memory:").executescript(ddl)
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failures = []

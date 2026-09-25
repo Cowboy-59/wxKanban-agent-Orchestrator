@@ -358,6 +358,54 @@ def place_elided_page(typ, sub, segs, body, extra=()):
     return None
 
 
+# "Name on disk Gallery.FIC" - the data file's physical name, printed in its General information
+# block. HFSQL data files are .FIC; the extension is required so the analysis's own .wda/.ana
+# path, which General information pages also print, can never match.
+NAME_ON_DISK_RE = re.compile(r"^Name on disk\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\.fic$", re.I)
+
+
+def place_misnamed_table_page(kind, segs, body, extra=()):
+    """
+    Place a page that classify() sent to the schema although it is a data file's own page.
+
+    One WEBDEV export printed 'Part 2 > Analysis > <path>.wda > Data files and items > Analysis'
+    on a data file's only page: the Type is fine and the table subsection is present, but the
+    final segment, where classify() reads the element, says 'Analysis' instead of the table name.
+    The page went to _schema.md and its table vanished - 11 of 12 declared data files written
+    (wxKanban 56ad9fdb, Gallery lost).
+
+    Gated on BOTH signals, so an ordinary schema page is never pulled into a table: the breadcrumb
+    must name a per-data-file dump before its last segment, and the body must name the file.
+    Returns the table name, or None to leave the page where classify() put it.
+    """
+    if kind != "schema" or not any(is_table_subsection(s, extra) for s in (segs or [])[:-1]):
+        return None
+    name = recover_table_name(body)
+    if name:
+        return name
+    for line in (body or "").split("\n")[:40]:
+        m = NAME_ON_DISK_RE.match(line.strip())
+        if m:
+            return m.group("name")
+    return None
+
+
+def split_at_table_start(body, name, extra=()):
+    """
+    Split a page body into (schema_head, table_tail) where the data file's own section begins.
+
+    The page this recovers is shared: it opens with the tail of the Analysis's data-file overview
+    table and the first data file starts halfway down, as '<name>' then its table-subsection
+    heading. The head stays in _schema.md; only the tail is the table's. Returns ("", body) when
+    no start line is found, so the whole page goes to the table as before.
+    """
+    lines = (body or "").split("\n")
+    for i in range(len(lines) - 1):
+        if lines[i].strip() == name and is_table_subsection(lines[i + 1].strip(), extra):
+            return "\n".join(lines[:i]).strip("\n"), "\n".join(lines[i:])
+    return "", body
+
+
 def classify(segs):
     """
     Map a page's breadcrumb to (part_num, group_kind, element_name, subsection).
@@ -473,7 +521,25 @@ def main():
         if placed:
             kind, name, sub = placed
 
-        pages.append(dict(no=i + 1, part=part, kind=kind, name=name, sub=sub, typ=typ, body=body))
+        # A data file's page whose breadcrumb ends in 'Analysis' instead of the table name. Its
+        # continuation pages repeat the same breadcrumb without the body header, so they follow
+        # the table the previous page was placed in.
+        misnamed = place_misnamed_table_page(kind, segs, body, EXTRA_TABLE_SUBSECTIONS)
+        prev = pages[-1] if pages else None
+        if misnamed:
+            # The same page often carries the end of the analysis's data-file overview above the
+            # table's first lines; that head stays in the schema.
+            head, body = split_at_table_start(body, misnamed, EXTRA_TABLE_SUBSECTIONS)
+            if head.strip():
+                pages.append(dict(no=i + 1, part=part, kind="schema", name=None, sub=sub,
+                                  typ=typ, body=head, misnamed_segs=None))
+        elif kind == "schema" and prev and prev.get("misnamed_segs") == segs:
+            misnamed = prev["name"]
+        if misnamed:
+            kind, name, sub = "table", misnamed, "Data files and items"
+
+        pages.append(dict(no=i + 1, part=part, kind=kind, name=name, sub=sub, typ=typ, body=body,
+                          misnamed_segs=segs if misnamed else None))
 
     # Pass 1b: recover pages the breadcrumb alone could not place.
     #
