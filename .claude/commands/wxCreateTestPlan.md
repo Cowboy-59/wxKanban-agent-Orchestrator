@@ -44,11 +44,17 @@ fixed test-item schema.
 
 1. **Preflight:** confirm the skill exists at `_wxAI/skills/wxCreateTestPlan/SKILL.md`, read it, and
    follow its phases in order.
-2. **Resolve the stack adapter FIRST:** read `stack.md` at the repo root and load the matching
-   adapter from `_wxAI/adapters/`. The method is stack-neutral; the
-   inventory command, schema source, harness and UI driver all come from the adapter. **If no
-   adapter matches the declared stack, stop and say so** — never run the TypeScript extractor
-   speculatively, because a zero-unit inventory from the wrong stack reads exactly like a real one.
+2. **Resolve the stack adapter FIRST:** run `node _wxAI/adapters/resolve-adapter.mjs --json` — the
+   same resolver `implement` and `/preTest` use. It reads `stack.md` and searches both the shipped
+   adapters in `_wxAI/adapters/` and the project's own in `.wxai/adapters/`. Check the match with
+   `validate-adapter.mjs`, then announce it with its provenance (`shipped`, `provisional` or
+   `approved`). The method is stack-neutral; the inventory command, schema source, harness and UI
+   driver all come from the adapter. **If no adapter matches the declared stack, generate one** per
+   `_wxAI/adapters/GENERATE.md` — completed from this repository, validated, announced as
+   provisional — and carry on, with no approval prompt. Stop only when there is no `stack.md`, two
+   adapters tie, or the generated adapter cannot be completed. Never run the TypeScript extractor
+   speculatively: a zero-unit inventory from the wrong stack reads exactly like a real one, which is
+   why every inventory is checked by `inventory-guard.mjs`.
 3. **PLAN mode (default):**
    - **Phase 0 — Scope & DB posture:** resolve the target, read the relevant `specs/NNN-*/spec.md`
      first (SPEC-FIRST is mandatory), and announce the DB posture out loud.
@@ -88,8 +94,10 @@ fixed test-item schema.
 
 ## Safety
 
-- **Resolve the adapter before anything else**, and stop if none matches the declared stack. Running
-  one stack's tooling against another returns an empty result that reads exactly like a real one.
+- **Resolve the adapter before anything else**; when none matches, generate one rather than borrow
+  another stack's. Running one stack's tooling against another returns an empty result that reads
+  exactly like a real one. A generated adapter is never called shipped, and its inventory, UI results
+  and disposable target are each checked by a guard that fails closed.
 - **Never mutate the production database.** The CRUD/execute gate refuses to run without a target
   proven non-production. If a shared or hosted connection is offered, its **non-prod capability is
   verified first** — unverified → hard-stop, no prod fallback. (On wxKanban specifically, the local

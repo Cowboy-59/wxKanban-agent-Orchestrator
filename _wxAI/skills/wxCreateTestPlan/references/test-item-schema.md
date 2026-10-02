@@ -14,7 +14,7 @@ distinguish "absent" from "unknown".
 | `title` | string | ✅ | Imperative, states the expectation. ≤ 100 chars. `"POST /auth/signin returns 401 for a wrong password"`. Never `"test signin"`. |
 | `requirementId` | string \| null | ✅ | `FR-###` from `specs/NNN-*/spec.md` (e.g. `FR-012`). `null` **only** with a `clarificationId` set — untraceable behavior is never silently self-justified. |
 | `specRef` | string \| null | ✅ | `specs/090-Registration/spec.md §4.2` — file + section backing `requirementId`. |
-| `unitId` | string | ✅ | Inventory `id` from `inventory.json`, prefixed by kind: `express-route:POST /auth/signin`, `drizzle-table:timeentries`, `ui-route:/dashboard`, `ui-flow-edge:/login->/dashboard`, `exported-function:generateInvoicePdf`, `exported-const-fn:hashPassword`, `class-method:TimeEntryService.stop`, `internal-function:normalizeEmail`, `mcp-tool:project_create_task`. Must exist in the inventory. |
+| `unitId` | string | ✅ | Inventory `id` from `inventory.json`, prefixed by kind: `express-route:POST /auth/signin`, `drizzle-table:timeentries`, `ui-route:/dashboard`, `ui-flow-edge:/login->/dashboard`, `exported-function:generateInvoicePdf`, `exported-const-fn:hashPassword`, `class-method:TimeEntryService.stop`, `internal-function:normalizeEmail`, `mcp-tool:project_create_task`. On a stack inventoried through an adapter (SCOPE-127), it is the unit's `id` exactly — `<kind>:<name>`, e.g. `command:save_invoice`. Must exist in the inventory. |
 | `sourceRef` | string | ✅ | `src/server/routes/auth.ts:34` — file:line from the inventory. |
 | `fenceRef` | string \| null | ✅ | Code fence that authored the unit: `[SCOPE 090 / T003]`. `null` only for pre-spec-026 legacy declarations. |
 | `gate` | enum | ✅ | Signoff gate this item belongs to: `smoke` (responds / no-crash, read-only or mocked) \| `crud` (real CRUD round-trip / behavior execution on a **non-prod** DB) \| `ui-flow` (Playwright page-to-page + per-screen functionality) \| `unit` (pure logic, no I/O). |
@@ -451,9 +451,11 @@ Refuse to hand over the artifacts until all of these hold:
 1. Every item validates against the field contract — no missing keys, no enum violations.
 2. No `steps[].expected` contains a banned subjective word, and each states a value, key set,
    count, HTTP status, error code, URL/pathname, element assertion, exact toast text, or an absence.
-3. Every `unitId` exists in `inventory.json` and carries a valid kind prefix
-   (`express-route:`, `drizzle-table:`, `ui-route:`, `ui-flow-edge:`, `exported-function:`,
-   `exported-const-fn:`, `class-method:`, `internal-function:`, `mcp-tool:`); every non-null
+3. Every `unitId` exists in `inventory.json` and carries a valid kind prefix — on wxKanban's own
+   stack one of (`express-route:`, `drizzle-table:`, `ui-route:`, `ui-flow-edge:`, `exported-function:`,
+   `exported-const-fn:`, `class-method:`, `internal-function:`, `mcp-tool:`); on a stack whose
+   inventory comes from an adapter's *Inventory source* (SCOPE-127 — e.g. a generated adapter), the
+   `kind` that unit carries in `inventory.json`, so `unitId` is that unit's `id` exactly; every non-null
    `requirementId` resolves to an `FR-###` in the referenced `specs/NNN-*/spec.md`.
 4. Every item with `requirementId: null` has a `clarificationId`, that clarification exists, and it
    was filed via `project_submit_feedback` (its `feedbackRef` is set).

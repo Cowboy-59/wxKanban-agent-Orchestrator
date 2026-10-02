@@ -180,7 +180,44 @@ TYPE_KIND = {
 }
 # Any Type naming a window/page/template ("WINDEV window", "WINDEV window template",
 # "WEBDEV page", "Internal window", "Mobile window", ...) is a UI element -> page.
-PAGE_TYPE_RE = re.compile(r"\b(window|page)\b", re.I)
+# "ventana" is the Spanish export's word ("Ventana WINDEV", "Modelo ventana WINDEV").
+PAGE_TYPE_RE = re.compile(r"\b(window|page|ventana)\b", re.I)
+
+# PCSoft prints the breadcrumb in the IDE's language. A Spanish WinDev 30 export matched none of
+# the English Types, so every one of its 1148 pages was discarded and not one element was written
+# (wxKanban 0b67737e). Keys are folded (accents stripped, lowercased - see _fold); values are the
+# English label they stand for. Only wordings a real export has shown are listed: a missing alias
+# costs a loud _discarded.md row, a wrong one would file pages under the wrong kind.
+TYPE_ALIASES = {
+    "proyecto": "Project",
+    "analisis": "Analysis",
+    "consulta": "Query",
+    "reporte": "Report",
+    "informe": "Report",
+    "conjunto de procedimientos": "Set of procedures",
+    "clase": "Class",
+    "tabla de contenido": "Table of contents",
+}
+SUBSECTION_ALIASES = {
+    "informacion sobre los controles": "Information on controls",
+    "informacion general": "General information",
+    "codigo de los controles": "Control code",
+    "codigo": "Code",
+    "procedimientos": "Procedures",
+}
+
+# "Part 3" / "Parte 3": the Part segment that opens every breadcrumb.
+PART_RE = re.compile(r"^Parte?\s+(\d+)")
+
+
+def canonical_type(typ):
+    """The English breadcrumb Type a localized one stands for; the Type itself when not an alias."""
+    return TYPE_ALIASES.get(_fold(typ).strip(), typ)
+
+
+def canonical_sub(sub):
+    """The English subsection label a localized one stands for; the label itself otherwise."""
+    return SUBSECTION_ALIASES.get(_fold(sub).strip(), sub)
 
 
 EXTRA_TABLE_SUBSECTIONS = []   # filled from --table-subsection
@@ -242,9 +279,9 @@ def declared_datafile_count(pages):
     return None
 
 
-def recover_table_name(body):
+def recover_table_name(body, max_lines=40):
     """Find the data-file name from a page body when the breadcrumb could not supply it."""
-    for line in (body or "").split("\n")[:40]:
+    for line in (body or "").split("\n")[:max_lines]:
         m = ITEM_HEADER_RE.match(line.strip())
         if m:
             return m.group("name")
@@ -277,7 +314,7 @@ def recover_element_name(body):
     opens with "Part N", which is what excludes it from this recovery.
     """
     lines = [l.strip() for l in (body or "").split("\n") if l.strip()]
-    if not lines or re.match(r"^Part\s+\d+", lines[0]):
+    if not lines or PART_RE.match(lines[0]):
         return None
     # An element name is an identifier, never a sentence: this is the same shape test the item
     # parser uses, and it is what keeps prose pages from inventing an element.
@@ -306,8 +343,12 @@ def name_from_breadcrumb(segs, extra=()):
     variant that only is_table_subsection() recognises would otherwise survive the filter and be
     returned as the table's own name.
     """
+    # canonical_type: a localized Type ("Análisis") is as much a wrapper as its English original,
+    # or the misnamed-page shape '... > Archivos de datos y campos > Análisis' names a table
+    # "Análisis" (wxKanban 0b67737e). PART_RE, not a "Part" prefix: the prefix test also threw
+    # away a data file whose own name begins with it - Partner, Parts, Participant.
     cand = [s for s in segs[:-1]
-            if s not in WRAPPER_SEGS and not s.startswith("Part")
+            if canonical_type(s) not in WRAPPER_SEGS and not PART_RE.match(s)
             and not ANALYSIS_PATH_RE.search(s) and "\\" not in s
             and not is_table_subsection(s, extra)]
     return cand[-1] if cand else None
@@ -362,6 +403,22 @@ def place_elided_page(typ, sub, segs, body, extra=()):
 # block. HFSQL data files are .FIC; the extension is required so the analysis's own .wda/.ana
 # path, which General information pages also print, can never match.
 NAME_ON_DISK_RE = re.compile(r"^Name on disk\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\.fic$", re.I)
+# The text layer prints the label and the file name on SEPARATE lines ("Name on disk" / "Asset.fic"):
+# all 440 "Name on disk" lines in the seven real exports on hand are that shape, so the one-line
+# form above never matched a real page and the fallback built on it was dead (wxKanban 56ad9fdb).
+DISK_FILE_RE = re.compile(r"^(?P<name>[A-Za-z_][A-Za-z0-9_]*)\.fic$", re.I)
+
+
+def name_on_disk(body):
+    """The data file named by a 'Name on disk' line, in either the one-line or two-line form."""
+    lines = [l.strip() for l in (body or "").split("\n")]
+    for i, line in enumerate(lines):
+        m = NAME_ON_DISK_RE.match(line)
+        if not m and line.lower() == "name on disk" and i + 1 < len(lines):
+            m = DISK_FILE_RE.match(lines[i + 1])
+        if m:
+            return m.group("name")
+    return None
 
 
 def place_misnamed_table_page(kind, segs, body, extra=()):
@@ -377,17 +434,17 @@ def place_misnamed_table_page(kind, segs, body, extra=()):
     Gated on BOTH signals, so an ordinary schema page is never pulled into a table: the breadcrumb
     must name a per-data-file dump before its last segment, and the body must name the file.
     Returns the table name, or None to leave the page where classify() put it.
+
+    The WHOLE body is searched, not its first 40 lines. This page opens with the tail of the
+    data-file overview, which can fill most of it: one export's first table started so far down
+    that only four of its items fit, the 40-line window missed its header, and the table lost its
+    primary key and first columns to _schema.md (wxKanban a075d21f). On the real exports on hand
+    the header sits on body line 38 (BlueCube, F111) and line 40 (PPE) - the very last line the
+    window read. The breadcrumb gate is what keeps the search safe, not the window.
     """
     if kind != "schema" or not any(is_table_subsection(s, extra) for s in (segs or [])[:-1]):
         return None
-    name = recover_table_name(body)
-    if name:
-        return name
-    for line in (body or "").split("\n")[:40]:
-        m = NAME_ON_DISK_RE.match(line.strip())
-        if m:
-            return m.group("name")
-    return None
+    return recover_table_name(body, max_lines=None) or name_on_disk(body)
 
 
 def split_at_table_start(body, name, extra=()):
@@ -414,11 +471,11 @@ def classify(segs):
     """
     if not segs or not segs[0].startswith("Part"):
         return (0, "other", None, None)
-    m = re.match(r"Part\s+(\d+)", segs[0])
+    m = PART_RE.match(segs[0])
     part = int(m.group(1)) if m else 0
     typ = segs[1] if len(segs) > 1 else ""
     sub = segs[-1] if len(segs) > 1 else ""
-    kind = TYPE_KIND.get(typ)
+    kind = TYPE_KIND.get(canonical_type(typ))
 
     if kind == "project":
         return (part, "project", None, sub)
@@ -439,11 +496,161 @@ def classify(segs):
     return (part, "other", None, sub)
 
 
+# An element inside an internal component is printed with NO Type segment - 'Part 8 > RPT_connote
+# > Code' where 'Part 8 > Report > RPT_connote > Code' is expected - so classify() reads the element
+# name as a Type, matches nothing, and the element is discarded among the framework pages around it.
+# It cost one conversion a live report (wxKanban c4873073) and another a component's queries,
+# procedures and windows (0b67737e). BlueCube and PPE carry the same shape for the windows of
+# their WDFAA component.
+#
+# The kind is read from the element's OWN physical file, which its General information prints:
+# '<path>\RPT_connote.wde'. That is the export's statement of what the element is, and it is
+# language-independent where the label beside it is not. The name prefix (RPT_, QRY_) is NOT used:
+# it is a naming convention, not a fact, and a wrong guess files code under the wrong kind.
+PHYSICAL_EXT_KIND = {
+    "wdw": "page",      # WinDev window
+    "wdt": "page",      # WinDev window template
+    "wwh": "page",      # WebDev page
+    "wde": "report",    # report
+    "wte": "report",    # report template
+    "wdr": "qry",       # query
+}
+IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def typeless_name(segs):
+    """The element a breadcrumb names in the Type slot ('Part 8 > RPT_x > Code'), else None."""
+    if len(segs or []) < 3 or not PART_RE.match(segs[0]):
+        return None
+    if classify(segs)[1] != "other" or not IDENT_RE.fullmatch(segs[1]) or len(segs[1]) > 64:
+        return None
+    return segs[1]
+
+
+def kind_from_physical_file(name, bodies):
+    """(kind, evidence line) from the element's own '<path>\\<name>.<ext>' line, else None."""
+    own = re.compile(r"[\\/]" + re.escape(name) + r"\.(\w+)$", re.I)
+    for body in bodies:
+        for line in (body or "").split("\n"):
+            m = own.search(line.strip())
+            if m and m.group(1).lower() in PHYSICAL_EXT_KIND:
+                return PHYSICAL_EXT_KIND[m.group(1).lower()], line.strip()
+    return None
+
+
+def place_typeless_elements(pages):
+    """
+    Place the pages of every element whose breadcrumb skips the Type, when its physical file says
+    what it is. Returns {name: [page numbers]} for the ones it could NOT place, so they are
+    reported loudly rather than left in the discard pile under their own name.
+
+    A component element's first page often carries only 'Part N' - the breadcrumb lags a page
+    (wxKanban 19db1f08) - and it is the page that prints the physical file, so it is taken in
+    when its body opens with the name the next page's breadcrumb carries.
+    """
+    groups, order = {}, []
+    for idx, p in enumerate(pages):
+        name = typeless_name(p.get("segs"))
+        if not name:
+            continue
+        if name not in groups:
+            groups[name] = []
+            order.append(name)
+            lead = pages[idx - 1] if idx else None
+            if lead and len(lead.get("segs") or []) == 1 and PART_RE.match(lead["segs"][0]) \
+                    and lead["kind"] in (None, "other"):
+                # strip_header() keeps a separator-less 'Part N' crumb line; drop it here.
+                lines = lead["body"].split("\n")
+                if lines and lines[0].strip() == lead["segs"][0]:
+                    lines = lines[1:]
+                opening = [l.strip() for l in lines if l.strip()]
+                if opening and opening[0] == name:
+                    lead.update(sub=p["sub"], body="\n".join(lines).strip("\n"))
+                    groups[name].append(lead)
+        groups[name].append(p)
+
+    unplaced = {}
+    for name in order:
+        grp = groups[name]
+        found = kind_from_physical_file(name, [p["body"] for p in grp])
+        if not found:
+            unplaced[name] = [p["no"] for p in grp if p["kind"] in (None, "other")]
+            continue
+        kind, evidence = found
+        # The divider that opened this Part names the component ('Internal component WDFAA').
+        first = grp[0]["no"]
+        divider = next((q["typ"] for q in reversed(pages)
+                        if q["no"] < first and q["part"] == grp[-1]["part"]
+                        and len(q.get("segs") or []) == 2), "")
+        origin = "Breadcrumb names no Type%s; kind read from its physical file %s" % (
+            " (%s)" % divider if divider else "", evidence.replace("\\", "/").split("/")[-1])
+        for p in grp:
+            p.update(kind=kind, name=name, origin=origin)
+    return unplaced
+
+
+def attach_headerless_pages(pages, element_key):
+    """
+    Give a page with NO running header to the element around it. Returns the page numbers placed.
+
+    PCSoft drops the header from some pages altogether. They are not covers or dividers: on five
+    of the seven real exports here they are 29 pages of content, all but one WLanguage - a class's
+    PROCEDURE, a window's control code, a page's local procedures - listed in _discarded.md as
+    '(no breadcrumb / cover)' beside the advice that such rows are safe to ignore. Document order is the evidence: a
+    headerless page continues the element whose page precedes it, and the next element opens with
+    its own breadcrumb. It takes the subsection last opened on the pages before it, because the
+    breadcrumb above it lags (a page whose header says 'Information on controls' can end by
+    opening 'Control code').
+
+    Should a headerless page instead OPEN the next element - its first line being that element's
+    name - it goes to that element. No real export has shown that shape; the guard is there so
+    position alone never hands one element's opening to another.
+    """
+    def crumbed(q):
+        segs = q.get("segs") or []
+        return bool(segs) and bool(PART_RE.match(segs[0]))
+
+    placed = []
+    last_crumbed = None
+    for idx, p in enumerate(pages):
+        if crumbed(p):
+            last_crumbed = idx
+            continue
+        if last_crumbed is None or not p["body"].strip():
+            continue
+        src = pages[last_crumbed]
+        nxt = next((pages[j] for j in range(idx + 1, len(pages)) if crumbed(pages[j])), None)
+        first_line = p["body"].strip().split("\n")[0].strip()
+        if nxt and nxt.get("name") and element_key(nxt) and first_line == nxt["name"] \
+                and nxt["name"] != src.get("name"):
+            p.update(kind=nxt["kind"], name=nxt["name"], sub=nxt["sub"], part=nxt["part"])
+            placed.append(p["no"])
+            continue
+        if not element_key(src):
+            continue
+        sub = src["sub"]
+        if src.get("name"):
+            for q in pages[last_crumbed:idx]:
+                lines = [l.strip() for l in q["body"].split("\n")]
+                for i in range(len(lines) - 1):
+                    if lines[i] == src["name"] and canonical_sub(lines[i + 1]) in KNOWN_SUBSECTIONS:
+                        sub = lines[i + 1]
+        p.update(kind=src["kind"], name=src["name"], sub=sub, part=src["part"])
+        placed.append(p["no"])
+    return placed
+
+
 SUFFIX = {"table": ".table.md", "page": ".page.md", "qry": ".qry.md",
           "report": ".report.md", "proc": ".proc.md"}
-# Page subsections that are behavior (kept in the main .page.md), in output order:
-BEHAVIOR_ORDER = ["General information", "Control code", "Code", "Procedures"]
+# Page subsections that are behavior (kept in the main .page.md), in output order - which is the
+# PDF's own order: "Code" precedes "Control code" in all 417 windows, pages and reports that have
+# both across the seven real exports on hand. The reverse order put a handler that starts at the
+# foot of the last Code page BELOW the code it had carried onto the next page, so the event header
+# read as following its own body (wxKanban 4cbff833).
+BEHAVIOR_ORDER = ["General information", "Code", "Control code", "Procedures"]
 CONTROLS_SUB = "Information on controls"
+# Subsection headings an element's body prints when a new subsection opens mid-page.
+KNOWN_SUBSECTIONS = set(BEHAVIOR_ORDER) | {CONTROLS_SUB, "Image"}
 
 
 def safe_name(name: str) -> str:
@@ -532,14 +739,14 @@ def main():
             head, body = split_at_table_start(body, misnamed, EXTRA_TABLE_SUBSECTIONS)
             if head.strip():
                 pages.append(dict(no=i + 1, part=part, kind="schema", name=None, sub=sub,
-                                  typ=typ, body=head, misnamed_segs=None))
+                                  typ=typ, body=head, misnamed_segs=None, segs=segs))
         elif kind == "schema" and prev and prev.get("misnamed_segs") == segs:
             misnamed = prev["name"]
         if misnamed:
             kind, name, sub = "table", misnamed, "Data files and items"
 
         pages.append(dict(no=i + 1, part=part, kind=kind, name=name, sub=sub, typ=typ, body=body,
-                          misnamed_segs=segs if misnamed else None))
+                          misnamed_segs=segs if misnamed else None, segs=segs))
 
     # Pass 1b: recover pages the breadcrumb alone could not place.
     #
@@ -579,16 +786,23 @@ def main():
             if recovered:
                 p["name"] = recovered
 
-    # Pass 2: group into elements
-    elements = {}
-    order = []
-
     def key_for(p):
         if p["kind"] in ("project", "schema"):
             return p["kind"]
         if p["kind"] in ("table", "page", "qry", "report", "proc") and p["name"]:
             return f'{p["kind"]}::{p["name"]}'
         return None
+
+    # Pass 1c: elements whose breadcrumb skips the Type (internal components) - see
+    # place_typeless_elements. Pass 1d: pages that carry no running header at all - see
+    # attach_headerless_pages. 1d runs second so a headerless page after a component element
+    # follows it.
+    typeless_unplaced = place_typeless_elements(pages)
+    headerless_placed = attach_headerless_pages(pages, key_for)
+
+    # Pass 2: group into elements
+    elements = {}
+    order = []
 
     for p in pages:
         k = key_for(p)
@@ -632,16 +846,20 @@ def main():
         disp = safe_name(name)
         main_file = disp + SUFFIX[kind]
 
-        control_pgs = [p for p in pgs if p["sub"] == CONTROLS_SUB]
-        body_pgs = [p for p in pgs if p["sub"] != CONTROLS_SUB]
+        # canonical_sub: a localized "Información sobre los controles" is the controls dump too.
+        control_pgs = [p for p in pgs if canonical_sub(p["sub"]) == CONTROLS_SUB]
+        body_pgs = [p for p in pgs if canonical_sub(p["sub"]) != CONTROLS_SUB]
 
         md = [f"# {name}\n", f"_Type: {kind}  |  Source: PDF pages {pr}_\n"]
+        origin = next((p["origin"] for p in pgs if p.get("origin")), None)
+        if origin:
+            md.append(f"_{origin}_\n")
         if control_pgs and kind in ("page", "report"):
             md.append(f"_UI control details: see [{disp}.controls.md]({disp}.controls.md)_\n")
         seen = set()
         for want in BEHAVIOR_ORDER:
             for p in body_pgs:
-                if p["sub"] == want and p["no"] not in seen and p["body"].strip():
+                if canonical_sub(p["sub"]) == want and p["no"] not in seen and p["body"].strip():
                     md.append(f"\n## {p['sub']}\n\n{p['body']}\n")
                     seen.add(p["no"])
         for p in body_pgs:
@@ -668,21 +886,49 @@ def main():
     # written element is reported here so the developer can decide whether to keep it.
     captured = {p["no"] for el in elements.values() for p in el["pages"]}
     discarded = [p for p in pages if p["no"] not in captured]
+    # Component elements whose kind no physical file proved. They are listed on their own, ahead
+    # of the framework and divider noise: one report was three rows down a 28-row table of 566
+    # pages, under a Type column that showed its own name (wxKanban c4873073).
+    typeless_lost = {n: [x for x in nos if x not in captured]
+                     for n, nos in typeless_unplaced.items()}
+    typeless_lost = {n: nos for n, nos in typeless_lost.items() if nos}
+    typeless_lost_nos = {no for nos in typeless_lost.values() for no in nos}
     if discarded:
         by_type = {}
         for p in discarded:
+            if p["no"] in typeless_lost_nos:
+                continue
             by_type.setdefault(p["typ"] or "(no breadcrumb / cover)", []).append(p["no"])
         dmd = [
             f"# {project_name} - pages NOT captured (review before discarding)\n",
             f"_{len(discarded)} of {doc.page_count} PDF pages were not grouped into any element._\n",
-            "Most of these are the cover, the table of contents, and section dividers - safe to ignore.",
-            "**But** if any breadcrumb **Type** below names a real element kind - a window/page, a query,",
-            "a report, or a set of procedures - that element was **not** converted (its Type is unmapped in",
-            "`classify()`'s `TYPE_KIND`/`PAGE_TYPE_RE`). Tell wxConversion to keep it so the logic is not",
-            "lost, and report the unmapped Type so the splitter can be extended.\n",
-            "| Breadcrumb Type | Pages | Page numbers |",
-            "|---|---|---|",
         ]
+        if typeless_lost:
+            dmd += [
+                "## Named elements whose breadcrumb carries no Type - NOT converted\n",
+                "These breadcrumbs go straight from the Part to an element name (`Part 8 > RPT_x > "
+                "Code`), as PCSoft prints elements of an internal component. No physical file on "
+                "their pages said what kind of element each is, so none was guessed. Each row is "
+                "likely a real window, report, query or set of procedures: decide which to keep, "
+                "and report the shape to wxKanban.\n",
+                "| Element | Pages | Page numbers |",
+                "|---|---|---|",
+            ]
+            for n in sorted(typeless_lost):
+                dmd.append(f"| {n} | {len(typeless_lost[n])} | {compress_ranges(typeless_lost[n])} |")
+            if by_type:
+                dmd.append("\n## Everything else\n")
+        if by_type:
+            dmd += [
+                "Most of these are the cover, the table of contents, and section dividers - safe to "
+                "ignore.",
+                "**But** if any breadcrumb **Type** below names a real element kind - a window/page, a query,",
+                "a report, or a set of procedures - that element was **not** converted (its Type is unmapped in",
+                "`classify()`'s `TYPE_KIND`/`PAGE_TYPE_RE`). Tell wxConversion to keep it so the logic is not",
+                "lost, and report the unmapped Type so the splitter can be extended.\n",
+                "| Breadcrumb Type | Pages | Page numbers |",
+                "|---|---|---|",
+            ]
         for typ in sorted(by_type, key=lambda t: (-len(by_type[t]), t)):
             dmd.append(f"| {typ} | {len(by_type[typ])} | {compress_ranges(by_type[typ])} |")
         write(os.path.join(args.out, "_discarded.md"), "\n".join(dmd) + "\n")
@@ -718,9 +964,23 @@ def main():
         print(f"  {kind:10s}: {by_kind[kind][0]:3d} files, {by_kind[kind][1]:>10,} bytes")
     print(f"  {'TOTAL':10s}: {len(manifest):3d} files, {total:>10,} bytes "
           f"(~{total // 4:,} tokens est.)")
+    if headerless_placed:
+        print(f"  {'NO HEADER':12s}: {len(headerless_placed):3d} pages carried no breadcrumb and "
+              f"were kept with the element around them (p{compress_ranges(headerless_placed)})")
     if discarded:
         print(f"  {'NOT CAPTURED':12s}: {len(discarded):3d} pages -> {args.out}/_discarded.md "
               "(REVIEW — keep any real elements)")
+    if typeless_lost:
+        print("", file=sys.stderr)
+        print(f"doc-split: {len(typeless_lost)} element(s) were NOT converted - their breadcrumb "
+              "names no Type and no physical file on their pages says what they are:",
+              file=sys.stderr)
+        for n in sorted(typeless_lost)[:12]:
+            print(f"      {n}  (p{compress_ranges(typeless_lost[n])})", file=sys.stderr)
+        if len(typeless_lost) > 12:
+            print(f"      ...and {len(typeless_lost) - 12} more", file=sys.stderr)
+        print("  They are listed first in _discarded.md. Decide which to keep before going on.",
+              file=sys.stderr)
 
     # [SCOPE 125 / T008] Credential report. Rendered from the accumulated state and written last, so
     # it covers every emission this run made, and written through write() so it is watermarked like
@@ -730,6 +990,29 @@ def main():
     if state.findings:
         write(sidecar_path, rd.render_sidecar(state))
     print(rd.summary_line(state, sidecar_path))
+
+    # ---- completeness gate: nothing at all was captured
+    #
+    # A run that writes no element from a technical-documentation PDF is never a success, but it
+    # exited 0 whenever the export also lacked a recognisable Analysis: a Spanish export reported
+    # 'TOTAL: 0 files' over 1148 pages, and only a NOT CAPTURED line said anything was wrong
+    # (wxKanban 0b67737e, f0df8d41). No opt-out: there is no legitimate zero.
+    if not manifest:
+        common = {}
+        for p in discarded:
+            if p["typ"]:
+                common[p["typ"]] = common.get(p["typ"], 0) + 1
+        print("", file=sys.stderr)
+        print(f"doc-split: captured ZERO elements from {doc.page_count} page(s).", file=sys.stderr)
+        print("  No breadcrumb Type was recognised. The commonest Types in this PDF were:",
+              file=sys.stderr)
+        for typ in sorted(common, key=lambda t: (-common[t], t))[:8]:
+            print(f"      {typ}  ({common[typ]} pages)", file=sys.stderr)
+        print("  If this export is not in English, or these name windows, pages, queries or reports,",
+              file=sys.stderr)
+        print("  report them to wxKanban (project_submit_feedback) so the splitter can map them.",
+              file=sys.stderr)
+        return 3
 
     # ---- completeness gate: an Analysis that yielded no data files
     #

@@ -88,6 +88,10 @@ exactly this way, in an `analysis/*.json` that no script produces.
    credentials, and the owner needs to know which accounts to rotate.
 2. **Write the value as a token,** never the literal: `"password": "[[CRED-01]]"`. Reuse the same
    token for the same value so one credential in twelve places still reads as one credential.
+   Every stage continues the `_redactions.md` of the folder it writes into (it no longer overwrites
+   it per page or per stage) and numbers new tokens above every token already in use, so one number
+   never stands for two values — but the same value found by two separate runs may carry two
+   numbers. When you write a token by hand, take the next number above the highest in the ledgers.
 3. **Never drop the element to comply.** Do not omit a credential-bearing procedure, field or module
    from your output in order to avoid writing the value. Removing the finding is worse than the
    original problem: it hides a credential that still exists in the legacy source.
@@ -117,6 +121,14 @@ the scripts too, so **you are the control that catches it**:
   comment carrying prose around the field name is deliberately left alone to avoid blanking out real
   captions and subjects. **Whenever a comment near a literal names a credential-shaped field, treat
   the literal as a credential** regardless of what it was assigned to.
+
+The scripts also catch: credentials passed positionally to `EmailStart*Session`, `FTPConnect`,
+`HPass` and `HDeclareExternal`; declarations with an initial value (`sPwd is string = "…"`),
+including a commented-out old value; acronym-prefixed names (`SMTPPassword`, `APIToken`); and the
+Spanish/French keys `clave`, `contraseña`, `mot de passe`. **Known gaps you must still cover by
+hand:** names where `Clave` is followed by more text (`ClaveAcceso` — Spanish code also uses `Clave…`
+for lookup keys, so the scripts leave it), and a credential decrypted at run time (`DecryptString`
+on a password column) — that is a finding to record even though no literal is present.
 
 ### Checking what is already exposed
 

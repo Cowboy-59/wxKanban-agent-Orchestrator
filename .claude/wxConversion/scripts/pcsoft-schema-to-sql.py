@@ -155,6 +155,28 @@ TYPE_STARTS = [lbl for lbl, _ in HFSQL]
 HEADER_LABELS = {"Caption", "Type", "Size", "Unique Key", "Key with Duplicates",
                  "Direction", "GDPR", "Default value"}
 
+
+def _running_header_at(lines, idx, labels, min_run=3):
+    """Is lines[idx] a running page header - page furniture, not data?
+
+    Some exports print a line at the top of EVERY page (one WinDev desktop export prints the
+    project name), so it lands between the splitter's per-page '## <subsection>' heading and the
+    header labels the page reprints. Nothing else can sit there: a page opens with its heading,
+    then the column headers, then data. Read as data it became an item name - it took the next
+    field's caption and type, and the real field vanished. On one 1,928-table export that renamed
+    799 columns to the project name, and 149 CREATE TABLEs then failed on the duplicate.
+
+    Derived from position, never from the word: exactly one line, directly under a '## ' heading,
+    not itself a label, with a run of `min_run` labels directly below it. A heading followed
+    straight by its labels (every other export) drops nothing.
+    """
+    if idx < 1 or idx >= len(lines) or not lines[idx - 1].startswith("## ") \
+            or lines[idx] in labels:
+        return False
+    run = lines[idx + 1: idx + 1 + min_run]
+    return len(run) == min_run and all(l in labels for l in run)
+
+
 # A line whose whole content is a date/time FORMAT annotation, e.g. "(yyyymmddhhmmssccc)".
 # PCSoft prints it as a continuation line immediately under the type label of a Date / Time /
 # Date and Time item. It belongs to the type, not to the next field, so it must be consumed with
@@ -189,6 +211,13 @@ NUMERIC_LINE_RE = re.compile(r"^\d+$")
 # shape, so it is accepted only when the analysis Item dictionary lists that exact name for this
 # data file - see parse_table's `spaced_names`.
 ITEM_NAME_RE = re.compile(r"^[A-Za-z_À-ɏ][A-Za-z0-9_À-ɏ]*$")
+
+# Some exports name a composite key's pseudo-item by joining its members with '#'
+# ('ClaimNum#PostDTU#R', cut by the column). The identifier rule rejected every one, so 48
+# composite keys across 37 tables of one export were skipped a line at a time with no warning
+# (wxKanban 0a922271). Accepted ONLY when the type found for it is 'Composite key': a '#' line
+# that turns out to be anything else is still skipped as note text.
+COMPOSITE_NAME_RE = re.compile(r"^[A-Za-z_À-ɏ][A-Za-z0-9_À-ɏ]*(?:#[A-Za-z0-9_À-ɏ]*)+$")
 
 
 # "<n>-byte integer" / "<n>-byte real" is a WIDTH, not a distinct type, so it does not need a table
@@ -385,6 +414,8 @@ def strip_repeated_headers(body):
         line = body[i]
         if line.startswith("## ") or line.lower().endswith("data file items"):
             i += 1
+            if _running_header_at(body, i, HEADER_LABELS):
+                i += 1                       # running page header under the heading
             continue
         if line in HEADER_LABELS:
             j = i
@@ -435,9 +466,12 @@ def parse_table(path, unmapped=None, spaced_names=()):
     n = len(body)
     while i < n:
         fname = body[i]
+        composite_only = False
         if not ITEM_NAME_RE.match(fname) and fname not in spaced_names:
-            i += 1                       # not an item name -> note text, legend, stray
-            continue
+            if not COMPOSITE_NAME_RE.match(fname):
+                i += 1                   # not an item name -> note text, legend, stray
+                continue
+            composite_only = True        # '#'-joined: a composite key, or nothing at all
         # Locate this field's type line. The search starts at i+2, NOT i+1: this document family
         # always prints a caption line between the item name and its type (when the developer left
         # the caption empty PCSoft fills it with the name itself), so position i+1 is the caption by
@@ -452,6 +486,9 @@ def parse_table(path, unmapped=None, spaced_names=()):
         j = i + 2
         while j < n and match_type(body[j])[0] is None and j - i <= 7:
             j += 1
+        if composite_only and (j >= n or match_type(body[j])[1] != "composite"):
+            i += 1
+            continue
         # Anything in the caption span that LOOKS like a type but is not one is an unmapped type
         # being absorbed as caption text. This must be checked whether or not a type was found
         # further down the window: when a later line does match, the unknown type is swallowed
@@ -472,6 +509,16 @@ def parse_table(path, unmapped=None, spaced_names=()):
                 nxt = body[c + 1] if c + 1 < n else ""
                 if (cand not in HEADER_LABELS and BARE_TYPE_RE.match(cand)
                         and NUMERIC_LINE_RE.match(nxt)):
+                    unmapped.append({"type": cand, "table": name, "field": fname})
+                    continue
+                # Third shape: the unknown type in the TYPE position, followed by a whole record it
+                # swallowed. PCSoft prints an item's name again as its caption when the caption is
+                # empty, so '<word> / B / B' inside one field's caption span is the next field,
+                # absorbed - its column lost and its type given to this one. Measured on a real
+                # export, 'Character' swallowed three columns this way and was reported only
+                # because a fourth occurrence happened to fit another shape (wxKanban 4d285663).
+                if (c == i + 2 and c + 2 < j and looks_like_type_label(cand)
+                        and ITEM_NAME_RE.match(nxt) and nxt == body[c + 2]):
                     unmapped.append({"type": cand, "table": name, "field": fname})
 
         if j >= n or match_type(body[j])[0] is None:
@@ -543,7 +590,13 @@ def parse_table(path, unmapped=None, spaced_names=()):
             # k+2. Asking about k+1 got this wrong whenever the following item was NAMED after a
             # type — a real export has an item called DateTime, and it cost the field before it
             # its default and the field after it its name.
-            follower_is_type = k + 2 < n and match_type(body[k + 2])[0] is not None
+            #
+            # k+2 is not decisive when the following item's CAPTION is a type word too (an item
+            # 'DateTime' captioned 'DateTime'): then k+3 holds its real type, which a default makes
+            # exactly the expected position, and this field kept losing its default (wxKanban
+            # b9942029 #6).
+            follower_is_type = (k + 2 < n and match_type(body[k + 2])[0] is not None
+                                and not (k + 3 < n and match_type(body[k + 3])[0] is not None))
             if not follower_is_type:
                 default = body[k]; k += 1
         # A caption translated in the WinDev/WebDev IDE prints after the field's type/size/default
@@ -577,8 +630,14 @@ def declared_item_count(schema_path):
     items parsed to 185 columns over 130 distinct names, because an item reused in several data
     files is one dictionary entry and several columns. Verified against a full real export.
     """
+    _, nums = _general_counts(schema_path)
+    return nums[2] if len(nums) >= 3 else None
+
+
+def _general_counts(schema_path):
+    """(label lines, numbers) of the first General-information count block with 3+ numbers."""
     if not os.path.exists(schema_path):
-        return None
+        return [], []
     lines = [l.strip() for l in open(schema_path, encoding="utf-8").read().split("\n") if l.strip()]
     for i, line in enumerate(lines):
         if not re.match(r"^generation\s*#", line, re.I):
@@ -586,13 +645,50 @@ def declared_item_count(schema_path):
         j = i
         while j < len(lines) and not re.fullmatch(r"\d+", lines[j]):
             j += 1
+        labels = lines[i:j]
         nums = []
         while j < len(lines) and re.fullmatch(r"\d+", lines[j]):
             nums.append(int(lines[j]))
             j += 1
         if len(nums) >= 3:
-            return nums[2]
+            return labels, nums
+    return [], []
+
+
+def declared_link_count(schema_path):
+    """The link count the analysis states about itself ("Nb links"), or None if not found.
+
+    The fourth number of the same block declared_item_count reads. Taken only when the block does
+    carry a links label, so an export laying the block out differently reports nothing rather than
+    a wrong number.
+    """
+    labels, nums = _general_counts(schema_path)
+    if len(nums) >= 4 and any(re.match(r"^(nb|number of)\s+links?$", l, re.I) for l in labels):
+        return nums[3]
     return None
+
+
+def links_to_unsplit_tables(schema_path, known_tables):
+    """
+    [(src_tbl, dst_tbl)] for Links rows that name exactly one data file this run has.
+
+    The other end is a data file whose page was never split out, so its foreign key cannot reach
+    the DDL. Read with the tight row shape only - the row label, the two data files, then "Item"
+    directly - so the words "File" and "Table" elsewhere in the analysis cannot pose as a link.
+    """
+    if not os.path.exists(schema_path):
+        return []
+    txt = [l.strip() for l in open(schema_path, encoding="utf-8").read().split("\n") if l.strip()]
+    out = []
+    for i in range(len(txt) - 3):
+        if txt[i] not in LINK_ROW_LABELS or txt[i + 3] != "Item":
+            continue
+        src, dst = txt[i + 1], txt[i + 2]
+        if not (re.match(r"^\w+$", src) and re.match(r"^\w+$", dst)):
+            continue
+        if (src in known_tables) != (dst in known_tables) and (src, dst) not in out:
+            out.append((src, dst))
+    return out
 
 
 # The Links section's row label for the table pair. Exports disagree on the word: WinDev prints
@@ -788,6 +884,10 @@ def _parse_item_dictionary_full(schema_path, known_tables):
             continue
         if not in_dict:
             continue
+        # A running page header between the page's heading and its reprinted labels is page
+        # furniture. Buffered, it became the name of whatever group the page opened with.
+        if _running_header_at(lines, n, DICT_HEADER_LABELS):
+            continue
         # The dictionary has no closing heading of its own: the next analysis section follows as
         # "Analysis / File groups / ...", and read as dictionary rows its group listing became
         # items such as "CurrencyRates (shared)". An "Analysis" breadcrumb that does not introduce
@@ -857,6 +957,35 @@ def harvest_control_bindings(src_dir, known_tables):
     return by_table
 
 
+# A cut tail shorter than this ends too many captions by chance ('ID', 'I') to count as evidence.
+_MIN_TAIL_EVIDENCE = 3
+
+
+def _squash(text):
+    """Fold case and accents and drop everything but letters and digits."""
+    return re.sub(r"[^0-9a-z]", "", _fold(text or ""))
+
+
+def _pick_by_caption_tail(name, caption, candidates):
+    """
+    The one candidate whose cut-off TAIL ends the row's caption, or None.
+
+    A cut can collapse several items onto one printed name, and then every oracle offers the same
+    several candidates for each of those rows. They were reported in length order, which reverses
+    the source order often enough that applying them by position swaps columns - foreign-key
+    columns among them (wxKanban a075d21f). The row's own caption separates them even when it is
+    not an identifier ('Advanced beneficiary notice choice'): squashed, it ends with exactly one
+    candidate's missing tail. Decided only when every tail is long enough to be evidence and
+    exactly one matches; anything else stays unresolved and reported.
+    """
+    cap = _squash(caption)
+    tails = {c: _squash(c[len(name):]) for c in candidates}
+    if not cap or any(len(t) < _MIN_TAIL_EVIDENCE for t in tails.values()):
+        return None
+    hits = [c for c, t in tails.items() if cap.endswith(t)]
+    return hits[0] if len(hits) == 1 else None
+
+
 def recover_truncated_names(tables, src_dir):
     """Restore item names the per-table page cut at its column width, in place.
 
@@ -923,8 +1052,11 @@ def recover_truncated_names(tables, src_dir):
             if len(bound) == 1:
                 choice, oracle = bound[0], "control binding"
             elif bound:
-                unresolved.append((tname, name, bound, "several bindings extend this name"))
-                continue
+                choice = _pick_by_caption_tail(name, cap, bound)
+                if choice is None:
+                    unresolved.append((tname, name, bound, "several bindings extend this name"))
+                    continue
+                oracle = "control binding + row caption"
             elif len(from_dict) == 1:
                 choice, oracle = from_dict[0], "item dictionary"
                 if dict_floor is not None and len(choice) >= dict_floor:
@@ -932,9 +1064,16 @@ def recover_truncated_names(tables, src_dir):
                                        "the dictionary entry is itself at its column width"))
                     continue
             elif from_dict:
-                unresolved.append((tname, name, from_dict,
-                                   "several dictionary items extend this name"))
-                continue
+                choice = _pick_by_caption_tail(name, cap, from_dict)
+                if choice is None:
+                    unresolved.append((tname, name, from_dict,
+                                       "several dictionary items extend this name"))
+                    continue
+                oracle = "item dictionary + row caption"
+                if dict_floor is not None and len(choice) >= dict_floor:
+                    unresolved.append((tname, name, from_dict,
+                                       "the dictionary entry is itself at its column width"))
+                    continue
             else:
                 continue
             # Take the CASING from the printed name and only the missing TAIL from the oracle.
@@ -984,11 +1123,29 @@ def render_truncation_report(applied, unresolved):
                 "These look cut, but the evidence was not conclusive, so the DDL keeps the name "
                 "exactly as the PDF printed it. Check each against the source before building on "
                 "it.", "",
+                "Possible full names are listed shortest first, NOT in the order the rows appear "
+                "in the source. Never assign them to rows by position: where one printed name "
+                "covers several rows, each row's caption (the trailing comment in the DDL) says "
+                "which is which.", "",
                 "| Data file | As printed | Possible full name(s) | Why not applied |",
                 "|---|---|---|---|"]
         out += [f"| {t} | `{name}` | {', '.join('`%s`' % c for c in cands)} | {why} |"
                 for t, name, cands, why in sorted(unresolved)]
         out.append("")
+    return "\n".join(out) + "\n"
+
+
+def render_unmatched_report(unmatched):
+    """Markdown sidecar naming EVERY dictionary item no DDL column matches (wxKanban d4e8ec3f)."""
+    out = ["# Dictionary items with no column in the DDL", "",
+           f"The analysis Item dictionary lists {len(unmatched)} item(s) that match no column "
+           "in the generated DDL. Check each against its table page in the source PDF. The "
+           "data file shown is the dictionary's own attribution - a hint, not proof. An item "
+           "the table page prints under a different name is not lost (the DDL follows the "
+           "table page); an item whose data file has no .table.md means that page was not "
+           "split out.", "",
+           "| Item | Data file(s), per the dictionary |", "|---|---|"]
+    out += [f"| {item} | {', '.join(users) or '-'} |" for item, users in unmatched]
     return "\n".join(out) + "\n"
 
 
@@ -1162,12 +1319,25 @@ _RESERVED = {
 }
 
 
+# How each target folds an UNQUOTED name. Quoting stops the fold, so a reserved word quoted in its
+# printed case became the one case-sensitive column in its table: on PostgreSQL "Status" is not
+# status, and every query, ORM mapping and test written the usual way stopped finding it. One
+# report counted 53 such columns as dropped - Status on 13 tables, Size, Type, value - and six of
+# its unit tests broke on Contacts.Status alone (wxKanban a31aac60). A name quoted only because it
+# is a keyword is therefore written the way the target would have stored it bare, so it behaves
+# exactly like the columns beside it. Names that cannot be bare (spaces, accents) keep their case.
+_QUOTED_FOLD = {"postgres": str.lower, "firebird": str.upper}
+
+
 def quote_ident(name, dialect):
     """Quote an identifier when the bare form would break or change meaning."""
     open_q, close_q, _ = IDENT_RULES[dialect]
-    needs = (not _BARE_IDENT_RE.match(name or "")) or (name or "").lower() in _RESERVED
+    bare = bool(_BARE_IDENT_RE.match(name or ""))
+    needs = (not bare) or (name or "").lower() in _RESERVED
     if not needs:
         return name
+    if bare and dialect in _QUOTED_FOLD:
+        name = _QUOTED_FOLD[dialect](name)
     # An embedded closing quote would end the identifier early; double it, which every dialect here
     # accepts for its own quote character.
     escaped = (name or "").replace(close_q, close_q * 2)
@@ -1241,6 +1411,62 @@ def emit_indexes(tname, fields, composites, dialect, used_names):
     return out
 
 
+def plan_foreign_keys(tables, links):
+    """
+    Split the analysis links into the ones the DDL can create and the ones it cannot.
+
+    Returns (declared, review): declared is a list of (src_tbl, src_item, dst_tbl, dst_item) with
+    each item spelled exactly as its table emits it; review is a list of (link, why). A link whose
+    data file has no table here is in neither, as before.
+
+    A link is declared only when the statement can succeed:
+      * both items are columns of their tables. A link naming an item its table page never printed
+        (a clipped help string, a cut name) produced a FOREIGN KEY on a column that does not exist,
+        and the statement failed when run (wxKanban 1854bd85);
+      * the parent item is the parent's primary key. Uniqueness is not recoverable from the PDF
+        (see the DDL header), so the identifier is the only parent column with a key behind it,
+        and every target rejects a foreign key onto a column without one (wxKanban ee8dc32e - the
+        one error left in that report's DDL once the boolean defaults were fixed).
+    Everything else becomes a REVIEW line saying what to check, rather than a statement that fails.
+    """
+    valid = {t for t, _ in tables}
+    cols_of = {t: {f["name"].lower(): f["name"] for f in fs if f["key"] != "composite"}
+               for t, fs in tables}
+    pk_of = {t: next((f["name"] for f in fs if f["key"] == "identifier"), None) for t, fs in tables}
+    declared, review = [], []
+    for src_tbl, src_item, dst_tbl, dst_item in links:
+        if src_tbl not in valid or dst_tbl not in valid:
+            continue
+        link = (src_tbl, src_item, dst_tbl, dst_item)
+        missing = [(t, it) for t, it in ((dst_tbl, dst_item), (src_tbl, src_item))
+                   if it.lower() not in cols_of[t]]
+        if missing:
+            t, it = missing[0]
+            review.append((link, f"{t} has no column {it} - its table page does not print that "
+                                 f"item. Check the name against the source PDF, then declare it."))
+        elif (pk_of[src_tbl] or "").lower() != src_item.lower():
+            review.append((link, f"{src_tbl}.{src_item} is not its primary key. Once it is"
+                                 f" confirmed unique, add CREATE UNIQUE INDEX on"
+                                 f" {src_tbl}({src_item}) and re-declare the FK here."))
+        else:
+            declared.append((src_tbl, cols_of[src_tbl][src_item.lower()],
+                             dst_tbl, cols_of[dst_tbl][dst_item.lower()]))
+    return declared, review
+
+
+def _in_link_order(links, declared, review):
+    """Declared and REVIEW links together, in the order the analysis lists them."""
+    by_key = {(s.lower(), si.lower(), d.lower(), di.lower()): (s, si, d, di)
+              for s, si, d, di in declared}
+    out = []
+    for s, si, d, di in links:
+        if (s, si, d, di) in review:
+            out.append((s, si, d, di))
+        elif (s.lower(), si.lower(), d.lower(), di.lower()) in by_key:
+            out.append(by_key.pop((s.lower(), si.lower(), d.lower(), di.lower())))
+    return out
+
+
 def emit_ddl(tables, links, dialect):
     # The dialect word is interpolated, not spelled out: the header used to open "Firebird-ready
     # DDL is dialect=mssql", naming one dialect in the prose and a different one in the value, in
@@ -1263,6 +1489,20 @@ def emit_ddl(tables, links, dialect):
            "-- database before you build on it - a statement can parse and still fail to execute:",
            "--   " + VERIFY_HINT[dialect].format(f=f"schema.{dialect}.sql"),
            ""]
+    # The export prints no precision or scale for a Numeric/Decimal item, so every one becomes the
+    # same fixed type - and a column the analysis declared wider (GPS coordinates at (21,18),
+    # prices at (23,5)) loses digits on load without a word (wxKanban 1854bd85). The width cannot
+    # be recovered from the PDF; the least this file can do is say the type is a guess.
+    numeric = sum(1 for _, fs in tables for f in fs if f["key"] == "numeric")
+    if numeric:
+        at = out.index("-- NOT YET EXECUTED. This file has been generated, not run. Apply it to a "
+                       "THROWAWAY")
+        out[at:at] = [
+            "-- ALSO REVIEW: numeric precision. The export prints no precision or scale for a",
+            f"-- Numeric/Decimal item, so all {numeric} such column(s) below are "
+            f"{TYPEMAP[dialect]['numeric']}. One the analysis",
+            "-- declares wider - (21,18) GPS coordinates, say - loses digits on load. Check each.",
+            "--"]
     if dialect == "sqlite":
         out[-1:] = [
             "-- SQLITE: foreign keys are declared inside each CREATE TABLE (SQLite has no",
@@ -1281,21 +1521,19 @@ def emit_ddl(tables, links, dialect):
     # Uniqueness is not recoverable from the PDF (see header), so only a link to the parent's
     # identifier - emitted as its PRIMARY KEY - is declared; any other becomes a REVIEW note.
     # Found running the eBusiness corpus: OrdLine.Reference -> Product.Reference.
+    #
+    # The same holds on every other target, where it fails louder but no better: PostgreSQL,
+    # SQL Server and Firebird reject the ALTER TABLE outright ("there is no unique constraint
+    # matching given keys for referenced table"), and MySQL wants a key on the parent column. So
+    # the rule is no longer SQLite's alone (wxKanban ee8dc32e) - see plan_foreign_keys.
     inline_fks, fk_notes = {}, {}
-    valid = {t for t, _ in tables}
+    declared_fks, fk_review = plan_foreign_keys(tables, links)
     if dialect == "sqlite":
-        pk_of = {t: next((f["name"] for f in fs if f["key"] == "identifier"), None)
-                 for t, fs in tables}
-        for src_tbl, src_item, dst_tbl, dst_item in links:
-            if dst_tbl in valid and src_tbl in valid:
-                if src_item == pk_of[src_tbl]:
-                    inline_fks.setdefault(dst_tbl, []).append((src_tbl, src_item, dst_item))
-                else:
-                    fk_notes.setdefault(dst_tbl, []).append(
-                        f"-- REVIEW: foreign key {dst_item} -> {src_tbl}({src_item}) NOT declared:"
-                        f" {src_tbl}.{src_item} is not its primary key. Once it is confirmed"
-                        f" unique, add CREATE UNIQUE INDEX on {src_tbl}({src_item}) and"
-                        f" re-declare the FK here.")
+        for src_tbl, src_item, dst_tbl, dst_item in declared_fks:
+            inline_fks.setdefault(dst_tbl, []).append((src_tbl, src_item, dst_item))
+        for (src_tbl, src_item, dst_tbl, dst_item), why in fk_review:
+            fk_notes.setdefault(dst_tbl, []).append(
+                f"-- REVIEW: foreign key {dst_item} -> {src_tbl}({src_item}) NOT declared: {why}")
     ident_clause = {
         "firebird": " GENERATED BY DEFAULT AS IDENTITY", "postgres": " GENERATED BY DEFAULT AS IDENTITY",
         "mssql": " IDENTITY(1,1)", "mysql": " AUTO_INCREMENT",
@@ -1307,11 +1545,24 @@ def emit_ddl(tables, links, dialect):
     for tname, fields in tables:
         cols, notes, pk = [], [], None     # cols get commas; notes are comment-only lines
         composites = []                    # HFSQL composite keys -> indexes, below
+        declared = set()                   # lower-cased column names already in this table
         for f in fields:
             ct = col_type(f, dialect)
             if ct is None:                  # composite-key pseudo-item -> index, emitted below
                 composites.append(f)
                 continue
+            # A column name already in this table is never emitted twice. Two columns of one name
+            # fail the WHOLE CREATE TABLE, so one bad line cost an entire table and every index and
+            # foreign key on it (wxKanban 1854bd85; a running page header did it to 149 tables of
+            # one export). The duplicate is written out commented, above the table, rather than
+            # renamed: an invented name would read as real, while this stays visibly unresolved.
+            if f["name"].lower() in declared:
+                cap = f" -- {f['caption']}" if f["caption"] else ""
+                notes.append(f"-- DUPLICATE: {tname}.{f['name']} appears twice; this one is NOT "
+                             f"created. Give it its real name from the source PDF, then add it:")
+                notes.append(f"--   {quote_ident(f['name'], dialect)} {ct}{cap}")
+                continue
+            declared.add(f["name"].lower())
             coldef = f"{quote_ident(f['name'], dialect)} {ct}"
             if f["key"] == "identifier" and not (dialect == "sqlite" and pk):
                 coldef += ident_clause
@@ -1344,12 +1595,17 @@ def emit_ddl(tables, links, dialect):
     if dialect == "sqlite":
         return "\n".join(out) + "\n"          # foreign keys already emitted inline above
     out.append("-- ---- Foreign keys (from the analysis Links) ----")
-    for src_tbl, src_item, dst_tbl, dst_item in links:
-        if dst_tbl in valid and src_tbl in valid:
-            fkname = constraint_name("FK", [dst_tbl, src_tbl, dst_item], dialect, used_names)
-            out.append(f"ALTER TABLE {quote_ident(dst_tbl, dialect)} ADD CONSTRAINT {fkname} "
-                       f"FOREIGN KEY ({quote_ident(dst_item, dialect)}) "
-                       f"REFERENCES {quote_ident(src_tbl, dialect)} ({quote_ident(src_item, dialect)});")
+    review = dict(fk_review)
+    for src_tbl, src_item, dst_tbl, dst_item in _in_link_order(links, declared_fks, review):
+        why = review.get((src_tbl, src_item, dst_tbl, dst_item))
+        if why:
+            out.append(f"-- REVIEW: foreign key {dst_tbl}.{dst_item} -> {src_tbl}({src_item}) "
+                       f"NOT declared: {why}")
+            continue
+        fkname = constraint_name("FK", [dst_tbl, src_tbl, dst_item], dialect, used_names)
+        out.append(f"ALTER TABLE {quote_ident(dst_tbl, dialect)} ADD CONSTRAINT {fkname} "
+                   f"FOREIGN KEY ({quote_ident(dst_item, dialect)}) "
+                   f"REFERENCES {quote_ident(src_tbl, dialect)} ({quote_ident(src_item, dialect)});")
     return "\n".join(out) + "\n"
 
 
@@ -1408,10 +1664,19 @@ directly. To move the data you must **export it from the WinDev side as JSON fir
 
 Migration checklist for the loader step:
 - Encoding: HFSQL strings are often Windows-1252 → convert to **UTF-8**.
-- Empty-date sentinels (`0000-00-00`, `18991230`) → **NULL**.
+- Empty-date and empty-time sentinels (`0000-00-00`, `18991230`, an empty time) → **NULL**.
 - Booleans may serialize as `0/1` or `"True"/"False"` — normalize.
 - French decimal comma → dot for numeric columns.
-- Load order must respect FKs (parents before children).
+- HFSQL pads fixed-width strings with trailing spaces — **trim** before comparing key values, or
+  foreign keys report orphans that are not there.
+- An empty string or `0` in a link (foreign-key) column means "no parent" in HFSQL → load it as
+  **NULL**; the target treats `''` and `0` as values that must match a parent row.
+- Load order must respect FKs (parents before children). Where the legacy app enforced a
+  relationship only in code, expect orphans: apply the foreign keys **after** the load
+  (PostgreSQL: `ADD CONSTRAINT ... NOT VALID`, then `VALIDATE CONSTRAINT` once the data is clean).
+- Every column is created NULLable, and only integer and boolean defaults are carried: the export
+  does not print NOT NULL. Add NOT NULL and other defaults from the analysis where the rebuilt app
+  relies on them.
 - Binary memos/images (BLOB columns) — export as base64 in the JSON, or to files + store a path.
 """
 
@@ -1464,6 +1729,7 @@ def main():
     links = parse_links(schema_md, known_tables={t for t, _ in tables})
     if renamed:
         links = apply_renames_to_links(links, renamed)
+    _, fk_review = plan_foreign_keys(tables, links)
 
     os.makedirs(args.out, exist_ok=True)
     sql_path = os.path.join(args.out, f"schema.{args.dialect}.sql")
@@ -1480,6 +1746,34 @@ def main():
     print(f"  -> {er_path}")
     for t, f in tables:
         print(f"    {t}: {len(f)} fields")
+
+    # Reconcile the links the same way the items are reconciled below. Every foreign key in the
+    # schema comes from this one section, and losing it is SILENT: the tables and columns are all
+    # there, so a schema with no relationships looks plausible rather than broken. One export
+    # printed a row label this parser did not know and came out with 0 of 84 foreign keys, and
+    # nothing in the run said so (wxKanban 6ff76692).
+    declared_links = declared_link_count(schema_md)
+    if declared_links and len(links) < declared_links:
+        print(f"  !! LINKS: the analysis declares {declared_links} link(s); this run read "
+              f"{len(links)}. Every link not read is a foreign key missing from the DDL.")
+        orphaned = links_to_unsplit_tables(schema_md, {t for t, _ in tables})
+        if orphaned:
+            print(f"     {len(orphaned)} name a data file that has no .table.md (its page was not "
+                  f"split out), so they cannot be declared:")
+            for src, dst in orphaned[:12]:
+                print(f"       {src} -> {dst}")
+            if len(orphaned) > 12:
+                print(f"       … and {len(orphaned) - 12} more")
+        if len(links) + len(orphaned) < declared_links:
+            print("     Others were not recognised in the Links section of _schema.md - check its "
+                  "row labels against the PDF and report the shape to wxKanban.")
+    if fk_review:
+        print(f"  !! {len(fk_review)} foreign key(s) written as REVIEW lines, not declared - the "
+              f"parent column is not a primary key, or a link item matches no column:")
+        for (src_tbl, src_item, dst_tbl, dst_item), _ in fk_review[:8]:
+            print(f"       {dst_tbl}.{dst_item} -> {src_tbl}({src_item})")
+        if len(fk_review) > 8:
+            print(f"       … and {len(fk_review) - 8} more (see the DDL)")
 
     # Reconcile against the analysis's own declared item count. Field loss in this parser has
     # always been SILENT — the run prints a summary and exits 0 whether it read every column or
@@ -1523,7 +1817,12 @@ def main():
                     hint = f"  [{', '.join(users[:3])}{', …' if len(users) > 3 else ''}]" if users else ""
                     print(f"       {item}{hint}")
                 if len(unmatched) > 25:
-                    print(f"       … and {len(unmatched) - 25} more")
+                    # The console shows 25; a shortfall in the hundreds is exactly the case that
+                    # needs the whole list, so it goes to a file instead of being cut off.
+                    full = os.path.join(args.out, "unmatched-items.md")
+                    rd.write_text(full, render_unmatched_report(unmatched), state)
+                    print(f"       … and {len(unmatched) - 25} more - all {len(unmatched)} are "
+                          f"listed in {full}")
                 print("     Check each against its table page in the source PDF. An item the table "
                       "page prints under a different name (the dictionary's 'MessagesID' printed "
                       "as 'ID') is not lost - the DDL follows the table page. An item whose data "
@@ -1557,7 +1856,8 @@ def main():
         collided += [(tname, n) for n, c in seen.items() if c > 1]
     if collided:
         print(f"  !! {len(collided)} column name(s) appear TWICE in their table, because the cut "
-              f"collapsed distinct items onto one name - this DDL will not run as written:")
+              f"collapsed distinct items onto one name. The second is commented out in the DDL "
+              f"(-- DUPLICATE) so the table still creates - restore it under its real name:")
         for tname, n in collided[:8]:
             print(f"       {tname}.{n}")
 

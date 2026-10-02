@@ -106,7 +106,10 @@ def main():
     rd.add_redaction_args(ap, scan=False)
     args = ap.parse_args()
 
-    state = rd.RedactionState()
+    # rebuild/scopes/_redactions.md is shared with the queries and procedures stages: continue it
+    # instead of overwriting it (wxKanban f6df3914).
+    state = rd.RedactionState.resume(os.path.join(args.out, rd.SIDECAR_NAME),
+                                     os.path.join(args.src, rd.SIDECAR_NAME))
 
     files = sorted(glob.glob(os.path.join(args.src, "*.report.md")))
     reps = [parse(f) for f in files]
@@ -151,7 +154,7 @@ def main():
     print(f"reports={len(reps)}  -> {out_path}")
 
     sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
-    if state.findings:
+    if rd.ledger_changed(state):
         rd.write_text(sidecar_path, rd.render_sidecar(state), state)
     print(rd.summary_line(state, sidecar_path))
     return rd.exit_code(len(state.findings), args.fail_on_secrets)

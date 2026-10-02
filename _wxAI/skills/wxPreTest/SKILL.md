@@ -47,11 +47,15 @@ in the report rather than skipping silently.)*
 
 ```bash
 node _wxAI/adapters/resolve-adapter.mjs --json
+node _wxAI/adapters/validate-adapter.mjs <adapter path from the resolver>
 ```
 
-Announce the resolved adapter before touching anything. Non-zero means no adapter covers this
-stack — stop and say so. Do not clone speculatively: a target built for the wrong stack is worse
-than no target, because the run that follows it reports results.
+Announce the resolved adapter, with its provenance (`shipped`, `provisional` or `approved`), before
+touching anything. Reason **`no-match`** means no adapter covers this stack: generate one per
+`_wxAI/adapters/GENERATE.md` — completed from this repository, validated, announced as provisional
+— and continue on it, with no approval prompt. Any other miss, a validation failure, or a generated
+adapter that cannot be completed means: stop and say so. Do not clone speculatively: a target built
+for the wrong stack is worse than no target, because the run that follows it reports results.
 
 Read the adapter's **Disposable target** answer. It names the posture and the exact commands. Three
 postures are supported and an adapter answers with exactly one:

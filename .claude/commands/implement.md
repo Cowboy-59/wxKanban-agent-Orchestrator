@@ -111,8 +111,14 @@ boots against empty screens and nothing can be driven.
 
 **Resolve the adapter first. It decides the form; this phase decides the content.**
 
-- [ ] Run `node _wxAI/adapters/resolve-adapter.mjs --json` and **announce the resolved adapter**
-  before writing anything. Non-zero means no adapter covers this stack: say so, name the declared
+- [ ] Run `node _wxAI/adapters/resolve-adapter.mjs --json`, validate the result with
+  `node _wxAI/adapters/validate-adapter.mjs <adapter path>`, and **announce the resolved adapter
+  with its provenance** (`shipped`, `provisional` or `approved`) before writing anything. Phase 5
+  will usually have resolved — or generated — it already; this resolves the same file.
+- [ ] Reason **`no-match`** means no adapter covers this stack: **generate one** per
+  `_wxAI/adapters/GENERATE.md` — completed from this repository, validated, announced as
+  provisional — and continue on it, with no approval prompt. Any other miss (no `stack.md`, two
+  adapters tied), or a generated adapter that cannot be completed, means: say so, name the declared
   stack, and carry on to Phase 6 without inventing a seeding harness.
 - [ ] Read that adapter's **Seeding form**. It answers where a seed lives on this stack, what runs
   it, how it is made idempotent, how a shared base is reused, where it may be written, and how it

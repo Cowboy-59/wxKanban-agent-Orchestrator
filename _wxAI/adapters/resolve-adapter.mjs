@@ -24,6 +24,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
+import { isAdapterDoc } from "./validate-adapter.mjs";
+
 /** Adapters wxperts ships. In KIT_DIRS, so these reach consumers. */
 const SHIPPED_DIR = join("_wxAI", "adapters");
 /** Generated and user-added adapters. Outside KIT_DIRS — deliberately never packaged. */
@@ -97,12 +99,15 @@ export function parseStack(stackPath) {
 
 /** Read one adapter file's declared identity. */
 // [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+// MODIFIED-BY: [SCOPE 127 / T009] — reads **Status:** and **Origin:** so provenance can be stated
 export function readAdapter(path) {
   const src = readFileSync(path, "utf-8");
   const title = (/^#\s+(.+)$/m.exec(src) || [, basename(path)])[1].trim();
   const stackLine = (/^\*\*Stack:\*\*\s*([\s\S]*?)(?:\n\n|\n\*\*)/m.exec(src) || [, ""])[1];
   const matchLine = (/^\*\*Matches:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
   const appTypeLine = (/^\*\*Application type:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
+  const statusLine = (/^\*\*Status:\*\*\s*(\S+)/m.exec(src) || [, ""])[1];
+  const originLine = (/^\*\*Origin:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
 
   // `Matches:` is the machine-readable declaration. `Stack:` is prose kept for a human reader and
   // is used ONLY as a fallback signal for adapters written before `Matches:` existed.
@@ -116,19 +121,37 @@ export function readAdapter(path) {
     appType: appTypeLine ? normalize(appTypeLine) : null,
     tokens: declared.length > 0 ? declared : fallback,
     declaresMatches: declared.length > 0,
+    status: statusLine ? statusLine.toLowerCase().replace(/[^a-z]/g, "") : null,
+    generated: /^\s*generated\b/i.test(originLine),
   };
 }
 // [SCOPE 127 / T002] END
 
+/**
+ * Provenance — SCOPE-127 / T009 (FR-010) and T012.
+ *
+ * Three states, and a project adapter can never claim the first. A wxperts-shipped adapter is
+ * `shipped` whatever its file says. A project adapter (generated, or written by the developer) is
+ * `provisional` until its own `**Status:**` line says `approved` — editing that line is the whole
+ * approval mechanism (owner decision 7). Approval promotes after the fact; it never blocks a run.
+ */
+// [SCOPE 127 / T009] BEGIN — Provenance reporting — shipped / provisional / approved (FR-010)
+export function provenanceOf(adapter) {
+  if (adapter.origin === "shipped") return "shipped";
+  return adapter.status === "approved" ? "approved" : "provisional";
+}
+// [SCOPE 127 / T009] END
+
 /** Every adapter on disk, shipped first then local. */
 // [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+// MODIFIED-BY: [SCOPE 127 / T010] — README.md and GENERATE.md are docs, not adapters
 export function listAdapters(root) {
   const out = [];
   for (const [dir, origin] of [[SHIPPED_DIR, "shipped"], [LOCAL_DIR, "local"]]) {
     const full = resolve(root, dir);
     if (!existsSync(full)) continue;
     for (const f of readdirSync(full)) {
-      if (!f.endsWith(".md") || f.toLowerCase() === "readme.md") continue;
+      if (!f.endsWith(".md") || isAdapterDoc(f)) continue;
       out.push({ ...readAdapter(join(full, f)), origin });
     }
   }
@@ -246,18 +269,21 @@ export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
       title: best.adapter.title,
       origin: best.adapter.origin,
       declaresMatches: best.adapter.declaresMatches,
+      generated: best.adapter.generated,
     },
     appType: best.appType,
     score: best.score,
     matchedOn: best.hits,
     // FR-010: provenance travels with every resolution, so a caller can always say where the
-    // machinery it is about to run came from.
-    provenance: best.adapter.origin === "shipped" ? "shipped" : "local",
+    // machinery it is about to run came from — and a project adapter is never called shipped.
+    provenance: provenanceOf(best.adapter),
     candidates: viable.slice(1, 3).map((s) => ({ name: s.adapter.name, score: s.score })),
   };
 }
 
 // [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+// MODIFIED-BY: [SCOPE 127 / T009] — a provisional resolution is announced as provisional (SC-8)
+// MODIFIED-BY: [SCOPE 127 / T010] — a no-match miss points at generation, other misses stay stops
 function main(argv) {
   const args = argv.slice(2);
   const get = (flag) => {
@@ -285,6 +311,13 @@ function main(argv) {
     if (!result.adapter.declaresMatches) {
       console.log("  note             : matched on prose; this adapter declares no **Matches:** line");
     }
+    if (result.provenance === "provisional") {
+      // SC-8: an unapproved project adapter says so out loud, not only in its file.
+      console.log(
+        `  note             : PROVISIONAL — ${result.adapter.generated ? "generated" : "written"} for this ` +
+          "project, not shipped by wxperts, and not yet approved. Set **Status:** approved in the file to promote it.",
+      );
+    }
   } else {
     console.error(`Adapter resolution FAILED (${result.reason})\n`);
     console.error(result.message);
@@ -295,8 +328,12 @@ function main(argv) {
       }
     }
     console.error(
-      "\nThree honest options: write an adapter for this stack, run the method by hand with " +
-        "substitutes agreed out loud, or narrow the target to a subtree an existing adapter covers.",
+      result.reason === "no-match"
+        ? "\nNext: generate a candidate adapter for this project and complete it — follow " +
+            "_wxAI/adapters/GENERATE.md (node _wxAI/adapters/generate-adapter.mjs). Never borrow another " +
+            "stack's machinery."
+        : "\nThis is a stop, not something to generate past. Declare the stack with /buildstack, or make " +
+            "resolution unambiguous by giving the intended adapter a token only this stack's Choice column contains.",
     );
   }
 

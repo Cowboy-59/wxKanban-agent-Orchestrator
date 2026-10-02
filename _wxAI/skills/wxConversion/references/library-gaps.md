@@ -34,3 +34,19 @@ WebDev Tables/Loopers do sort, filter, inline edit, pagination, grouping; shadcn
 ## Image gallery / picker — `GAL_*`
 - **Yet Another React Lightbox** (MIT) — keyboard/touch, zoom, fullscreen, captions. **Default pick.**
 - react-photoswipe-gallery (MIT); react-image-grid-gallery (MIT). An image *manager* = Tailwind grid + lightbox + an upload library above.
+
+## WinDev desktop controls — rendered as a visible placeholder
+The generator recognises these declared types but does not build them; each becomes a
+`{/* GAP: … */}` placeholder whose inner controls stay on the page, and is recorded in
+`rebuild/COMPONENT-GAPS.md`. Several have a shadcn primitive — they are placeholders because the
+script does not generate them, not because nothing exists.
+- **Internal window** — hosts another window: render that window's own generated component there.
+- **Tree view** — react-arborist (MIT), or nested shadcn Collapsible.
+- **Calendar** — shadcn/ui Calendar (react-day-picker, MIT). **Scheduler / organizer** — FullCalendar (MIT) or react-big-calendar (MIT).
+- **Map** — react-leaflet + OpenStreetMap (BSD-2). **Bar code** — react-barcode / qrcode.react (MIT).
+- **Image editor** — react-image-crop (ISC). **PDF viewer** — react-pdf (MIT).
+- **Spreadsheet / pivot table** — TanStack Table with editable cells / grouping + aggregation.
+- **List view** — shadcn Card grid or data-table. **Dashboard** — react-grid-layout (MIT). **Kanban** — dnd-kit (MIT).
+- **Sidebar** — shadcn Sidebar if its panes navigate (a plane or page switch), Accordion if they only expand; decide from its WLanguage.
+- **Slider** — shadcn/ui Slider. **Rating** — a row of icon toggles. **Org chart** — react-organizational-chart / d3-hierarchy. **Treemap** — Recharts Treemap (MIT).
+- **Unmapped** — a declared type with no mapping at all: rebuild by hand; the type is listed at the end of the Stage 2 run.

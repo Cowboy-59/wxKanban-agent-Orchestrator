@@ -56,19 +56,47 @@ not just local Markdown.
 
 ## Stack adapters — resolve before Phase 0
 
-**Read `stack.md` at the repo root first**, exactly as `wxUIUXCodeReview` does under SPEC-056, and
-resolve the adapter that matches. Announce it out loud before Phase 0 does anything else.
+**Resolve through the shared resolver** — the same one `implement` Phase 5b and `/preTest` use
+(SCOPE-127 / FR-001). Do not match `stack.md` against a table by eye: three layers deciding for
+themselves drift apart, and a plan built on one adapter then executed on another is worse than no
+resolution at all.
 
-| Declared stack | Adapter |
+```bash
+node _wxAI/adapters/resolve-adapter.mjs --json
+node _wxAI/adapters/validate-adapter.mjs <adapter.path from the resolver>
+```
+
+- **Resolver exit 0** → announce the adapter out loud before Phase 0 does anything else: its name,
+  its provenance, and the stack tokens it matched on. Provenance is `shipped` (wxperts-authored,
+  from `_wxAI/adapters/`), `provisional` (a project adapter in `.wxai/adapters/`, generated or
+  hand-written, not yet approved) or `approved` (a project adapter its developer has promoted). Say
+  `provisional` out loud when it is; never present a project adapter as a shipped one.
+- **Validator non-zero** → stop and name what it reported. An adapter with a question left
+  unanswered is a gap the run cannot see (FR-008); do not proceed on it partially. The one
+  exception: a **generated** adapter a previous run left incomplete — complete it per
+  `_wxAI/adapters/GENERATE.md` step 2, then validate again.
+- **Resolver exit 3, reason `no-match`** → no adapter covers the declared stack. **Generate one and
+  carry on**: follow `_wxAI/adapters/GENERATE.md` — write the candidate, complete it from this
+  repository, validate it, re-resolve, announce it as provisional — then continue to Phase 0 on it.
+  There is no approval prompt (SCOPE-127 / FR-006).
+- **Resolver exit 3, any other reason** (no `stack.md`, or two adapters tie) → stop — see below.
+
+Adapters wxperts ships today:
+
+| Adapter | Stack |
 |---|---|
-| TypeScript · Express · Drizzle · PostgreSQL · Vitest/supertest · Playwright | `adapters/wxkanban-express.md` |
-| C# · .NET · WPF/MVVM · EF Core · xUnit | `adapters/dotnet-wpf.md` |
-| anything else, or no `stack.md` | **stop — see below** |
+| `_wxAI/adapters/wxkanban-express.md` | TypeScript · Express · Drizzle · PostgreSQL · Vitest/supertest · Playwright |
+| `_wxAI/adapters/dotnet-wpf.md` | C# · .NET · WPF/MVVM · EF Core · xUnit |
+
+A project adapter — generated, or written by hand — lives in `.wxai/adapters/`. The resolver searches
+both directories and resolves a project adapter exactly as it resolves a shipped one; only its
+provenance differs.
 
 The adapter answers six questions and nothing else: inventory source (Phase 1), schema source
 (Phase 1B), harness (Phase 3), UI driver (UI/UX coverage), DB posture (Phase 0 step 3), and which
 constraints the test substitutes **cannot** enforce (Phase 2A risk register). Everything else in
-this file applies unchanged on every stack. Contract and how to add one: `adapters/README.md`.
+this file applies unchanged on every stack. The contract, and how to write an adapter:
+`_wxAI/adapters/README.md`.
 
 **Why this is a gate and not a note.** The machinery used to assume wxKanban's stack silently. Run
 against a C# repository, the TypeScript extractor walked 316 `.cs` files, matched nothing, wrote a
@@ -77,9 +105,11 @@ confident, empty test plan on top of it. A confident empty result is worse than 
 reads as a result. The scripts now hard-stop with exit 3 on an unsupported tree, but the stop is a
 backstop; resolving the adapter first is the actual fix.
 
-**No adapter matches → stop and say so.** Do not run the extractor speculatively to see what comes
-back. Offer three honest options: write an adapter for this stack first, run the method by hand with
-substitutes agreed out loud, or narrow the target to a subtree an existing adapter covers.
+**No `stack.md`, two adapters tied, or a generated adapter that cannot be completed → stop and say
+so.** Do not run the extractor speculatively to see what comes back. Offer the honest options: run
+`/buildstack` to declare the stack, finish or correct the adapter in `.wxai/adapters/` by hand (the
+README's *Writing your own adapter* is the contract), run the method by hand with substitutes agreed
+out loud, or narrow the target to a subtree an existing adapter covers.
 
 ---
 
@@ -218,9 +248,10 @@ a flow with no requirement is a Clarifications-Required entry, not a guess.
 
 ## Phase 0 — Scope, DB posture, and gates
 
-0. **Read `stack.md` and resolve the adapter** per *Stack adapters* above, and announce it. If no
-   adapter matches, stop here — every step below depends on one. Read the resolved adapter now; the
-   rest of this phase refers to it.
+0. **Resolve and validate the adapter** with the two commands in *Stack adapters* above, and
+   announce it with its provenance. On `no-match`, generate one per `_wxAI/adapters/GENERATE.md`
+   first. If there is still no valid adapter, stop here — every step below depends on one. Read the
+   resolved adapter now; the rest of this phase refers to it.
 1. **Resolve the target** per *Target resolution* above and announce it.
 2. **Read the specs first** (CLAUDE.md SPEC-FIRST is mandatory). In requirement-driven mode this is
    your oracle for "is this a bug or is it unimplemented?" — enumerate the `FR-###` set before any
@@ -278,6 +309,21 @@ the code fence and route/service search.
 An inventory of **zero units** is never a result to plan against. On a supported stack the command
 hard-stops rather than emitting one; if you somehow hold an empty inventory, establish why before
 Phase 2.
+
+**Then run the inventory guard — on every stack, every run** (SCOPE-127 / FR-013):
+
+```bash
+node _wxAI/adapters/inventory-guard.mjs --adapter <resolved adapter path> \
+     --inventory tests/testplans/<target>/inventory.json
+```
+
+Add `--scope <path>` only when this run's target is a path argument, using that path — never to make
+a refusal go away; the guard reports every registration it left out. It counts the adapter's own
+**Inventory signal** — where this stack declares a unit — independently of the inventory, and exits
+3 on zero units, on a signal that matches nothing in this tree, or on a file that declares more units
+than the inventory lists. **Exit 3 is a stop**: fix the inventory or the adapter's signal, then
+re-run. A shipped adapter with no signal passes through (its extractor carries its own guards); a
+project adapter cannot, because the validator requires one.
 
 Read `references/case-catalog.md` (unit category → cases owed) and `references/test-item-schema.md`
 (record shape) now.

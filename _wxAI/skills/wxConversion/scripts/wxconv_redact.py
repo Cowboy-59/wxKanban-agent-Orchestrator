@@ -28,6 +28,8 @@ scan mode reads no PDFs.
 
 Public API:
     RedactionState()                  -> per-run token allocation + accumulated findings
+    RedactionState.resume(ledger, *upstream) -> same, continuing an existing _redactions.md
+    ledger_changed(state)             -> whether the ledger must be (re)written this run
     redact(text, state, source=None)  -> (redacted_text, findings)   # findings carry NO value
     scan(text, source=None)           -> findings                    # read-only, allocates nothing
 
@@ -65,6 +67,11 @@ CRED_KEYS = (
     "authorization", "auth",
     "data source", "initial catalog",
     "connectionstring", "connection string",
+    # WinDev is sold and written in Spanish and French as much as in English; a process password
+    # held in `sClave` or `sMotDePasse` passed every matcher here (wxKanban c0d7cfa6). Like every
+    # key above, these must END the identifier, so `ClaveCliente` - Spanish code's usual name for a
+    # record's lookup key, not a secret - is not matched.
+    "clave", "contraseña", "contrasena", "mot de passe",
 )
 
 # Credential keys as they appear INSIDE a connection string (`...;uid=sa;pwd=x;...`). Values there
@@ -97,6 +104,11 @@ POSITIONAL_CALLS = {
     "emailstartimapsession": {0: "user", 1: "password"},
     "emailstartsession": {0: "user", 1: "password"},
     "ftpconnect": {1: "user", 2: "password"},
+    # An HFSQL data file's own password, passed as a literal (wxKanban c0d7cfa6):
+    # HPass(<data file>, <password>) and HDeclareExternal(<file path>, <logical name>, <password>).
+    # The data-file and logical-name arguments are rebuild signal and stay.
+    "hpass": {1: "password"},
+    "hdeclareexternal": {2: "password"},
 }
 
 MAX_CALL_SCAN = 2000  # cap the argument scan so a malformed call cannot walk the whole document
@@ -115,6 +127,7 @@ _TOKEN_FMT = "[[" + TOKEN_PREFIX + "-{n:02d}]]"
 # the second pass would treat the token as a value and allocate a token for the token.
 # It is also what makes success metric 1 true: scanning already-redacted output must report zero.
 TOKEN_RE = re.compile(r"\A\[\[" + TOKEN_PREFIX + r"-\d+\]\]\Z")
+_TOKEN_NUM_RE = re.compile(r"\[\[" + TOKEN_PREFIX + r"-(\d+)\]\]")
 
 
 def _key_alternation() -> str:
@@ -142,10 +155,24 @@ _QUOTED = r"(?P<q>[\"'])(?P<val>(?:(?!(?P=q))[^\r\n])*)(?P=q)"
 # `(?:\.(?:Text|Value))?` covers the VB6 control shape `txtPassword.Text = "..."`. Deliberately
 # NOT `.Caption`: `lblPassword.Caption = "Password:"` is a UI label, and redacting it would destroy
 # interface signal the rebuild needs while protecting nothing.
+# The WLanguage DECLARATION with an initial value puts the type between the name and the `=`:
+# `sPassword is string = "..."`, `sClave is a string = "..."`, French `sMotDePasse est une chaîne
+# = "..."`. That is how a local variable is normally given a value in WLanguage, and every one
+# was missed (wxKanban c0d7cfa6). An initialiser commented out after the type (`ApiToken is string
+# //= "..."`) still carries the value. Kept to one line and at most three type words.
+_DECL_TAIL = (r"[^\S\r\n]+(?:is|est)(?:[^\S\r\n]+(?:an?|une?))?(?:[^\S\r\n]+[\w][\w\-]*){1,3}?"
+              r"[^\S\r\n]*(?://[^\S\r\n]*)?=")
 KEYED_RE = re.compile(
     r"(?i)(?P<key>" + _key_alternation() + r")(?:\.(?:Text|Value))?"
-    r"[\"']?\s*(?::=|=|:)\s*" + _QUOTED
+    r"(?:" + _DECL_TAIL + r"|[\"']?\s*(?::=|=|:))\s*" + _QUOTED
 )
+
+# A Mermaid erDiagram relationship: `fUserRole ||--o{ fUser : "RoleCode"`. The label after the
+# colon is the joining column, and an entity named fUser read as the key `user` followed by `:`,
+# so the ER diagram's own FK label was replaced with a credential token (wxKanban 0a922271). A
+# relationship line names two entities and a column - it cannot hold a credential.
+_MERMAID_REL_RE = re.compile(r"^[^\S\r\n]*[\w\"\-]+[^\S\r\n]+[|}][|o](?:--|\.\.)[|o][|{]"
+                             r"[^\S\r\n]+[\w\"\-]+[^\S\r\n]*:", re.M)
 
 # Clarion .txa/.dct place the ENTIRE connection string, credentials included, in the file's OWNER()
 # attribute. It matches no key=value shape, so it needs its own pattern. This is the most common
@@ -159,6 +186,31 @@ QUOTED_RE = re.compile(_QUOTED)
 CONNSTR_CRED_RE = re.compile(
     r"(?i)\b(?:" + "|".join(k.replace(" ", r"\s*") for k in CONNSTR_CRED_KEYS) + r")\s*=\s*[^;\r\n]"
 )
+
+# ...except that a query or filter string CAN contain `password =`: a login check such as
+# "Login = '[%sLogin%]' AND PassWord = '[%sPwd%]'" was redacted WHOLE as a connection string,
+# destroying the query text while protecting nothing - the value it compares against is a
+# placeholder filled in at run time (wxKanban c0d7cfa6). When EVERY credential key in the literal
+# is followed by a placeholder - a WLanguage `[%var%]` template, a `%1` StringBuild slot, or a
+# `:name` / `@name` / `?` SQL parameter - the literal carries no secret. A literal value after any
+# one of the keys keeps the whole literal redacted, exactly as before.
+_CONNSTR_VALUE_RE = re.compile(
+    r"(?i)\b(?:" + "|".join(k.replace(" ", r"\s*") for k in CONNSTR_CRED_KEYS) + r")\s*=\s*"
+    r"(?P<placeholder>'?(?:\[%|%\d|[:@][A-Za-z_]|\?))?"
+)
+
+
+# A keyed value that is nothing but a run-time placeholder - `PassWord = '[%sPwd%]'` inside a filter
+# string, `password = '%1'` inside a StringBuild template - carries no secret, and redacting it
+# breaks the query text it sits in (wxKanban c0d7cfa6).
+_PLACEHOLDER_ONLY_RE = re.compile(r"\[%[^%\r\n]*%\]|%\d+")
+_COMMENTED_ALT_RE = re.compile(r"[^\S\r\n]*//[^\S\r\n]*(?::=|=)[^\S\r\n]*" + _QUOTED)
+
+
+def _connstr_has_secret(val: str) -> bool:
+    return any(not m.group("placeholder") for m in _CONNSTR_VALUE_RE.finditer(val)
+               if CONNSTR_CRED_RE.match(val, m.start()))
+
 
 # Which POSITIONAL_CALLS entries are METHODS, reached through a member access (`cn.Open ...`)
 # rather than called by bare name. Everything else in the table is a bare function.
@@ -210,12 +262,50 @@ class RedactionState:
 
     _tokens: dict = field(default_factory=dict, repr=False)
     findings: list = field(default_factory=list)
+    # The highest token NUMBER already in use - allocated here, present in text this run has read,
+    # or recorded in a ledger this run continues. A new value always gets a number above it.
+    # Each stage used to start again at CRED-01, so a page converted from already-redacted
+    # pre-convert text could hold the splitter's [[CRED-01]] and its own, different [[CRED-01]] in
+    # one file, and every per-page run wrote CRED-01 for a different value (wxKanban f6df3914).
+    _last: int = field(default=0, repr=False)
+    # Rows carried over from an existing ledger (see resume()), and the files this run has written:
+    # a file written again replaces its old rows rather than being listed twice.
+    _prior: list = field(default_factory=list, repr=False)
+    _written: set = field(default_factory=set, repr=False)
+
+    @classmethod
+    def resume(cls, ledger_path, *upstream_ledgers):
+        """
+        A state that CONTINUES the ledger at `ledger_path` instead of overwriting it.
+
+        For a stage that runs once per element into a shared directory (page-to-react, once per
+        page) or that shares its directory with a sibling stage (queries, procedures and reports
+        all write rebuild/scopes/_redactions.md). The ledger's rows are kept, except those of files
+        this run writes again; token numbers continue above every number in `ledger_path` and in
+        each upstream ledger (normally pre-convert/_redactions.md), so no number ever means two
+        values. The ledger never held a value, so nothing secret is read back - only token, key,
+        file and line.
+        """
+        state = cls()
+        for path in (ledger_path,) + tuple(upstream_ledgers):
+            rows = _read_ledger_rows(path)
+            if path == ledger_path:
+                state._prior = rows
+            for token, _key, _src, _line in rows:
+                state._note_token(token)
+        return state
+
+    def _note_token(self, token: str) -> None:
+        m = _TOKEN_NUM_RE.search(token)
+        if m:
+            self._last = max(self._last, int(m.group(1)))
 
     def token_for(self, value: str) -> str:
         """Return the stable token for `value`, allocating one on first sight."""
         token = self._tokens.get(value)
         if token is None:
-            token = _TOKEN_FMT.format(n=len(self._tokens) + 1)
+            self._last += 1
+            token = _TOKEN_FMT.format(n=self._last)
             self._tokens[value] = token
         return token
 
@@ -301,13 +391,23 @@ def _key_start_ok(text: str, start: int) -> bool:
 
     Reject when the key is buried inside a lowercase run: `fluid` and `liquid` contain `uid`, and
     redacting `fluid = "water"` would destroy signal for no security benefit.
+
+    An ACRONYM prefix is a hump too: `SMTPPassword`, `DBPassword`, `APIToken`, `TWPassword`. There
+    the key's capital follows another capital, which the plain hump test rejected, so the commonest
+    names of a service credential were never matched (wxKanban c0d7cfa6). It is accepted only when
+    the key's next letter is lowercase - a new camel word starting - so `GUID`, `UUID` and `PUID`
+    still do not yield `uid`.
     """
     if start == 0:
         return True
     prev = text[start - 1]
     if not (prev.isalnum() or prev == "_"):
         return True
-    return text[start].isupper() and not prev.isupper()
+    if not text[start].isupper():
+        return False
+    if not prev.isupper():
+        return True
+    return start + 1 < len(text) and text[start + 1].islower()
 # [SCOPE 125 / T001] END
 
 
@@ -389,8 +489,20 @@ def _find_spans(text: str):
     """
     spans = []
 
+    mermaid = {text.count("\n", 0, r.start()) for r in _MERMAID_REL_RE.finditer(text)} \
+        if "--" in text or ".." in text else set()
     for m in KEYED_RE.finditer(text):
         if m.group("val") and _key_start_ok(text, m.start("key")):
+            if mermaid and text.count("\n", 0, m.start("key")) in mermaid:
+                continue
+            # A previous value kept as a comment on the same line, `= "new" //= "old"`, is a second
+            # credential for the same key - and on the observed line the commented one was the
+            # long, real-looking value (wxKanban c0d7cfa6).
+            alt = _COMMENTED_ALT_RE.match(text, m.end())
+            if alt and alt.group("val") and not _PLACEHOLDER_ONLY_RE.fullmatch(alt.group("val")):
+                spans.append((alt.start("val"), alt.end("val"), m.group("key").lower()))
+            if _PLACEHOLDER_ONLY_RE.fullmatch(m.group("val")):
+                continue
             spans.append((m.start("val"), m.end("val"), m.group("key").lower()))
 
     for m in OWNER_RE.finditer(text):
@@ -419,7 +531,7 @@ def _find_spans(text: str):
         val = m.group("val")
         if not val:
             continue
-        if CONNSTR_CRED_RE.search(val):
+        if CONNSTR_CRED_RE.search(val) and _connstr_has_secret(val):
             spans.append((m.start("val"), m.end("val"), "connection string"))
             continue
         key = _adjacent_comment_key(text, m.end())
@@ -458,6 +570,11 @@ def redact(text: str, state: RedactionState, source: str = ""):
     spans = _find_spans(text)
     if not spans:
         return text, []
+
+    # Text produced by an earlier stage already carries that stage's tokens; a value new to this
+    # run must not be given one of their numbers (see RedactionState._last).
+    for m in _TOKEN_NUM_RE.finditer(text):
+        state._note_token(m.group(0))
 
     found = []
     out = []
@@ -501,6 +618,7 @@ def write_text(path, text, state, dry_run=False, generator="wxConversion", kind=
     """
     source = os.path.basename(str(path))
     text, _ = redact(text, state, source=source)
+    state._written.add(source)
 
     if str(path).endswith(".md"):
         from wxkanban_watermark import stamp_markdown  # noqa: PLC0415 - see docstring
@@ -538,10 +656,35 @@ needs to know.
 
 The same token always means the same value, so a token repeated below is one credential in several
 places — not several credentials.
+"""
 
+_SIDECAR_CONTINUED = """
+This ledger is continued by every run that writes into this folder, so it lists all of them - not
+only the last. A token number is never reused for a different value; the same value found by two
+separate runs can carry two tokens.
+"""
+
+_SIDECAR_TABLE = """
 | Token | Key | File | Line |
 |---|---|---|---|
 """
+
+# One row of the findings table above. Reading it back recovers only what was written: token, key,
+# file and line. There is no value in the ledger to read.
+_LEDGER_ROW_RE = re.compile(
+    r"^\| `(\[\[" + TOKEN_PREFIX + r"-\d+\]\])` \| (.+?) \| `(.*?)` \| (\d+) \|[^\S\r\n]*$", re.M
+)
+
+
+def _read_ledger_rows(path):
+    """[(token, key, file, line)] from an existing ledger; [] when there is none."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+    except OSError:
+        return []
+    return [(m.group(1), m.group(2), m.group(3), int(m.group(4)))
+            for m in _LEDGER_ROW_RE.finditer(text)]
 
 
 def render_sidecar(state) -> str:
@@ -551,17 +694,39 @@ def render_sidecar(state) -> str:
     There is deliberately no code path here that could emit a credential value: `Finding` has no
     value field, so the only thing available to render is the token, key, file and line. Nor is
     there a truncated or masked form — a partial mask is a disclosure, not a redaction.
+
+    A state made by RedactionState.resume() also carries the ledger's earlier rows: each per-page run
+    used to overwrite the ledger, so after converting every page it listed only the LAST page's
+    credentials while the others still held them (wxKanban f6df3914). Rows for a file this run wrote
+    again are replaced, never duplicated.
     """
     findings = state.findings
-    files = sorted({f.source for f in findings if f.source})
-    body = _SIDECAR_HEADER.format(
-        n=len(findings), files=len(files) or 1, distinct=state.distinct_count
+    kept = [r for r in getattr(state, "_prior", []) if r[2] not in getattr(state, "_written", set())]
+    rows = kept + [(f.token, f.key, f.source or "(unknown)", f.line) for f in findings]
+    files = sorted({r[2] for r in rows if r[2] and r[2] != "(unknown)"})
+    distinct = len({r[0] for r in rows}) if kept else state.distinct_count
+    body = _SIDECAR_HEADER.format(n=len(rows), files=len(files) or 1, distinct=distinct)
+    if kept:
+        body += _SIDECAR_CONTINUED
+    # How many of each kind, so a reviewer can see at a glance which shapes this source uses
+    # (wxKanban c0d7cfa6).
+    counts = {}
+    for r in rows:
+        counts[r[1]] = counts.get(r[1], 0) + 1
+    body += "\n| Key | Found |\n|---|---|\n" + "".join(
+        "| {k} | {c} |\n".format(k=k, c=c) for k, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
     )
-    rows = [
-        "| `{t}` | {k} | `{s}` | {l} |".format(t=f.token, k=f.key, s=f.source or "(unknown)", l=f.line)
-        for f in findings
-    ]
-    return body + "\n".join(rows) + "\n"
+    table = ["| `{t}` | {k} | `{s}` | {l} |".format(t=t, k=k, s=s, l=l) for t, k, s, l in rows]
+    return body + _SIDECAR_TABLE + "\n".join(table) + "\n"
+
+
+def ledger_changed(state) -> bool:
+    """
+    Whether the ledger must be (re)written: this run found something, OR it rewrote a file the
+    ledger still lists - that file's old rows must go even though nothing replaced them.
+    """
+    written = getattr(state, "_written", set())
+    return bool(state.findings) or any(r[2] in written for r in getattr(state, "_prior", []))
 # [SCOPE 125 / T005] END
 
 

@@ -10,8 +10,8 @@
  * two guards (the other is T013), and it is the only thing standing between a fabricated driver
  * and a false green.
  *
- * The failure it prevents is precise and has a precedent. A generated adapter must invent a UI
- * driver for a stack nobody anticipated — it may name a command that does not exist, or one that
+ * The failure it prevents is precise and has a precedent. A generated adapter must name a UI
+ * driver for a stack nobody anticipated, often before that driver is set up — it may name a command that does not exist, or one that
  * exits 0 having launched nothing. Without proof of real interaction, a UI tier would then report
  * passes for screens that were never rendered. That is the zero-unit inventory again: a confident
  * empty result reads as a result.
