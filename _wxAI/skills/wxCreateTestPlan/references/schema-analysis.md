@@ -102,7 +102,7 @@ this codebase (see below) and each is worth 3× an index gap for a reason.
 > companyid: uuid("companyid").references(() => companies.id, { onDelete: "cascade" }),
 > ```
 > Every such column is flagged as **`unenforced FK`** with weight 3, listed with its `file:line`, and
-> is a candidate `project_submit_feedback`. The fix is either to add the `.references()` (with an
+> is a candidate entry in the project's own findings (see **Filing the results**). The fix is either to add the `.references()` (with an
 > `onDelete` rule) or, if the column is deliberately a soft/optional reference, to document that intent
 > in a comment so the flag reads as a known exemption rather than a defect.
 
@@ -168,7 +168,8 @@ most likely to have accumulated orphans, so the anti-join SQL is generated for *
 candidates too** (best-effort — it infers the parent from the `*id` name), clearly labelled as
 inferred rather than declared.
 
-A non-zero orphan count is a data-integrity finding filed as feedback with the count and the SQL; it
+A non-zero orphan count is a data-integrity finding, recorded in the project's findings with the
+count and the SQL; it
 is **never auto-remediated** — deleting dangling rows is a data decision for the owner.
 
 ### 4. Missing indexes
@@ -229,14 +230,21 @@ The analysis lands in wxKanban through the orchestrator, exactly like the test-p
 - **The report** → `project_upsert_document` with **doctype `schemaanalysis`** (non-empty doctype is
   required). Body is the rendered `SCHEMA-ANALYSIS.md`; it carries the generated-output watermark if
   the project requires one.
-- **Each material finding** → `project_submit_feedback`, one per unenforced FK, orphan table, non-zero
-  orphan-data count, or convention violation worth acting on. The referential-integrity score and the
-  aggregate index counts go in the document; individual defects go in feedback so they can be triaged.
+- **Each material finding** → **this project's** findings, never the vendor's queue: one entry per
+  unenforced FK, orphan table, non-zero orphan-data count, or convention violation worth acting on,
+  in the scope's `testplanFindings` document, with one summary task. That is SKILL.md § **Where
+  findings go**. The referential-integrity score and the aggregate index counts go in the
+  `schemaanalysis` report; individual defects go in the findings so the team that owns the schema can
+  act on them.
 
-Every filed finding references `file:line` so it's directly actionable, e.g.
+`project_submit_feedback` is **not** the filing path for a schema finding. That queue goes to the
+wxKanban team, who cannot change this project's schema. Use it only when the *analyzer itself* is
+wrong, for example when `schema-analyze.mjs` crashes or misreads a valid Drizzle declaration.
+
+Every finding references `file:line` so it's directly actionable, e.g.
 `src/db/schema/campaignposts.ts:40 createdbyid — unenforced FK (no .references(); parent inferred: users)`.
-Low-confidence heuristic flags (suggested indexes, inferred-parent orphan SQL) are filed as feedback
-too but labelled *suggested* so triage can weigh them against the enforced findings.
+Low-confidence heuristic flags (suggested indexes, inferred-parent orphan SQL) are recorded too, but
+labelled *suggested* so they can be weighed against the enforced findings.
 
 ---
 

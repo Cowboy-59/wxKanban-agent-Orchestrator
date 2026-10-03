@@ -91,8 +91,10 @@ Rules for data items:
 - Expected results stay machine-checkable: assert a raised **SQLSTATE / error code**, a row count, a
   returned value, or a plan characteristic — never "the constraint works" or "performance is fine".
 - A constraint that exists only in application code (not enforced by the DB) is **not** a passing
-  data-layer test. File it as a FINDING via `mcp__wxkanban__project_submit_feedback` (missing DB
-  constraint / integrity gap) rather than writing a green `data` item around the app-level check.
+  data-layer test. Record it as a FINDING (missing DB constraint / integrity gap) in **this
+  project's** `testplanFindings` document, per SKILL.md § Where findings go, rather than writing a
+  green `data` item around the app-level check. It is a gap in the application under test, so it
+  never goes to `project_submit_feedback`, which is the wxKanban team's queue.
 
 ## File shape
 
@@ -475,5 +477,6 @@ Refuse to hand over the artifacts until all of these hold:
     `performance-scale`, `migration-rollback`, `data-security`, `backup-recovery`), its
     `steps[].expected` assert a machine-checkable signal (SQLSTATE/error code, row count, returned
     value, or `expectedPlan` characteristic), and no `crud`/live `data` item targets a prod DB.
-12. Any integrity constraint enforced **only** in application code is filed as a FINDING via
-    `mcp__wxkanban__project_submit_feedback` — never written up as a passing `data`-layer test.
+12. Every integrity constraint enforced **only** in application code is recorded as a FINDING in
+    the project's `testplanFindings` document (never `project_submit_feedback`) and never written
+    up as a passing `data`-layer test.

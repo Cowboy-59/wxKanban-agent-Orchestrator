@@ -4,6 +4,22 @@ All notable changes to `wxkanban-agent` are documented in this file.
 
 ## Unreleased
 
+### Changed — `/wxG-O-D` methodology is server-delivered; the kit ships a stub plus scripts
+
+`/wxG-O-D` (G.O.D., the customer development planner) now runs on the same machinery
+as `/buildscope` and `/createSpecs`: the methodology is fetched at runtime through
+`project.get_command_prompt` (key `wxgod`), and the shipped `.claude/skills/wxG-O-D/`
+is a thin `SKILL.md` stub plus its three deterministic scripts (`inventory.mjs`,
+`machine-capacity.mjs`, `estimate-ai-time.mjs`). The eight reference documents the
+methodology reads on demand (`god-persona`, `new-project`, `review-and-brainstorm`,
+`document-templates`, `interview`, `database-options`, `data-integrity`,
+`flow-diagrams`) are served under path keys, `wxgod/references/<name>`, so a run
+fetches only the ones its mode needs. The prompt registry builder now walks
+subfolders of `mcp-server/src/prompts/` to produce those keys. The `/wxG-O-D`
+command stub in `_wxAI/commands` and `.claude/commands` carries the usage lines
+and the standard MCP-unavailable guidance. Requires a hosted MCP redeploy before
+consumers receive the `wxgod` prompt.
+
 ### Added — `/cwConversion` + `/cwConversionScope`: Clarion conversion commands
 
 The Clarion (SoftVelocity / PCSoft) counterparts to `/wxConversion` and
