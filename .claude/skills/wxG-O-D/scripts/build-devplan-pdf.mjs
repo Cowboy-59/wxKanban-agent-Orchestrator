@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * build-devplan-pdf.mjs  (wxKanban kit skill: dev-plan)
+ * build-devplan-pdf.mjs  (wxKanban kit skill: wxG-O-D; moved from the retired
+ * dev-plan skill by SCOPE-136 FR-010)
  * --------------------------------------------------------------------------
- * Renders a development-plan Markdown file — Mermaid diagram included — to PDF.
+ * Renders a G.O.D. Markdown document — Mermaid diagrams included — to PDF.
  *
- *   node .claude/skills/dev-plan/scripts/build-devplan-pdf.mjs
+ *   node .claude/skills/wxG-O-D/scripts/build-devplan-pdf.mjs
  *   node .../build-devplan-pdf.mjs path/to/PLAN.md path/to/PLAN.pdf
  *
- * Defaults: reads  specs/DEVELOPMENT-PLAN.md  (relative to cwd / project root)
- *           writes specs/DEVELOPMENT-PLAN.pdf
+ * Defaults: reads  docs/DEVELOPMENT-PLAN.md  (relative to cwd / project root)
+ *           writes docs/DEVELOPMENT-PLAN.pdf
  *
  * Portable: resolves marked / puppeteer / mermaid from the CONSUMER project's
  * node_modules (cwd first, then the skill location). Renders offline — mermaid
@@ -23,7 +24,7 @@ import { pathToFileURL } from 'node:url';
 
 const argIn = process.argv[2];
 const argOut = process.argv[3];
-const MD_PATH = resolve(process.cwd(), argIn || 'specs/DEVELOPMENT-PLAN.md');
+const MD_PATH = resolve(process.cwd(), argIn || 'docs/DEVELOPMENT-PLAN.md');
 const PDF_PATH = resolve(process.cwd(), argOut || MD_PATH.replace(/\.md$/i, '.pdf'));
 
 // Resolve packages from the consumer project (cwd) first, then this skill dir.
@@ -40,7 +41,7 @@ async function load(spec, pkgHint) {
     console.error(
       `✗ Missing dependency "${pkgHint || spec}". Install it in this project:\n` +
       `    npm install ${pkgHint || spec}\n` +
-      `  The dev-plan skill needs: marked, puppeteer, mermaid.`
+      `  The wxG-O-D PDF renderer needs: marked, puppeteer, mermaid.`
     );
     throw err;
   }
@@ -113,6 +114,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('✗ Failed to build dev-plan PDF:', err.message || err);
+  console.error('✗ Failed to build the PDF:', err.message || err);
   process.exit(1);
 });

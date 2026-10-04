@@ -1,5 +1,5 @@
 ---
-description: wxG-O-D — Guru of Development: reads your project tree or named folders (plus ProjectOverview.md, stack.md, and any WinDev/VB6/Clarion conversion output), goes over the findings with you section by section at your level (--level=amateur|junior|senior, plain text, no menus), interviews you on what is still open, and writes a customer-facing development plan into docs/ with AI time to completion for the quickest team and for the most agents your machine can run, a database pick (office/cloud/distributed), an ERD with referential-integrity suggestions, the management plan, dev-plan and flow diagrams, all as PDF. Pass a ProjectOverview.md for a new project and, after your review and a brainstorm, it drives buildscope, validateScope, createSpecs and implement under their own rules, resumable with --resume.
+description: wxG-O-D — Guru of Development: reads your project tree or named folders (plus ProjectOverview.md, stack.md, and any WinDev/VB6/Clarion conversion output), goes over the findings with you section by section at your level (--level=amateur|junior|senior, plain text, no menus), interviews you on what is still open, and writes a customer-facing development plan into docs/ with AI time to completion for the quickest team and for the most agents your machine can run, a database pick (office/cloud/distributed), an ERD with referential-integrity suggestions, the management plan, build roadmap and flow diagrams, all as PDF. Pass a ProjectOverview.md for a new project and, after your review and a brainstorm, it drives buildscope, validateScope, createSpecs and implement under their own rules, resumable with --resume. --create pauses once for the design review, then executes the development plan phase by phase to a built app, with independent scopes implemented in parallel (--cap=<n> limits it; --cap=1 is serial) and an unattended option under the Remote Session Bridge. --roadmap writes only the build roadmap.
 args: "{{args}}"
 ai-compat: universal
 claude-code: true
@@ -19,8 +19,8 @@ blackboxai: true
 > The methodology names reference documents (`references/<name>.md`). They are served the same way:
 > fetch each one when the step that needs it is reached, with `project.get_command_prompt` and
 > `{ "command": "wxgod/references/<name>" }`. The scripts it runs (`inventory.mjs`,
-> `machine-capacity.mjs`, `estimate-ai-time.mjs`) are on disk in `.claude/skills/wxG-O-D/scripts/`,
-> and the `dev-plan` skill it uses is in `.claude/skills/dev-plan/`.
+> `machine-capacity.mjs`, `estimate-ai-time.mjs`, `build-devplan-pdf.mjs`) are on disk in
+> `.claude/skills/wxG-O-D/scripts/`.
 >
 > If `project.get_command_prompt` is **not available as a tool**, first check whether OTHER
 > `project.*` tools (e.g. `project.create_specs`, `project.help`) ARE present — the two cases have
@@ -48,7 +48,10 @@ blackboxai: true
 /wxG-O-D ProjectOverview.md                                # review it; new project → design, then build
 /wxG-O-D --overview=docs/ProjectOverview.md --customer="Acme Freight"
 /wxG-O-D ProjectOverview.md --brainstorm                   # brainstorm the idea before any design
+/wxG-O-D --create ProjectOverview.md                       # design, one review, then build it all
+/wxG-O-D --create ProjectOverview.md --cap=2               # ...with at most 2 agents at once
 /wxG-O-D --resume                                          # continue a paused run
+/wxG-O-D --roadmap                                         # only docs/DEVELOPMENT-PLAN.md + PDF
 ```
 
 - `--dir=<dir>,<dir>...` — Only these folders: comma-separated or repeated, relative to the project root or absolute. Default: the whole project tree, minus gitignored and kit files.
@@ -56,7 +59,10 @@ blackboxai: true
 - `<file>` or `--overview=<file>` — A ProjectOverview.md to start from. Opens the new-project question.
 - `--brainstorm` — With an overview: brainstorm the idea right after the review, before any design. Without it, you are asked.
 - `--level=amateur|junior|senior` — How much G.O.D. explains during the review and brainstorm. Without it, you are asked at the start of the review.
-- `--resume` — Continue a run from `docs/GOD-State.json`: a new-project run, or a paused plan-mode review.
+- `--resume` — Continue a run from `docs/GOD-State.json`: a new-project or `--create` run, or a paused plan-mode review.
+- `--create` — With an overview: design it, pause once for your review, then execute the development plan phase by phase to a built app. Each command still runs under its own gates.
+- `--cap=<n>` — The most AI agents to use at once, when lower than your machine's maximum. `--cap=1` implements one scope at a time.
+- `--roadmap` — Write only the build roadmap, `docs/DEVELOPMENT-PLAN.md` and its PDF. `/dev-plan` runs this.
 
 Everything it writes lands in `docs/`. The Markdown is the editable source; re-render a PDF with
-`node .claude/skills/dev-plan/scripts/build-devplan-pdf.mjs docs/<file>.md docs/<file>.pdf`.
+`node .claude/skills/wxG-O-D/scripts/build-devplan-pdf.mjs docs/<file>.md docs/<file>.pdf`.
