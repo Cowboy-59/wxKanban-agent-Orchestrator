@@ -1,50 +1,56 @@
 // Spec 030 FR-006 — MCP surface adapter. Translates MCP tool names to
-// Capability, resolves current phase + spec verification from the DB in
-// parallel, then delegates to the pure policy.evaluate(). Returns the
-// existing StageEnforcementResult shape so today's mcp-server call site
-// needs only an import-path swap.
+// Capability, resolves stage + spec verification from the DB, then delegates
+// to the pure policy.evaluate(). Returns the existing StageEnforcementResult
+// shape so today's mcp-server call site needs only an import-path swap.
 //
 // Per spec 030 FR-008, spec-first verification is enforced uniformly
 // across both surfaces. The MCP adapter always feeds the resolved
 // SpecVerification into policy.evaluate() — closing the pre-refactor gap
 // where MCP allowed spec-gated tools without verification.
+//
+// SCOPE-123 FR-001 — the stage is the stage of the SCOPE the tool call names
+// (its specNumber / specId argument), read from `specificationphases`. This
+// adapter used to resolve ONE project-wide stage from `projectphases`, which
+// described none of a multi-scope project's scopes and defaulted to Design;
+// that read is gone from every gate path.
 
-import { Capability } from "../capabilities";
-import { evaluate, Decision } from "../policy";
+import { Capability, capabilityScoping } from "../capabilities";
+import { evaluate, Decision, Refusal, ScopeStageFacts, SpecVerification } from "../policy";
+import { ProjectNotFoundError, PhaseQueryClient } from "../resolve-current-phase";
 import {
-  resolveCurrentPhase,
-  PhaseQueryClient,
-  ProjectNotFoundError,
-} from "../resolve-current-phase";
-import {
-  resolveSpecVerification,
+  resolveScopeVerification,
   SpecVerificationQueryClient,
 } from "../resolve-spec-verification";
+import { LifecycleStage } from "../../schemas/lifecycle";
+import { StageQueryClient } from "../../stage/store";
+import { ScopeGateChecker, ScopeRecord, assessScope, evaluateStageExit } from "../../stage/advance";
+import { findScopeByRef, scopeRefFromArgs } from "../../stage/lookup";
+import { INACTIVE_SCOPE_STATUSES, scopeLabel } from "../../stage/vocabulary";
 
 // Mirrors the StageEnforcementResult interface from the pre-refactor
 // mcp-server/src/utils/stage-enforcement.ts so the call site in
 // mcp-server/src/server.ts compiles unchanged.
 export interface StageEnforcementResult {
   allowed: boolean;
+  // The named scope's stage; null for tools that act on no scope.
   currentStage: string | null;
   requestedTool: string;
   reason?: string;
+  // SCOPE-123 FR-004 — machine-readable refusal for the caller to branch on.
+  refusal?: Refusal;
 }
 
-// DB shape this adapter expects. Combines the two resolver interfaces;
-// any client satisfying both works (FenceDbClient does; a Drizzle
-// instance wrapped with `(sql, params) => db.execute(sqlRaw(sql, params))`
-// does too).
+// DB shape this adapter expects. Any client with a `query(sql, params)` that
+// returns `{ rows }` works — a node-postgres Pool does.
 export interface McpDbClient
   extends PhaseQueryClient,
-    SpecVerificationQueryClient {}
+    SpecVerificationQueryClient,
+    StageQueryClient {}
 
-// Spec 030 FR-006 — exhaustive 12-row mapping. Each row carries the bare
-// CLI command name as displayName so the message strings produced by
-// policy.evaluate() are byte-identical across CLI and MCP surfaces (FR-009).
-// 3 mappings target currently-registered MCP tools; 9 are reserved for
-// the follow-up MCP parity scope (handlers don't exist yet — these rows
-// are inert at runtime since the MCP server never dispatches them).
+// Spec 030 FR-006 — exhaustive mapping. Each row carries the bare CLI command
+// name as displayName so the message strings produced by policy.evaluate() are
+// identical across CLI and MCP surfaces (FR-009). Rows for tools the MCP server
+// does not register are inert at runtime.
 const MCP_TOOL_MAP: Readonly<
   Record<string, { capability: Capability; displayName: string }>
 > = {
@@ -95,7 +101,7 @@ const MCP_TOOL_MAP: Readonly<
     capability: Capability.KitStatus,
     displayName: "kit:status",
   },
-  // WinDev/WebDev conversion entry points, Design-gated like the CLI surface.
+  // WinDev/WebDev conversion entry points (scope-creating).
   "project.wxconversion": {
     capability: Capability.WxConversion,
     displayName: "wxconversion",
@@ -104,7 +110,7 @@ const MCP_TOOL_MAP: Readonly<
     capability: Capability.WxConversionScope,
     displayName: "wxconversionscope",
   },
-  // Clarion conversion entry points, Design-gated like the CLI surface.
+  // Clarion conversion entry points (scope-creating).
   "project.cwconversion": {
     capability: Capability.CwConversion,
     displayName: "cwconversion",
@@ -113,7 +119,7 @@ const MCP_TOOL_MAP: Readonly<
     capability: Capability.CwConversionScope,
     displayName: "cwconversionscope",
   },
-  // Visual Basic 6 conversion entry points, Design-gated like the CLI surface.
+  // Visual Basic 6 conversion entry points (scope-creating).
   "project.vbconversion": {
     capability: Capability.VbConversion,
     displayName: "vbconversion",
@@ -124,10 +130,85 @@ const MCP_TOOL_MAP: Readonly<
   },
 };
 
+export interface EnforceToolOptions {
+  // The tool call's arguments; the named scope is read from them.
+  args?: Record<string, unknown>;
+  // The server's test gate, narrowed to a scope. Lets a refusal name the open
+  // gate as well as the open tasks (FR-010). Optional: without it the refusal
+  // still names the stage and the open-task count.
+  gates?: ScopeGateChecker;
+  // The project the caller's token is bound to. When set, a gated tool naming a
+  // different project is refused BEFORE anything is read: the refusal text names
+  // a scope's stage, task counts and test keys, so reading another project's
+  // scope here would disclose it (review finding, SCOPE-123 T021).
+  boundProjectId?: string;
+}
+
+// [SCOPE 123 / T002] BEGIN — assertProjectExists: a mapped tool on an unknown project is refused
+async function assertProjectExists(db: PhaseQueryClient, projectId: string): Promise<void> {
+  const result = await db.query<{ id: string }>(
+    `SELECT id FROM companyprojects WHERE id = $1 LIMIT 1`,
+    [projectId],
+  );
+  if (result.rows.length === 0) throw new ProjectNotFoundError(projectId);
+}
+// [SCOPE 123 / T002] END
+
+// [SCOPE 123 / T002] BEGIN — resolveScopeFacts: the named scope's stage, tasks and blockers
+// [SCOPE 123 / T021] MODIFIED-BY — carries tracked (inferred stage, decision 9) and inactive
+//
+// A scope the tool names but that has no row yet is a scope being created: it is
+// in Design with no tasks. A scope with a row but no stage row is judged on its
+// inferred stage (Amendment C, decision 9) and marked untracked.
+export async function resolveScopeFacts(
+  db: StageQueryClient,
+  record: ScopeRecord | null,
+  specNumber: string,
+  gates?: ScopeGateChecker,
+): Promise<ScopeStageFacts> {
+  // Without the server's gate, the facts still carry the stage and open-task
+  // count; a gated stage's blocker then says the gate was not evaluated here.
+  const checker: ScopeGateChecker =
+    gates ??
+    (async () => {
+      throw new Error("not evaluated on this surface");
+    });
+  const assessment = record
+    ? await assessScope(db, record.id, checker, { full: Boolean(gates) })
+    : null;
+  if (!record || !assessment) {
+    const verdict = evaluateStageExit({ stage: LifecycleStage.Design, taskCount: 0, openTaskCount: 0 });
+    return {
+      scopeId: null,
+      specNumber,
+      label: scopeLabel(specNumber),
+      stage: LifecycleStage.Design,
+      taskCount: 0,
+      openTaskCount: 0,
+      blockers: verdict.blockers.map((b) => ({ kind: b.kind, message: b.message })),
+    };
+  }
+  return {
+    scopeId: record.id,
+    specNumber: record.specNumber,
+    label: scopeLabel(record.specNumber),
+    stage: assessment.stage,
+    taskCount: assessment.taskCount,
+    openTaskCount: assessment.openTaskCount,
+    blockers: assessment.blockers.map((b) => ({ kind: b.kind, message: b.message })),
+    tracked: assessment.tracked,
+    inactive: INACTIVE_SCOPE_STATUSES.includes(record.status),
+  };
+}
+// [SCOPE 123 / T002] END
+
+// [SCOPE 123 / T002] BEGIN — enforceTool: per-scope gate for MCP tool calls (replaces the projectphases read)
+// [SCOPE 123 / T021] MODIFIED-BY — refuse a project other than the token's before any read
 export async function enforceTool(
   db: McpDbClient,
   projectId: string,
   toolName: string,
+  options: EnforceToolOptions = {},
 ): Promise<StageEnforcementResult> {
   const mapping = MCP_TOOL_MAP[toolName];
 
@@ -142,13 +223,29 @@ export async function enforceTool(
     };
   }
 
-  let currentPhase;
-  let verification;
+  if (options.boundProjectId && options.boundProjectId !== projectId) {
+    return {
+      allowed: false,
+      currentStage: null,
+      requestedTool: toolName,
+      reason: `scope-mismatch: ${toolName} named project ${projectId}, but the token is bound to project ${options.boundProjectId}.`,
+    };
+  }
+
+  let scope: ScopeStageFacts | undefined;
+  let verification: SpecVerification | undefined;
   try {
-    [currentPhase, verification] = await Promise.all([
-      resolveCurrentPhase(db, projectId),
-      resolveSpecVerification(db, projectId),
-    ]);
+    await assertProjectExists(db, projectId);
+    if (capabilityScoping[mapping.capability] === "scoped") {
+      const ref = scopeRefFromArgs(options.args);
+      if (ref) {
+        const record = await findScopeByRef(db, projectId, ref);
+        scope = await resolveScopeFacts(db, record, record?.specNumber ?? ref.specNumber ?? ref.specId ?? "", options.gates);
+        verification = record
+          ? await resolveScopeVerification(db, record)
+          : { specExists: false, tasksExist: false, documentsExist: false };
+      }
+    }
   } catch (err) {
     if (err instanceof ProjectNotFoundError) {
       return {
@@ -163,15 +260,17 @@ export async function enforceTool(
 
   const decision: Decision = evaluate({
     capability: mapping.capability,
-    currentPhase,
     commandDisplayName: mapping.displayName,
+    scope,
     verification,
   });
 
   return {
     allowed: decision.allowed,
-    currentStage: currentPhase,
+    currentStage: decision.currentPhase,
     requestedTool: toolName,
     reason: decision.reason,
+    refusal: decision.refusal,
   };
 }
+// [SCOPE 123 / T002] END

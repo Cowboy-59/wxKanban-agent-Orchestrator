@@ -37,6 +37,38 @@ const ALL_MISSING: SpecVerification = {
   documentsExist: false,
 };
 
+// [SCOPE 123 / T002] BEGIN — resolveScopeVerification: verify the NAMED scope, not "the active one"
+//
+// resolveSpecVerification below picks the project's single active scope and
+// reports everything missing when there are zero or several. A project with two
+// specs in progress therefore had every spec-gated command refused, whichever
+// spec it named (SCOPE-123 FR-001; SPEC-136 T019). The gate now names its scope,
+// so verification checks that scope's own artifacts.
+export async function resolveScopeVerification(
+  db: SpecVerificationQueryClient,
+  scope: { id: string; status: string },
+): Promise<SpecVerification> {
+  const [tasksResult, docsResult] = await Promise.all([
+    db.query<{ c: string }>(
+      `SELECT COUNT(*)::text AS c FROM projecttasks WHERE specid = $1`,
+      [scope.id],
+    ),
+    db.query<{ c: string }>(
+      `SELECT COUNT(*)::text AS c FROM projectdocuments WHERE specid = $1`,
+      [scope.id],
+    ),
+  ]);
+  return {
+    specExists: true,
+    tasksExist: Number(tasksResult.rows[0]?.c ?? "0") > 0,
+    documentsExist: Number(docsResult.rows[0]?.c ?? "0") > 0,
+    specStatus: scope.status,
+  };
+}
+// [SCOPE 123 / T002] END
+
+// Legacy project-level resolver. No gate calls it after SCOPE-123; kept for
+// callers outside the policy layer that still ask "which scope is active?".
 export async function resolveSpecVerification(
   db: SpecVerificationQueryClient,
   projectId: string,

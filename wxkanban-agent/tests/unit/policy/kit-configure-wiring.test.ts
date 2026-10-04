@@ -42,20 +42,26 @@ afterAll(() => {
   for (const root of tempRoots) rmSync(root, { recursive: true, force: true });
 });
 
+// SCOPE-123 — gates read the named scope's stage; kit:configure names none.
+function scopeIn(stage: LifecycleStage) {
+  return { scopeId: null, specNumber: "001", label: "SPEC-001", stage, taskCount: 0, openTaskCount: 0, blockers: [] };
+}
+
 describe("FR-007 — kit:configure is a registered capability", () => {
   it("never reports the customer's stage-violation message, in any stage", () => {
     for (const stage of Object.values(LifecycleStage)) {
-      const result = evaluateStageOnly(stage, "kit:configure");
+      const result = evaluateStageOnly(scopeIn(stage), "kit:configure");
       expect(result.reason).not.toBe(
         `Command 'kit:configure' is not permitted in the '${stage}' stage.`,
       );
       expect(result.allowed).toBe(true);
     }
+    expect(evaluateStageOnly(undefined, "kit:configure").allowed).toBe(true);
   });
 
   it("is allowed in every lifecycle stage — a bootstrap command is never stage-gated", () => {
     for (const stage of Object.values(LifecycleStage)) {
-      expect(evaluateCommand(stage, "kit:configure").allowed).toBe(true);
+      expect(evaluateCommand(scopeIn(stage), "kit:configure").allowed).toBe(true);
     }
   });
 

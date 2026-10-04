@@ -40,7 +40,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<ScopeDraft>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'buildscope', context.customCommands
+			context.scope, 'buildscope', context.customCommands
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<ScopeDraft> = { success: false, error: policy.reason };
@@ -67,7 +67,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'dbpush', context.customCommands
+			context.scope, 'dbpush', context.customCommands
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -97,7 +97,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'implement', context.customCommands,
+			context.scope, 'implement', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -180,7 +180,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'createspecs', context.customCommands,
+			context.scope, 'createspecs', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -230,7 +230,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'kit:status', context.customCommands,
+			context.scope, 'kit:status', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -266,7 +266,7 @@ export class WorkflowEngine {
 		if (auditInput['token'] !== undefined) auditInput['token'] = '***redacted***';
 
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'kit:configure', context.customCommands,
+			context.scope, 'kit:configure', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -310,7 +310,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'scaffold:frontend', context.customCommands,
+			context.scope, 'scaffold:frontend', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -349,7 +349,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'wxconversion', context.customCommands,
+			context.scope, 'wxconversion', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -379,7 +379,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'wxconversionscope', context.customCommands,
+			context.scope, 'wxconversionscope', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -408,7 +408,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'cwconversion', context.customCommands,
+			context.scope, 'cwconversion', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -438,7 +438,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'cwconversionscope', context.customCommands,
+			context.scope, 'cwconversionscope', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -467,7 +467,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'vbconversion', context.customCommands,
+			context.scope, 'vbconversion', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -497,7 +497,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'vbconversionscope', context.customCommands,
+			context.scope, 'vbconversionscope', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -524,7 +524,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'auditfences', context.customCommands,
+			context.scope, 'auditfences', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -560,7 +560,7 @@ export class WorkflowEngine {
 	): Promise<{ result: CommandResult<Record<string, unknown>>; audit: AuditRecord }> {
 		const timestamp = new Date().toISOString();
 		const policy = evaluateStageOnly(
-			context.lifecycleStage, 'archive:files', context.customCommands,
+			context.scope, 'archive:files', context.customCommands,
 		);
 		if (!policy.allowed) {
 			const result: CommandResult<Record<string, unknown>> = { success: false, error: policy.reason };
@@ -616,14 +616,14 @@ export class WorkflowEngine {
 		// Spec-first enforcement: use evaluateSpecFirst for spec-gated commands
 		const policy = isSpecGatedCommand(command)
 			? evaluateCommand(
-				context.lifecycleStage,
+				context.scope,
 				command,
 				options?.specVerification,
 				options?.override,
 				context.customCommands,
 			)
 			: evaluateStageOnly(
-				context.lifecycleStage, command, context.customCommands
+				context.scope, command, context.customCommands
 			);
 
 		if (!policy.allowed) {

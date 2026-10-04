@@ -12,7 +12,10 @@ import { LifecycleStage } from '../../../core/schemas/lifecycle';
 // from lifecycle.ts; the canonical per-stage command set comes from the
 // cli-adapter (same path cli.ts and the MCP server use). This handler was the
 // straggler that never migrated.
-import { getAllowedCommandsForStage } from '../../../core/policy/adapters/cli-adapter';
+import { describeCommands, getCommandScoping } from '../../../core/policy/adapters/cli-adapter';
+// [SCOPE 123 / T018] scoped commands read the named scope's stage from the hub
+import { fetchScopeFacts, formatHubUnreachable } from '../../../core/stage/remote';
+import { extractScopeNumber } from './spec-verification';
 import { bindWithAutoselect, PortRangeExhaustedError } from '../../../core/runtime/port-autoselect';
 import { startParentWatcher, resolveParentPid } from '../../../core/runtime/parent-watcher';
 import { writeServiceEntry, removeServiceEntry, reapDeadEntries } from '../../../core/runtime/state-file';
@@ -92,17 +95,20 @@ app.get('/health', (_req, res) => {
 	});
 });
 
-// List available commands for current stage
+// [SCOPE 123 / T009] BEGIN — GET /commands: every command with its class and stages, no project stage
+// A stage belongs to a scope (SCOPE-123), so this no longer reports a project
+// stage: one would describe none of the project's scopes and gate nothing.
 app.get('/commands', (_req, res) => {
 	const context = resolveProjectContext();
-	const allCommands = getAllowedCommandsForStage(context.lifecycleStage, context.customCommands);
+	const described = describeCommands(context.customCommands);
 	res.json({
-		stage: context.lifecycleStage,
-		commands: allCommands,
+		commands: described.map((c) => c.command),
+		scoping: described,
 		projectId: context.projectId, // [SCOPE 068 / FR-002]
 		projectRoot: PROJECT_ROOT,
 	});
 });
+// [SCOPE 123 / T009] END
 
 // Dispatch a command
 app.post('/dispatch', async (req, res) => {
@@ -130,6 +136,20 @@ app.post('/dispatch', async (req, res) => {
 		});
 		return;
 	}
+
+	// [SCOPE 123 / T018] BEGIN — a scoped command is judged on its named scope's stage, from the hub
+	if (getCommandScoping(command) === 'scoped') {
+		const named = extractScopeNumber(command, input || {});
+		if (named) {
+			const lookup = await fetchScopeFacts({ projectId: context.projectId, specNumber: named, projectRoot: PROJECT_ROOT });
+			if (!lookup.ok) {
+				res.status(503).json({ status: 'error', code: 'HUB_UNREACHABLE', error: formatHubUnreachable(command, named, lookup.reason) });
+				return;
+			}
+			context.scope = lookup.facts;
+		}
+	}
+	// [SCOPE 123 / T018] END
 
 	const { result, audit } = await WorkflowEngine.dispatch(
 		context,

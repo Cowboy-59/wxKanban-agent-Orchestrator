@@ -1,206 +1,244 @@
-// Spec 030 FR-015 — MCP adapter coverage. Tests:
-// - Live MCP tool names (3 registered handlers) map to the correct Capability
-//   and gate correctly across phases.
-// - Inert MCP tool names (9 reserved for the parity scope) still resolve
-//   correctly — when the parity scope registers the handlers, gate behavior
-//   is already validated.
-// - Unmapped tool names pass through ungated (preserves enforceStage behavior
-//   for the 30+ non-gated MCP tools).
-// - Resolvers are stubbed; adapter is tested as a pure function over those
-//   stubs. No live DB.
+// Spec 030 FR-015 — MCP adapter coverage, rewritten for SCOPE-123.
+//
+// The gate resolves the stage of the SCOPE the tool call names (specNumber /
+// specId), never a project-wide value. The fake database throws if any gate
+// path reads `projectphases`, so the old project-stage read cannot creep back.
 
 import { describe, it, expect } from "vitest";
-import {
-  enforceTool,
-  McpDbClient,
-} from "../../../core/policy/adapters/mcp-adapter";
+import { enforceTool } from "../../../core/policy/adapters/mcp-adapter";
+import { advanceScope, ScopeGateChecker } from "../../../core/stage/scope-stage";
+import { LifecycleStage } from "../../../core/schemas/lifecycle";
+import { FakeStageDb } from "../stage/fake-stage-db";
 
-// Stub DB client that returns canned rows. Each test constructs a stub
-// configured for the specific scenario it exercises.
-function stubDb(handlers: {
-  // SELECT phasename FROM projectphases ...
-  activePhase?: string | null;
-  // SELECT id FROM companyprojects ...
-  projectExists?: boolean;
-  // SELECT id, status FROM projectspecifications ... (active scope)
-  activeScope?: { id: string; status: string } | null;
-  // COUNT(*) FROM projecttasks WHERE specid = ...
-  taskCount?: number;
-  // COUNT(*) FROM projectdocuments WHERE specid = ...
-  docCount?: number;
-}): McpDbClient {
-  return {
-    query: async <T>(sql: string, _params?: unknown[]): Promise<{ rows: T[] }> => {
-      if (/FROM projectphases/i.test(sql)) {
-        if (handlers.activePhase) {
-          return { rows: [{ phasename: handlers.activePhase } as unknown as T] };
-        }
-        return { rows: [] };
-      }
-      if (/FROM companyprojects/i.test(sql)) {
-        if (handlers.projectExists === false) return { rows: [] };
-        return { rows: [{ id: "stub-project-id" } as unknown as T] };
-      }
-      if (/FROM projectspecifications/i.test(sql)) {
-        if (handlers.activeScope === null || handlers.activeScope === undefined) {
-          return { rows: [] };
-        }
-        return { rows: [handlers.activeScope as unknown as T] };
-      }
-      if (/FROM projecttasks/i.test(sql)) {
-        return { rows: [{ c: String(handlers.taskCount ?? 0) } as unknown as T] };
-      }
-      if (/FROM projectdocuments/i.test(sql)) {
-        return { rows: [{ c: String(handlers.docCount ?? 0) } as unknown as T] };
-      }
-      throw new Error(`Unexpected query in stub: ${sql.slice(0, 80)}`);
-    },
-  };
+const allClear: ScopeGateChecker = async () => ({ passed: true, skipped: false, itemCount: 1, blocking: [] });
+const advanceOpts = { gates: allClear, actor: "t", source: "test", trigger: "task_status" };
+
+// Two scopes in one project: A in Implementation (tasks open), B in Design (no tasks).
+async function twoScopes(): Promise<FakeStageDb> {
+  const db = new FakeStageDb();
+  db.addSpec({ id: "a", specnumber: "101", status: "implementing" });
+  db.addSpec({ id: "b", specnumber: "102", status: "draft" });
+  db.addTasks("a", ["todo", "done"]);
+  db.documents.push({ specid: "a" });
+  await advanceScope(db, "a", advanceOpts);
+  return db;
 }
 
-describe("mcp-adapter — currently-registered tools", () => {
-  it("project.buildscope is allowed when active phase is Design", async () => {
-    const db = stubDb({ activePhase: "Design" });
-    const result = await enforceTool(db, "test-project", "project.buildscope");
+describe("SCOPE-123 FR-001 — two scopes at different stages each accept their own stage's commands", () => {
+  it("project.implement on SCOPE-A (Implementation) is allowed while SCOPE-B sits in Design", async () => {
+    const db = await twoScopes();
+    const result = await enforceTool(db, "project-1", "project.implement", { args: { specNumber: "101" } });
     expect(result.allowed).toBe(true);
-    expect(result.currentStage).toBe("Design");
-    expect(result.requestedTool).toBe("project.buildscope");
+    expect(result.currentStage).toBe(LifecycleStage.Implementation);
   });
 
-  it("project.buildscope is blocked when active phase is Implementation", async () => {
-    const db = stubDb({ activePhase: "Implementation" });
-    const result = await enforceTool(db, "test-project", "project.buildscope");
+  it("project.runqa on SCOPE-B (Design) is refused while implement on SCOPE-A runs, in the same session", async () => {
+    const db = await twoScopes();
+    const result = await enforceTool(db, "project-1", "project.runqa", { args: { specNumber: "102" } });
     expect(result.allowed).toBe(false);
-    expect(result.reason).toMatch(/Command 'buildscope' is not permitted in the 'Implementation' stage/);
+    expect(result.currentStage).toBe(LifecycleStage.Design);
   });
 
-  it("project.create_specs uses CLI displayName 'createspecs' in messages", async () => {
-    const db = stubDb({ activePhase: "Implementation" });
-    const result = await enforceTool(db, "test-project", "project.create_specs");
+  it("the same implement against SCOPE-B is refused, naming SCOPE-B and its stage", async () => {
+    const db = await twoScopes();
+    const result = await enforceTool(db, "project-1", "project.implement", { args: { specNumber: "102" } });
     expect(result.allowed).toBe(false);
-    expect(result.reason).toMatch(/Command 'createspecs'/);
+    expect(result.refusal?.code).toBe("STAGE_DENIED");
+    expect(result.reason).toContain("SPEC-102 is in Design");
+    expect(result.reason).toContain("0 of 0 task(s) still open");
   });
 
-  it("project.implement allowed in Implementation with valid spec verification", async () => {
-    const db = stubDb({
-      activePhase: "Implementation",
-      activeScope: { id: "scope-1", status: "tasks_generated" },
-      taskCount: 5,
-      docCount: 2,
-    });
-    const result = await enforceTool(db, "test-project", "project.implement");
-    expect(result.allowed).toBe(true);
+  it("neither decision changed either scope", async () => {
+    const db = await twoScopes();
+    const before = JSON.stringify(db.phases);
+    await enforceTool(db, "project-1", "project.implement", { args: { specNumber: "101" } });
+    await enforceTool(db, "project-1", "project.implement", { args: { specNumber: "102" } });
+    expect(JSON.stringify(db.phases)).toBe(before);
   });
 
-  it("project.implement blocked when active scope has no tasks (FR-008 spec-first now applies to MCP)", async () => {
-    const db = stubDb({
-      activePhase: "Implementation",
-      activeScope: { id: "scope-1", status: "tasks_generated" },
-      taskCount: 0,
-      docCount: 2,
-    });
-    const result = await enforceTool(db, "test-project", "project.implement");
-    expect(result.allowed).toBe(false);
-    expect(result.reason).toMatch(/Missing: tasks/);
-  });
-
-  it("project.implement blocked when no active scope is found (corner case)", async () => {
-    const db = stubDb({
-      activePhase: "Implementation",
-      activeScope: null,
-    });
-    const result = await enforceTool(db, "test-project", "project.implement");
-    expect(result.allowed).toBe(false);
-    expect(result.reason).toMatch(/Missing: spec, tasks, documents/);
+  it("no gate path reads projectphases (the fake throws if one does)", async () => {
+    const db = await twoScopes();
+    for (const tool of ["project.implement", "project.create_specs", "project.buildscope", "project.dbpush", "project.runqa"]) {
+      await enforceTool(db, "project-1", tool, { args: { specNumber: "101" } });
+    }
+    expect(db.statements.some((s) => /projectphases/.test(s))).toBe(false);
   });
 });
 
-describe("mcp-adapter — inert tools (registered in policy, handler pending parity scope)", () => {
-  it("project.runqa resolves to RunQa and gates correctly", async () => {
-    const db = stubDb({
-      activePhase: "QA",
-      activeScope: { id: "scope-1", status: "tasks_generated" },
-      taskCount: 5,
-      docCount: 2,
-    });
-    const result = await enforceTool(db, "test-project", "project.runqa");
-    expect(result.allowed).toBe(true);
-  });
-
-  it("project.runqa blocked in wrong phase", async () => {
-    const db = stubDb({ activePhase: "Design" });
-    const result = await enforceTool(db, "test-project", "project.runqa");
-    expect(result.allowed).toBe(false);
-  });
-
-  it("project.dbpush allowed in any phase (cross-cutting)", async () => {
-    for (const phase of ["Design", "Implementation", "QA", "HumanTesting", "Beta", "Release"]) {
-      const db = stubDb({ activePhase: phase });
-      const result = await enforceTool(db, "test-project", "project.dbpush");
+describe("SCOPE-123 FR-001 / SPEC-136 T019 — verification checks the NAMED scope", () => {
+  it("two specs in progress no longer block each other's implement", async () => {
+    const db = await twoScopes();
+    db.addSpec({ id: "c", specnumber: "103", status: "implementing" });
+    db.addTasks("c", ["todo"]);
+    db.documents.push({ specid: "c" });
+    await advanceScope(db, "c", advanceOpts);
+    for (const specNumber of ["101", "103"]) {
+      const result = await enforceTool(db, "project-1", "project.implement", { args: { specNumber } });
       expect(result.allowed).toBe(true);
     }
   });
 
-  // wxConversion + wxConversionScope are Design-gated like the CLI surface.
-  it("project.wxconversion allowed in Design", async () => {
-    const db = stubDb({ activePhase: "Design" });
-    const result = await enforceTool(db, "test-project", "project.wxconversion");
-    expect(result.allowed).toBe(true);
-  });
-
-  it("project.wxconversion blocked outside Design", async () => {
-    const db = stubDb({ activePhase: "Implementation" });
-    const result = await enforceTool(db, "test-project", "project.wxconversion");
+  it("implement on a named scope with no documents is blocked for that reason", async () => {
+    const db = await twoScopes();
+    db.documents = [];
+    const result = await enforceTool(db, "project-1", "project.implement", { args: { specNumber: "101" } });
     expect(result.allowed).toBe(false);
+    expect(result.refusal?.code).toBe("SPEC_UNVERIFIED");
+    expect(result.reason).toContain("Missing: documents");
   });
 
-  it("project.wxconversionscope allowed in Design", async () => {
-    const db = stubDb({ activePhase: "Design" });
-    const result = await enforceTool(db, "test-project", "project.wxconversionscope");
-    expect(result.allowed).toBe(true);
-  });
-
-  it("project.wxconversionscope blocked outside Design", async () => {
-    const db = stubDb({ activePhase: "Implementation" });
-    const result = await enforceTool(db, "test-project", "project.wxconversionscope");
+  it("implement naming no scope is SCOPE_REQUIRED, not judged on a project value", async () => {
+    const db = await twoScopes();
+    const result = await enforceTool(db, "project-1", "project.implement", { args: {} });
     expect(result.allowed).toBe(false);
+    expect(result.refusal?.code).toBe("SCOPE_REQUIRED");
+  });
+
+  it("create_specs for a scope not created yet reads as Design and is allowed", async () => {
+    const db = await twoScopes();
+    const result = await enforceTool(db, "project-1", "project.create_specs", { args: { specNumber: "150" } });
+    expect(result.allowed).toBe(true);
+    expect(result.currentStage).toBeNull();
   });
 });
 
-describe("mcp-adapter — unmapped tool pass-through", () => {
-  it("project.help passes through ungated", async () => {
-    const db = stubDb({});
-    const result = await enforceTool(db, "test-project", "project.help");
-    expect(result.allowed).toBe(true);
-    expect(result.currentStage).toBe(null);
-    expect(result.requestedTool).toBe("project.help");
-  });
-
-  it("project.create_task (an existing non-gated tool) passes through", async () => {
-    const db = stubDb({});
-    const result = await enforceTool(db, "test-project", "project.create_task");
-    expect(result.allowed).toBe(true);
-  });
-
-  it("totally fictional tool name passes through (legacy enforceStage behavior)", async () => {
-    const db = stubDb({});
-    const result = await enforceTool(db, "test-project", "project.imaginary_tool");
+describe("SCOPE-123 FR-013 — implement runs in QA for fix work", () => {
+  it("a scope in QA accepts implement", async () => {
+    const db = new FakeStageDb();
+    db.addSpec({ id: "q", specnumber: "201", status: "qa" });
+    db.addTasks("q", ["done"]);
+    db.documents.push({ specid: "q" });
+    await advanceScope(db, "q", { ...advanceOpts, gates: async () => ({ passed: false, skipped: false, itemCount: 1, blocking: [{ itemKey: "MT-1", title: "x", why: "failing" }] }) });
+    const result = await enforceTool(db, "project-1", "project.implement", { args: { specNumber: "201" } });
+    expect(result.currentStage).toBe(LifecycleStage.QATesting);
     expect(result.allowed).toBe(true);
   });
 });
 
-describe("mcp-adapter — corner cases", () => {
-  it("project not found returns allowed=false with error message", async () => {
-    const db = stubDb({ projectExists: false });
-    const result = await enforceTool(db, "missing-project", "project.buildscope");
+describe("SCOPE-123 FR-010 — a refusal names the open gate when the server passes its gate", () => {
+  it("names the missing machine tests on a QA scope", async () => {
+    const db = new FakeStageDb();
+    db.addSpec({ id: "q", specnumber: "201", status: "qa" });
+    db.addTasks("q", ["done"]);
+    db.documents.push({ specid: "q" });
+    const noTests: ScopeGateChecker = async () => ({ passed: true, skipped: false, itemCount: 0, blocking: [] });
+    await advanceScope(db, "q", { ...advanceOpts, gates: noTests });
+    const result = await enforceTool(db, "project-1", "project.runhuman", { args: { specNumber: "201" }, gates: noTests });
     expect(result.allowed).toBe(false);
-    expect(result.reason).toMatch(/Project 'missing-project' not found/);
+    expect(result.reason).toContain("/wxCreateTestPlan");
+  });
+});
+
+describe("mcp-adapter — scope-creating, cross-cutting and unmapped tools", () => {
+  it("project.buildscope runs whatever stage the scopes are in, scope named or not", async () => {
+    const db = await twoScopes();
+    expect((await enforceTool(db, "project-1", "project.buildscope", {})).allowed).toBe(true);
+    expect((await enforceTool(db, "project-1", "project.buildscope", { args: { editSpecNumber: "101" } })).allowed).toBe(true);
   });
 
-  it("no active phase defaults to Design (kit-wide default for fresh projects)", async () => {
-    const db = stubDb({ projectExists: true });
-    const result = await enforceTool(db, "test-project", "project.buildscope");
-    // Defaults to Design; project.buildscope is Design-allowed
+  it("conversion tools run in every stage", async () => {
+    const db = await twoScopes();
+    for (const tool of ["project.wxconversion", "project.wxconversionscope"]) {
+      expect((await enforceTool(db, "project-1", tool, {})).allowed).toBe(true);
+    }
+  });
+
+  it("cross-cutting tools are allowed and report no stage", async () => {
+    const db = await twoScopes();
+    const result = await enforceTool(db, "project-1", "project.dbpush", {});
     expect(result.allowed).toBe(true);
+    expect(result.currentStage).toBeNull();
+  });
+
+  it("unmapped tools pass through ungated without touching the database", async () => {
+    const db = await twoScopes();
+    const before = db.statements.length;
+    for (const tool of ["project.help", "project.create_task", "project.imaginary_tool"]) {
+      const result = await enforceTool(db, "project-1", tool);
+      expect(result.allowed).toBe(true);
+      expect(result.currentStage).toBeNull();
+    }
+    expect(db.statements.length).toBe(before);
+  });
+
+  it("a mapped tool on an unknown project is refused with ProjectNotFoundError's message", async () => {
+    const db = await twoScopes();
+    const result = await enforceTool(db, "missing-project", "project.buildscope", {});
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain("missing-project");
+  });
+
+  it("uses the CLI display name in messages", async () => {
+    const db = await twoScopes();
+    db.addSpec({ id: "i", specnumber: "300" });
+    db.addTasks("i", ["todo"]);
+    await advanceScope(db, "i", advanceOpts);
+    const result = await enforceTool(db, "project-1", "project.runqa", { args: { specNumber: "300" } });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain("'runqa'");
+  });
+});
+
+describe("SCOPE-123 Amendment C — createspecs re-pushes an amended scope in any stage", () => {
+  it("project.create_specs on a scope already in Implementation is allowed", async () => {
+    const db = await twoScopes();
+    const result = await enforceTool(db, "project-1", "project.create_specs", { args: { specNumber: "101" } });
+    expect(result.allowed).toBe(true);
+  });
+});
+
+describe("SCOPE-123 Amendment C, decision 9 — an untracked scope is judged on its inferred stage", () => {
+  it("implement on a scope with open tasks and NO stage row is allowed (no deploy-day regression), and nothing is written", async () => {
+    const db = new FakeStageDb();
+    db.addSpec({ id: "u", specnumber: "400", status: "implementing" });
+    db.addTasks("u", ["todo", "done"]);
+    db.documents.push({ specid: "u" });
+    const result = await enforceTool(db, "project-1", "project.implement", { args: { specNumber: "400" } });
+    expect(result.allowed).toBe(true);
+    expect(result.currentStage).toBe(LifecycleStage.Implementation);
+    expect(db.phases).toHaveLength(0);
+  });
+
+  it("a refusal on an untracked scope says its stage is inferred and how to record it", async () => {
+    const db = new FakeStageDb();
+    db.addSpec({ id: "u", specnumber: "400" });
+    db.addTasks("u", ["todo"]);
+    const result = await enforceTool(db, "project-1", "project.runqa", { args: { specNumber: "400" } });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain("inferred");
+  });
+});
+
+describe("SCOPE-123 review fixes — tenancy and inactive scopes", () => {
+  it("refuses a gated tool naming a project other than the token's, before reading anything", async () => {
+    const db = await twoScopes();
+    const before = db.statements.length;
+    const result = await enforceTool(db, "project-1", "project.implement", {
+      args: { specNumber: "101" },
+      boundProjectId: "project-2",
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain("scope-mismatch");
+    expect(result.reason).not.toContain("SPEC-101");
+    expect(db.statements.length).toBe(before);
+  });
+
+  it("the token's own project passes the tenancy check", async () => {
+    const db = await twoScopes();
+    const result = await enforceTool(db, "project-1", "project.implement", {
+      args: { specNumber: "101" },
+      boundProjectId: "project-1",
+    });
+    expect(result.allowed).toBe(true);
+  });
+
+  it("refuses implement on an archived scope with SCOPE_INACTIVE", async () => {
+    const db = new FakeStageDb();
+    db.addSpec({ id: "x", specnumber: "500", status: "archived" });
+    db.addTasks("x", ["todo"]);
+    db.documents.push({ specid: "x" });
+    const result = await enforceTool(db, "project-1", "project.implement", { args: { specNumber: "500" } });
+    expect(result.allowed).toBe(false);
+    expect(result.refusal?.code).toBe("SCOPE_INACTIVE");
   });
 });

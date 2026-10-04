@@ -50,19 +50,64 @@ export interface CapabilityGate {
   allowsEscalation: false;
 }
 
+// SCOPE-123 FR-008 — every command is one of three classes:
+//   scoped          acts on one named scope; gated on THAT scope's stage
+//   scope-creating  creates a scope (or amends one); what it creates starts in
+//                   Design, so it runs in every stage
+//   cross-cutting   acts on no scope; runs in every stage
+// No class reads a project stage. A Record over the enum makes leaving a
+// Capability out a compile error, so a new command cannot default silently.
+export type CommandScoping = "scoped" | "scope-creating" | "cross-cutting";
+
+export const capabilityScoping: Readonly<Record<Capability, CommandScoping>> = {
+  [Capability.BuildScope]: "scope-creating",
+  // Amendment C, decision 10: createspecs re-pushes an amended scope's specs and
+  // tasks in place, whatever stage the scope has reached.
+  [Capability.CreateSpecs]: "scope-creating",
+  [Capability.ImplementTask]: "scoped",
+  [Capability.CreateTestTasks]: "scoped",
+  [Capability.RunQa]: "scoped",
+  [Capability.RunHuman]: "scoped",
+  [Capability.PrepareRelease]: "scoped",
+  [Capability.FinalizeRelease]: "scoped",
+  [Capability.DbPush]: "cross-cutting",
+  [Capability.PipelineAgent]: "cross-cutting",
+  [Capability.AuditFences]: "cross-cutting",
+  [Capability.KitStatus]: "cross-cutting",
+  [Capability.KitConfigure]: "cross-cutting",
+  [Capability.ScaffoldFrontend]: "cross-cutting",
+  [Capability.ArchiveFiles]: "cross-cutting",
+  [Capability.WxConversion]: "scope-creating",
+  [Capability.WxConversionScope]: "scope-creating",
+  [Capability.CwConversion]: "scope-creating",
+  [Capability.CwConversionScope]: "scope-creating",
+  [Capability.VbConversion]: "scope-creating",
+  [Capability.VbConversionScope]: "scope-creating",
+} as const;
+
 export const gateTable: Readonly<Record<Capability, CapabilityGate>> = {
+  // SCOPE-123 FR-008 — scope-creating: every stage (was Design-only on the
+  // project stage, which blocked amending a running scope).
   [Capability.BuildScope]: {
-    allowedPhases: [LifecycleStage.Design],
+    allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },
+  // SCOPE-123 Amendment C — scope-creating: every stage (createSpecs moves a
+  // scope out of Design, so Design-only would refuse every amendment re-push).
   [Capability.CreateSpecs]: {
-    allowedPhases: [LifecycleStage.Design],
+    allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },
+  // SCOPE-123 FR-013 — fix work: a scope in QA or HumanTesting with a failing
+  // test must be fixable through the tool. Nothing moves backward.
   [Capability.ImplementTask]: {
-    allowedPhases: [LifecycleStage.Implementation],
+    allowedPhases: [
+      LifecycleStage.Implementation,
+      LifecycleStage.QATesting,
+      LifecycleStage.HumanTesting,
+    ],
     requiresVerifiedSpec: true,
     allowsEscalation: false,
   },
@@ -140,44 +185,62 @@ export const gateTable: Readonly<Record<Capability, CapabilityGate>> = {
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },
-  // Design-only — produces the conversion scaffold, so it cannot itself
-  // require a verified spec.
+  // SCOPE-123 FR-008 — the conversion commands are scope-creating: what they
+  // produce starts in Design, so they run in every stage (were Design-only on
+  // the project stage). They still cannot require a verified spec.
   [Capability.WxConversion]: {
-    allowedPhases: [LifecycleStage.Design],
+    allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },
-  // Design-only scope generator over the converted artifacts.
   [Capability.WxConversionScope]: {
-    allowedPhases: [LifecycleStage.Design],
+    allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },
-  // Design-only — Clarion conversion produces the rebuild scaffold, no spec.
   [Capability.CwConversion]: {
-    allowedPhases: [LifecycleStage.Design],
+    allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },
-  // Design-only scope generator over the converted Clarion artifacts.
   [Capability.CwConversionScope]: {
-    allowedPhases: [LifecycleStage.Design],
+    allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },
-  // Design-only — VB6 conversion produces the rebuild scaffold, no spec.
   [Capability.VbConversion]: {
-    allowedPhases: [LifecycleStage.Design],
+    allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },
-  // Design-only scope generator over the converted VB6 artifacts.
   [Capability.VbConversionScope]: {
-    allowedPhases: [LifecycleStage.Design],
+    allowedPhases: "all",
     requiresVerifiedSpec: false,
     allowsEscalation: false,
   },
 } as const;
+
+// [SCOPE 123 / T012] BEGIN — assertScopingConsistency: classes and gate rows must agree
+// Fires at first import. A scoped command must name the stages it runs in; a
+// scope-creating or cross-cutting command must run in every stage, because
+// nothing it could be gated on describes the scope it is about to create or
+// the project as a whole.
+(function assertScopingConsistency(): void {
+  for (const cap of Object.values(Capability) as Capability[]) {
+    const scoping = capabilityScoping[cap];
+    if (scoping === undefined) {
+      throw new Error(`capabilities.ts drift: Capability.${cap} is not classified scoped/scope-creating/cross-cutting.`);
+    }
+    const phases = gateTable[cap].allowedPhases;
+    if (scoping === "scoped" && phases === "all") {
+      throw new Error(`capabilities.ts drift: scoped Capability.${cap} must list the stages it runs in.`);
+    }
+    if (scoping !== "scoped" && phases !== "all") {
+      throw new Error(`capabilities.ts drift: ${scoping} Capability.${cap} must run in every stage.`);
+    }
+  }
+})();
+// [SCOPE 123 / T012] END
 
 // Spec 030 FR-010 — Module-load drift assert.
 // Fires synchronously at first import if Capability enum and gateTable

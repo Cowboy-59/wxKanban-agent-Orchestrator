@@ -89,8 +89,12 @@ async function runVerification(): Promise<{ success: boolean; steps: Verificatio
 				policyOk = false;
 				break;
 			}
-			// Verify evaluate works for the first stage-allowed command
-			const result = evaluateCommandAllowed(stage, commands[0]!);
+			// Verify evaluate works for the first stage-allowed command, judged on a
+			// scope in that stage (SCOPE-123: gates read a scope's stage).
+			const result = evaluateCommandAllowed(
+				{ scopeId: null, specNumber: '000', label: 'SPEC-000', stage, taskCount: 0, openTaskCount: 0, blockers: [] },
+				commands[0]!,
+			);
 			if (!result) {
 				policyOk = false;
 				break;

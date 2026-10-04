@@ -7,7 +7,14 @@ import { LifecycleStage } from '../../../core/schemas/lifecycle';
 // Spec 030 — getAllowedCommandsForStage replaces direct use of the legacy
 // AllowedCommandsByStage + CrossCuttingCommands exports; SpecVerification
 // re-exported from cli-adapter for import-path-swap convenience.
-import { getAllowedCommandsForStage, SpecVerification } from '../../../core/policy/adapters/cli-adapter';
+import {
+	describeCommands,
+	evaluateStageOnly,
+	getCommandScoping,
+	SpecVerification,
+} from '../../../core/policy/adapters/cli-adapter';
+// [SCOPE 123 / T018] scoped commands read the named scope's stage from the hub
+import { fetchScopeFacts, formatHubUnreachable } from '../../../core/stage/remote';
 import { buildSpecVerification, extractScopeNumber } from './spec-verification';
 // Spec 031 Phase 2 — batch-mode `implement <scope>` dispatches directly to the
 // orchestrator's batch handler, bypassing WorkflowEngine. Surgical mode
@@ -95,13 +102,24 @@ function resolveProjectContext(config: ProjectConfig): ProjectContext {
 	};
 }
 
-function printAvailableCommands(stage: LifecycleStage, customCommands?: string[]): void {
-	const allCommands = getAllowedCommandsForStage(stage, customCommands);
-	console.log(`\nwxKanban Agent Orchestrator Kit`);
-	console.log(`Current stage: ${stage}\n`);
-	console.log(`Available CLI commands (stage-gated):`);
-	for (const cmd of allCommands) {
-		console.log(`  ${cmd}`);
+// [SCOPE 123 / T009] BEGIN — printAvailableCommands: no project stage; each scoped command's stages
+// A stage belongs to a scope (SCOPE-123), so the help prints no project stage:
+// one would describe none of the project's scopes and gate nothing.
+function printAvailableCommands(customCommands?: string[]): void {
+	const commands = describeCommands(customCommands);
+	// Help text is the CLI's output, not logging: written straight to stdout.
+	const out = (line: string): void => {
+		process.stdout.write(`${line}\n`);
+	};
+	out(`\nwxKanban Agent Orchestrator Kit`);
+	out(`Stages belong to scopes: a scoped command runs when the scope it names is in one of its stages.\n`);
+	out(`Scoped commands (name the scope, e.g. implement 123/T001):`);
+	for (const c of commands.filter((x) => x.scoping === 'scoped')) {
+		out(`  ${c.command.padEnd(18)} ${c.stages.join(', ')}`);
+	}
+	out(`\nCommands that run in any stage:`);
+	for (const c of commands.filter((x) => x.scoping !== 'scoped')) {
+		out(`  ${c.command}`);
 	}
 	console.log(`\nUsage: wxkanban-agent <command> [options]`);
 	console.log(`\nFlag conventions:`);
@@ -120,6 +138,7 @@ function printAvailableCommands(stage: LifecycleStage, customCommands?: string[]
 		console.log(`  wxkanban-agent --list-slash    # list with descriptions`);
 	}
 }
+// [SCOPE 123 / T009] END
 
 /**
  * Walk _wxAI/commands/<name>.md in the project root and return their metadata.
@@ -285,7 +304,7 @@ async function main(): Promise<void> {
 		// throttled once per process — never blocks or fails the help output.
 		ensureCockpitUpToDate();
 		ensureKitUpToDate();
-		printAvailableCommands(context.lifecycleStage, context.customCommands);
+		printAvailableCommands(context.customCommands);
 		return;
 	}
 
@@ -342,6 +361,36 @@ async function main(): Promise<void> {
 
 	const user = (rawOptions['user'] as string) || process.env['USER'] || 'cli-user';
 	delete rawOptions['user'];
+
+	// [SCOPE 123 / T018] BEGIN — resolve the named scope's stage before any gate runs.
+	// A scoped command is judged on the stage of the scope it names, read from the
+	// hub. Unreachable hub: refuse, never fall back to .wxai/project.json. Batch
+	// `implement <scope>` is gated here too; it used to bypass the gate entirely.
+	if (getCommandScoping(command) === 'scoped') {
+		const named = extractScopeNumber(command, rawOptions);
+		if (named) {
+			const lookup = await fetchScopeFacts({
+				projectId: config.projectId,
+				specNumber: named,
+				projectRoot: process.cwd(),
+			});
+			if (!lookup.ok) {
+				console.error(JSON.stringify({ status: 'error', code: 'HUB_UNREACHABLE', error: formatHubUnreachable(command, named, lookup.reason) }, null, 2));
+				process.exitCode = 1;
+				return;
+			}
+			context.scope = lookup.facts;
+		}
+		if (command === 'implement' && /^[0-9]{3}$/.test(positionals[0] ?? '')) {
+			const gate = evaluateStageOnly(context.scope, command, context.customCommands);
+			if (!gate.allowed) {
+				console.error(JSON.stringify({ status: 'error', code: gate.refusal?.code, error: gate.reason, refusal: gate.refusal }, null, 2));
+				process.exitCode = 1;
+				return;
+			}
+		}
+	}
+	// [SCOPE 123 / T018] END
 
 	// Spec 031 Phase 2 — batch-mode short-circuit for `implement <scope>`.
 	// A positional matching ^\d{3}$ is batch mode; ^\d{3}/T\d+$ is surgical

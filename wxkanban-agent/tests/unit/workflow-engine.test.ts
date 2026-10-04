@@ -9,6 +9,11 @@ vi.mock('../../core/orchestrator/command-handlers/dbpush', () => ({
 	handleDbPushCommand: vi.fn().mockResolvedValue({ success: true, message: 'mock push' }),
 }));
 
+// SCOPE-123 — gates read the stage of the scope a command names.
+function scopeIn(stage: LifecycleStage): NonNullable<ProjectContext['scope']> {
+	return { scopeId: 'scope-1', specNumber: '101', label: 'SPEC-101', stage, taskCount: 2, openTaskCount: 1, blockers: [] };
+}
+
 function makeContext(overrides: Partial<ProjectContext> = {}): ProjectContext {
 	return {
 		projectId: 'test-project-001',
@@ -51,15 +56,21 @@ describe('WorkflowEngine.runBuildScope', () => {
 		expect(audit.timestamp).toBeDefined();
 	});
 
-	it('returns failure result (no throw) when stage disallows command', async () => {
+	// SCOPE-123 FR-008 — buildscope is scope-creating: it runs whatever stage the
+	// project's scopes are in, so a new scope can be added to a released project.
+	it('runs in any stage, with no project stage consulted', async () => {
 		const context = makeContext({ lifecycleStage: LifecycleStage.Release });
-		const input = { title: 'Test' };
+		vi.spyOn(BuildScopeWorker, 'generateScopeDraft').mockResolvedValue({
+			title: 'Late Feature',
+			problemStatement: '',
+			objectives: [],
+		});
+		vi.spyOn(LifecycleClient, 'createArtifactStatic').mockResolvedValue({ success: true, id: 'art-r' });
+		vi.spyOn(LifecycleClient, 'transitionFeatureStatic').mockResolvedValue({ success: true });
 
-		const { result, audit } = await WorkflowEngine.runBuildScope(context, input, 'test-user');
+		const { result, audit } = await WorkflowEngine.runBuildScope(context, { title: 'Late Feature' }, 'test-user');
 
-		expect(result.success).toBe(false);
-		expect(result.error).toContain('buildscope');
-		expect(result.error).toContain('Release');
+		expect(result.success).toBe(true);
 		expect(audit.command).toBe('buildscope');
 	});
 
@@ -128,12 +139,13 @@ describe('WorkflowEngine.dispatch', () => {
 		expect(audit.command).toBe('nonexistent');
 	});
 
-	it('returns policy denial for disallowed command', async () => {
-		const context = makeContext({ lifecycleStage: LifecycleStage.Release });
-		const { result } = await WorkflowEngine.dispatch(context, 'buildscope', {});
+	it('returns policy denial for a scoped command on a scope in the wrong stage', async () => {
+		const context = makeContext({ scope: scopeIn(LifecycleStage.Design) });
+		const { result } = await WorkflowEngine.dispatch(context, 'runqa', {});
 
 		expect(result.success).toBe(false);
-		expect(result.error).toContain('not permitted');
+		expect(result.error).toContain('STAGE_DENIED');
+		expect(result.error).toContain('SPEC-101 is in Design');
 	});
 
 	it('respects custom commands from context', async () => {
@@ -146,7 +158,7 @@ describe('WorkflowEngine.dispatch', () => {
 	});
 
 	it('blocks spec-gated command without spec verification', async () => {
-		const context = makeContext({ lifecycleStage: LifecycleStage.Implementation });
+		const context = makeContext({ scope: scopeIn(LifecycleStage.Implementation) });
 		const { result } = await WorkflowEngine.dispatch(context, 'implement', {});
 
 		expect(result.success).toBe(false);
@@ -154,7 +166,7 @@ describe('WorkflowEngine.dispatch', () => {
 	});
 
 	it('allows spec-gated command with full verification', async () => {
-		const context = makeContext({ lifecycleStage: LifecycleStage.Implementation });
+		const context = makeContext({ scope: scopeIn(LifecycleStage.Implementation) });
 		const { result } = await WorkflowEngine.dispatch(context, 'implement', {}, 'user', {
 			specVerification: {
 				specExists: true,
@@ -170,7 +182,7 @@ describe('WorkflowEngine.dispatch', () => {
 	});
 
 	it('blocks spec-gated command even with --force --reason (escalation only, no bypass)', async () => {
-		const context = makeContext({ lifecycleStage: LifecycleStage.Implementation });
+		const context = makeContext({ scope: scopeIn(LifecycleStage.Implementation) });
 		const { result } = await WorkflowEngine.dispatch(context, 'implement', {}, 'user', {
 			specVerification: { specExists: false, tasksExist: false, documentsExist: false },
 			override: { force: true, reason: 'emergency hotfix' },

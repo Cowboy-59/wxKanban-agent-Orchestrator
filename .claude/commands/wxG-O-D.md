@@ -57,10 +57,10 @@ blackboxai: true
 - `--dir=<dir>,<dir>...` — Only these folders: comma-separated or repeated, relative to the project root or absolute. Default: the whole project tree, minus gitignored and kit files.
 - `--customer="<name>"` — Customer name for titles. Default: from ProjectOverview.md, else package.json, else the folder name.
 - `<file>` or `--overview=<file>` — A ProjectOverview.md to start from. Opens the new-project question.
-- `--brainstorm` — With an overview: brainstorm the idea right after the review, before any design. Without it, you are asked.
+- `--brainstorm` — With an overview: brainstorm the idea right after the review, before any design. Without it, you are asked. The brainstorm opens by asking whether the app is commercial and whether it is web-based or installed; a web-based app gets `docs/GOD-SaaS-Cost.md`, the projected hosting cost across the five lowest-cost providers or mixes, plus AWS.
 - `--level=amateur|junior|senior` — How much G.O.D. explains during the review and brainstorm. Without it, you are asked at the start of the review.
 - `--resume` — Continue a run from `docs/GOD-State.json`: a new-project or `--create` run, or a paused plan-mode review.
-- `--create` — With an overview: design it, pause once for your review, then execute the development plan phase by phase to a built app. Each command still runs under its own gates.
+- `--create` — With an overview: design it, pause once for your review, then execute the development plan phase by phase to a built app, and on through review, tests, QA, user acceptance, help, beta, and release. You advance each stage in the web app. Each command still runs under its own gates.
 - `--cap=<n>` — The most AI agents to use at once, when lower than your machine's maximum. `--cap=1` implements one scope at a time.
 - `--roadmap` — Write only the build roadmap, `docs/DEVELOPMENT-PLAN.md` and its PDF. `/dev-plan` runs this.
 

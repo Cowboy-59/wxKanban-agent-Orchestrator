@@ -3,22 +3,27 @@
 // requires adding new rows; CI failures on this test point straight at the
 // unspecified cells.
 //
+// SCOPE-123 — the stage in the table is the stage of the SCOPE the command
+// names. Scoped commands are judged on it; scope-creating and cross-cutting
+// commands read no stage. Refusals carry a machine-readable code.
+//
 // Coverage:
-// - Every Capability allowed in its declared phase + cross-cutting in all phases
-// - Every stage-gated Capability blocked in non-matching phases
-// - Spec-first verification matrix (none, valid, missing-fields, partial,
-//   invalid-status) for capabilities with requiresVerifiedSpec: true
-// - Force override never bypasses (always logged as overrideUsed but never
-//   allowed: true)
-// - Byte-identical error/block/escalation message preservation (FR-009)
+// - Every scoped Capability allowed in its declared stages, blocked elsewhere
+// - Scope-creating + cross-cutting allowed in every stage, with no scope at all
+// - The classification of every Capability (FR-008), asserted exactly
+// - Spec-first verification matrix for capabilities with requiresVerifiedSpec
+// - Force override never bypasses
+// - Message preservation (spec 030 FR-009) and the FR-004 / FR-005 messages
 
 import { describe, it, expect } from "vitest";
 import { LifecycleStage } from "../../../core/schemas/lifecycle";
-import { Capability, gateTable } from "../../../core/policy/capabilities";
+import { Capability, capabilityScoping, gateTable } from "../../../core/policy/capabilities";
 import {
   evaluate,
   formatBlockMessage,
   formatEscalationMessage,
+  formatUnknownCommand,
+  ScopeStageFacts,
   SpecVerification,
 } from "../../../core/policy/policy";
 
@@ -31,18 +36,39 @@ const ALL_PHASES: LifecycleStage[] = [
   LifecycleStage.Release,
 ];
 
-const STAGE_GATED_PAIRS: Array<{ capability: Capability; phase: LifecycleStage; displayName: string }> = [
-  { capability: Capability.BuildScope, phase: LifecycleStage.Design, displayName: "buildscope" },
-  { capability: Capability.CreateSpecs, phase: LifecycleStage.Design, displayName: "createspecs" },
-  { capability: Capability.ImplementTask, phase: LifecycleStage.Implementation, displayName: "implement" },
-  { capability: Capability.CreateTestTasks, phase: LifecycleStage.Implementation, displayName: "createtesttasks" },
-  { capability: Capability.RunQa, phase: LifecycleStage.QATesting, displayName: "runqa" },
-  { capability: Capability.RunHuman, phase: LifecycleStage.HumanTesting, displayName: "runhuman" },
-  { capability: Capability.PrepareRelease, phase: LifecycleStage.Beta, displayName: "prepareRelease" },
-  { capability: Capability.FinalizeRelease, phase: LifecycleStage.Release, displayName: "finalizeRelease" },
+function scopeIn(stage: LifecycleStage, overrides: Partial<ScopeStageFacts> = {}): ScopeStageFacts {
+  return {
+    scopeId: "scope-a",
+    specNumber: "101",
+    label: "SPEC-101",
+    stage,
+    taskCount: 4,
+    openTaskCount: 2,
+    blockers: [{ kind: "open_tasks", message: "2 of 4 tasks still open." }],
+    ...overrides,
+  };
+}
+
+const SCOPED: Array<{ capability: Capability; phases: LifecycleStage[]; displayName: string }> = [
+  // SCOPE-123 FR-013 — implement also runs in QA and HumanTesting (fix work).
+  {
+    capability: Capability.ImplementTask,
+    phases: [LifecycleStage.Implementation, LifecycleStage.QATesting, LifecycleStage.HumanTesting],
+    displayName: "implement",
+  },
+  { capability: Capability.CreateTestTasks, phases: [LifecycleStage.Implementation], displayName: "createtesttasks" },
+  { capability: Capability.RunQa, phases: [LifecycleStage.QATesting], displayName: "runqa" },
+  { capability: Capability.RunHuman, phases: [LifecycleStage.HumanTesting], displayName: "runhuman" },
+  { capability: Capability.PrepareRelease, phases: [LifecycleStage.Beta], displayName: "prepareRelease" },
+  { capability: Capability.FinalizeRelease, phases: [LifecycleStage.Release], displayName: "finalizeRelease" },
 ];
 
-const CROSS_CUTTING: Array<{ capability: Capability; displayName: string }> = [
+const ANY_STAGE: Array<{ capability: Capability; displayName: string }> = [
+  { capability: Capability.BuildScope, displayName: "buildscope" },
+  // Amendment C, decision 10: createspecs re-pushes an amended scope in any stage.
+  { capability: Capability.CreateSpecs, displayName: "createspecs" },
+  { capability: Capability.WxConversion, displayName: "wxconversion" },
+  { capability: Capability.CwConversionScope, displayName: "cwconversionscope" },
   { capability: Capability.DbPush, displayName: "dbpush" },
   { capability: Capability.PipelineAgent, displayName: "pipeline-agent" },
   { capability: Capability.AuditFences, displayName: "auditfences" },
@@ -56,71 +82,203 @@ const VALID_VERIFICATION: SpecVerification = {
   specStatus: "tasks_generated",
 };
 
-describe("policy.evaluate — Stage gate decision table", () => {
-  describe("stage-gated capabilities allowed in their declared phase", () => {
-    for (const { capability, phase, displayName } of STAGE_GATED_PAIRS) {
-      it(`${capability} is allowed in ${phase} (with valid verification when required)`, () => {
+describe("policy.evaluate — scoped commands are judged on the named scope's stage", () => {
+  for (const { capability, phases, displayName } of SCOPED) {
+    for (const phase of ALL_PHASES) {
+      const allowed = phases.includes(phase);
+      it(`${capability} on a scope in ${phase} -> ${allowed ? "allowed" : "STAGE_DENIED"}`, () => {
         const decision = evaluate({
           capability,
-          currentPhase: phase,
           commandDisplayName: displayName,
+          scope: scopeIn(phase),
           verification: VALID_VERIFICATION,
         });
-        expect(decision.allowed).toBe(true);
-        expect(decision.capability).toBe(capability);
+        expect(decision.allowed).toBe(allowed);
         expect(decision.currentPhase).toBe(phase);
-        expect(decision.overrideUsed).toBe(false);
+        if (!allowed) {
+          expect(decision.refusal).toMatchObject({ code: "STAGE_DENIED", command: displayName, requiredStages: phases });
+          expect(decision.refusal!.scope!.label).toBe("SPEC-101");
+        }
       });
     }
+  }
+
+  it("a scoped command naming no scope is refused SCOPE_REQUIRED, never judged on a project value", () => {
+    const decision = evaluate({
+      capability: Capability.ImplementTask,
+      commandDisplayName: "implement",
+      verification: VALID_VERIFICATION,
+    });
+    expect(decision.allowed).toBe(false);
+    expect(decision.refusal?.code).toBe("SCOPE_REQUIRED");
+    expect(decision.currentPhase).toBeNull();
+    expect(decision.reason).toContain("implement 123/T001");
+  });
+});
+
+describe("policy.evaluate — scope-creating and cross-cutting commands run in every stage (FR-008)", () => {
+  for (const { capability, displayName } of ANY_STAGE) {
+    it(`${capability} is allowed with no scope named`, () => {
+      const decision = evaluate({ capability, commandDisplayName: displayName });
+      expect(decision.allowed).toBe(true);
+      expect(decision.currentPhase).toBeNull();
+    });
+    it(`${capability} is allowed whatever stage a scope is in`, () => {
+      for (const phase of ALL_PHASES) {
+        expect(evaluate({ capability, commandDisplayName: displayName, scope: scopeIn(phase) }).allowed).toBe(true);
+      }
+    });
+  }
+});
+
+describe("SCOPE-123 FR-008 — every command is classified; the list is asserted exactly", () => {
+  it("classifies each Capability as scoped, scope-creating or cross-cutting", () => {
+    expect({ ...capabilityScoping }).toEqual({
+      BuildScope: "scope-creating",
+      CreateSpecs: "scope-creating",
+      ImplementTask: "scoped",
+      CreateTestTasks: "scoped",
+      RunQa: "scoped",
+      RunHuman: "scoped",
+      PrepareRelease: "scoped",
+      FinalizeRelease: "scoped",
+      DbPush: "cross-cutting",
+      PipelineAgent: "cross-cutting",
+      AuditFences: "cross-cutting",
+      KitStatus: "cross-cutting",
+      KitConfigure: "cross-cutting",
+      ScaffoldFrontend: "cross-cutting",
+      ArchiveFiles: "cross-cutting",
+      WxConversion: "scope-creating",
+      WxConversionScope: "scope-creating",
+      CwConversion: "scope-creating",
+      CwConversionScope: "scope-creating",
+      VbConversion: "scope-creating",
+      VbConversionScope: "scope-creating",
+    });
   });
 
-  describe("stage-gated capabilities blocked in non-matching phases", () => {
-    for (const { capability, phase, displayName } of STAGE_GATED_PAIRS) {
-      for (const otherPhase of ALL_PHASES) {
-        if (otherPhase === phase) continue;
-        it(`${capability} is blocked in ${otherPhase} (declared: ${phase})`, () => {
-          const decision = evaluate({
-            capability,
-            currentPhase: otherPhase,
-            commandDisplayName: displayName,
-            verification: VALID_VERIFICATION,
-          });
-          expect(decision.allowed).toBe(false);
-          expect(decision.reason).toBe(
-            `Command '${displayName}' is not permitted in the '${otherPhase}' stage.`,
-          );
-        });
-      }
+  it("every Capability has a class (a Record over the enum: a missing one is a compile error)", () => {
+    for (const capability of Object.values(Capability) as Capability[]) {
+      expect(capabilityScoping[capability]).toBeDefined();
     }
   });
 
-  describe("cross-cutting capabilities allowed in every phase", () => {
-    for (const { capability, displayName } of CROSS_CUTTING) {
-      for (const phase of ALL_PHASES) {
-        it(`${capability} is allowed in ${phase}`, () => {
-          const decision = evaluate({
-            capability,
-            currentPhase: phase,
-            commandDisplayName: displayName,
-          });
-          expect(decision.allowed).toBe(true);
-          expect(decision.requiresSpecCheck).toBe(false);
-          expect(decision.overrideUsed).toBe(false);
-        });
-      }
+  it("scoped rows name their stages; every other class runs in all stages", () => {
+    for (const capability of Object.values(Capability) as Capability[]) {
+      const all = gateTable[capability].allowedPhases === "all";
+      expect(all).toBe(capabilityScoping[capability] !== "scoped");
     }
   });
 });
 
+describe("SCOPE-123 FR-004 — a stage refusal is actionable", () => {
+  const decision = evaluate({
+    capability: Capability.RunQa,
+    commandDisplayName: "runqa",
+    scope: scopeIn(LifecycleStage.Design, {
+      taskCount: 14,
+      openTaskCount: 14,
+      blockers: [{ kind: "no_tasks", message: "unused" }],
+    }),
+    verification: VALID_VERIFICATION,
+  });
+
+  it("names the scope, its stage, the required stage and the open-task count", () => {
+    expect(decision.reason).toContain("SPEC-101");
+    expect(decision.reason).toContain("is in Design");
+    expect(decision.reason).toContain("runs in QA");
+    expect(decision.reason).toContain("14 of 14 task(s) still open");
+  });
+
+  it("names no project-level value", () => {
+    expect(decision.reason).not.toMatch(/project/i);
+  });
+
+  it("is machine-readable: a code plus the scope facts", () => {
+    expect(decision.refusal?.code).toBe("STAGE_DENIED");
+    expect(decision.refusal?.scope?.openTaskCount).toBe(14);
+    expect(decision.refusal?.requiredStages).toEqual([LifecycleStage.QATesting]);
+  });
+
+  it("names an open test gate as well as open tasks (FR-010)", () => {
+    const gated = evaluate({
+      capability: Capability.FinalizeRelease,
+      commandDisplayName: "finalizeRelease",
+      scope: scopeIn(LifecycleStage.QATesting, {
+        openTaskCount: 0,
+        blockers: [{ kind: "no_machine_tests", message: "The scope has no machine tests. Run /wxCreateTestPlan." }],
+      }),
+      verification: VALID_VERIFICATION,
+    });
+    expect(gated.reason).toContain("0 of 4 task(s) still open");
+    expect(gated.reason).toContain("/wxCreateTestPlan");
+  });
+});
+
+describe("SCOPE-123 Amendment C / review fixes — inactive and inferred scopes", () => {
+  it("refuses a scoped command on an archived or deferred scope, whatever its stage", () => {
+    const decision = evaluate({
+      capability: Capability.ImplementTask,
+      commandDisplayName: "implement",
+      scope: scopeIn(LifecycleStage.Implementation, { inactive: true }),
+      verification: VALID_VERIFICATION,
+    });
+    expect(decision.allowed).toBe(false);
+    expect(decision.refusal?.code).toBe("SCOPE_INACTIVE");
+  });
+
+  it("says when the scope's stage is inferred rather than recorded", () => {
+    const decision = evaluate({
+      capability: Capability.RunQa,
+      commandDisplayName: "runqa",
+      scope: scopeIn(LifecycleStage.Implementation, { tracked: false }),
+      verification: VALID_VERIFICATION,
+    });
+    expect(decision.reason).toContain("inferred");
+    expect(decision.reason).toContain("project.backfill_scope_stages");
+    const recorded = evaluate({
+      capability: Capability.RunQa,
+      commandDisplayName: "runqa",
+      scope: scopeIn(LifecycleStage.Implementation),
+      verification: VALID_VERIFICATION,
+    });
+    expect(recorded.reason).not.toContain("inferred");
+  });
+});
+
+describe("SCOPE-123 FR-005 — the stage denial and the unknown-command error are different", () => {
+  it("the two strings are not equal, and the unknown one names no stage", () => {
+    const denial = evaluate({
+      capability: Capability.ImplementTask,
+      commandDisplayName: "kit:configure",
+      scope: scopeIn(LifecycleStage.Design),
+      verification: VALID_VERIFICATION,
+    }).reason;
+    const unknown = formatUnknownCommand("kit:configure", ["dbpush", "implement"]);
+    expect(denial).toBeDefined();
+    expect(unknown).not.toBe(denial);
+    for (const stage of ALL_PHASES) {
+      expect(unknown).not.toContain(`'${stage}'`);
+      expect(unknown).not.toContain(` ${stage} `);
+    }
+    expect(unknown).toMatch(/^UNKNOWN_COMMAND/);
+    expect(denial).toMatch(/^STAGE_DENIED/);
+  });
+});
+
 describe("policy.evaluate — Spec-first verification gate", () => {
+  const inImplementation = scopeIn(LifecycleStage.Implementation);
+
   it("blocks spec-gated capability with no verification supplied", () => {
     const decision = evaluate({
       capability: Capability.ImplementTask,
-      currentPhase: LifecycleStage.Implementation,
       commandDisplayName: "implement",
+      scope: inImplementation,
     });
     expect(decision.allowed).toBe(false);
     expect(decision.requiresSpecCheck).toBe(true);
+    expect(decision.refusal?.code).toBe("SPEC_UNVERIFIED");
     expect(decision.reason).toBe(
       formatBlockMessage(
         "implement",
@@ -132,8 +290,8 @@ describe("policy.evaluate — Spec-first verification gate", () => {
   it("blocks spec-gated capability with missing spec field", () => {
     const decision = evaluate({
       capability: Capability.ImplementTask,
-      currentPhase: LifecycleStage.Implementation,
       commandDisplayName: "implement",
+      scope: inImplementation,
       verification: { specExists: false, tasksExist: true, documentsExist: true },
     });
     expect(decision.allowed).toBe(false);
@@ -143,8 +301,8 @@ describe("policy.evaluate — Spec-first verification gate", () => {
   it("blocks spec-gated capability with missing tasks field", () => {
     const decision = evaluate({
       capability: Capability.ImplementTask,
-      currentPhase: LifecycleStage.Implementation,
       commandDisplayName: "implement",
+      scope: inImplementation,
       verification: { specExists: true, tasksExist: false, documentsExist: true },
     });
     expect(decision.reason).toBe(formatBlockMessage("implement", "Missing: tasks"));
@@ -153,8 +311,8 @@ describe("policy.evaluate — Spec-first verification gate", () => {
   it("blocks spec-gated capability with multiple missing fields", () => {
     const decision = evaluate({
       capability: Capability.ImplementTask,
-      currentPhase: LifecycleStage.Implementation,
       commandDisplayName: "implement",
+      scope: inImplementation,
       verification: { specExists: false, tasksExist: false, documentsExist: false },
     });
     expect(decision.reason).toBe(
@@ -162,29 +320,22 @@ describe("policy.evaluate — Spec-first verification gate", () => {
     );
   });
 
-  it("blocks spec-gated capability with invalid specStatus", () => {
-    const decision = evaluate({
-      capability: Capability.ImplementTask,
-      currentPhase: LifecycleStage.Implementation,
-      commandDisplayName: "implement",
-      verification: {
-        specExists: true,
-        tasksExist: true,
-        documentsExist: true,
-        specStatus: "draft",
-      },
-    });
-    expect(decision.allowed).toBe(false);
-    expect(decision.reason).toMatch(/Spec status 'draft' is not valid for implementation/);
+  it("the spec STATUS no longer decides: the scope's stage does (FR-009, FR-013)", () => {
+    // A scope in QA doing fix work has status 'qa' or 'implementing', neither of
+    // which was in the old status list; the stage already answered.
+    for (const specStatus of ["implementing", "qa", "draft"]) {
+      const decision = evaluate({
+        capability: Capability.ImplementTask,
+        commandDisplayName: "implement",
+        scope: scopeIn(LifecycleStage.QATesting),
+        verification: { ...VALID_VERIFICATION, specStatus },
+      });
+      expect(decision.allowed).toBe(true);
+    }
   });
 
   it("does NOT consult verification when capability does not require spec", () => {
-    // Cross-cutting capability called without verification — should pass through
-    const decision = evaluate({
-      capability: Capability.DbPush,
-      currentPhase: LifecycleStage.Beta,
-      commandDisplayName: "dbpush",
-    });
+    const decision = evaluate({ capability: Capability.DbPush, commandDisplayName: "dbpush" });
     expect(decision.allowed).toBe(true);
     expect(decision.requiresSpecCheck).toBe(false);
   });
@@ -194,41 +345,36 @@ describe("policy.evaluate — Force override never bypasses", () => {
   it("force override on spec-gated capability with missing verification → blocked, overrideUsed=true", () => {
     const decision = evaluate({
       capability: Capability.ImplementTask,
-      currentPhase: LifecycleStage.Implementation,
       commandDisplayName: "implement",
+      scope: scopeIn(LifecycleStage.Implementation),
       verification: { specExists: false, tasksExist: false, documentsExist: false },
       override: { force: true, reason: "test override" },
     });
     expect(decision.allowed).toBe(false);
     expect(decision.overrideUsed).toBe(true);
+    expect(decision.refusal?.code).toBe("ESCALATION_DENIED");
     expect(decision.reason).toBe(
       formatEscalationMessage("implement", "test override", ["spec", "tasks", "documents"]),
     );
   });
 
-  it("force override on invalid spec status → blocked, overrideUsed=true", () => {
+  it("force override cannot move a stage denial either", () => {
     const decision = evaluate({
       capability: Capability.ImplementTask,
-      currentPhase: LifecycleStage.Implementation,
       commandDisplayName: "implement",
-      verification: {
-        specExists: true,
-        tasksExist: true,
-        documentsExist: true,
-        specStatus: "draft",
-      },
-      override: { force: true, reason: "status override" },
+      scope: scopeIn(LifecycleStage.Design),
+      verification: VALID_VERIFICATION,
+      override: { force: true, reason: "let me through" },
     });
     expect(decision.allowed).toBe(false);
-    expect(decision.overrideUsed).toBe(true);
-    expect(decision.reason).toMatch(/ESCALATION REQUESTED — COMMAND STILL BLOCKED/);
+    expect(decision.refusal?.code).toBe("STAGE_DENIED");
   });
 
   it("force override without reason is ignored (no escalation, normal block)", () => {
     const decision = evaluate({
       capability: Capability.ImplementTask,
-      currentPhase: LifecycleStage.Implementation,
       commandDisplayName: "implement",
+      scope: scopeIn(LifecycleStage.Implementation),
       verification: { specExists: false, tasksExist: false, documentsExist: false },
       override: { force: true, reason: "" },
     });
@@ -243,19 +389,7 @@ describe("policy.evaluate — Force override never bypasses", () => {
   });
 });
 
-describe("policy.evaluate — Byte-identical message preservation (FR-009)", () => {
-  it("rejection message for stage mismatch", () => {
-    const decision = evaluate({
-      capability: Capability.ImplementTask,
-      currentPhase: LifecycleStage.Design,
-      commandDisplayName: "implement",
-      verification: VALID_VERIFICATION,
-    });
-    expect(decision.reason).toBe(
-      "Command 'implement' is not permitted in the 'Design' stage.",
-    );
-  });
-
+describe("policy.evaluate — Message preservation (spec 030 FR-009)", () => {
   it("block message preserves the canonical header + Required Actions list", () => {
     const msg = formatBlockMessage("implement", "Missing: spec");
     expect(msg).toMatch(/^IMPLEMENTATION BLOCKED - DATABASE VERIFICATION FAILED/);
@@ -286,7 +420,7 @@ describe("gateTable consistency (spec 030 FR-010 module-load assert)", () => {
     }
   });
 
-  it("the 6 capabilities requiring verified spec are exactly the post-Design stage-gated ones", () => {
+  it("the 6 capabilities requiring verified spec are exactly the post-Design scoped ones", () => {
     const requireVerified = (Object.values(Capability) as Capability[]).filter(
       (c) => gateTable[c].requiresVerifiedSpec,
     );
@@ -297,26 +431,6 @@ describe("gateTable consistency (spec 030 FR-010 module-load assert)", () => {
       Capability.PrepareRelease,
       Capability.RunHuman,
       Capability.RunQa,
-    ].sort());
-  });
-
-  it("the 7 cross-cutting capabilities have allowedPhases: 'all'", () => {
-    const crossCutting = (Object.values(Capability) as Capability[]).filter(
-      (c) => gateTable[c].allowedPhases === "all",
-    );
-    expect(crossCutting.sort()).toEqual([
-      // Spec 103 / T007 — archive:files reconciles on-disk group to archived status.
-      Capability.ArchiveFiles,
-      Capability.AuditFences,
-      Capability.DbPush,
-      // SCOPE-095 Amendment A / T007 — bootstrap: it writes the config the
-      // stage is read from, so it cannot be gated on that stage.
-      Capability.KitConfigure,
-      Capability.KitStatus,
-      Capability.PipelineAgent,
-      // Spec 036 — scaffold:frontend is cross-cutting (added after this
-      // assertion was first written; spec 044 corrected the list).
-      Capability.ScaffoldFrontend,
     ].sort());
   });
 });
