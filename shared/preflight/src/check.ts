@@ -17,6 +17,7 @@ import {
   extractSectionContent,
 } from './extractors.js';
 import { DEFAULT_SCOPE_CONTENT } from './defaults.js';
+import { countScopeCompleteness, completenessWarnings } from './completeness.js';
 
 // [SCOPE 029 / T001] BEGIN — ScopeValidationResult (preflight return shape)
 export interface ScopeValidationResult {
@@ -55,6 +56,7 @@ export interface ScopeValidationResult {
 // [SCOPE 029 / T001] END
 
 // [SCOPE 029 / T001] BEGIN — runPreflight (canonical scope quality scoring)
+// MODIFIED-BY: [SCOPE 135 / T004] — warning-only FR / acceptance-criteria / scenario / boilerplate checks
 export function runPreflight(content: string): ScopeValidationResult {
   const overviewContent = extractSectionContent(content, /^##?\s*Overview\b/i);
   const actorsContent = extractSectionContent(content, /^##?\s*Actors\b/i);
@@ -184,6 +186,9 @@ export function runPreflight(content: string): ScopeValidationResult {
   if (!/align with/i.test(notesContent) && !/##\s*Integration\s*Context\b/i.test(content)) {
     warnings.push('Integration context is not called out explicitly; add it if the scope depends on existing workflows or systems.');
   }
+  // [SCOPE 135 / T004] FR-007 + FR-014: what the gate does not enforce is still said out loud.
+  // Warnings only — score, isValid and blockingIssues above are untouched by construction.
+  warnings.push(...completenessWarnings(countScopeCompleteness(content)));
 
   const isValid = blockingIssues.length === 0 && score >= 80;
 

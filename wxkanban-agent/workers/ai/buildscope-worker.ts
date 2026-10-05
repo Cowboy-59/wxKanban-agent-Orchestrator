@@ -6,8 +6,8 @@
 // wrote no spec file. The MCP tool writes a real
 // specs/Project-Scope/NNN-<shortName>.md via project-kit's buildScope().
 
-import { mkdirSync, writeFileSync } from 'fs';
-import { dirname, resolve } from 'path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import { dirname, join, relative, resolve } from 'path';
 import { ScopeDraft } from '../../core/schemas/artifacts';
 import { McpClient } from '../../core/http/mcp-client';
 
@@ -33,10 +33,74 @@ function pickSuccessMetrics(value: unknown): string[] {
 	return [];
 }
 
+// [SCOPE 135 / T012] BEGIN — the kit sends what only the caller's disk knows
+// FR-016. The hosted server cannot read this machine, so two things it needs come from here: the
+// spec numbers that exist only on disk (c4e40bb5 was handed an 018 that sat unpushed in specs/), and
+// the author's own scope file on an edit (56b8f6d2 was merged into an older stored copy, and this
+// worker then wrote that result over a differently-named path).
+
+/** CLI flags arrive as strings; these inputs must reach the server as arrays. */
+const ARRAY_INPUTS = ['functionalRequirements', 'userScenarios', 'secondaryActors', 'successMetrics', 'localSpecNumbers'];
+
+export function parseArrayInputs(args: Record<string, unknown>): Record<string, unknown> {
+	const parsed: Record<string, unknown> = { ...args };
+	for (const key of ARRAY_INPUTS) {
+		const value = parsed[key];
+		if (typeof value !== 'string' || !value.trim().startsWith('[')) continue;
+		try {
+			parsed[key] = JSON.parse(value);
+		} catch (error) {
+			throw new Error(`buildscope: --${key} must be a JSON array (${(error as Error).message}).`);
+		}
+	}
+	return parsed;
+}
+
+/** Every spec number present in specs/NNN-* and specs/Project-Scope/NNN-* under `root`. */
+export function collectLocalSpecNumbers(root: string): string[] {
+	const numbers = new Set<string>();
+	for (const dir of [join(root, 'specs'), join(root, 'specs', 'Project-Scope')]) {
+		if (!existsSync(dir)) continue;
+		for (const name of readdirSync(dir)) {
+			const match = name.match(/^(\d{3,})[-_]/);
+			if (match) numbers.add(match[1]);
+		}
+	}
+	return [...numbers].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+}
+
+/** The local scope file for `specNumber`, matched on its exact numeric prefix, or null. */
+export function findLocalScopeFile(root: string, specNumber: string): string | null {
+	const dir = join(root, 'specs', 'Project-Scope');
+	if (!existsSync(dir)) return null;
+	const names = readdirSync(dir).filter((name) => /^\d{3,}-.*\.md$/.test(name));
+	// Exact prefix first ("010-…" for "010"); otherwise the same number differently padded ("0010-…").
+	const exact = names.find((name) => name.startsWith(`${specNumber}-`));
+	if (exact) return join(dir, exact);
+	const wanted = parseInt(specNumber, 10);
+	if (!Number.isFinite(wanted)) return null;
+	const padded = names.find((name) => parseInt(name, 10) === wanted);
+	return padded ? join(dir, padded) : null;
+}
+// [SCOPE 135 / T012] END
+
 // [SCOPE 124 / T020] BEGIN — buildscope reports what it actually did
+// MODIFIED-BY: [SCOPE 135 / T012] — sends local numbers / the local file; writes an edit back in place
 export class BuildScopeWorker {
 	static async generateScopeDraft(input: Partial<ScopeDraft> & Record<string, unknown>): Promise<ScopeDraft> {
-		const args = mapInputsToMcpArgs(input as Record<string, unknown>);
+		const args = parseArrayInputs(mapInputsToMcpArgs(input as Record<string, unknown>));
+		const root = process.cwd();
+
+		// [SCOPE 135 / T012] FR-016 — an edit is applied to the author's file and written back to it;
+		// a create is numbered past what is on disk as well as what is stored.
+		const editNumber = typeof args['editSpecNumber'] === 'string' ? (args['editSpecNumber'] as string) : null;
+		const localScopeFile = editNumber ? findLocalScopeFile(root, editNumber) : null;
+		if (localScopeFile && args['currentScopeContent'] == null) {
+			args['currentScopeContent'] = readFileSync(localScopeFile, 'utf8');
+		}
+		if (!editNumber && args['localSpecNumbers'] == null) {
+			args['localSpecNumbers'] = collectLocalSpecNumbers(root);
+		}
 
 		// Spec 028 / T021 — go through the shared mcp-client so bearer auth +
 		// 429-retry + hosted-base-URL resolution are handled centrally.
@@ -66,7 +130,9 @@ export class BuildScopeWorker {
 			status?: 'drafted' | 'draft_updated' | 'created' | 'updated' | 'template_only' | 'draft_interview';
 			specNumber?: string;
 			shortName?: string;
-			questions?: string[];
+			// [SCOPE 135 / T012] The server sends { field, question } objects; this was typed as strings,
+			// so the CLI printed "[object Object]" for every clarification question.
+			questions?: Array<string | { field?: string; question?: string }>;
 			blockingIssues?: string[];
 			canProceedToCreateSpecs?: boolean;
 			message?: string;
@@ -75,6 +141,9 @@ export class BuildScopeWorker {
 			scopeContent?: string;
 			checklistPath?: string;
 			checklistContent?: string;
+			// [SCOPE 135 / T012] additive fields from a SCOPE-135 server; absent on older servers.
+			missingInputs?: string[];
+			advisories?: string[];
 			// [SCOPE 077 / FR-008] orchestrator in-chat reuse check — surfaced inline.
 			reuseWarning?: string;
 			reuseMatches?: Array<{ owner: string; name: string; capabilityType: string; score: number }>;
@@ -88,7 +157,9 @@ export class BuildScopeWorker {
 		// rerunning. Previously the CLI surfaced "Spec X created" anyway,
 		// leaving the user to discover downstream that the file was missing.
 		if (mcpResult.status === 'draft_interview') {
-			const questionList = (mcpResult.questions ?? []).map(q => `  - ${q}`).join('\n');
+			const questionList = (mcpResult.questions ?? [])
+				.map(q => `  - ${typeof q === 'string' ? q : `${q.field ?? 'input'}: ${q.question ?? ''}`}`)
+				.join('\n');
 			const blockerList = (mcpResult.blockingIssues ?? []).map(b => `  - ${b}`).join('\n');
 			const parts = [
 				mcpResult.message || `buildscope: scope ${mcpResult.specNumber ?? '?'} needs clarification before a draft can be written.`,
@@ -104,16 +175,26 @@ export class BuildScopeWorker {
 		// developer's machine). The client authors the scope + checklist files in
 		// the local workspace from the returned content, then the DB is the
 		// source of truth for cross-host pull.
-		const root = process.cwd();
-		if (typeof mcpResult.filePath === 'string' && typeof mcpResult.scopeContent === 'string') {
-			const abs = resolve(root, mcpResult.filePath);
-			mkdirSync(dirname(abs), { recursive: true });
-			writeFileSync(abs, mcpResult.scopeContent, 'utf8');
+		// [SCOPE 135 / T012] An edit of a local file is written back to THAT file, and its checklist
+		// beside it. The server's suggested path is derived from the stored title and can name a
+		// different slug — writing there forked the scope into a second file.
+		const scopeTarget = localScopeFile
+			? localScopeFile
+			: typeof mcpResult.filePath === 'string'
+				? resolve(root, mcpResult.filePath)
+				: null;
+		const checklistTarget = localScopeFile
+			? join(localScopeFile.replace(/\.md$/, ''), 'checklists', 'requirements.md')
+			: typeof mcpResult.checklistPath === 'string'
+				? resolve(root, mcpResult.checklistPath)
+				: null;
+		if (scopeTarget && typeof mcpResult.scopeContent === 'string') {
+			mkdirSync(dirname(scopeTarget), { recursive: true });
+			writeFileSync(scopeTarget, mcpResult.scopeContent, 'utf8');
 		}
-		if (typeof mcpResult.checklistPath === 'string' && typeof mcpResult.checklistContent === 'string') {
-			const absChecklist = resolve(root, mcpResult.checklistPath);
-			mkdirSync(dirname(absChecklist), { recursive: true });
-			writeFileSync(absChecklist, mcpResult.checklistContent, 'utf8');
+		if (checklistTarget && typeof mcpResult.checklistContent === 'string') {
+			mkdirSync(dirname(checklistTarget), { recursive: true });
+			writeFileSync(checklistTarget, mcpResult.checklistContent, 'utf8');
 		}
 
 		// Map BuildScopeResult → ScopeDraft so WorkflowEngine.runBuildScope's
@@ -135,7 +216,15 @@ export class BuildScopeWorker {
 		// [SCOPE 077 / FR-008] Surface the orchestrator reuse check inline so the
 		// developer sees overlapping existing scopes while authoring (warn-only).
 		const reuseNote = mcpResult.reuseWarning ? `\n\n${mcpResult.reuseWarning}` : '';
-		const notes = `Spec ${mcpResult.specNumber ?? '?'} ${verb} via project.buildscope (mode: ${mcpResult.mode ?? 'unknown'}).${reuseNote}`;
+		// [SCOPE 135 / T012] Say where the file went and what is still open, not just the verb.
+		const whereNote = scopeTarget ? ` Written to ${relative(root, scopeTarget).replace(/\\/g, '/')}.` : '';
+		const missingNote = mcpResult.missingInputs && mcpResult.missingInputs.length > 0
+			? `\n\nStill blocked — supply: ${mcpResult.missingInputs.join(', ')}.`
+			: '';
+		const advisoryNote = mcpResult.advisories && mcpResult.advisories.length > 0
+			? `\n\nAdvisory (not enforced by the gate): ${mcpResult.advisories.join('; ')}.`
+			: '';
+		const notes = `Spec ${mcpResult.specNumber ?? '?'} ${verb} via project.buildscope (mode: ${mcpResult.mode ?? 'unknown'}).${whereNote}${missingNote}${advisoryNote}${reuseNote}`;
 
 		return {
 			title,

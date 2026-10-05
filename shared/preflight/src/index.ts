@@ -29,3 +29,11 @@ export {
 } from './extractors.js';
 
 export { DEFAULT_SCOPE_CONTENT } from './defaults.js';
+
+// [SCOPE 135 / T004] The checklist's Advisory group counts with the same function the warnings use.
+export {
+  BOILERPLATE_FR_TITLES,
+  countScopeCompleteness,
+  completenessWarnings,
+  type ScopeCompleteness,
+} from './completeness.js';

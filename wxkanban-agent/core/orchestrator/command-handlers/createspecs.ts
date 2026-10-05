@@ -57,12 +57,15 @@ Hard rules:
     "generateLifecycle": true,
     "generateTests": true
   }
-- scopeContent MUST carry the canonical headings the server preflight gates on, or create_specs
-  is blocked with one failed gate per missing section: "## Overview", "## Business Problem",
-  "## Actors" (containing "- Primary: ..." and "- Secondary: ..." lines), "## Success Metrics"
-  (three or more measurable statements), "## Scope Boundary", "## Out of Scope". Add
-  "## Open Questions" too — its absence is a warning rather than a block. Prose that says all of
-  this without the headings does NOT pass; the gates read headings, not meaning.
+- scopeContent is scored by the same preflight gate as project.validatescope (SCOPE-135 FR-008),
+  so a scope that passes validatescope passes create_specs. The gate needs: a business problem
+  ("## Business Problem", or else the "## Overview" text); a primary and a secondary actor
+  ("## Actors" with "Primary:" / "Secondary:" lines, or "Primary Actor" / "Secondary Actors" rows
+  in a Core Design table); three or more measurable metrics under "## Success Metrics" or
+  "## Success Criteria"; what is included ("## Scope Boundary", or a Core Design "Scope Boundary"
+  row); what is excluded ("## Out of Scope", or that same row); and no TODO / TBD / NEEDS
+  CLARIFICATION markers. Include "## Overview" and "## Open Questions" too: neither blocks alone,
+  but each one missing lowers the score, and the gate also requires a score of 80 or more.
 - specNumber MUST be three digits with leading zeros.
 - featureName should match the title used in the parent Project-Scope file (if any).
 - tasks SHOULD cover the main functional requirements; each task description should be
