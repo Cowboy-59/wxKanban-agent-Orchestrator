@@ -1014,6 +1014,13 @@ function updateProjectConfigVersion(toVersion, { dryRun = false } = {}) {
   config.kitVersion = toVersion;
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
   log('ok', `.wxkanban-project.json version → ${toVersion}`);
+  // [SCOPE 083 / T016] FR-012 — the cached session-start check predates this upgrade and
+  // still says "upgrade available"; left in place, the gateway banner and the Cockpit's
+  // unattended start replay it for up to 6h (feedback 83738c5e). Drop it so the next check
+  // measures again.
+  try {
+    fs.rmSync(path.join(root, '.wxai', 'kit-update-check.json'), { force: true });
+  } catch { /* best effort — a stale cache only delays the next measurement */ }
 }
 
 function runInit({ dryRun = false } = {}) {

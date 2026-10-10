@@ -54,7 +54,7 @@ async function loadKit(consumerRoot) {
   src +=
     '\nexport { snapshotBeforeUpgrade, extractArchive, mergePackageJson, readKitManifest,' +
     ' writeKitManifest, reconcileStaging, walkRelative, classifyFile, reportChanges, isPreserveTree, applyUpgrade, cleanupStaleAfterExtract,' +
-    ' pruneSnapshots };\n';
+    ' pruneSnapshots, updateProjectConfigVersion };\n';
   const dir = path.join(consumerRoot, 'scripts');
   fs.mkdirSync(dir, { recursive: true });
   // Unique filename per load: ESM caches modules by URL.
@@ -657,5 +657,43 @@ describe('snapshot is inert to source-file discovery', () => {
     expect(
       fs.readFileSync(path.join(restored, '.claude/wxConversion/scripts/split.py'), 'utf8')
     ).toBe('MY EDITED SCRIPT\n');
+  });
+});
+
+// [SCOPE 083 / T016] FR-012 — feedback 83738c5e: after a successful upgrade the cached
+// session-start check still said "upgrade available", so the gateway banner and the Dev
+// Cockpit's unattended start replayed it for up to 6h. Writing the new version drops it.
+describe('[SCOPE 083 / T016] a successful upgrade clears the cached update check', () => {
+  function consumerWithStaleCache() {
+    const consumer = path.join(tmp, 'consumer');
+    write(
+      path.join(consumer, '.wxkanban-project.json'),
+      JSON.stringify({ projectId: 'p', kitVersion: '1.7.61', version: '1.7.61', other: 'kept' })
+    );
+    write(
+      path.join(consumer, '.wxai', 'kit-update-check.json'),
+      JSON.stringify({ upgradeAvailable: true, currentVersion: '1.7.61', latestVersion: 'v1.7.74' })
+    );
+    return consumer;
+  }
+
+  it('deletes .wxai/kit-update-check.json when it writes the new version', async () => {
+    const consumer = consumerWithStaleCache();
+    const m = await loadKit(consumer);
+
+    m.updateProjectConfigVersion('1.7.74');
+
+    const config = JSON.parse(fs.readFileSync(path.join(consumer, '.wxkanban-project.json'), 'utf8'));
+    expect(config).toMatchObject({ kitVersion: '1.7.74', version: '1.7.74', other: 'kept' });
+    expect(fs.existsSync(path.join(consumer, '.wxai', 'kit-update-check.json'))).toBe(false);
+  });
+
+  it('leaves the cache alone on a dry run', async () => {
+    const consumer = consumerWithStaleCache();
+    const m = await loadKit(consumer);
+
+    m.updateProjectConfigVersion('1.7.74', { dryRun: true });
+
+    expect(fs.existsSync(path.join(consumer, '.wxai', 'kit-update-check.json'))).toBe(true);
   });
 });
