@@ -22,8 +22,9 @@ const REMEDIATION_URL = "https://wxperts.com/account/billing";
 export type EntitlementMode = "enforce" | "monitor" | "off";
 
 // Commands that must run even when entitlement has lapsed, so the customer can
-// see their state and recover.
-const EXEMPT_COMMANDS = new Set(["kit:status", "help"]);
+// see their state and recover. kit:configure installs the API token the refresh
+// needs, so gating it locks out the recovery path itself (SCOPE-095 FR-008).
+const EXEMPT_COMMANDS = new Set(["kit:status", "help", "kit:configure"]);
 
 export interface RefreshResult {
   enforced: boolean; // server has a signing key configured

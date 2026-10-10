@@ -596,8 +596,8 @@ export class WorkflowEngine {
 
 		// Phase 1B — entitlement preflight. Fails local-only commands closed when
 		// the wxKanban subscription has lapsed (server-side Phase 1A covers the
-		// MCP-backed commands). Exempts kit:status/help so a lapsed customer can
-		// still diagnose and recover. Fails open on indeterminate cases.
+		// MCP-backed commands). Exempts kit:status/help/kit:configure so a lapsed
+		// customer can still diagnose and recover. Fails open on indeterminate cases.
 		const license = await assertEntitled({ command });
 		if (!license.allowed) {
 			const result: CommandResult<unknown> = { success: false, error: license.reason };

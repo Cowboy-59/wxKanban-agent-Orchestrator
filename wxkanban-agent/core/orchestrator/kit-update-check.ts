@@ -141,13 +141,48 @@ function loadEnvFile(filePath: string): Record<string, string> {
   return vars;
 }
 
-function resolveApiUrl(envBag: Record<string, string>): string {
+// [SCOPE 083 / T015] BEGIN — resolve like check-kit-version.mjs; never localhost (FR-011)
+// The localhost:3001 default made every stock consumer's check fail (feedback ecacc0c6):
+// the kit .env the server writes carries no WXKANBAN_API_URL.
+const DEFAULT_API_URL = "https://wxkanban.wxperts.com";
+
+function resolveApiUrl(envBag: Record<string, string>, config: Record<string, unknown> | null): string {
+  const fromConfig = typeof config?.["wxkanbanApiUrl"] === "string" ? (config["wxkanbanApiUrl"] as string) : "";
   return (
     process.env["WXKANBAN_API_URL"] ||
     envBag["WXKANBAN_API_URL"] ||
-    "http://localhost:3001"
+    fromConfig ||
+    DEFAULT_API_URL
   ).replace(/\/+$/, "");
 }
+
+// The LOCAL install is the truth about what is installed. The server's upgradeAvailable
+// comes from projectkits.kitversion, which lagged real upgrades (feedback 6d76a9fb), and
+// trusting it made the Cockpit re-run the full upgrade on every start (83738c5e).
+function localKitVersion(config: Record<string, unknown> | null): string | null {
+  const v = config?.["kitVersion"] ?? config?.["version"];
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+// Same rule as the shipped check-kit-version.mjs, so the two never disagree.
+function compareSemver(a: string, b: string): number {
+  const norm = (s: string) => s.replace(/^v/i, "").split(".").map((p) => parseInt(p, 10));
+  const aP = norm(a);
+  const bP = norm(b);
+  if (aP.some(Number.isNaN) || bP.some(Number.isNaN)) return a.localeCompare(b);
+  for (let i = 0; i < Math.max(aP.length, bP.length); i++) {
+    const d = (aP[i] ?? 0) - (bP[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+/** Newer than the local install? Falls back to the server's flag only when a version is missing. */
+function isUpgradeAvailable(latest: string | null, local: string | null, serverFlag: boolean): boolean {
+  if (latest && local) return compareSemver(latest, local) > 0;
+  return serverFlag;
+}
+// [SCOPE 083 / T015] END
 
 function resolveApiToken(envBag: Record<string, string>, aiSettings: Record<string, unknown> | null): string | null {
   if (process.env["WXKANBAN_API_TOKEN"]) return process.env["WXKANBAN_API_TOKEN"]!;
@@ -253,7 +288,7 @@ async function runCheck(): Promise<void> {
     ...loadEnvFile(path.join(process.cwd(), "mcp-server", ".env")),
   };
   const aiSettings = readJson(path.join(process.cwd(), "ai-settings.json"));
-  const apiUrl = resolveApiUrl(envBag);
+  const apiUrl = resolveApiUrl(envBag, config); // [SCOPE 083 / T015]
   const token = resolveApiToken(envBag, aiSettings);
   if (!token) {
     // [SCOPE 083 / T010] Was a silent return that wrote nothing,
@@ -273,12 +308,15 @@ async function runCheck(): Promise<void> {
     return;
   }
 
+  // [SCOPE 083 / T015] FR-011 — decide against the local install, not the server's record.
+  const local = localKitVersion(config);
+  const latest = result.data.latestVersion ?? null;
   const status: KitUpdateStatus = {
     checkedAt: Date.now(),
-    upgradeAvailable: result.data.upgradeAvailable === true,
+    upgradeAvailable: isUpgradeAvailable(latest, local, result.data.upgradeAvailable === true),
     authorRepo: false,
-    currentVersion: result.data.currentVersion ?? null,
-    latestVersion: result.data.latestVersion ?? null,
+    currentVersion: local ?? result.data.currentVersion ?? null,
+    latestVersion: latest,
     releaseUrl: result.data.releaseUrl ?? null,
     outcome: "checked",
     lastError: null,
@@ -312,7 +350,12 @@ export function ensureKitUpToDate(): void {
     // from cache each session so the reminder persists until applied.
     const cached = readCache();
     if (cached && typeof cached.checkedAt === "number" && Date.now() - cached.checkedAt < CHECK_TTL_MS) {
-      if (cached.upgradeAvailable && !cached.authorRepo) printBanner(cached);
+      // [SCOPE 083 / T015] A cache written before an upgrade still says "available" for up to
+      // the TTL; re-judge it against the local version so the banner stops once applied.
+      const local = localKitVersion(readJson(path.join(process.cwd(), ".wxkanban-project.json")));
+      if (cached.upgradeAvailable && !cached.authorRepo && isUpgradeAvailable(cached.latestVersion, local, true)) {
+        printBanner(cached);
+      }
       return;
     }
 

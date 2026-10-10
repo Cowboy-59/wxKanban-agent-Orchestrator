@@ -100,11 +100,13 @@ export function parseStack(stackPath) {
 /** Read one adapter file's declared identity. */
 // [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
 // MODIFIED-BY: [SCOPE 127 / T009] — reads **Status:** and **Origin:** so provenance can be stated
+// MODIFIED-BY: [SCOPE 127 / T020] — reads **Requires:**, the tokens the adapter's machinery depends on
 export function readAdapter(path) {
   const src = readFileSync(path, "utf-8");
   const title = (/^#\s+(.+)$/m.exec(src) || [, basename(path)])[1].trim();
   const stackLine = (/^\*\*Stack:\*\*\s*([\s\S]*?)(?:\n\n|\n\*\*)/m.exec(src) || [, ""])[1];
   const matchLine = (/^\*\*Matches:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
+  const requiresLine = (/^\*\*Requires:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
   const appTypeLine = (/^\*\*Application type:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
   const statusLine = (/^\*\*Status:\*\*\s*(\S+)/m.exec(src) || [, ""])[1];
   const originLine = (/^\*\*Origin:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
@@ -121,11 +123,43 @@ export function readAdapter(path) {
     appType: appTypeLine ? normalize(appTypeLine) : null,
     tokens: declared.length > 0 ? declared : fallback,
     declaresMatches: declared.length > 0,
+    requires: parseRequires(requiresLine),
     status: statusLine ? statusLine.toLowerCase().replace(/[^a-z]/g, "") : null,
     generated: /^\s*generated\b/i.test(originLine),
   };
 }
 // [SCOPE 127 / T002] END
+
+/**
+ * Requirements — SCOPE-127 / T020 (decision 25, feedback 3626c874).
+ *
+ * Scoring only adds, so shared framework and test-tool tokens can outvote a database the adapter
+ * cannot serve: an Express + SQLite project scored 5 against the Express / Drizzle / PostgreSQL
+ * adapter and was handed its seeding form. `**Requires:**` is the disqualifier. Space-separated
+ * groups, `|` between alternatives (`express postgresql|postgres`); every group must be present in
+ * the stack's tokens, or the adapter is excluded before scoring and can neither win nor tie.
+ */
+// [SCOPE 127 / T020] BEGIN — Resolution excludes an adapter whose required tokens the stack lacks (FR-001)
+export function parseRequires(line) {
+  return String(line)
+    .replace(/`/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((group) => group.split("|").map((alt) => tokenize(alt)).filter((alt) => alt.length > 0))
+    .filter((group) => group.length > 0);
+}
+// [SCOPE 127 / T020] END
+
+/** The `**Requires:**` groups this stack does not satisfy, each written back as `a|b`. Empty means eligible. */
+// [SCOPE 127 / T020] BEGIN — Resolution excludes an adapter whose required tokens the stack lacks (FR-001)
+export function missingRequirements(adapter, stackTokens) {
+  const set = new Set(stackTokens);
+  return (adapter.requires ?? [])
+    .filter((group) => !group.some((alt) => alt.every((t) => set.has(t))))
+    .map((group) => group.map((alt) => alt.join(" ")).join("|"));
+}
+// [SCOPE 127 / T020] END
 
 /**
  * Provenance — SCOPE-127 / T009 (FR-010) and T012.
@@ -182,6 +216,7 @@ export function scoreAdapter(adapter, stackTokens) {
  * default: an ambiguous or absent match is reported as a miss with everything needed to act on it.
  */
 // [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+// MODIFIED-BY: [SCOPE 127 / T020] — an adapter missing a **Requires:** group is excluded before scoring
 export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
 // [SCOPE 127 / T002] END
   const stackPath = resolve(root, "stack.md");
@@ -220,12 +255,20 @@ export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
   }
 
   const scored = [];
+  // T020: an adapter whose machinery this stack contradicts never reaches scoring, so it can
+  // neither win nor tie — but it is reported, so a miss explains itself.
+  const excluded = [];
   for (const type of types) {
     const entry = stack[type];
     if (!entry) continue;
     for (const a of adapters) {
       if (a.appType && a.appType !== type) continue;
       const { hits, score } = scoreAdapter(a, entry.tokens);
+      const missing = missingRequirements(a, entry.tokens);
+      if (missing.length > 0) {
+        excluded.push({ name: a.name, appType: type, missing, score, hits });
+        continue;
+      }
       scored.push({ adapter: a, appType: type, score, hits });
     }
   }
@@ -243,6 +286,7 @@ export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
         "extractor built for another stack would produce a valid-looking inventory of zero units, " +
         "which reads as a result rather than an error.",
       candidates: scored.slice(0, 3).map((s) => ({ name: s.adapter.name, score: s.score, hits: s.hits })),
+      excluded,
       stackTokens: types.flatMap((t) => stack[t]?.tokens ?? []),
     };
   }
@@ -258,6 +302,7 @@ export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
           .map((s) => s.adapter.name)
           .join(", ")}). Resolution must be unambiguous, so this is reported rather than guessed.`,
       candidates: tied.map((s) => ({ name: s.adapter.name, score: s.score, hits: s.hits })),
+      excluded,
     };
   }
 
@@ -278,12 +323,14 @@ export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
     // machinery it is about to run came from — and a project adapter is never called shipped.
     provenance: provenanceOf(best.adapter),
     candidates: viable.slice(1, 3).map((s) => ({ name: s.adapter.name, score: s.score })),
+    excluded,
   };
 }
 
 // [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
 // MODIFIED-BY: [SCOPE 127 / T009] — a provisional resolution is announced as provisional (SC-8)
 // MODIFIED-BY: [SCOPE 127 / T010] — a no-match miss points at generation, other misses stay stops
+// MODIFIED-BY: [SCOPE 127 / T020] — a miss names each excluded adapter and the requirement it lacked
 function main(argv) {
   const args = argv.slice(2);
   const get = (flag) => {
@@ -325,6 +372,12 @@ function main(argv) {
       console.error("\nClosest candidates:");
       for (const c of result.candidates) {
         console.error(`  ${c.name}  score ${c.score}${c.hits ? `  (${c.hits.join(", ")})` : ""}`);
+      }
+    }
+    if (result.excluded?.length) {
+      console.error("\nExcluded — this stack lacks what the adapter's machinery depends on (**Requires:**):");
+      for (const x of result.excluded) {
+        console.error(`  ${x.name}  needs ${x.missing.join(", ")}  (would have scored ${x.score})`);
       }
     }
     console.error(

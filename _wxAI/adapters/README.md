@@ -128,6 +128,7 @@ there as `provisional` until you approve it, so its output is never mistaken for
 |---|---|
 | `**Application type:**` | `web`, `desktop` or `mobile`. It must equal the type in the `## Target Stack — <Type>` heading of `stack.md`, or the adapter is never considered. Leave the line out and it is considered for every type. |
 | `**Matches:**` | **Required.** Space-separated tokens. The resolver lower-cases the **Choice** column of `stack.md` (the *Why* column is ignored), strips punctuation, and counts how many of your tokens appear in it. |
+| `**Requires:**` | Optional on a project adapter; **every shipped adapter declares one**. Space-separated groups, alternatives within a group joined by `\|` — `express postgresql\|postgres`. Every group must appear in the stack's Choice tokens, or the adapter is **excluded before scoring**, however many `Matches:` tokens it shares. Name what your machinery cannot run without: the framework your inventory reads, and the database your posture and seeding form assume. Each exclusion is printed with the groups it lacked. |
 | `**Status:**` | `provisional` or `approved`. Leave it `provisional` until you trust the adapter; changing it to `approved` is the whole approval step, and it never blocks a run. Anything other than `approved` reads as provisional. |
 | `**Inventory signal (<kind>):**` | **Required**, one line per kind. `<kind>` is the `kind` those units carry in `inventory.json`; `<glob> :: <regex>` is the files, and the pattern, where each unit of that kind is *declared*: the attribute on a command function, a `<Route>` element, a `router.get(` call — not a central list naming units declared elsewhere. One line per kind. `inventory-guard.mjs` counts it per file and per kind, independently of the inventory, and refuses a file that declares more units of that kind than the inventory lists — so a unit's `file` must be the file where the signal matches it, and its `kind` the kind the signal names. The pattern is a JavaScript regular expression; write `/pattern/i` for flags. Cover the variants your stack allows (`#\[(?:tauri::)?command\b` also catches `#[tauri::command(async)]` and a bare `#[command]`). Backticks are optional. |
 
@@ -139,6 +140,10 @@ Rules worth knowing before you pick tokens:
   another adapter, add a token only your stack's Choice column contains.
 - **Pick tokens that tell your stack apart.** `react` or `vitest` describe half the projects there
   are; `tauri` and `firebird` describe the example above.
+- **Overlap is not compatibility.** An Express + SQLite project once scored 5 against the Express /
+  Drizzle / PostgreSQL adapter on `express vitest playwright react node`, and was handed a
+  PostgreSQL seeding form. Shared tools cannot outvote a contradiction once `**Requires:**` names
+  the part that contradicts — here, the database.
 - Some words are dropped before matching and can never count: `core`, `embedded`, `native`,
   `shell`, `sidecar`, `optional`, `required`, and connectives such as `and`, `or`, `with`, `only`.
   Write `firebird`, not `embedded`.

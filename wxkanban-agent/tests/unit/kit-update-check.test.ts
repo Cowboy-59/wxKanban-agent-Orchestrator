@@ -10,6 +10,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
+import * as http from 'http';
+import type { AddressInfo } from 'net';
 import * as os from 'os';
 import * as path from 'path';
 
@@ -201,5 +203,105 @@ describe('check outcome — FR-006', () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(fs.existsSync(path.join(tmp, '.wxai', 'kit-update-check.json'))).toBe(false);
+  });
+});
+
+// [SCOPE 083 Amendment B / FR-011] Field reports 6d76a9fb + 83738c5e + ecacc0c6: the server
+// kept answering currentVersion 1.7.61 / upgradeAvailable true after a real upgrade to
+// 1.7.74, the check trusted it, and the Cockpit re-ran the upgrade every start. A stock
+// consumer never even got that far — the check defaulted to http://localhost:3001.
+describe('local version decides — FR-011', () => {
+  let server: http.Server;
+  let hits: number;
+  let baseUrl: string;
+  // Exactly what production returned for the reporting project.
+  const staleServerAnswer = {
+    currentVersion: '1.7.61',
+    latestVersion: 'v1.7.74',
+    upgradeAvailable: true,
+    releaseUrl: 'https://example.invalid/v1.7.74',
+    publishedAt: null,
+  };
+
+  beforeEach(async () => {
+    hits = 0;
+    server = http.createServer((_req, res) => {
+      hits++;
+      res.writeHead(200, { 'Content-Type': 'application/json', Connection: 'close' });
+      res.end(JSON.stringify(staleServerAnswer));
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+    baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterEach(async () => {
+    await new Promise<void>((r) => server.close(() => r()));
+  });
+
+  function writeConfig(extra: Record<string, unknown>): void {
+    fs.writeFileSync(
+      path.join(tmp, '.wxkanban-project.json'),
+      JSON.stringify({ projectId: 'a899b6e4-e528-4390-b02e-ed490b3337ee', ...extra }),
+    );
+  }
+  async function waitForCache(): Promise<CacheShape> {
+    const file = path.join(tmp, '.wxai', 'kit-update-check.json');
+    for (let i = 0; i < 40 && !fs.existsSync(file); i++) await new Promise((r) => setTimeout(r, 50));
+    return readCache(tmp);
+  }
+
+  it('is current when the local kit already has the latest, whatever the server recorded', async () => {
+    writeConfig({ kitVersion: '1.7.74' });
+    fs.writeFileSync(path.join(tmp, '.env'), `WXKANBAN_API_URL=${baseUrl}\nWXKANBAN_API_TOKEN=t\n`);
+
+    (await freshEnsure())();
+    const cache = await waitForCache();
+
+    expect(cache.outcome).toBe('checked');
+    expect(cache.upgradeAvailable).toBe(false);
+    expect(cache.currentVersion).toBe('1.7.74');
+    expect(cache.latestVersion).toBe('v1.7.74');
+  });
+
+  it('still reports an upgrade when the local kit is genuinely behind', async () => {
+    writeConfig({ kitVersion: '1.7.70' });
+    fs.writeFileSync(path.join(tmp, '.env'), `WXKANBAN_API_URL=${baseUrl}\nWXKANBAN_API_TOKEN=t\n`);
+
+    (await freshEnsure())();
+    const cache = await waitForCache();
+
+    expect(cache.upgradeAvailable).toBe(true);
+    expect(cache.currentVersion).toBe('1.7.70');
+  });
+
+  it('falls back to wxkanbanApiUrl from .wxkanban-project.json when no env var names the API', async () => {
+    writeConfig({ kitVersion: '1.7.74', wxkanbanApiUrl: baseUrl });
+    fs.writeFileSync(path.join(tmp, '.env'), 'WXKANBAN_API_TOKEN=t\n');
+
+    (await freshEnsure())();
+    const cache = await waitForCache();
+
+    expect(hits).toBe(1);
+    expect(cache.outcome).toBe('checked');
+  });
+
+  it('does not replay a cached "update available" once the local kit has caught up', async () => {
+    writeConfig({ kitVersion: '1.7.74' });
+    fs.mkdirSync(path.join(tmp, '.wxai'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, '.wxai', 'kit-update-check.json'),
+      JSON.stringify({
+        checkedAt: Date.now(), upgradeAvailable: true, authorRepo: false,
+        currentVersion: '1.7.61', latestVersion: 'v1.7.74', releaseUrl: null,
+        outcome: 'checked', lastError: null,
+      }),
+    );
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    (await freshEnsure())();
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(errSpy.mock.calls.flat().join(' ')).not.toMatch(/Update available/);
+    expect(hits).toBe(0); // fresh cache: no network call
+    errSpy.mockRestore();
   });
 });

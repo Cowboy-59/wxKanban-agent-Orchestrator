@@ -65,7 +65,7 @@ function buildProviderConfig(name: ProviderName): AIProviderConfig {
 			return {
 				name,
 				apiKey: process.env["GROQ_API_KEY"] || "",
-				model: process.env["GROQ_MODEL"] || "llama-3.3-70b-versatile",
+				model: process.env["GROQ_MODEL"] || "openai/gpt-oss-120b", // [SCOPE 099 / T013] llama-3.3 retired
 				endpoint: "https://api.groq.com/openai/v1",
 				timeoutMs: 30000,
 				confidenceThreshold: 0.7,

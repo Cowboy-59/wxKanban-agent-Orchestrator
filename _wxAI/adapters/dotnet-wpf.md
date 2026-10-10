@@ -5,6 +5,7 @@ No REST/GraphQL tier — the desktop client reaches the database through EF Core
 
 **Application type:** desktop
 **Matches:** csharp dotnet wpf mvvm "ef core" entityframework xunit fluentassertions
+**Requires:** wpf
 
 
 Verified on the HourGlass2025 desktop rebuild, 2026-08-11: an 18-of-18-surface audit over 32,758

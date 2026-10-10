@@ -5,6 +5,7 @@ custom bcrypt+JWT auth · optional hosted MCP tool surface.
 
 **Application type:** web
 **Matches:** typescript express drizzle postgresql vitest playwright react node
+**Requires:** express postgresql|postgres
 
 
 This is the reference adapter — the stack `wxCreateTestPlan` was originally written against. Read

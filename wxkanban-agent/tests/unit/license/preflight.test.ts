@@ -123,6 +123,22 @@ describe("assertEntitled — cached token (offline, no refresh)", () => {
     expect(r.source).toBe("grace");
   });
 
+  // SCOPE-095 FR-008 (feedback 669039df): in the lockout state above, the
+  // command that installs a working token must still run. wxconversion is
+  // denied in the same state, proving the fixture is the lockout.
+  it("exempts kit:configure from the expired-cache lockout it exists to repair", async () => {
+    writeCache(mintToken({ status: "ACTIVE", iat: nowSec() - 10_000, exp: nowSec() - 1 }));
+    const lockout = { projectRoot: root, mode: "enforce" as const, nowSec: nowSec(), refresh: offline, publicKeyPem: pubPem };
+
+    const blocked = await assertEntitled({ command: "wxconversion", ...lockout });
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.source).toBe("grace");
+
+    const recovery = await assertEntitled({ command: "kit:configure", ...lockout });
+    expect(recovery.allowed).toBe(true);
+    expect(recovery.source).toBe("exempt");
+  });
+
   it("does NOT honor a token whose clock was rolled back before issue", async () => {
     // now is BEFORE iat (clock rolled back) → not valid; offline → grace deny.
     writeCache(mintToken({ status: "ACTIVE", iat: nowSec() + 10_000, exp: nowSec() + 20_000 }));
