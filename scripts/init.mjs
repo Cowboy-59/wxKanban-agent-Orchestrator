@@ -436,7 +436,7 @@ function ensureGitignored(rel) {
 function installChangeImpactHook() {
   const script = path.join(root, '_wxAI', 'impact', 'install-hook.mjs');
   if (!fs.existsSync(script)) return;
-  const r = spawnSync(process.execPath, [script, '--root', root], { encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [script, '--root', root], { encoding: 'utf8', windowsHide: true });
   const out = `${r.stdout ?? ''}${r.stderr ?? ''}`.trim();
   console.log(r.status === 0 ? `[init] ${out}` : `[init] Change Impact hook not installed (${out || `exit ${r.status}`}).`);
 }
