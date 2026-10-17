@@ -19,7 +19,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import tls from 'node:tls';
 // Spec 042 — single source of truth for the Dev Cockpit install (also run by
@@ -428,6 +428,19 @@ function ensureGitignored(rel) {
   console.log(`[init] added ${rel} to .gitignore`);
 }
 
+// [SCOPE 137 / T017] BEGIN — Change Impact: install the Claude Code hook (SCOPE-137 FR-008)
+// The hook asks before an AI edit crosses an Impact Boundary and stops on possible data loss.
+// install-hook.mjs ships with the kit in _wxAI/impact/, is idempotent, touches only its own
+// .claude/settings.json entry, and makes .gitignore cover the hook's per-developer state.
+// Best-effort: an older kit without it, or a failure, never blocks the install.
+function installChangeImpactHook() {
+  const script = path.join(root, '_wxAI', 'impact', 'install-hook.mjs');
+  if (!fs.existsSync(script)) return;
+  const r = spawnSync(process.execPath, [script, '--root', root], { encoding: 'utf8' });
+  const out = `${r.stdout ?? ''}${r.stderr ?? ''}`.trim();
+  console.log(r.status === 0 ? `[init] ${out}` : `[init] Change Impact hook not installed (${out || `exit ${r.status}`}).`);
+}
+// [SCOPE 137 / T017] END
 async function main() {
   trustSystemCertificates();
   console.log('\nwxKanban kit — install\n──────────────────────');
@@ -461,6 +474,9 @@ async function main() {
   } catch (err) {
     console.log(`[init] Claude Code MCP registration skipped (${err?.message ?? err}).`);
   }
+
+  // [SCOPE 137 / T017] Change Impact: the AI-edit hook (after the MCP registration it relies on).
+  installChangeImpactHook();
 
   startGateway(cfg);
 
