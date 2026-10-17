@@ -19,6 +19,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
+import { proveProfile } from "../impact/prove.mjs";
 
 const SHIPPED_DIR = join("_wxAI", "adapters");
 const LOCAL_DIR = join(".wxai", "adapters");
@@ -203,7 +204,8 @@ function sectionBody(src, headingRe) {
 // [SCOPE 127 / T003] BEGIN — Adapter contract validation — six answers or hard-stop (FR-…
 // MODIFIED-BY: [SCOPE 127 / T010] — an unfilled generation placeholder is not an answer
 // MODIFIED-BY: [SCOPE 127 / T013] — project adapters must also pass validateProjectRules
-export function validateAdapter(path, { origin = originOf(path) } = {}) {
+// MODIFIED-BY: [SCOPE 137 / T015] — every adapter must back a "Links proof: passed" line with a passing fixture
+export function validateAdapter(path, { origin = originOf(path), prove = proveProfile } = {}) {
   const src = readFileSync(path, "utf-8");
   const name = basename(path, ".md");
   const failures = [];
@@ -284,6 +286,7 @@ export function validateAdapter(path, { origin = originOf(path) } = {}) {
   const unanswered = failures.filter((f) => contractIds.has(f.id)).map((f) => f.label);
 
   if (origin === "local") failures.push(...validateProjectRules(src, { declaresMatches }));
+  failures.push(...validateLinksProof(src, { prove }));
   if (src.includes(GENERATE_MARKER) && !failures.some((f) => f.problem === "placeholder")) {
     failures.push({
       id: "placeholder",
@@ -407,6 +410,43 @@ export function validateProjectRules(src, { declaresMatches }) {
   return out;
 }
 // [SCOPE 127 / T013] END
+
+/**
+ * Change Impact links proof — SCOPE-137 / T015 (FR-014, SC-8).
+ *
+ * An adapter's `## Change Impact links` section names the profile its stack is read through and
+ * whether that profile's proof fixture has passed. Links read through a profile are Likely; the
+ * engine labels them as it labels native links only when an adapter says `**Links proof:** passed`.
+ * So that line is a claim, and this checks it: the profile must have a fixture, and the fixture must
+ * pass now. Any other proof line ("not run …") claims nothing and is accepted.
+ */
+// [SCOPE 137 / T015] BEGIN — The adapter validator refuses the Confirmed label until the fixture passes (FR-014, SC-8)
+export function validateLinksProof(src, { prove = proveProfile } = {}) {
+  const out = [];
+  const proof = /^\*\*Links proof:\*\*\s*(.*)$/im.exec(src)?.[1]?.trim() ?? "";
+  if (!/^passed\b/i.test(proof)) return out;
+  const fail = (problem, detail) => out.push({ id: "links-proof", label: "Change Impact links proof", problem, detail });
+
+  const profile = /^\*\*Links profile:\*\*\s*([\w-]+)/m.exec(src)?.[1];
+  if (!profile) {
+    fail("no-profile", "The adapter says its links proof passed but names no **Links profile:** — there is nothing to prove.");
+    return out;
+  }
+  const result = prove(profile);
+  if (!result) {
+    fail("no-fixture",
+      `No proof fixture exists for the "${profile}" profile, so its links cannot be labeled Confirmed. ` +
+        'Add a fixture to _wxAI/impact/fixtures/ or set **Links proof:** back to "not run".');
+    return out;
+  }
+  if (!result.passed) {
+    const problems = result.cases.flatMap((c) => c.problems.map((p) => `${c.name}: ${p}`));
+    fail("fixture-failed",
+      `The "${profile}" proof fixture does not pass, so its links stay Likely: ${problems.join("; ")}.`);
+  }
+  return out;
+}
+// [SCOPE 137 / T015] END
 
 // [SCOPE 127 / T003] BEGIN — Adapter contract validation — six answers or hard-stop (FR-…
 // MODIFIED-BY: [SCOPE 127 / T010] — README.md and GENERATE.md are docs, not adapters

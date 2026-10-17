@@ -183,6 +183,20 @@ node _wxAI/adapters/resolve-adapter.mjs                             # Resolved a
 Both must pass before `/wxCreateTestPlan`, `/preTest` or `implement` will use it. Once an inventory
 exists, `inventory-guard.mjs` checks it against your signal on every run.
 
+### 5. Change Impact links (optional)
+
+*SCOPE-137 / FR-014.* The `## Change Impact links` section names the profile your stack's code is
+read through (`**Links profile:**`) and whether that profile has been proven (`**Links proof:**`).
+Links read through a profile are labeled **Likely**. To have them labeled as native links are, run
+the profile's proof fixture and, if it passes, change the proof line to `passed`:
+
+```bash
+node _wxAI/impact/prove.mjs <profile>    # PASS, or FAIL naming each link it missed
+```
+
+The validator re-runs the fixture whenever an adapter says `passed`, and refuses the adapter if the
+profile has no fixture or the fixture fails. Only the link types the fixture seeds are promoted.
+
 ## Generated adapters
 
 *SCOPE-127 / T010–T013 (FR-006, FR-007, FR-013).*

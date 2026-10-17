@@ -3,6 +3,7 @@ import { loadAgentSdk, type QueryFn } from "./sdk-loader";
 import { GATE_HOOK_TIMEOUT_S } from "./override-gate"; // [SCOPE 134 / T035]
 
 // [SCOPE 102 / T003] BEGIN — BridgeSession: owns a driveable headless Claude session
+// MODIFIED-BY: [SCOPE 137 / T010] — the session runs with WXAI_UNATTENDED=1 and WXAI_REMOTE=1 so the Change Impact hook treats it as unattended
 // Wraps the Agent SDK `query()` with a push-based input queue (so the room can feed
 // new user messages over time), routes the output stream to typed handler callbacks,
 // and exposes interrupt/stop/resume. Runs in bypassPermissions so native prompts never
@@ -137,6 +138,10 @@ export class BridgeSession {
         includePartialMessages: true,
         resume: this.opts.resumeSessionId,
         disallowedTools: blocked,
+        // [SCOPE 137 / T010] Nobody is at the keyboard: the Change Impact hook logs an Impact
+        // Boundary crossing and continues, and stops on possible data loss, which this bridge
+        // relays to the phone. `env` REPLACES the child's environment, so process.env is spread.
+        env: { ...process.env, WXAI_UNATTENDED: "1", WXAI_REMOTE: "1" },
         // MODIFIED-BY: [SCOPE 134 / T035] — enforced as a PreToolUse hook, NOT canUseTool.
         // canUseTool is never consulted under bypassPermissions (found live 2026-09-25:
         // the gate never ran and push was ungated). A PreToolUse hook runs before EVERY

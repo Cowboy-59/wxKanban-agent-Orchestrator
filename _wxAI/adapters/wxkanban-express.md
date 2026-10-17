@@ -243,3 +243,13 @@ a test pass that production would reject, which is why the faithfulness check bl
   assert `current_schema()` before the first write.
 - **Vitest** runs test files in parallel workers by default. Anything mutating process-wide state
   (env, clock, a shared fixture name) must restore in a `finally`, not on the happy path only.
+
+## Change Impact links
+
+**Links profile:** native
+**Links proof:** not run — the JS/TS fixture (SCOPE-137 FR-014) proves the native reader; this adapter adds nothing on top.
+
+JS/TS is read natively by the Change Impact engine (`_wxAI/impact/`): imports with tsconfig and
+Vite aliases, Drizzle table reads and writes, foreign keys, migrations, Express routes matched to
+client `fetch` URLs, named strings, and `[SCOPE nnn / Tnnn]` fences. Native links are Confirmed;
+URL and raw-SQL links are Likely.

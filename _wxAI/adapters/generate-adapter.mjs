@@ -59,6 +59,7 @@ export function adapterSlug(type, tokens) {
 
 /** The candidate adapter's text. Pure, so it can be tested without touching disk. */
 // [SCOPE 127 / T010] BEGIN — Generate a candidate adapter from stack.md and proceed automatically (FR-006)
+// MODIFIED-BY: [SCOPE 137 / T007] — writes a `## Change Impact links` section naming the language profile (FR-005)
 export function scaffoldAdapter({ type, entry, date }) {
   const choices = Object.values(entry.dimensions);
   const summary = choices.slice(0, 4).join(" · ");
@@ -105,7 +106,7 @@ export function scaffoldAdapter({ type, entry, date }) {
     "",
     todo(
       "name where this repository's schema of record lives (migration or DDL files, an ORM model) " +
-        "and what it is reconciled against — the live catalogue of a freshly built disposable " +
+        "and what it is reconciled against — the live catalog of a freshly built disposable " +
         "database. A mismatch between the two is a finding.",
     ),
     "",
@@ -153,7 +154,39 @@ export function scaffoldAdapter({ type, entry, date }) {
         "local endpoints. Name the unit or file each case targets.",
     ),
     "",
+    ...changeImpactLinksSection(choices),
   ].join("\n");
+}
+
+/** SCOPE-137 T007 — which Change Impact profile reads this stack, inferred from its choices. */
+function changeImpactLinksSection(choices) {
+  const text = choices.join(" ").toLowerCase();
+  const profile =
+    /python|django|fastapi|flask|frappe/.test(text) ? "python"
+      : /ruby|rails/.test(text) ? "ruby"
+      : /\bgo\b|gin|golang/.test(text) ? "go"
+      : /java|spring|kotlin/.test(text) ? "java"
+      : /php|laravel/.test(text) ? "php"
+      : /\.net|asp\.net|c#|wpf|maui|blazor/.test(text) ? "csharp"
+      : /node|express|nest|react|vue|svelte|angular|next|nuxt|astro|electron|typescript|javascript/.test(text) ? "native"
+      : "fallback";
+  const how =
+    profile === "native"
+      ? "JS/TS is read natively by the Change Impact engine: imports (with tsconfig and Vite aliases), Drizzle tables, routes and fences are resolved, and links are Confirmed."
+      : profile === "fallback"
+        ? "No built-in profile matches this stack. Changes are checked by text mention only and labeled Likely; add patterns below to do better."
+        : `Read through the built-in \`${profile}\` profile in \`_wxAI/impact/lib/profiles.mjs\`: imports, route declarations, data access and env vars, all labeled Likely.`;
+  return [
+    "## Change Impact links",
+    "",
+    `**Links profile:** ${profile}`,
+    "**Links proof:** not run — links stay Likely until this adapter's proof fixture passes (SCOPE-137 FR-014).",
+    "",
+    how,
+    "Extend it for this project by adding patterns the profile misses (a custom router, a query helper) as",
+    "`<kind> :: <regex>` lines below, where kind is import, route, data-write, data-read or env.",
+    "",
+  ];
 }
 // [SCOPE 127 / T010] END
 

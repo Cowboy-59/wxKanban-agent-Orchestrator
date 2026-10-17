@@ -226,3 +226,14 @@ Two more, both observed here:
   window must still call `OnNavigatedTo` with the new parameter. Reusing without re-navigating shows
   the *previous* record while the caller believes it navigated; here it let a stopwatch bill time to
   the wrong customer.
+
+## Change Impact links
+
+**Links profile:** csharp
+**Links proof:** not run — links stay Likely until this adapter's proof fixture passes (SCOPE-137 FR-014).
+
+Read through the built-in `csharp` profile in `_wxAI/impact/lib/profiles.mjs`: `using` imports,
+ASP.NET `[Http*]`, `[Route]` and minimal-API `Map*` routes, EF Core `DbSet<T>` and `Add/Update/Remove`,
+raw SQL, and `Environment.GetEnvironmentVariable`. All labeled Likely.
+Extend it for this project by adding patterns the profile misses as `<kind> :: <regex>` lines below,
+where kind is import, route, data-write, data-read or env.
