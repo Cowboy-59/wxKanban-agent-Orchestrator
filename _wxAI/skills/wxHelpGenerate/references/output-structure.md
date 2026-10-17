@@ -73,6 +73,27 @@ not listed is appended alphabetically.
 Every element needs a `behavior` filled in during interrogation (step 4). The
 verify step (step 7) fails if any element is missing one.
 
+### --teach additions (SCOPE-138)
+
+- Elements may carry `commits`: `"save"`, `"submit"`, `"send"` or `"delete"` when a click persists or
+  transmits data, or `false` when it only opens something. When it is absent, a button is judged by
+  its label's leading verb.
+- A top-level `processes` list: `{ id, title, goal, steps: [{ screen, element, action, example?, expect? }] }`.
+  `screen` is a screen `id`, and `element` is an element `label` on that screen. Example values are made up.
+
+`config.json` gains, for `--teach`:
+
+```json
+"environments": {
+  "uat": ["https://uat.example.com"],
+  "production": ["https://app.example.com"]
+}
+```
+
+Written by `teach.mjs env`. It holds addresses only, no credentials or tokens. Lessons go to
+`docs/teaching-skills/`, alongside a `.lessons.json` manifest (versions and content hashes; not part of the
+bundle) and the zip.
+
 ## Section Markdown conventions the builder relies on
 
 - The first `#` heading is the section title (used in the index, sidebar, TOC).

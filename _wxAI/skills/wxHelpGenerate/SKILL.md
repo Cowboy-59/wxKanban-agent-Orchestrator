@@ -159,9 +159,103 @@ Quality here is mostly "did we actually cover everything and does it render," wh
 
 For a substantial doc set, spawn a verification subagent to walk this checklist against the built outputs and report gaps, so a second pass catches what the writing pass missed.
 
+## --teach — Teaching Skills (SCOPE-138)
+
+`/wxHelpGenerate --teach` makes the same walk also produce **one lesson per process**: AI-agnostic
+markdown a new user loads into any AI to be taught the app step by step. Without `--teach`,
+everything above runs exactly as before; `--teach` only adds the steps below.
+
+**Before the walk (Scope).** If `docs-workspace/config.json` has no `environments` block, ask the
+developer for the app's UAT (practice) and Production (live) addresses, then record them:
+
+```
+node <skill>/scripts/teach.mjs env --uat <address>[,<address>] --production <address>[,<address>]
+```
+
+The script refuses an address carrying a user name, password or token (ask for a clean one), and
+requires at least one Production address. Any address on neither list counts as Production.
+
+**During Interrogate (step 4), also record:**
+
+- `files` on every screen: the project files that render it (the page component and any screen-specific
+  components), found by searching the code for the screen's route or title. This is how a later code
+  change is traced to exactly the lessons it affects. A screen without `files` is reported as "not
+  judged" by `stale`, never assumed current.
+- `commits` on every element whose click saves, submits, sends or deletes real data, set from what
+  the click actually did: `"save"`, `"submit"`, `"send"` or `"delete"`. Use `false` for a button that
+  only opens a form or a dialog. The walk rule still holds: never confirm a destructive action on
+  real data; record what the confirmation dialog says it would do.
+- a `processes` list in `inventory.json`: every task a user comes to the app to finish. Each is an
+  ordered list of `steps`, and may cross screens:
+
+  ```json
+  { "id": "create-invoice", "title": "Create an invoice", "goal": "Bill a customer for completed work",
+    "steps": [
+      { "screen": "invoice-list", "element": "New Invoice", "action": "click", "expect": "A blank invoice form opens." },
+      { "screen": "invoice-edit", "element": "Customer", "action": "choose", "example": "Acme Testing Co." },
+      { "screen": "invoice-edit", "element": "Save", "action": "click", "expect": "The invoice is saved." } ] }
+  ```
+
+  `action` is one of `click`, `type`, `choose`, `check`, `open`. Every `example` value is **made
+  up**: never copy a real name, email, number or record from the screen. The writer refuses to write
+  any lesson that holds an email address, key, token, card or account number, phone number or similar,
+  and no option turns that check off.
+
+**After Publish (step 6), write the lessons:**
+
+```
+node <skill>/scripts/teach.mjs build --app-version <the app's version>
+```
+
+This writes `docs/teaching-skills/<process>.md` (one per process), `start-here.md` (the lesson list,
+the save rule, and the learner's level) and `<product>-teaching-skills.zip` (only the checked lessons
+and start-here). It records the generation in wxKanban, or queues the record offline. Lessons are
+written under `docs/`, never `_wxAI/`.
+`node <skill>/scripts/teach.mjs check` reports any process with no lesson, or any lesson with no
+process. **Verify (step 7)** adds: every process has a lesson, and the build reported none missing.
+
+**--teach --stale — keeping lessons current.** After the app changes:
+
+```
+node <skill>/scripts/teach.mjs stale
+```
+
+This takes every file changed since each lesson was built, runs the kit's Change Impact engine on
+them, and flags only the lessons whose screens' files were changed or are reached by the change. The
+flags go to `.wxai/teaching-stale.json`. Re-walk **only** the flagged screens, update their entries
+in `inventory.json`, then:
+
+```
+node <skill>/scripts/teach.mjs build --stale --app-version <the app's version>
+```
+
+Only the flagged lessons are regenerated. Each gets a new version and opens with **"What changed
+since version X"** (added, removed and changed steps), and its flag is cleared. Every other lesson
+is left alone. For teaching lessons this replaces the all-or-nothing `.wxai/help-stale.json`, which
+the help site keeps.
+
+**Desktop and mobile apps (no walk).** A desktop or mobile app has no web page to walk, so
+lessons are built from its screen definitions instead: the conversion output (WinDev, VB6, Clarion:
+`pre-convert/<screen>.controls.md` and `<screen>.page.md`), form definitions, or the rebuilt pages.
+Read them and record the same `inventory.json`, setting `"source": "definitions"` at its top level.
+Each screen's elements come from its controls; each `behavior` and `commits` comes from the
+control's event code; each process follows the code paths a user would take. Never claim a behavior
+the code does not show. The writer labels every such lesson **"From definitions, not tested by
+clicking"**, and since there is no page address to check, it always asks the learner which
+environment they are in before the first Committing Step. Record the UAT and Production addresses
+as usual (`teach.mjs env`), using whatever identifies each environment, such as the server or
+database host the app connects to.
+
+**What each lesson does.** It is tutor-led by default. When the AI can see the learner's browser it
+coaches instead. It carries its version and the app version, and stops at any screen that looks
+different. Before every **Committing Step** it applies the save rule: in UAT the learner goes ahead;
+in Production, or when unsure, it asks **"Do you wish to save your changes?"** and continues only on
+a clear yes.
+
 ## Resources
 
 - `references/browser-capture.md` — exact browser-tool sequences for navigating, enumerating elements, sizing the viewport, handling menus/modals/tables, and taking clean screenshots.
 - `references/output-structure.md` — the `docs-workspace/` layout, `config.json` and `inventory.json` schemas, and HTML/PDF theming options.
 - `scripts/annotate.py` — crop + annotate screenshots (numbered markers, arrows, boxes, redaction) from a JSON spec.
 - `scripts/build_docs.py` — build the HTML help site and PDF manual from the section Markdown + config.
+- `scripts/teach.mjs` — `--teach`: record the UAT / Production addresses (`env`), write the lessons, start-here and bundle (`build`), report coverage (`check`). Node, no dependencies.

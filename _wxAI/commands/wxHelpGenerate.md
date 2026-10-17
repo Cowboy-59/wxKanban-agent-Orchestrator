@@ -1,5 +1,5 @@
 ---
-description: wxHelpGenerate — turn a live web app into end-user help by walking it screen by screen, then publish a linked HTML help site + a PDF manual.
+description: wxHelpGenerate — turn a live web app into end-user help by walking it screen by screen, then publish a linked HTML help site + a PDF manual; with --teach, also one AI-agnostic lesson per process for users to learn the app in their own AI (--teach --stale regenerates only the lessons a change reached).
 args: "{{args}}"
 ai-compat: universal
 claude-code: true
@@ -26,6 +26,25 @@ This command runs the **`wxHelpGenerate` skill**. Invoke the skill, then follow 
 7. **Verify** — every element documented, every internal link resolves, every screenshot renders, no private data leaked.
 
 Do steps 2–5 one screen at a time so context stays manageable.
+
+## --teach — Teaching Skills
+
+`/wxHelpGenerate --teach` makes the same walk also write **one lesson per process**
+(`docs/teaching-skills/<process>.md`, plus `start-here.md` and a zip bundle). A new user loads a
+lesson into any AI chat and is taught the task step by step. The AI acts as a tutor, or as a coach
+when it can see their browser.
+
+- **The save rule.** The first run asks for the app's UAT and Production addresses. In UAT a learner
+  completes every step; in Production, or when unsure, the lesson asks **"Do you wish to save your
+  changes?"** before every step that saves, submits, sends or deletes.
+- **No real data.** Lessons hold behavior only, with made-up examples. A lesson containing an email,
+  key, token or similar is refused before anything is written, and no option turns that check off.
+- **Desktop and mobile apps** get lessons from their screen definitions, labeled "from definitions,
+  not tested by clicking".
+
+`/wxHelpGenerate --teach --stale` regenerates only the lessons whose screens a change reached (found
+by the kit's Change Impact engine). Each opens with "What changed since version X"; the other
+lessons are untouched. Each run is recorded in wxKanban.
 
 ## Prerequisites
 
