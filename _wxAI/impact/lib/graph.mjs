@@ -48,6 +48,7 @@ export function walkSourceFiles(root, dir = root, out = [], exts = SOURCE_EXT, s
 // [SCOPE 137 / T001] END
 
 // [SCOPE 137 / T004] BEGIN — Git-visible files: honor .gitignore so ignored copies (.history/) never count
+// MODIFIED-BY: [SCOPE 137 / T017] — windowsHide on the git spawn (no console window on Windows)
 /**
  * Files git can see: tracked, plus untracked-but-not-ignored. Returns null when
  * the root is not a git work tree, in which case callers fall back to the walk.
@@ -57,6 +58,7 @@ export function walkSourceFiles(root, dir = root, out = [], exts = SOURCE_EXT, s
 export function gitVisibleFiles(root) {
   try {
     const out = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+      windowsHide: true,
       cwd: root,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,

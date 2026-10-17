@@ -96,10 +96,11 @@ export function proposedChange(root, toolName, input) {
 
 // [SCOPE 137 / T009] BEGIN — What the hook tells Claude (FR-008)
 // MODIFIED-BY: [SCOPE 137 / T010] — a data-loss stop in an unattended run says who decides, and where
+// MODIFIED-BY: [SCOPE 137 / T017] — windowsHide on the git spawn (no console window on Windows)
 
 function headOf(root) {
   try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return execFileSync('git', ['rev-parse', 'HEAD'], { windowsHide: true, cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   } catch {
     return 'uncommitted';
   }

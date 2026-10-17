@@ -18,6 +18,7 @@ import { buildAgreementEvent, mcpConnection, mcpSender, projectIdFor, recordAgre
 import { grantApproval, readPending } from './lib/approvals.mjs';
 
 // [SCOPE 137 / T009] BEGIN — Record a developer's answer to a stopped AI edit (FR-008, FR-013)
+// MODIFIED-BY: [SCOPE 137 / T017] — windowsHide on the git spawn (no console window on Windows)
 function arg(argv, name) {
   const i = argv.indexOf(`--${name}`);
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null;
@@ -25,7 +26,7 @@ function arg(argv, name) {
 
 function whoAmI(root) {
   try {
-    const name = execFileSync('git', ['config', 'user.name'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const name = execFileSync('git', ['config', 'user.name'], { windowsHide: true, cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     if (name) return name;
   } catch {
     // no git identity

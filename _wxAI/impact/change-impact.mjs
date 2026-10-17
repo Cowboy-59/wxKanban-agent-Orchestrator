@@ -60,6 +60,7 @@ export function extractAll(src, file = '') {
 // [SCOPE 137 / T003] END
 
 // [SCOPE 137 / T003] BEGIN — Changed line ranges: given explicitly, or from git diff hunks (FR-002 (2))
+// MODIFIED-BY: [SCOPE 137 / T017] — windowsHide on the git spawn (no console window on Windows)
 /** "a.ts:10-40;b.ts:5" → Map(file -> [[start, end]]). */
 export function parseLines(spec) {
   const map = new Map();
@@ -78,7 +79,7 @@ export function parseLines(spec) {
 /** Ranges of new-file lines changed vs HEAD, from `git diff -U0` hunk headers. */
 export function diffRanges(root, file) {
   try {
-    const out = execFileSync('git', ['diff', '-U0', 'HEAD', '--', file], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const out = execFileSync('git', ['diff', '-U0', 'HEAD', '--', file], { windowsHide: true, cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     const ranges = [];
     for (const m of out.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
       const start = Number(m[1]);
@@ -134,6 +135,7 @@ export function provenProfiles(root) {
 
 // [SCOPE 137 / T008] BEGIN — Inputs to classification: file text before and after, and whose change it is (FR-006)
 // MODIFIED-BY: [SCOPE 137 / T009] — owning scopes read the file on disk, which the line ranges always refer to
+// MODIFIED-BY: [SCOPE 137 / T017] — windowsHide on the git spawn (no console window on Windows)
 /** File types scanned for possible data loss: everything the engine reads, plus SQL. */
 const DATA_LOSS_EXT = [...SOURCE_EXT, ...PROFILE_EXT, '.sql'];
 
@@ -148,7 +150,7 @@ function readText(root, file) {
 /** The file as committed at HEAD; '' for a new file or outside git. */
 function gitShow(root, file) {
   try {
-    return execFileSync('git', ['show', `HEAD:${file}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 });
+    return execFileSync('git', ['show', `HEAD:${file}`], { windowsHide: true, cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 });
   } catch {
     return '';
   }
@@ -288,8 +290,9 @@ function readArgs(argv) {
 // [SCOPE 137 / T001] END
 
 // [SCOPE 137 / T001] BEGIN — Change Impact CLI (FR-001): which files changed
+// MODIFIED-BY: [SCOPE 137 / T017] — windowsHide on the git spawn (no console window on Windows)
 function changedFilesFor(opts) {
-  const git = (...a) => execFileSync('git', a, { cwd: opts.root, encoding: 'utf8' }).trim();
+  const git = (...a) => execFileSync('git', a, { windowsHide: true, cwd: opts.root, encoding: 'utf8' }).trim();
   const lines = (s) => s.split('\n').map(norm).filter(Boolean);
   if (opts.changed) return opts.changed.split(',').map((s) => norm(s.trim())).filter(Boolean);
   if (opts.base) return lines(git('diff', '--name-only', `${opts.base}..${opts.head}`));

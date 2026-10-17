@@ -43,9 +43,10 @@ function readArgs(argv) {
 // [SCOPE 137 / T001] END
 
 // [SCOPE 137 / T001] BEGIN — impact-graph.mjs as a thin wrapper over the shared engine (replaces 111/T041)
+// MODIFIED-BY: [SCOPE 137 / T017] — windowsHide on the git spawn (no console window on Windows)
 function main() {
   const opts = readArgs(process.argv.slice(2));
-  const git = (...a) => execFileSync('git', a, { cwd: opts.root, encoding: 'utf8' }).trim();
+  const git = (...a) => execFileSync('git', a, { windowsHide: true, cwd: opts.root, encoding: 'utf8' }).trim();
 
   let changedFiles;
   let commitsha;
