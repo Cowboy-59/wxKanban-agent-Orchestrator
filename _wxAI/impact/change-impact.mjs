@@ -13,7 +13,8 @@
 //   node _wxAI/impact/change-impact.mjs --changed "src/a.ts,src/b.ts" [--root .] [--out .wxai/impact.json]
 //   node _wxAI/impact/change-impact.mjs --base <ref> [--head HEAD] [--root .]
 //   node _wxAI/impact/change-impact.mjs --working        (uncommitted changes vs HEAD)
-//   options: --mode notify|boundaries|always (else .wxai/project.json impactMode, default boundaries)
+//   options: --mode notify|boundaries|always (else the owner-set mode cached in .wxai/impact-mode.json,
+//            else .wxai/project.json impactMode, default boundaries)
 //            --signoffs <file.json> (sign-offs the change would undo, when the caller knows them)
 //            --before <file> (the one changed file as it was before a hand edit; else HEAD is compared)
 //            --no-write (write no file; add --no-cache to skip the facts cache too) --summary (print the readable summary)

@@ -18,6 +18,7 @@ import { extractSchemaDecls } from './data.mjs';
 import { FENCE_END_RE, FENCE_RE } from './scopes.mjs';
 
 // [SCOPE 137 / T008] BEGIN — impactMode setting and the decision rule (FR-007)
+// MODIFIED-BY: [SCOPE 137 / T019] — the owner's mode, cached from wxKanban, comes first (FR-007a)
 export const IMPACT_MODES = ['notify', 'boundaries', 'always'];
 export const DEFAULT_IMPACT_MODE = 'boundaries';
 
@@ -27,6 +28,8 @@ export const DEFAULT_IMPACT_MODE = 'boundaries';
  * which would silently stop asking.
  */
 export function readImpactMode(root) {
+  const owner = readOwnerImpactMode(root);
+  if (owner) return owner;
   let raw;
   try {
     raw = JSON.parse(readFileSync(join(root, '.wxai', 'project.json'), 'utf8'))?.impactMode;
@@ -51,6 +54,37 @@ export function decide(mode, { hasImpact, boundary, dataLoss }) {
   return boundary ? 'ask' : 'notify';
 }
 // [SCOPE 137 / T008] END
+
+// [SCOPE 137 / T019] BEGIN — The owner-set impactMode from the kit's cache (FR-007a)
+export const OWNER_MODE_FILE = join('.wxai', 'impact-mode.json');
+
+/**
+ * The mode the project owner set in wxKanban, as last cached by the hook
+ * (lib/owner-mode.mjs). Null when nothing is cached or the owner never set one, so the local
+ * value applies. A different value in .wxai/project.json is ignored, with a warning that
+ * says so.
+ */
+export function readOwnerImpactMode(root) {
+  let cached;
+  try {
+    cached = JSON.parse(readFileSync(join(root, OWNER_MODE_FILE), 'utf8'));
+  } catch {
+    return null;
+  }
+  if (!IMPACT_MODES.includes(cached?.mode)) return null;
+  const out = { mode: cached.mode, source: 'owner', setBy: cached.setBy ?? null, setAt: cached.setAt ?? null };
+  let local;
+  try {
+    local = JSON.parse(readFileSync(join(root, '.wxai', 'project.json'), 'utf8'))?.impactMode;
+  } catch {
+    local = undefined;
+  }
+  if (local !== undefined && local !== null && local !== cached.mode) {
+    out.warning = `impactMode "${local}" in .wxai/project.json is ignored: the project owner set "${cached.mode}" in wxKanban${cached.setBy ? ` (${cached.setBy})` : ''}`;
+  }
+  return out;
+}
+// [SCOPE 137 / T019] END
 
 // [SCOPE 137 / T008] BEGIN — Possible data loss in changed content (FR-006, SC-5)
 // \x60 is a backtick, written escaped so fence and template parsers do not trip on it.

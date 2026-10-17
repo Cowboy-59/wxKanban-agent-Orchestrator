@@ -14,8 +14,10 @@ import { dirname, join, resolve } from 'node:path';
 
 // [SCOPE 137 / T009] BEGIN — Install, check or remove the Change Impact hook entry (FR-008)
 // MODIFIED-BY: [SCOPE 137 / T016] — installing also makes the project .gitignore cover the per-developer state (approvals, pending changes)
+// MODIFIED-BY: [SCOPE 137 / T018] — the matcher includes Bash (Amendment A, FR-008a)
+// MODIFIED-BY: [SCOPE 137 / T019] — the owner-set impactMode cache is per-developer state too (FR-007a)
 export const HOOK_SCRIPT = '_wxAI/impact/hook.mjs';
-export const HOOK_MATCHER = '^(Edit|Write|MultiEdit|NotebookEdit)$';
+export const HOOK_MATCHER = '^(Edit|Write|MultiEdit|NotebookEdit|Bash)$';
 
 /** The entry the kit owns. Data loss is checked before anything slow, so a timeout cannot let it through. */
 export function hookEntry() {
@@ -88,6 +90,7 @@ export const IGNORED_STATE = [
   '.wxai/impact-crossings.jsonl',
   '.wxai/impact-crossings.checkpoint',
   '.wxai/impact-unattended.json',
+  '.wxai/impact-mode.json',
 ];
 
 /** Append whatever of IGNORED_STATE the project's .gitignore lacks. Never rewrites a line. */

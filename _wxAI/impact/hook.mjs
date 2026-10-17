@@ -18,15 +18,21 @@
 //
 // Unattended runs (WXAI_UNATTENDED=1): a boundary is logged as a crossing and the
 // edit continues; possible data loss still stops (FR-009).
+//
+// Bash (Amendment A, FR-008a): a command that writes or deletes project files is judged
+// like an edit of those files, and SQL sent through a database client is checked for
+// possible data loss. A command that changes nothing the reader can name gets no opinion.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { buildReport, renderSummary, toImpactGraph } from './change-impact.mjs';
-import { dataLossChanges, decide } from './lib/classify.mjs';
+import { dataLossChanges, dataLossIn, decide } from './lib/classify.mjs';
+import { readBashCommand } from './lib/shell.mjs';
 import { buildAgreementEvent, changeHash, mcpCall, mcpConnection, mcpSender, projectIdFor, recordAgreement } from './lib/agreement.mjs';
 import { consumeApproval, savePending } from './lib/approvals.mjs';
 import { logCrossingLine, unattendedState } from './lib/unattended.mjs';
+import { refreshOwnerImpactMode } from './lib/owner-mode.mjs';
 
 // [SCOPE 137 / T009] BEGIN — The proposed change: which file, its content before and after, which lines (FR-008)
 export const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
@@ -97,6 +103,7 @@ export function proposedChange(root, toolName, input) {
 // [SCOPE 137 / T009] BEGIN — What the hook tells Claude (FR-008)
 // MODIFIED-BY: [SCOPE 137 / T010] — a data-loss stop in an unattended run says who decides, and where
 // MODIFIED-BY: [SCOPE 137 / T017] — windowsHide on the git spawn (no console window on Windows)
+// MODIFIED-BY: [SCOPE 137 / T019] — says when a local impactMode was ignored for the owner's (FR-007a)
 
 function headOf(root) {
   try {
@@ -141,6 +148,7 @@ export function denyReason({ report, hash, dataLoss, file, state = null }) {
   if (c) {
     for (const r of c.reasons) lines.push(`  - Boundary: ${r.detail}`);
     if (!c.signoff?.checked) lines.push(`  - Human sign-offs: not checked (${c.signoff?.reason ?? 'unavailable'})`);
+    if (c.warning) lines.push(`  - Note: ${c.warning}`);
     if (report.summary?.affected) {
       lines.push(`Affected files: ${report.summary.affected}`);
       lines.push(...reachedLines(report));
@@ -159,6 +167,7 @@ export function notifyContext(report, file) {
   return [
     `Change Impact (notify): the edit to ${file} affects ${report.summary.affected} other file(s). No agreement is needed; tell the developer what it affects when you report the change.`,
     ...reachedLines(report, 10),
+    ...(report.classification?.warning ? [`Note: ${report.classification.warning}`] : []),
   ].join('\n');
 }
 
@@ -169,11 +178,14 @@ const inform = (text) => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', a
 // [SCOPE 137 / T009] BEGIN — The decision for one tool call (FR-008, FR-009)
 // MODIFIED-BY: [SCOPE 137 / T011] — the report it writes says it came from the hook, with the content hash, so the Cockpit does not ask again when the AI edit lands through the editor
 // MODIFIED-BY: [SCOPE 137 / T010] — unattended from the environment or a session-bound marker; data-loss stops are logged for the checkpoint
+// MODIFIED-BY: [SCOPE 137 / T018] — Bash commands go to decideBashCall (Amendment A, FR-008a)
+// MODIFIED-BY: [SCOPE 137 / T019] — refreshes the owner-set impactMode before the report (FR-007a)
 /**
  * Decide one PreToolUse call. Returns the JSON to print, or null for "no opinion".
  * `deps` lets tests replace the network calls.
  */
 export async function decideToolCall(input, { root, deps = {} } = {}) {
+  if (input?.hook_event_name === 'PreToolUse' && input.tool_name === 'Bash') return decideBashCall(input, { root, deps });
   if (input?.hook_event_name !== 'PreToolUse' || !EDIT_TOOLS.has(input.tool_name)) return null;
   const change = proposedChange(root, input.tool_name, input.tool_input ?? {});
   if (!change) return null;
@@ -195,7 +207,8 @@ export async function decideToolCall(input, { root, deps = {} } = {}) {
   }
   if (change.cellOnly) return null;
 
-  // 2. The impact itself.
+  // 2. The impact itself, under the owner's impactMode (refreshed at most hourly).
+  await refreshOwnerImpactMode(root, deps.ownerMode ?? { conn: deps.conn });
   const report = buildReport({
     root,
     changedFiles: [file],
@@ -223,6 +236,76 @@ export async function decideToolCall(input, { root, deps = {} } = {}) {
   savePending(root, { hash, files: [file], report, reason: 'boundary' });
   return deny(denyReason({ report, hash, dataLoss: [], file }));
 }
+
+// [SCOPE 137 / T018] BEGIN — Bash commands judged like edits (Amendment A, FR-008a)
+// MODIFIED-BY: [SCOPE 137 / T019] — refreshes the owner-set impactMode before the report (FR-007a)
+/**
+ * A Bash command that writes or deletes project files is judged like an edit of those files; SQL
+ * it sends through a database client is checked for possible data loss. A command that touches
+ * nothing the reader can name gets no opinion, so ordinary commands pass untouched. The approval
+ * binds to the exact command text.
+ */
+export async function decideBashCall(input, { root, deps = {} } = {}) {
+  const command = String(input.tool_input?.command ?? '');
+  if (!command.trim()) return null;
+  const read = readBashCommand(command);
+  if (!read.writes.length && !read.deletes.length && !read.sql.length) return null;
+
+  const cwd = resolve(input.cwd ?? root);
+  const files = [];
+  for (const p of [...read.writes, ...read.deletes]) {
+    const abs = isAbsolute(p) ? p : resolve(cwd, p);
+    const rel = relative(root, abs).replace(/\\/g, '/');
+    if (!rel || rel.startsWith('..') || isAbsolute(rel) || SKIP_PREFIXES.some((x) => rel.startsWith(x))) continue;
+    if (!files.includes(rel)) files.push(rel);
+  }
+  const hash = changeHash([{ file: '(bash)', content: command }]);
+  const key = files.length ? files : ['(bash)'];
+  const label = files.length ? `${files.join(', ')} (by a Bash command)` : 'the database (by a Bash command)';
+  const state = unattendedState(root, input.session_id ?? null);
+  const approval = () => consumeApproval(root, { hash, files: key });
+
+  // 1. SQL through a database client: possible data loss stops in every mode.
+  const dataLoss = [];
+  for (const s of read.sql) {
+    dataLoss.push(...dataLossIn(s.text).map((d) => ({ ...d, file: '(command)', line: null })));
+    if (s.file) {
+      const abs = isAbsolute(s.file) ? s.file : resolve(cwd, s.file);
+      try {
+        dataLoss.push(...dataLossIn(readFileSync(abs, 'utf8')).map((d) => ({ ...d, file: s.file })));
+      } catch {
+        // an unreadable script cannot be judged here; the client will report it
+      }
+    }
+  }
+  if (dataLoss.length) {
+    const ok = approval();
+    if (ok?.dataLoss) return null;
+    savePending(root, { hash, files: key, report: stubReport(label, dataLoss), reason: 'data-loss' });
+    if (state.unattended) {
+      logCrossingLine(root, { kind: 'stop', files: key, hash, reasons: dataLoss.map((d) => `possible data loss: ${d.kind} ${[d.table, d.column].filter(Boolean).join('.')}`) });
+    }
+    return deny(denyReason({ report: null, hash, dataLoss, file: label, state }));
+  }
+  if (!files.length) return null;
+
+  // 2. The impact of the files it writes or deletes (file level: the new content is not known yet).
+  await refreshOwnerImpactMode(root, deps.ownerMode ?? { conn: deps.conn });
+  const report = buildReport({ root, changedFiles: files });
+  const c = report.classification;
+  if (c.decision !== 'none' && (report.summary.affected ?? 0) > 0) await addSignoffs(root, report, deps);
+  writeReport(root, { ...report, origin: 'hook', contentHash: hash, checkedAt: new Date().toISOString() });
+  if (c.decision === 'none') return null;
+  if (c.decision === 'notify') return inform(notifyContext(report, label));
+  if (approval()) return null;
+  if (state.unattended) {
+    await logCrossing(root, report, hash, deps, state);
+    return inform(`Change Impact: unattended run — this Bash command changing ${files.join(', ')} crossed an Impact Boundary and was logged; it will be listed at the next checkpoint.\n${c.reasons.map((r) => `  - ${r.detail}`).join('\n')}`);
+  }
+  savePending(root, { hash, files: key, report, reason: 'boundary' });
+  return deny(denyReason({ report, hash, dataLoss: [], file: label }));
+}
+// [SCOPE 137 / T018] END
 
 function stubReport(file, dataLoss) {
   return {
