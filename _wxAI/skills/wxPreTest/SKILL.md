@@ -160,8 +160,115 @@ Exactly one of three, never ambiguous:
 | `scripts/smoke.mjs` | 5 | T007 |
 | `wxCreateTestPlan/scripts/clone-test-schema.mjs` | 1 (invoked) | SCOPE-111 Amendment B |
 
+## Nightly mode (`--nightly`, SCOPE-140)
+
+One unattended run every night on the project's **UAT server**, as the **Designated Agent**,
+against a **separate, non-production** database instance. It answers one question each morning:
+did anything break? It is driven by `scripts/nightly.mjs`; the AI work (driving an item with no
+automation) is done by the configured agent command, which reports each result back with
+`nightly.mjs record`.
+
+### Commands
+
+| Command | What it does |
+| --- | --- |
+| `node _wxAI/skills/wxPreTest/scripts/nightly.mjs check` | Configuration, the refusal check, the Entry Path and secrets. Writes nothing |
+| `... nightly.mjs plan` | Tonight's selection and time estimate. Writes nothing |
+| `... nightly.mjs run` | The run (what the scheduler starts) |
+| `... nightly.mjs install [--dry-run]` / `uninstall` | Register with Task Scheduler, a systemd timer (or cron) or launchd; remove, and report any residue |
+| `... nightly.mjs record --run <id> --item <key> --status pass\|fail\|blocked ...` | How the agent reports one item it drove |
+| `... nightly.mjs dismiss --observation "<screen>::<issue>"` | Dismiss an Observation for good |
+
+### Configuration
+
+`docs-workspace/config.json`, beside the lists SPEC-138 already keeps:
+
+```json
+{
+  "environments": {
+    "uat": ["https://uat.example.com"],
+    "production": ["https://app.example.com"],
+    "uatDatabases": ["uat-db.internal:5432"],
+    "productionDatabases": ["prod-db.internal"]
+  },
+  "entryPath": {
+    "kind": "portal", "portalName": "Workbench",
+    "signInUrl": "https://uat-portal.example.com/login",
+    "appTile": "#open-app", "appUrl": "https://uat.example.com/",
+    "selectors": { "username": "#user", "password": "#pass", "submit": "#signin", "otp": "#code",
+                   "otpSubmit": "#verify", "signedIn": "#portal-home", "appReady": "#app-home",
+                   "signInError": ".error" }
+  },
+  "nightly": {
+    "environment": "uat", "appMode": "deployed", "appUrl": "https://uat.example.com/",
+    "database": { "mode": "url", "urlSecret": "NIGHTLY_DATABASE_URL" },
+    "schedule": "02:00", "rotationSlots": 5, "cleanup": "remove", "helper": true,
+    "accounts": [
+      { "name": "normal-1", "usernameSecret": "NIGHTLY_USER1", "passwordSecret": "NIGHTLY_PASS1", "otpSecret": "NIGHTLY_OTP1", "passwordExpiresAt": "2027-01-31" },
+      { "name": "normal-2", "usernameSecret": "NIGHTLY_USER2", "passwordSecret": "NIGHTLY_PASS2", "otpSecret": "NIGHTLY_OTP2" }
+    ],
+    "adminPages": ["/admin", "/settings/company"],
+    "testCommand": ["npx", "playwright", "test", "${ref}"],
+    "agentCommand": ["claude", "-p", "--permission-mode", "bypassPermissions"],
+    "cleanupCommand": ["node", "scripts/nightly-cleanup.mjs"],
+    "cleanupVerifyCommand": ["node", "scripts/nightly-cleanup.mjs", "--count"],
+    "agentName": "nightly-designated-agent",
+    "agent": { "osUser": "UAT\\nightly", "osPasswordSecret": "NIGHTLY_AGENT_PASSWORD" }
+  }
+}
+```
+
+- **Secrets** are never in this file. Each `*Secret` names an environment variable the UAT server's
+  secret store provides to the scheduled run. Missing secrets are a setup problem, named but never
+  printed.
+- **`appMode`**: `deployed` on a UAT server (the app is already running against its UAT database);
+  `local` when the run boots the app itself (`schemaCommand`, `seedCommand`, `bootCommand`) against
+  its own instance, as wxKanban's own runs do with `"database": { "mode": "docker" }` (a labelled
+  PostgreSQL container on 127.0.0.1:55432, which must be on `uatDatabases`). In `local` mode the run
+  also refuses the project's own `DATABASE_URL` and its instance.
+- **`environment`**: `uat` (a dedicated server: no time limit, no split, a new run waits for one
+  still going) or `fallback` (a developer machine: ends at `endTime`, 06:00 by default, splits past
+  `splitLimitHours`, 10 by default, and holds a keep-awake request during the run).
+- **Items** come from the project's wxCreateTestPlan machine items. An item with an `automationRef`
+  runs through `testCommand` (`${ref}` is replaced); anything else goes to `agentCommand` with a
+  prompt (environment `NIGHTLY_PROMPT`) and a signed-in Playwright storage state. With neither, the
+  item is reported **unresolved**, never passed.
+- **`cleanupCommand`** removes rows tagged with `NIGHTLY_RUN_ID`; **`cleanupVerifyCommand`** prints
+  how many remain. The run reports any leftovers.
+
+### What a run does, in order
+
+1. **Refuses** before touching anything when the app address is on the Production list or not on
+   the UAT list, or the database host is on the Production database list or not on the UAT one. No
+   override exists.
+2. **Waits** for any run still going (UAT), or skips the night (fallback). Never overlaps.
+3. **Selects** every item the changes since the last run reached (SPEC-137 Change Impact, Impact
+   Boundary crossings first, no cap), then rotation slots, least recently tested first. Estimates
+   from each item's history.
+4. **Signs in** through the real sign-in page and the portal as a normal user, with the
+   authenticator code computed from its stored secret. Never mints a session. A missing portal
+   assignment is a setup problem.
+5. **Permission check**: every sampled admin page must refuse the normal user. A reachable one fails
+   the run.
+6. **Background helper** (a second account and session, only when `machine-capacity.mjs` allows):
+   crawls the app and reports **Observations** (more than 3 clicks deep, fields out of flow order,
+   unlabeled fields, pages that error) as `[Observation]` tasks, once each. Never pass/fail.
+7. **Tests** each item, re-running a failure once (flaky ones listed apart). A real failure gets a
+   diagnosis, a proposed patch if the agent wrote one (refused if it touches a test or removes an
+   assertion), and **one** wxKanban task across nights.
+8. **Cleans up** per the choice (remove, keep on failure, keep), verified.
+9. **Scans** every output for secrets.
+10. **Summarizes** to the run folder, `.wxai/nightly/last-summary.json` (the Cockpit card), the test
+    history, and a `nightly_run_completed` event, always listing what was **not** tested.
+11. **Evidence**, after a completely green run only, for each framework ticked in the project's
+    compliance settings: `artifacts/<release>/<framework>/` with `evidence.json`, `evidence.pdf` and
+    a SHA-256 `manifest.json`, fingerprints recorded as `compliance_artifact_written`. It states what
+    was checked and found, never "compliant". HITRUST only from the customer's assessor-signed
+    `artifacts/hitrust-crosswalk/crosswalk.json` (CSF v11.9.0); the kit ships no CSF content.
+
 ## Never
 
+- Never point a nightly run at production, and never add an override to the refusal.
 - Never write to `public`, and never assume isolation without Phase 2 having asserted it this run.
 - Never proceed past an unfaithful clone.
 - Never weaken an assertion to reach green.

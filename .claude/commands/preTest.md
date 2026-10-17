@@ -35,6 +35,29 @@ carries the phase order, the safety invariants, the repair-loop rules, and the h
 `preTest` is **independently runnable** by design. The working cycle is: look at the running app,
 change something, re-verify — and that cycle must not cost a full re-implement.
 
+### Nightly mode (SCOPE-140)
+
+```bash
+/preTest --nightly            # check the configuration and show tonight's plan; writes nothing
+/preTest --nightly --install  # schedule the run on this UAT server, as the Designated Agent
+/preTest --nightly --uninstall
+```
+
+| Flag | What it does |
+| --- | --- |
+| `--nightly` | Nightly mode: check the configuration and show tonight's plan (writes nothing) |
+| `--install` | With `--nightly`: schedule the nightly run on this machine as the Designated Agent |
+| `--uninstall` | With `--nightly`: remove the scheduled run and report anything left behind |
+
+These run `node _wxAI/skills/wxPreTest/scripts/nightly.mjs check | plan | install | uninstall`. The
+scheduler then starts `nightly.mjs run` every night: it refuses any production or unlisted target
+before touching anything, tests every item the day's changes reached plus a rotation, signs in
+through the real Entry Path as a normal user, checks admin pages are refused, re-runs failures once,
+opens one task per real failure, cleans up, and writes the morning summary (wxKanban and the
+Cockpit). After a completely green run only, it writes compliance evidence for the frameworks ticked
+in the project. It never commits, pushes, deploys, or edits a test. Setup: the wxPreTest skill,
+**Nightly mode**.
+
 ## Phases
 
 | Phase | What it does | Task |

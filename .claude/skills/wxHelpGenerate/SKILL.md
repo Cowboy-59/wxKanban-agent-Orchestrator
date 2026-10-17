@@ -13,7 +13,8 @@ description: >-
   they only mention screenshots, documenting screens, or explaining what links
   and fields do. Especially relevant for internal or line-of-business web apps
   (e.g. kanban boards, dashboards, admin consoles) where each screen has many
-  interactive elements whose behavior needs to be spelled out.
+  interactive elements whose behavior needs to be spelled out. With --teach it also writes one AI-agnostic lesson per process;
+  with --video, one short narrated onboarding video per lesson, recorded in UAT only.
 compatibility: >-
   Requires the Claude-in-Chrome browser tools (mcp__claude-in-chrome__*) to
   drive and screenshot the live app. Requires Python 3 with Pillow for
@@ -251,6 +252,50 @@ coaches instead. It carries its version and the app version, and stops at any sc
 different. Before every **Committing Step** it applies the save rule: in UAT the learner goes ahead;
 in Production, or when unsure, it asks **"Do you wish to save your changes?"** and continues only on
 a clear yes.
+
+## --video — Onboarding Videos (SCOPE-139)
+
+`--video` makes one short video per lesson by replaying the lesson's steps in UAT. It never walks
+anything the lessons do not already describe, so run `--teach` first. Everything is done by
+`scripts/video.mjs`; follow these steps in order and stop at any refusal.
+
+1. **Check.** `node <skill>/scripts/video.mjs check --address <uat url>` reports, writing nothing:
+   web app or not (from `stack.md`), whether the address is on the UAT list, the demo-data
+   attestation, and the preflight (Node.js 22+, FFmpeg, Playwright). Relay each problem in plain
+   words with what to install.
+2. **Attest.** If the address has no answer, ask the developer exactly: **"Does this UAT hold demo
+   data only?"** Record their answer, never your own:
+   `node <skill>/scripts/video.mjs attest --address <uat url> --answer yes|no --by "<their name>"`.
+   A **no** ends the run: nothing is recorded. A different UAT address is asked again.
+3. **Sign in once.** `node <skill>/scripts/video.mjs login --address <uat url>` opens a visible
+   browser; the developer signs in as a **demo user**, then closes it. The session is saved for
+   recording and is gitignored. Never type or ask for the password yourself.
+4. **Record.** `node <skill>/scripts/video.mjs record` (or `record --stale`). On first use it installs
+   HyperFrames at the pinned version and records the pin in `docs-workspace/config.json`. Each lesson
+   is narrated first (local Kokoro voice), replayed at human speed with every click captured, composed
+   and rendered to `docs/onboarding-videos/<lesson>.mp4`. A video over the length target (about
+   3 minutes) is **flagged for splitting**, never sped up. A step whose element cannot be found is
+   reported; fix the lesson rather than the video.
+5. **Report** each video with its lesson id and version, any flagged length, and any problem.
+   The run is logged locally (`docs-workspace/video-log.jsonl`) and in wxKanban
+   (`onboarding_video_generated`); no footage is sent anywhere.
+
+**Configuration** (`docs-workspace/config.json`, a `video` block): `address`, `pacing`
+(`hoverMs`, `afterClickMs`, `typeDelayMs`, `screenHoldMs`, `stepGapMs`), `lengthTargetS`, `voice`
+(Kokoro, default `am_adam`), `mascot` (an image path), `presenterClip`
+(`{ file, durationS, consent: { personConsented: true, attestedBy, attestedAt } }`; refused without
+the consent), `renderCommand` (only to render on the customer's own cloud account), `keepWork`, and
+`demoSeed` (`{ command }`, for a project whose own seed creates a demo company; it replaces the
+attestation). The pinned version (`hyperframesVersion`) and the attestations are written by the
+script.
+
+**Staleness.** `video.mjs stale` lists the videos to re-record: a lesson the Change Impact engine
+flagged (its screens changed), a lesson whose version moved, or a lesson with no video yet.
+`record --stale` re-records only those, keeping each video paired with its lesson's id and version.
+
+**Never** record on a Production or unlisted address, skip or answer the attestation for the
+developer, call a likeness-generating service, use generative video for screen footage, or send
+footage to wxKanban.
 
 ## Resources
 

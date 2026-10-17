@@ -94,6 +94,15 @@ Written by `teach.mjs env`. It holds addresses only, no credentials or tokens. L
 `docs/teaching-skills/`, alongside a `.lessons.json` manifest (versions and content hashes; not part of the
 bundle) and the zip.
 
+### --video additions (SCOPE-139)
+
+An element may carry an optional `selector` (a CSS selector) when its label alone does not find it
+during replay. `config.json` gains a `video` block (see SKILL.md, --video). Videos go to
+`docs/onboarding-videos/<lesson>.mp4` with a `.videos.json` manifest (each video's lesson id and
+version, environment, attestation, pinned HyperFrames version, duration, length flag) and
+`THIRD-PARTY-NOTICES.md`; the folder is gitignored. `video-log.jsonl` in the workspace keeps every
+attestation and run.
+
 ## Section Markdown conventions the builder relies on
 
 - The first `#` heading is the section title (used in the index, sidebar, TOC).

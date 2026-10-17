@@ -1,5 +1,5 @@
 ---
-description: wxHelpGenerate — turn a live web app into end-user help by walking it screen by screen, then publish a linked HTML help site + a PDF manual; with --teach, also one AI-agnostic lesson per process for users to learn the app in their own AI (--teach --stale regenerates only the lessons a change reached).
+description: wxHelpGenerate — turn a live web app into end-user help by walking it screen by screen, then publish a linked HTML help site + a PDF manual; with --teach, also one AI-agnostic lesson per process for users to learn the app in their own AI (--teach --stale regenerates only the lessons a change reached); with --video, one short narrated onboarding video per lesson, recorded in UAT only (--video --stale re-records only the changed ones).
 args: "{{args}}"
 ai-compat: universal
 claude-code: true
@@ -45,6 +45,29 @@ when it can see their browser.
 `/wxHelpGenerate --teach --stale` regenerates only the lessons whose screens a change reached (found
 by the kit's Change Impact engine). Each opens with "What changed since version X"; the other
 lessons are untouched. Each run is recorded in wxKanban.
+
+## --video — Onboarding Videos
+
+`/wxHelpGenerate --video` turns each lesson into a short branded video of its process: the lesson's
+steps are replayed in **UAT** at human speed and recorded, then composed with an oversized cursor,
+highlights, captions and narration taken from the lesson text, a chapter per step and an end card
+naming the lesson. Videos go to `docs/onboarding-videos/` for you to host.
+
+- **UAT only.** Recording is refused on a Production address and on any address on neither list.
+- **Demo data only.** Before the first recording on a UAT address it asks **"Does this UAT hold demo
+  data only?"**; without a yes nothing is recorded, and a new UAT address is asked again. No option
+  skips either check.
+- **No cost, nothing sent.** HyperFrames (Apache 2.0) installs on first use at a pinned version and
+  renders locally with a local voice. It needs Node.js 22+ and FFmpeg; the preflight names anything
+  missing. No footage is sent to wxKanban.
+- **Presenter.** Narration only by default; an optional brand mascot; your own presenter clip only
+  with a recorded consent attestation. wxKanban never generates a person's likeness.
+- **Web apps only.** Desktop and mobile video is reserved for a future release.
+
+| Flag | What it does |
+| --- | --- |
+| `--video` | Record and compose one onboarding video per lesson, in UAT |
+| `--video --stale` | Re-record only the videos whose lesson changed or whose screens a change reached |
 
 ## Prerequisites
 
