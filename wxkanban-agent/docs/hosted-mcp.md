@@ -66,8 +66,10 @@ tokens at construction time.
 
 ### Minting
 
-Admin UI: **wxkanban.wxperts.com → Admin → Projects → `<project>` → API tokens**.
-Requires `COMPANY_ADMIN` or `PROJECT_OWNER` role for the project.
+Web app: open the project's **Kit** tab, click **Generate Kit**, then **Download Kit**. Each
+download mints a new project token, writes it into the kit, and shows it once (Copy Token /
+Environment Setup). Only an admin or a user assigned to the project sees these buttons.
+(The older "Admin → Projects → API tokens" screen no longer exists.)
 
 The raw token is displayed **once** in a modal with a copy-to-clipboard
 button. After dismissal, only a short display prefix (e.g. `9bB7UUaP`) and the

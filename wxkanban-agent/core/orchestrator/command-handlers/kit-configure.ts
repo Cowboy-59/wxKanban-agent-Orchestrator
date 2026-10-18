@@ -98,7 +98,8 @@ export function handleKitConfigureCommand(args: KitConfigureArgs): KitConfigureR
     return {
       exitCode: 2,
       writtenTo: null,
-      message: `kit:configure: token does not look like a wxKanban API token — expected the token minted at wxkanban.wxperts.com → Admin → Projects → API tokens (got ${maskToken(args.token)}).`,
+      // [SCOPE 141 / T027] The old "Admin → Projects → API tokens" screen no longer exists.
+      message: `kit:configure: token does not look like a wxKanban API token — expected the token shown when you download the kit (web app → your project → Kit tab → Generate Kit, then Download Kit) (got ${maskToken(args.token)}).`,
     };
   }
   if (!HOSTED_RE.test(mcpUrl)) {

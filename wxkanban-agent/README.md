@@ -305,12 +305,14 @@ Custom commands are allowed in **every lifecycle stage** (like cross-cutting com
 ### Recommended: hosted MCP (v0.4.0+)
 
 ```bash
-# 1. Ask an admin to mint an API token for your project at
-#    wxkanban.wxperts.com → Admin → Projects → <project> → API tokens.
+# 1. Get a project API token: in the wxKanban web app open your project's
+#    Kit tab, click Generate Kit, then Download Kit. The token is shown once
+#    (Copy Token / Environment Setup) and is already written into the kit.
+#    Only an admin or a user assigned to the project sees these buttons.
 #
-# 2. Configure the kit:
+# 2. Configure the kit (only needed if you are not using the downloaded kit as-is):
 wxkanban-agent kit:configure \
-  --token <token copied from the Admin → API Tokens modal> \
+  --token <the token shown when you downloaded the kit> \
   --project-id <uuid> \
   --mcp-url https://mcp.wxperts.com
 
