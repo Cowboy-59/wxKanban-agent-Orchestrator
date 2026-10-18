@@ -127,6 +127,18 @@ function stopService(pidFileName, label) {
   try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
 }
 
+// SCOPE-068 FR-008: a gateway started by kit-start, or by init.mjs since FR-007,
+// is recorded only in .wxai/kit-runtime.json. Stopping just the legacy pid file
+// left that gateway serving the old kit's code after the upgrade, and the init
+// run that follows started a second one. kit-stop.mjs stops every service the
+// runtime file records, waiting for a clean exit before it force-kills.
+function stopRuntimeServices() {
+  const kitStop = path.join(root, 'scripts', 'kit-stop.mjs');
+  if (!fs.existsSync(kitStop)) return;
+  const r = spawnSync(process.execPath, [kitStop], { cwd: root, stdio: 'inherit', windowsHide: true });
+  if (r.status !== 0) log('warn', `kit-stop exited with code ${r.status ?? 'unknown'}; continuing`);
+}
+
 // [SPEC 019 R15 AC#5 / SPEC 028 T054] v1.1.0 legacy cleanup.
 // Pre-v1.1.0 kits shipped a local mcp-server/ that tried to open a Postgres
 // connection from the consumer (BUG-20). After spec 028, the MCP runs at
@@ -1087,6 +1099,7 @@ async function main() {
     log('info', 'Stopping services');
     stopService('.mcp-server.pid', 'MCP server');
     stopService('.orchestrator-gateway.pid', 'orchestrator gateway');
+    stopRuntimeServices();
 
     // [SPEC 019 R15 AC#5] v1.1.0 cutover — remove legacy local-MCP files when upgrading
     // from a pre-v1.1.0 kit. Hosted MCP (spec 028) means no consumer-side mcp-server/.

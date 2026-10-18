@@ -62,7 +62,7 @@ node scripts/init.mjs
 1. **Run `npm install` at the kit root if `node_modules/tsx` is missing.** The kit ships without `node_modules` (they're platform-specific — esbuild/bcrypt/etc.); consumers install for their own platform on first run.
 2. Confirm `https://mcp.wxperts.com` (or your configured `MCP_BASE_URL`) is reachable via `GET /health`.
 3. Verify the configured `WXKANBAN_API_TOKEN` authenticates against the hosted MCP.
-4. Start the Orchestrator HTTP Gateway on port 3003 (detached, log at `logs/orchestrator-gateway.log`, PID at `.orchestrator-gateway.pid`).
+4. Start the Orchestrator HTTP Gateway through `scripts/setup-gateway.mjs` (the same launcher `npm run kit:start` uses). The gateway binds this project's own port, derived from its project ID, and records its port and PID in `.wxai/kit-runtime.json`. Its log is `logs/gateway.log`. `init.mjs` waits for that record before it runs the health check.
 5. Run `orchestrator-health-check.mjs` and report the result. Exits 0 if the hosted MCP is reachable, the token is valid, and the gateway is up; exits 1 otherwise.
 
 > **If the orchestrator doesn't work — run `npm install` at the kit root.**
@@ -148,12 +148,11 @@ Commands surface based on the project's lifecycle stage in
 ## Stopping services
 
 ```bash
-# Unix
-kill $(cat .orchestrator-gateway.pid)
-
-# Windows
-taskkill /F /PID %GW_PID%
+npm run kit:stop
 ```
+
+`kit:stop` stops every service recorded in `.wxai/kit-runtime.json`. Older kits also wrote
+`.orchestrator-gateway.pid`; `upgrade-kit` still stops that PID if the file exists.
 
 VSCode task-started processes stop when you close the window. There is
 no local MCP server to stop — that runs on `mcp.wxperts.com`.

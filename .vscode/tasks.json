@@ -4,7 +4,7 @@
   "tasks": [
     {
       "label": "wxKanban Kit — Install & Connect",
-      "detail": "SCOPE-095: on folder open, run the one-shot bootstrap — install deps, register the hosted MCP with Claude Code (.mcp.json), start the gateway, and install the Dev Cockpit. init.mjs is idempotent (PID-guarded gateway, unchanged-.mcp.json short-circuit) so it is safe to run on every open, and it supersedes the standalone gateway-start / cockpit-install tasks so the gateway is never double-started on :3003.",
+      "detail": "SCOPE-095: on folder open, run the one-shot bootstrap — install deps, register the hosted MCP with Claude Code (.mcp.json), start the gateway, and install the Dev Cockpit. init.mjs is idempotent (it starts the gateway through scripts/setup-gateway.mjs, which skips the start when .wxai/kit-runtime.json records a live gateway; unchanged-.mcp.json short-circuit) so it is safe to run on every open, and it supersedes the standalone gateway-start / cockpit-install tasks so the gateway is never double-started (SCOPE-068 FR-007).",
       "type": "shell",
       "command": "node",
       "args": ["scripts/init.mjs"],

@@ -8,8 +8,8 @@
  *     spawn a local one anymore (spec 019 Decision #1).
  *   - Orchestrator HTTP Gateway. The port is assigned per-project at startup
  *     and recorded in .wxai/kit-runtime.json (services.gateway.port); this
- *     check resolves that live port rather than assuming a constant (legacy
- *     :3003 is only a last-resort fallback). Only required for stages that
+ *     check resolves that live port rather than assuming a constant; with no
+ *     recorded port it reports "no gateway running". Only required for stages that
  *     need local command dispatch (Implementation and later). In Design the
  *     kit's commands (buildscope, createspecs, dbpush, pipeline-agent) talk to
  *     the hosted MCP directly, so a missing gateway is informational rather
@@ -57,31 +57,62 @@ function readProjectJson() {
 }
 
 // The gateway port is assigned per-project at start and recorded in
-// .wxai/kit-runtime.json. It is NOT a fixed default — assuming :3003 (or any
-// constant) probes the wrong process whenever this project's gateway bound a
-// different port. Always resolve the live port from runtime.
-export function readGatewayPort(cwd = process.cwd()) {
+// .wxai/kit-runtime.json (services.gateway: { port, pid, projectId, … }). It is
+// NOT a fixed default — assuming :3003 probes the wrong process whenever this
+// project's gateway bound a different port. Always resolve from runtime.
+export function readGatewayRuntime(cwd = process.cwd()) {
   const p = path.join(cwd, '.wxai', 'kit-runtime.json');
   if (!fs.existsSync(p)) return null;
   try {
     const rt = JSON.parse(fs.readFileSync(p, 'utf8'));
-    return rt?.services?.gateway?.port ?? null;
+    const g = rt?.services?.gateway;
+    if (!g?.port) return null;
+    return { port: g.port, pid: g.pid ?? null, projectId: g.projectId ?? null };
   } catch {
     return null;
   }
 }
 
+// Back-compat helper (tests + resolveGatewayUrl callers use the bare port).
+export function readGatewayPort(cwd = process.cwd()) {
+  return readGatewayRuntime(cwd)?.port ?? null;
+}
+
+// A recorded gateway pid that is no longer alive means the runtime file is stale
+// (the gateway crashed or was killed without cleanup) — probing its port would
+// find nothing, or worse a neighbouring project's gateway that reused the port.
+// Signal 0 tests existence without touching the process; EPERM means it exists
+// but is owned by another user (still alive). Returns null when the pid is
+// unknown, so the caller falls back to a plain probe rather than over-asserting.
+export function pidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return null;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err?.code === 'EPERM';
+  }
+}
+
 // Resolve order: explicit override env, then the live port from
-// .wxai/kit-runtime.json, then the legacy default only as a last resort.
+// .wxai/kit-runtime.json. With neither there is no gateway to probe, so return
+// null and report "no gateway running" rather than guess :3003, which belongs
+// to whichever project bound it (SCOPE-068 FR-001/FR-009, feedback ecacc0c6).
 export function resolveGatewayUrl(envOverride, gatewayPort) {
   if (envOverride) return envOverride;
   if (gatewayPort) return `http://localhost:${gatewayPort}`;
-  return 'http://localhost:3003';
+  return null;
 }
 
 const envFromFile = parseEnvFile(path.join(process.cwd(), '.env'));
 const projectJson = readProjectJson();
-const gatewayPort = readGatewayPort();
+const gatewayRuntime = readGatewayRuntime();
+const gatewayPort = gatewayRuntime?.port ?? null;
+const gatewayPid = gatewayRuntime?.pid ?? null;
+const gatewayLive = pidAlive(gatewayPid); // true | false | null(unknown)
+// Identity: assert the gateway we reach is THIS project's, not a neighbour that
+// reused the port. Expected id = what our own gateway recorded at startup.
+const expectGatewayProjectId = gatewayRuntime?.projectId ?? null;
 
 // v1.1.0+: the MCP is hosted. Falling back to localhost:3002 is wrong because
 // that port is guaranteed to be unbound on a v1.1.0 install. Resolve from
@@ -111,7 +142,7 @@ const gatewayRequired = !GATEWAY_OPTIONAL_STAGES.has(lifecycleStage);
 
 const TIMEOUT_MS = 3000;
 
-async function probe(label, url) {
+async function probe(label, url, expectProjectId = null) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -124,6 +155,12 @@ async function probe(label, url) {
     });
     const body = await response.json().catch(() => ({}));
     if (response.ok && (body?.status === 'ok')) {
+      // Identity guard: a healthy response from a DIFFERENT project's gateway (a
+      // neighbour that reused this port) must not be reported as ours.
+      if (expectProjectId && body.projectId && body.projectId !== expectProjectId) {
+        console.log(`  ✗ ${label.padEnd(18)} ${url}  identity mismatch — reached a different project's gateway (${String(body.projectId).slice(0, 8)}… ≠ this project ${String(expectProjectId).slice(0, 8)}…); the port was likely reused by another kit project`);
+        return false;
+      }
       const meta = [body.service, body.transport, body.port ? `port ${body.port}` : null]
         .filter(Boolean)
         .join(' · ');
@@ -162,9 +199,23 @@ async function main() {
   console.log('wxKanban kit health check');
   console.log('─────────────────────────');
   console.log(`  stage: ${lifecycleStage} (gateway ${gatewayRequired ? 'required' : 'optional'})`);
+  const checkGateway = async () => {
+    if (!GATEWAY_URL) {
+      console.log(`  ✗ ${'Orchestrator gateway'.padEnd(18)} no gateway running for this project (nothing recorded in .wxai/kit-runtime.json)`);
+      return false;
+    }
+    // If we recorded a gateway pid and it is provably dead, the runtime entry is
+    // stale — report "not running" instead of probing a port that is either
+    // silent or owned by another project.
+    if (gatewayRuntime && gatewayLive === false) {
+      console.log(`  ✗ ${'Orchestrator gateway'.padEnd(18)} recorded pid ${gatewayPid} is not running (stale .wxai/kit-runtime.json)`);
+      return false;
+    }
+    return probe('Orchestrator gateway', GATEWAY_URL, expectGatewayProjectId);
+  };
   const [mcpOk, gwOk] = await Promise.all([
-    probe('Hosted MCP',        MCP_URL),
-    probe('Orchestrator gateway', GATEWAY_URL),
+    probe('Hosted MCP', MCP_URL),
+    checkGateway(),
   ]);
   console.log('');
 
@@ -185,7 +236,7 @@ async function main() {
     console.log('✗ Orchestrator gateway not reachable (required in stage ' + lifecycleStage + ').');
     console.log('');
     console.log('  Start it manually:');
-    console.log('    node wxkanban-agent/apps/command-gateway/bin/wxai-http.mjs');
+    console.log('    npm run kit:start');
     console.log('  Or re-run install:');
     console.log('    node scripts/init.mjs');
     process.exitCode = 1;

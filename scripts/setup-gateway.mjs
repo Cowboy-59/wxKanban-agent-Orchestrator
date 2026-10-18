@@ -111,7 +111,9 @@ async function startGateway() {
     // does not self-terminate when this short-lived launcher exits.
     MCP_SKIP_PARENT_WATCHER: 'true',
   };
-  if (!env.GATEWAY_HTTP_PORT) env.GATEWAY_HTTP_PORT = '3003';
+  // No GATEWAY_HTTP_PORT default: the gateway derives this project's own port
+  // from its projectId (SCOPE-068 FR-005). Setting one here overrode that, so
+  // every kit:start gateway bound 3003 (SCOPE-068 FR-006, feedback ecacc0c6).
 
   const child = spawn(
     process.execPath,

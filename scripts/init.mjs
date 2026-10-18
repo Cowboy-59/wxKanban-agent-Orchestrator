@@ -9,7 +9,8 @@
  *   1. Loads .env (and .wxai/project.json's `kit` block for fallback values).
  *   2. Verifies WXKANBAN_MCP_BASE_URL is reachable via GET /health.
  *   3. Verifies WXKANBAN_API_TOKEN authenticates (POST /call with a sentinel).
- *   4. Starts the Orchestrator HTTP Gateway (detached, PID-tracked).
+ *   4. Starts the Orchestrator HTTP Gateway through scripts/setup-gateway.mjs,
+ *      which waits until the gateway records itself in .wxai/kit-runtime.json.
  *   5. Runs orchestrator-health-check.mjs and exits with its result.
  *
  * Drop-in for the orchestrator repo's `scripts/init.mjs`. Replaces the
@@ -20,7 +21,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { setTimeout as sleep } from 'node:timers/promises';
 import tls from 'node:tls';
 // Spec 042 — single source of truth for the Dev Cockpit install (also run by
 // the .vscode/tasks.json folderOpen task so a fresh download installs it too).
@@ -29,18 +29,10 @@ import { installCockpitExtension } from './install-cockpit-extension.mjs';
 const root = process.cwd();
 const envPath = path.join(root, '.env');
 const projectJsonPath = path.join(root, '.wxai', 'project.json');
-const gwPidPath = path.join(root, '.orchestrator-gateway.pid');
-const logsDir = path.join(root, 'logs');
-const gwLogPath = path.join(logsDir, 'orchestrator-gateway.log');
-// The gateway HTTP server lives at apps/command-gateway/src/http.ts. The
-// `wxai-http.mjs` shim launches it via tsx. Do NOT confuse with `wxai.mjs`,
-// which is the *CLI* dispatcher and routes every argument through the policy
-// stage gate — `wxai.mjs gateway:start` always rejects because `gateway:start`
-// is not a Capability (BUG: pre-fix init.mjs spawned that and the gateway
-// never bound :3003, then orchestrator-health-check.mjs reported the install
-// as failed on an otherwise-healthy v1.1.0 kit).
-const gwEntry = path.join(root, 'wxkanban-agent', 'apps', 'command-gateway', 'src', 'http.ts');
-const gwBin = path.join(root, 'wxkanban-agent', 'apps', 'command-gateway', 'bin', 'wxai-http.mjs');
+// The gateway is started by setup-gateway.mjs, the same launcher kit:start uses
+// (SCOPE-068 FR-007). Do NOT spawn `wxai.mjs gateway:start`: wxai.mjs is the CLI
+// dispatcher, and `gateway:start` is not a Capability, so the policy rejects it.
+const setupGatewayScript = path.join(root, 'scripts', 'setup-gateway.mjs');
 const healthCheckScript = path.join(root, 'scripts', 'orchestrator-health-check.mjs');
 
 const DEFAULT_MCP_BASE_URL = 'https://mcp.wxperts.com';
@@ -154,60 +146,47 @@ async function checkToken(baseUrl, token, projectId) {
   console.log(`[init] token OK            → project ${projectId} reachable`);
 }
 
-function isRunning(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
+// SCOPE-068 FR-007: start the gateway through setup-gateway.mjs, the same path
+// kit:start uses. It skips the start when .wxai/kit-runtime.json records a live
+// gateway, lets the gateway bind this project's own port, and waits until the
+// gateway records itself, so the health check below never probes a gateway that
+// is still booting. The in-line spawn this replaces kept its own pid file and log
+// and waited a fixed 1.5 s, which is shorter than a cold tsx start, so healthy
+// installs were reported as failed against :3003 (feedback ecacc0c6).
+async function startGateway(cfg) {
+  if (!fs.existsSync(setupGatewayScript)) {
+    bail(`gateway launcher not found at ${setupGatewayScript}\n` +
+         `  Did you extract the kit fully? Try: ls scripts/`);
   }
-}
-
-function startGateway(cfg) {
-  if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
-
-  if (fs.existsSync(gwPidPath)) {
-    const pid = Number(fs.readFileSync(gwPidPath, 'utf8').trim());
-    if (Number.isFinite(pid) && isRunning(pid)) {
-      console.log(`[init] gateway already running PID=${pid}`);
-      return;
-    }
-  }
-
-  const entry = fs.existsSync(gwBin) ? gwBin : gwEntry;
-  if (!fs.existsSync(entry)) {
-    bail(`orchestrator gateway entrypoint not found at ${entry}\n` +
-         `  Did you extract the kit fully? Try: ls wxkanban-agent/apps/command-gateway/`);
-  }
-
-  const outFd = fs.openSync(gwLogPath, 'a');
   const env = {
     ...process.env,
     WXKANBAN_MCP_BASE_URL: cfg.mcpBaseUrl,
     WXKANBAN_API_TOKEN: cfg.apiToken,
     WXKANBAN_PROJECT_ID: cfg.projectId,
   };
-  // wxai-http.mjs / http.ts take no positional args — they bind the HTTP
-  // server on GATEWAY_HTTP_PORT (default 3003). DO NOT pass `gateway:start`;
-  // that's a non-existent CLI command and would be rejected by the policy.
-  // windowsHide (CREATE_NO_WINDOW) is REQUIRED here, not cosmetic. This is a
-  // detached, long-lived console process (node.exe) started from VS Code's task
-  // runner, which owns no console of its own — so Windows hands the child a
-  // fresh, VISIBLE console window that then lingers for the life of the gateway.
-  // The folderOpen task runs this on EVERY project open, so the windows stack up
-  // across a multi-project estate. Field report: feedback e8849e53 / 8a2b439a
-  // (window titled with the node.exe path, exactly process.execPath).
-  // `detached` STAYS — it is what survives the launching task exiting.
-  const child = spawn(process.execPath, [entry], {
-    cwd: root,
-    env,
-    detached: true,
-    stdio: ['ignore', outFd, outFd],
-    windowsHide: true,
+  // `detached` is REQUIRED. On Windows, Node places every non-detached child in a
+  // job object that kills its members when this process exits, and the gateway
+  // the launcher starts would inherit that job, so it died the moment init.mjs
+  // finished (measured 2026-10-10: listening, then gone, no shutdown line). A
+  // detached launcher has no console, so its output comes back over pipes and is
+  // relayed here. windowsHide stops Windows opening a console window for it
+  // (feedback e8849e53).
+  const code = await new Promise((resolve) => {
+    const c = spawn(process.execPath, [setupGatewayScript], {
+      cwd: root,
+      env,
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    c.stdout.pipe(process.stdout);
+    c.stderr.pipe(process.stderr);
+    c.on('exit', (exitCode) => resolve(exitCode ?? 1));
+    c.on('error', () => resolve(1));
   });
-  fs.writeFileSync(gwPidPath, String(child.pid));
-  child.unref();
-  console.log(`[init] gateway started     → PID=${child.pid}  log=${gwLogPath}`);
+  if (code !== 0) {
+    console.log(`[init] gateway launcher exited with code ${code}; the health check below reports the gateway's state`);
+  }
 }
 
 async function runHealthCheck() {
@@ -478,7 +457,7 @@ async function main() {
   // [SCOPE 137 / T017] Change Impact: the AI-edit hook (after the MCP registration it relies on).
   installChangeImpactHook();
 
-  startGateway(cfg);
+  await startGateway(cfg);
 
   // Spec 042 — install/update the Dev Cockpit VS Code extension (best-effort).
   try {
@@ -487,14 +466,13 @@ async function main() {
     console.log(`[init] Dev Cockpit install skipped (${err?.message ?? err}).`);
   }
 
-  // Give the gateway a beat to bind, then probe.
-  await sleep(1500);
+  // startGateway already waited for the gateway to record itself, so no sleep.
   const hc = await runHealthCheck();
   if (hc === 0) {
     console.log('\n[init] ✓ kit ready');
     process.exit(0);
   } else {
-    console.error('\n[init] ✗ health check failed — see logs/orchestrator-gateway.log');
+    console.error('\n[init] ✗ health check failed — see logs/gateway.log');
     process.exit(1);
   }
 }
