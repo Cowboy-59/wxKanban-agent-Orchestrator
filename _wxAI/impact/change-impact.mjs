@@ -307,6 +307,7 @@ function changedFilesFor(opts) {
 // [SCOPE 137 / T001] END
 
 // [SCOPE 137 / T001] BEGIN — Change Impact CLI (FR-001, FR-004): build the report
+// MODIFIED-BY: [SCOPE 137 / T021] — a shared name reaches another scope only when the changed file defines it (FR-006a)
 // MODIFIED-BY: [SCOPE 137 / T005] — adds code→table, foreign-key and migration→code data links
 // MODIFIED-BY: [SCOPE 137 / T006] — adds named-string links and the scopes reached (via fences)
 // MODIFIED-BY: [SCOPE 137 / T004] — adds client URL → server route links
@@ -361,7 +362,7 @@ export function buildReport({
     );
     links.push(...dataLinks({ changedFiles, schema, usage, migrationTablesByFile }));
     // Named strings: wired by a name, not an import or a table (FR-002 (7)).
-    links.push(...namedStringLinks({ changedFiles, index: scanNamedStrings(root, result.files, facts) }));
+    links.push(...namedStringLinks({ changedFiles, index: scanNamedStrings(root, result.files, facts), root, contents }));
     // Client URL → server route: screens call handlers by URL text (FR-002 (3)).
     const importReached = result.reached.map((r) => r.dependentPath);
     const clientUrls = scanClientUrls(root, result.files, facts);
@@ -379,8 +380,13 @@ export function buildReport({
   let scopes = { ownScopes: [], reachedScopes: [], unfencedReached: 0 };
   const scopesByFile = scanScopes(root, result.files, facts);
   if (!result.broad) {
+    // A file reached only because it shares a name with the change (both call one MCP tool, both
+    // read one env var) is listed as Likely impact but is not another scope's code this change
+    // reaches. Only a change to the name's definition reaches its users (FR-006a).
     const reachedFiles = [...new Set(
-      links.filter((l) => l.direction === 'dependent' && !String(l.to).includes(':')).map((l) => l.to),
+      links
+        .filter((l) => l.direction === 'dependent' && !String(l.to).includes(':') && (l.type !== 'named-string' || l.defines))
+        .map((l) => l.to),
     )];
     const s = scopeLinks({ changedFiles, reachedFiles, scopesByFile });
     links.push(...s.links);

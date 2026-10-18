@@ -62,28 +62,63 @@ export function scanNamedStrings(root, files, facts = null) {
 }
 // [SCOPE 137 / T006] END
 
+// [SCOPE 137 / T021] BEGIN — Which names a file defines (Amendment B, FR-006a)
+/**
+ * The names a file defines, as opposed to merely uses: an MCP tool it registers (`case 'project.x'`
+ * or `name: 'project.x'`), an event it emits, a job it registers. A change to a definition reaches
+ * every user of the name; two users of the same name do not depend on each other. Environment and
+ * config keys are read, never defined here, so they reach no scope.
+ */
+const DEFINITIONS = [
+  { kind: 'tool', re: /\bcase\s+['"`](project\.[a-z][a-z0-9_]+)['"`]\s*:/g },
+  { kind: 'tool', re: /\bname\s*:\s*['"`](project\.[a-z][a-z0-9_]+)['"`]/g },
+  { kind: 'event', re: /\.emit\(\s*['"]([\w:.-]{3,})['"]/g },
+  { kind: 'job', re: /(?:\.schedule|registerJob|addJob)\(\s*['"]([\w:.-]{3,})['"]\s*,/g },
+];
+
+export function definedKeys(src) {
+  const keys = new Set();
+  for (const { kind, re } of DEFINITIONS) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(src)) !== null) keys.add(`${kind}:${m[1]}`);
+  }
+  return keys;
+}
+// [SCOPE 137 / T021] END
+
 // [SCOPE 137 / T006] BEGIN — Named-string links (FR-002 (7)): links reached from a change set
+// MODIFIED-BY: [SCOPE 137 / T021] — each link says whether the changed file defines the name (`defines`)
 /**
  * For each key a changed file uses, every other file using the same key is a
  * Likely dependent. A key shared by more than BROAD_THRESHOLD other files is
  * reported once, as an aggregate, so a ubiquitous env var does not bury the rest.
  */
-export function namedStringLinks({ changedFiles, index }) {
+export function namedStringLinks({ changedFiles, index, root = null, contents = null }) {
   const links = [];
   const seen = new Set();
   for (const file of changedFiles) {
+    let src = contents?.get?.(file)?.new ?? null;
+    if (src === null && root) {
+      try {
+        src = readFileSync(join(root, file), 'utf8');
+      } catch {
+        src = '';
+      }
+    }
+    const defined = src ? definedKeys(src) : new Set();
     for (const key of index.byFile.get(file) ?? []) {
       const others = [...(index.byKey.get(key) ?? [])].filter((f) => f !== file);
       if (!others.length) continue;
       if (others.length > BROAD_THRESHOLD) {
-        links.push({ type: 'named-string', direction: 'dependent', from: file, to: `key:${key}`, via: `key:${key}`, confidence: 'Likely', count: others.length, why: `${others.length} files share ${key}` });
+        links.push({ type: 'named-string', direction: 'dependent', from: file, to: `key:${key}`, via: `key:${key}`, confidence: 'Likely', count: others.length, defines: defined.has(key), why: `${others.length} files share ${key}` });
         continue;
       }
       for (const other of others) {
         const k = `${file}|${other}|${key}`;
         if (seen.has(k)) continue;
         seen.add(k);
-        links.push({ type: 'named-string', direction: 'dependent', from: file, to: other, via: `key:${key}`, confidence: 'Likely', why: `both use ${key}` });
+        links.push({ type: 'named-string', direction: 'dependent', from: file, to: other, via: `key:${key}`, confidence: 'Likely', defines: defined.has(key), why: defined.has(key) ? `${file} defines ${key}; ${other} uses it` : `both use ${key}` });
       }
     }
   }

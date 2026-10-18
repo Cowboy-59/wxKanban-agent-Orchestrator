@@ -9,6 +9,7 @@
 // so the hook stays silent rather than guessing.
 
 // [SCOPE 137 / T018] BEGIN — Read a Bash command: files it writes or deletes, and SQL it runs (FR-008a)
+// MODIFIED-BY: [SCOPE 137 / T020] — MSYS drive paths (/e/...) are read as Windows paths
 const NOWHERE = /^(\/dev\/null|nul|\$null|&[12]|-)$/i;
 const DB_CLIENT = /^(psql|mysql|mariadb|sqlite3|sqlcmd|mongosh|mongo)(\.exe)?$/i;
 
@@ -102,6 +103,17 @@ function words(segment) {
 }
 
 const operands = (ws) => ws.filter((w) => !w.startsWith('-'));
+
+/**
+ * A path as Git Bash (MSYS) writes it on Windows, /e/AI/file, read as the Windows path E:/AI/file.
+ * Without this the hook resolved /e/... onto the current drive, found it outside the project, and
+ * let the write through unchecked. Other platforms and other paths come back unchanged.
+ */
+export function fromMsysPath(p, platform = process.platform) {
+  if (platform !== 'win32') return p;
+  const m = /^\/([a-zA-Z])(\/.*)?$/.exec(String(p));
+  return m ? `${m[1].toUpperCase()}:${m[2] ?? '/'}` : p;
+}
 
 /**
  * { writes: [path], deletes: [path], sql: [{ text, file? }] } for a Bash command. Paths are as

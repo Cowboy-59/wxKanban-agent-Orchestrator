@@ -28,7 +28,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { buildReport, renderSummary, toImpactGraph } from './change-impact.mjs';
 import { dataLossChanges, dataLossIn, decide } from './lib/classify.mjs';
-import { readBashCommand } from './lib/shell.mjs';
+import { fromMsysPath, readBashCommand } from './lib/shell.mjs';
 import { buildAgreementEvent, changeHash, mcpCall, mcpConnection, mcpSender, projectIdFor, recordAgreement } from './lib/agreement.mjs';
 import { consumeApproval, savePending } from './lib/approvals.mjs';
 import { logCrossingLine, unattendedState } from './lib/unattended.mjs';
@@ -238,6 +238,7 @@ export async function decideToolCall(input, { root, deps = {} } = {}) {
 }
 
 // [SCOPE 137 / T018] BEGIN — Bash commands judged like edits (Amendment A, FR-008a)
+// MODIFIED-BY: [SCOPE 137 / T020] — a Git Bash path such as /e/project/file is judged, not skipped as outside the project
 // MODIFIED-BY: [SCOPE 137 / T019] — refreshes the owner-set impactMode before the report (FR-007a)
 /**
  * A Bash command that writes or deletes project files is judged like an edit of those files; SQL
@@ -253,7 +254,8 @@ export async function decideBashCall(input, { root, deps = {} } = {}) {
 
   const cwd = resolve(input.cwd ?? root);
   const files = [];
-  for (const p of [...read.writes, ...read.deletes]) {
+  for (const raw of [...read.writes, ...read.deletes]) {
+    const p = fromMsysPath(raw);
     const abs = isAbsolute(p) ? p : resolve(cwd, p);
     const rel = relative(root, abs).replace(/\\/g, '/');
     if (!rel || rel.startsWith('..') || isAbsolute(rel) || SKIP_PREFIXES.some((x) => rel.startsWith(x))) continue;
@@ -270,7 +272,8 @@ export async function decideBashCall(input, { root, deps = {} } = {}) {
   for (const s of read.sql) {
     dataLoss.push(...dataLossIn(s.text).map((d) => ({ ...d, file: '(command)', line: null })));
     if (s.file) {
-      const abs = isAbsolute(s.file) ? s.file : resolve(cwd, s.file);
+      const f = fromMsysPath(s.file);
+      const abs = isAbsolute(f) ? f : resolve(cwd, f);
       try {
         dataLoss.push(...dataLossIn(readFileSync(abs, 'utf8')).map((d) => ({ ...d, file: s.file })));
       } catch {

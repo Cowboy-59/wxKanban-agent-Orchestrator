@@ -3,11 +3,13 @@
 //
 //   node nightly.mjs check                configuration, refusal and Entry Path; writes nothing
 //   node nightly.mjs plan                 tonight's selection and estimate; writes nothing
-//   node nightly.mjs run [--scheduled]    the run itself (what the scheduler starts)
+//   node nightly.mjs run [--scheduled] [--full]   the run itself (what the scheduler starts); --full
+//                                         tests every machine item this once
 //   node nightly.mjs record --run <id> --item <key> --status pass|fail|skip|blocked [--duration ms]
 //                          [--error text] [--evidence text] [--patch file]
 //                                         how the Designated Agent reports an item it drove
-//   node nightly.mjs install [--dry-run]  register the run with the scheduler (FR-011)
+//   node nightly.mjs install [--dry-run] [--full-first]  register the run with the scheduler (FR-011);
+//                                         --full-first makes the first night a full run (FR-015)
 //   node nightly.mjs uninstall            remove it, and report any residue
 //   node nightly.mjs dismiss --observation <screen::issue> [--reason text]
 //   common: --root <project> (default: the current directory)
@@ -85,8 +87,27 @@ export function nightlyDefaults(n = {}) {
     cleanupVerifyCommand: n.cleanupVerifyCommand ?? null,
     releaseVersion: n.releaseVersion ?? null,
     currentCsfVersion: n.currentCsfVersion ?? undefined,
+    fullNext: n.fullNext === true,
   };
 }
+
+// [SCOPE 140 / T017] BEGIN — A full run on request: nightly.fullNext, set and cleared (Amendment A, FR-015)
+export function setFullNext(root, on) {
+  const file = join(root, CONFIG_FILE);
+  const c = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
+  c.nightly ??= {};
+  if (on) c.nightly.fullNext = true;
+  else delete c.nightly.fullNext;
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify(c, null, 2) + '\n');
+}
+
+/** Every machine item, no rotation cap: what a full run tests. */
+export function fullSelection(items) {
+  const reasons = Object.fromEntries(items.map((i) => [i.itemKey, 'full run (every machine item)']));
+  return { impacted: [...items], rotation: [], unmapped: items.filter((i) => !(i.subjects ?? []).length), reasons };
+}
+// [SCOPE 140 / T017] END
 
 async function kitMcp(root) {
   const lib = join(root, '_wxAI', 'impact', 'lib', 'agreement.mjs');
@@ -287,6 +308,8 @@ function cmdRecord(root) {
 // [SCOPE 140 / T001] END
 
 // [SCOPE 140 / T001] BEGIN — The run: refusal, wait, sign-in, test, clean up, scan, summarize, evidence
+// MODIFIED-BY: [SCOPE 140 / T017] — a full run when nightly.fullNext or --full; the flag clears after it
+// MODIFIED-BY: [SCOPE 140 / T018] — each first-attempt pass is signed off with project.sign_off_test
 async function cmdRun(root) {
   const startedAt = new Date();
   const runId = `n-${startedAt.toISOString().slice(0, 16).replace(/[-:T]/g, '')}-${randomBytes(2).toString('hex')}`;
@@ -361,7 +384,9 @@ async function cmdRun(root) {
     const listed = await mcp.call('project.start_test_run', { version: releaseVersion(root, n.releaseVersion), isRegression: true, dryRun: true });
     const items = listed?.items ?? [];
     const impact = await changeImpact(root, history.lastRun?.commit ?? null);
-    const sel = selectItems({ items, changed: impact.changed, reached: impact.reached, boundary: impact.boundary, history, slots: n.rotationSlots });
+    const full = n.fullNext || flag('full');
+    const sel = full ? fullSelection(items) : selectItems({ items, changed: impact.changed, reached: impact.reached, boundary: impact.boundary, history, slots: n.rotationSlots });
+    if (full) warnings.push(`Full run: every machine item in the plan was selected (${items.length})${n.fullNext ? '; nightly.fullNext is cleared, so the next night tests what changed plus the rotation' : ''}.`);
     const ordered = [...sel.impacted, ...sel.rotation];
     const est = estimate(ordered, history);
     const night = planNight(ordered, est, { environment: n.environment, endTime: n.endTime, limitMs: n.splitLimitHours * 3600_000 });
@@ -408,6 +433,13 @@ async function cmdRun(root) {
           row.taskId = t.taskId;
         }
         results.push(row);
+        // FR-016: an item this run proved (first attempt) is signed off, so the scope's machine gate can clear.
+        if (r.status === 'pass') {
+          await mcp.call('project.report_test_progress', { runId: testRun.runId, itemId: item.id, status: 'pass', durationMs: r.durationMs, evidence: redact(r.evidence ?? '', p.values).slice(0, 4000) }).catch(() => {});
+          const signed = await mcp.call('project.sign_off_test', { itemId: item.id, runId: testRun.runId, label: n.agentName, notes: `nightly run ${runId}` }).catch((e) => ({ refused: e.message }));
+          if (signed?.refused || signed?.blocked) warnings.push(`sign-off for ${item.itemKey} was refused: ${String(signed.refused ?? signed.reason ?? '').slice(0, 160)}`);
+          continue;
+        }
         await mcp.call('project.report_test_progress', { runId: testRun.runId, itemId: item.id, status: r.status === 'flaky' ? 'pass' : r.status, durationMs: r.durationMs, evidence: redact(r.status === 'flaky' ? `flaky: failed once, then passed. ${r.evidence ?? ''}` : r.evidence ?? r.reason ?? '', p.values).slice(0, 4000) }).catch(() => {});
       }
     }
@@ -434,6 +466,7 @@ async function cmdRun(root) {
     recordResults(history, results.map((r) => ({ itemKey: r.itemKey, status: r.status, durationMs: r.durationMs })), { carried: night.carried, commit: impact.head });
     const coverage = updateCoverage(history, items.map((i) => i.itemKey), results.map((r) => r.itemKey));
     writeHistory(root, history);
+    if (n.fullNext && results.length) setFullNext(root, false);
 
     // 12. Evidence after a completely green run only, for ticked frameworks (FR-013, FR-014).
     const gate = evidenceGate({ results, permission, cleanup, secretScan });
@@ -587,6 +620,7 @@ async function sendRunEvent(mcp, s) {
 // [SCOPE 140 / T001] END
 
 // [SCOPE 140 / T011] BEGIN — install / uninstall / dismiss commands
+// MODIFIED-BY: [SCOPE 140 / T017] — install --full-first sets nightly.fullNext
 function cmdInstall(root) {
   const { nightly } = loadConfig(root);
   const n = nightlyDefaults(nightly ?? {});
@@ -598,6 +632,10 @@ function cmdInstall(root) {
   const password = n.agent?.osPasswordSecret ? process.env[n.agent.osPasswordSecret] : null;
   const r = install(plan, { password });
   console.log(r.ok ? `Installed ${plan.id} (${plan.kind}), daily at ${n.schedule}${n.agent?.osUser ? ` as ${n.agent.osUser}` : ''}.` : `Install failed: ${r.detail}`);
+  if (r.ok && flag('full-first')) {
+    setFullNext(root, true);
+    console.log('The first night will run every machine item in the plan (nightly.fullNext); later nights test what changed plus the rotation.');
+  }
   if (plan.note) console.log(plan.note);
   return r.ok ? 0 : 1;
 }
@@ -631,7 +669,7 @@ async function main() {
   const root = resolve(arg('root', process.cwd()));
   const handlers = { check: cmdCheck, plan: cmdPlan, run: cmdRun, record: cmdRecord, install: cmdInstall, uninstall: cmdUninstall, dismiss: cmdDismiss };
   if (!handlers[command]) {
-    console.log('Usage: nightly.mjs check | plan | run | record | install [--dry-run] | uninstall | dismiss  [--root <project>]');
+    console.log('Usage: nightly.mjs check | plan | run [--full] | record | install [--dry-run] [--full-first] | uninstall | dismiss  [--root <project>]');
     return command === 'help' ? 0 : 1;
   }
   return handlers[command](root);

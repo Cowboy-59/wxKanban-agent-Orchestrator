@@ -184,6 +184,36 @@ dates or promises the user didn't agree. Show it in chat only. Never send it, an
 feedback report's status, unless the user says so. Then do it only through the wxKanban MCP feedback
 tools.
 
+## Embedded in wxG-O-D
+
+wxG-O-D hands every brainstorm to this skill instead of running one of its own: talking a review
+section through in plan mode, the idea brainstorm in new-project mode, and the design brainstorm at
+the review pause. G.O.D. passes the topic, the user's level, and the evidence it already holds (intake
+reports, findings, the overview, the design). G.O.D. plays the Lead Architect, so it chairs the panel.
+Then:
+
+- **Step 1:** seat the panel in one line; G.O.D. has already introduced itself.
+- **Step 2:** do not ask the three questions. Restate the topic G.O.D. passed in one line, with the
+  need behind it, and confirm it.
+- **Step 3:** cite G.O.D.'s evidence first, and search the application only for what that evidence
+  does not cover. In new-project mode there is no application yet: say so and skip the code search.
+- **Step 4:** when G.O.D. passes an agenda (for the idea brainstorm: the opening questions, the
+  business rules, the personas, the review's thin rows and its challenges), use it in that order
+  instead of the standard agenda; give the panel's first look as written. Otherwise build the
+  standard agenda.
+- **Step 5:** as written, except the scratch pad: use G.O.D.'s `docs/GOD-Scratchpad.md` instead of
+  `docs/brainstorms/Scratchpad.md`, so the user keeps one view of where they are.
+- **Step 6:** show the summary as written, then offer G.O.D.'s three choices instead of this skill's:
+  add it to the plan, the scope, and the specs; add it to the plan only; or change it first. On
+  either "add", write the record as usual (source: "wxG-O-D review", "wxG-O-D idea" or "wxG-O-D
+  design"). G.O.D. then appends each decision to `docs/GOD-Brainstorm.md`, one row per item with the
+  record's path, because its interview and plan read that file. The learnings file is written once,
+  here.
+- **Step 7 never runs.** G.O.D.'s own rules decide what happens to items marked for the scope and
+  specs, after the plan is delivered.
+- **Pausing:** G.O.D.'s checkpoints and `--resume` carry the brainstorm. A mid-topic pause writes the
+  record as open (§ Pausing and resuming), and G.O.D.'s state file names the next item.
+
 ## Rules
 
 - **Ask before searching.** Step 2 always completes, with the topic confirmed, before step 3 begins.
