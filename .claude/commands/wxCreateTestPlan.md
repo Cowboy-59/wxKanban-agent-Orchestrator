@@ -54,7 +54,10 @@ fixed test-item schema.
    provisional — and carry on, with no approval prompt. Stop only when there is no `stack.md`, two
    adapters tie, or the generated adapter cannot be completed. Never run the TypeScript extractor
    speculatively: a zero-unit inventory from the wrong stack reads exactly like a real one, which is
-   why every inventory is checked by `inventory-guard.mjs`.
+   why every inventory is checked by `inventory-guard.mjs`. **If the result carries `byAppType`**,
+   `stack.md` declares several application types and the answer is for one of them: pick the type
+   from the files the target touches, say it out loud, and re-resolve with `--app-type <type>` when
+   it is not the top-level one (the skill's *Stack adapters* section has the rule).
 3. **PLAN mode (default):**
    - **Phase 0 — Scope & DB posture:** resolve the target, read the relevant `specs/NNN-*/spec.md`
      first (SPEC-FIRST is mandatory), and announce the DB posture out loud.

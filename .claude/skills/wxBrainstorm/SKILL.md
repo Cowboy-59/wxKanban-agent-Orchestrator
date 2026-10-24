@@ -162,8 +162,11 @@ every "which next?".
 
 Follow `references/conduct.md` § Closing the topic: the summary (Agreed · Added · Changed · Declined ·
 Parked), then the user's choice. On either "record" answer, write
-`docs/brainstorms/YYYY-MM-DD-<topic-slug>.md` (§ Recording), then update the learnings file. Tell the
-user where the record is.
+`docs/brainstorms/YYYY-MM-DD-<topic-slug>.md` (§ Recording), then write the decision ledger
+(`references/conduct.md` § Writing the ledger: one `node _wxAI/askgate/ledger.mjs append` per
+Agreed, Added, Changed or Declined row, and Parked rows as evidence: unknown; nothing at all when the
+summary is not approved), then update the learnings file. Tell the user where the record is and how
+many ledger entries were written.
 
 ### 7. Hand off (only on "take it to a scope")
 
@@ -207,8 +210,8 @@ Then:
   add it to the plan, the scope, and the specs; add it to the plan only; or change it first. On
   either "add", write the record as usual (source: "wxG-O-D review", "wxG-O-D idea" or "wxG-O-D
   design"). G.O.D. then appends each decision to `docs/GOD-Brainstorm.md`, one row per item with the
-  record's path, because its interview and plan read that file. The learnings file is written once,
-  here.
+  record's path, because its interview and plan read that file. The decision ledger (§ step 6) and the
+  learnings file are each written once, here.
 - **Step 7 never runs.** G.O.D.'s own rules decide what happens to items marked for the scope and
   specs, after the plan is delivered.
 - **Pausing:** G.O.D.'s checkpoints and `--resume` carry the brainstorm. A mid-topic pause writes the
@@ -218,9 +221,9 @@ Then:
 
 - **Ask before searching.** Step 2 always completes, with the topic confirmed, before step 3 begins.
 - **Plain text, no menus,** for the whole brainstorm.
-- **Writes only** `docs/brainstorms/` (the scratch pad and the records) and the user's
-  `~/.wxai/god-learnings.md`. Nothing is written until a summary is approved, except the scratch pad,
-  which only mirrors the chat.
+- **Writes only** `docs/brainstorms/` (the scratch pad and the records), the user's
+  `~/.wxai/god-learnings.md`, and `decisions/ledger.yaml` through `_wxAI/askgate/ledger.mjs` alone.
+  Nothing is written until a summary is approved, except the scratch pad, which only mirrors the chat.
 - **Never writes scopes, specs, tasks, or code.** `/buildscope`, `/validateScope`, and `/createSpecs`
   run only on the user's go, under their own rules.
 - **Never commits, pushes, or deploys.**

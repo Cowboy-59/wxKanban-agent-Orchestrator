@@ -1,6 +1,7 @@
 import WebSocket from "ws";
 
 // [SCOPE 102 / T001] BEGIN — YappChatt client (plain-Node port of SCOPE-079 chatSocket)
+// MODIFIED-BY: [SCOPE 144 / T002] — read login sends the kit token as Bearer; messages carry authorId (C4)
 // Ported from vscode-extension/src/services/chatSocket.ts (ChatSocket, SCOPE-079/T006)
 // into the kit core so the Remote Session Bridge can reuse the exact same transport
 // without any VS Code dependency.
@@ -43,6 +44,12 @@ export interface YappchattConfig {
    * token is the identity and messages are authored server-side as "Claude".
    */
   yappchatToken: string;
+  /**
+   * SPEC-144 FR-009: the project's wxKanban kit API token, sent as
+   * "Authorization: Bearer" on POST /api/community/session (the READ login). The
+   * server issues a session only for an email of this token's company. Never logged.
+   */
+  kitApiToken?: string;
 }
 
 export interface YappchattUser {
@@ -65,6 +72,11 @@ export interface YappchattMessage {
    * against YappChatt's prose translation, which defeats text-match echo removal.
    */
   isAgent: boolean;
+  /**
+   * SPEC-144 C4: the poster's YappChatt user id (the message's `authorid` / `userid`).
+   * The bridge sends it to GET /api/project-agent/approver before recording a decision.
+   */
+  authorId?: string;
 }
 
 export interface YappchattHandlers {
@@ -204,16 +216,25 @@ export class YappchattClient {
 
   // ── handshake steps ────────────────────────────────────────────────────────
   // Provision via the wxKanban broker (SCOPE-079 Amendment C): the server holds
-  // the consumer secret and calls YappChatt for us, so this request carries only
-  // the user's email — no secret ever touches the bridge.
+  // the consumer secret and calls YappChatt for us — no secret ever touches the
+  // bridge. SPEC-144 FR-009: the request carries the project's kit token as the
+  // Bearer, and the server refuses an email outside that token's company.
   private async provisionSession(): Promise<ConsumerSession> {
+    // Sent whenever the caller supplied it. Without one the request goes out as before,
+    // and a gated server answers 401 token_required, surfaced below.
+    const kitToken = this.cfg.kitApiToken?.trim();
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (kitToken) headers.authorization = `Bearer ${kitToken}`;
     const res = await this.fetchImpl(`${this.cfg.wxkanbanBaseUrl}/api/community/session`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify({ email: this.user.email, displayName: this.user.displayName }),
     });
     if (!res.ok) {
-      throw new Error(`community/session ${res.status}: ${await safeText(res)}`);
+      const detail = await safeText(res);
+      // The server's own words for a refusal (e.g. 403 "This email isn't a member of
+      // your company"), shown as is.
+      throw new Error(refusalMessage(detail) ?? `community/session ${res.status}: ${detail}`);
     }
     const data = (await res.json()) as Partial<ConsumerSession>;
     if (!data.sessionToken || !data.userid) {
@@ -379,12 +400,23 @@ export class YappchattClient {
       // The Claude agent's posts ARE ours; so is anything the read session authored.
       mine: isAgent || (!!authorId && authorId === this.session?.userid),
       isAgent,
+      authorId, // SPEC-144 C4
     };
   }
 }
 
 function str(v: unknown): string | undefined {
   return typeof v === "string" && v ? v : undefined;
+}
+
+// SPEC-144 FR-009: pull the server's `message` out of a JSON error body, if any.
+function refusalMessage(body: string): string | undefined {
+  try {
+    const parsed = JSON.parse(body) as { message?: unknown };
+    return str(parsed.message);
+  } catch {
+    return undefined;
+  }
 }
 
 async function safeText(res: { text(): Promise<string> }): Promise<string> {

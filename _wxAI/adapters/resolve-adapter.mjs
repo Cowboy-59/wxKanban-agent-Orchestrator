@@ -215,9 +215,41 @@ export function scoreAdapter(adapter, stackTokens) {
  * Returns `{ resolved, adapter, reason, candidates, ... }`. It never throws and never picks a
  * default: an ambiguous or absent match is reported as a miss with everything needed to act on it.
  */
+// [SCOPE 127 / T021] BEGIN — Resolution reports every declared application type (FR-001)
+export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
+  const result = resolvePooled({ root, appType });
+  if (appType) return result;
+
+  // Decision 26 (feedback 1565dac1): pooling every declared type returns one adapter for one type
+  // and says nothing about the rest, so a Web + Mobile project's Mobile half never reached no-match
+  // or generation. The top-level answer and exit code stay as they were (SC-6: wxKanban's own
+  // stack.md declares three types); each type's own outcome is added beside it.
+  const declared = Object.keys(parseStack(resolve(root, "stack.md")) ?? {});
+  if (declared.length < 2) return result;
+
+  const byAppType = declared.map((type) => {
+    const r = resolvePooled({ root, appType: type });
+    return r.resolved
+      ? { appType: type, resolved: true, adapter: r.adapter.name, provenance: r.provenance }
+      : { appType: type, resolved: false, reason: r.reason };
+  });
+  return { ...result, byAppType };
+}
+// [SCOPE 127 / T021] END
+
+/** The types a pooled result does not answer for: each one that misses, or resolves elsewhere. */
+// [SCOPE 127 / T021] BEGIN — Resolution reports every declared application type (FR-001)
+export function typesNotServed(result) {
+  if (!result.byAppType) return [];
+  const top = result.resolved ? result.adapter.name : null;
+  return result.byAppType.filter((t) => !t.resolved || t.adapter !== top);
+}
+// [SCOPE 127 / T021] END
+
 // [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
 // MODIFIED-BY: [SCOPE 127 / T020] — an adapter missing a **Requires:** group is excluded before scoring
-export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
+// MODIFIED-BY: [SCOPE 127 / T021] — renamed from resolveAdapter; the exported wrapper adds byAppType
+function resolvePooled({ root = process.cwd(), appType = null } = {}) {
 // [SCOPE 127 / T002] END
   const stackPath = resolve(root, "stack.md");
   const stack = parseStack(stackPath);
@@ -331,6 +363,7 @@ export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
 // MODIFIED-BY: [SCOPE 127 / T009] — a provisional resolution is announced as provisional (SC-8)
 // MODIFIED-BY: [SCOPE 127 / T010] — a no-match miss points at generation, other misses stay stops
 // MODIFIED-BY: [SCOPE 127 / T020] — a miss names each excluded adapter and the requirement it lacked
+// MODIFIED-BY: [SCOPE 127 / T021] — names every declared application type the answer does not serve
 function main(argv) {
   const args = argv.slice(2);
   const get = (flag) => {
@@ -387,6 +420,26 @@ function main(argv) {
             "stack's machinery."
         : "\nThis is a stop, not something to generate past. Declare the stack with /buildstack, or make " +
             "resolution unambiguous by giving the intended adapter a token only this stack's Choice column contains.",
+    );
+  }
+
+  // T021: a type the top-level answer does not serve is named, never dropped (decision 26).
+  const unserved = json ? [] : typesNotServed(result);
+  if (unserved.length > 0) {
+    const say = result.resolved ? console.log : console.error;
+    say(
+      `\nstack.md declares ${result.byAppType.length} application types. ` +
+        (result.resolved ? `This answer is for ${result.appType} only.` : "Each one resolves on its own:"),
+    );
+    for (const t of unserved) {
+      say(
+        `  ${t.appType.padEnd(8)} ${t.resolved ? `resolves to ${t.adapter} (${t.provenance})` : `${t.reason}`}` +
+          `  →  node _wxAI/adapters/resolve-adapter.mjs --app-type ${t.appType}`,
+      );
+    }
+    say(
+      "Test a target's code with the adapter for that code's own application type. If the target is " +
+        "one of the types above, resolve it with --app-type (a no-match there generates, per GENERATE.md).",
     );
   }
 

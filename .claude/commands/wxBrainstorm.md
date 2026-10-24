@@ -29,7 +29,10 @@ This command runs the **`wxBrainstorm` skill**. Invoke the skill, then follow it
    panel's risks, and fit and priority.
 5. **Brainstorm.** One item at a time, plain text, at your level (`--level=amateur|junior|senior`).
 6. **Close and record.** You approve a summary (Agreed, Added, Changed, Declined, Parked). Only then
-   is it written, to `docs/brainstorms/YYYY-MM-DD-<topic>.md`.
+   is it written, to `docs/brainstorms/YYYY-MM-DD-<topic>.md`. Each decision is then added to the
+   decision ledger (`decisions/ledger.yaml`) through `_wxAI/askgate/ledger.mjs`, one entry per
+   Agreed, Added, Changed or Declined item and Parked items as evidence: unknown. Nothing is added
+   if you do not approve the summary.
 7. **Hand off (optional).** On your go, `/buildscope --from-md <record>` then `/validateScope`, each
    under its own rules. It can also draft a plain-words reply to the customer; the draft is shown
    only, never sent.
@@ -46,8 +49,8 @@ This command runs the **`wxBrainstorm` skill**. Invoke the skill, then follow it
 ## Boundaries
 
 - **Asks before it searches.** The topic is confirmed before any code, scope, or doc is read.
-- **Writes only** `docs/brainstorms/` and your `~/.wxai/god-learnings.md` (shared with wxG-O-D), and
-  only after you approve a summary.
+- **Writes only** `docs/brainstorms/`, your `~/.wxai/god-learnings.md` (shared with wxG-O-D), and the
+  decision ledger through its script, and only after you approve a summary.
 - **Never writes scopes, specs, or code,** and never commits, pushes, or sends anything to a customer.
 - **No personal data in records.** A customer is referred to by feedback ID or date, never by name or
   email.

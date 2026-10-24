@@ -120,6 +120,10 @@ boots against empty screens and nothing can be driven.
   provisional — and continue on it, with no approval prompt. Any other miss (no `stack.md`, two
   adapters tied), or a generated adapter that cannot be completed, means: say so, name the declared
   stack, and carry on to Phase 6 without inventing a seeding harness.
+- [ ] A result carrying **`byAppType`** means `stack.md` declares several application types and the
+  answer is for one of them. Pick the type the scope's code belongs to from the files it touched,
+  say it out loud, and re-resolve with `--app-type <type>` when it is not the top-level one — a
+  `no-match` there generates as above. Never seed one type's code from another type's adapter.
 - [ ] Read that adapter's **Seeding form**. It answers where a seed lives on this stack, what runs
   it, how it is made idempotent, how a shared base is reused, where it may be written, and how it
   is verified. Follow those answers exactly.

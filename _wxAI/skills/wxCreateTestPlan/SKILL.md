@@ -80,6 +80,13 @@ node _wxAI/adapters/validate-adapter.mjs <adapter.path from the resolver>
   repository, validate it, re-resolve, announce it as provisional — then continue to Phase 0 on it.
   There is no approval prompt (SCOPE-127 / FR-006).
 - **Resolver exit 3, any other reason** (no `stack.md`, or two adapters tie) → stop — see below.
+- **The result carries `byAppType`** → `stack.md` declares several application types (Web, Desktop,
+  Mobile) and the top-level answer is for **one** of them, `appType`. Decide which type the target's
+  code belongs to from the files it touches — an Expo app under `mobile/` is Mobile even when the
+  Web table scored higher — and say that type out loud. If it is not the top-level `appType`,
+  re-resolve with `--app-type <type>` and follow *that* result: exit 0 is the adapter, `no-match`
+  generates as above. A target spanning two types is planned once per type, each on its own
+  adapter. Never test one type's code with another type's adapter (SCOPE-127 decision 26).
 
 Adapters wxperts ships today:
 

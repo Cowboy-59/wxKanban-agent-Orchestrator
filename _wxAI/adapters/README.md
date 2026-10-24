@@ -73,6 +73,13 @@ node _wxAI/adapters/validate-adapter.mjs <path>    # exit 0 all six answered · 
 [`GENERATE.md`](GENERATE.md). There is no approval prompt; what makes that safe is the guards, which
 fail closed — see *Generated adapters* below.
 
+**Several application types declared → the answer is for one.** When `stack.md` has more than one
+`## Target Stack — <Type>` table and no `--app-type` is given, the top-level result is the
+best-scoring type, and `byAppType` lists every declared type with its own outcome. The CLI names each
+type the answer does not serve, with the `--app-type` command for it. The caller picks the type from
+the files the target touches and re-resolves when it is not the top-level one; a `no-match` there
+generates as above.
+
 **No `stack.md`, or two adapters tied → stop and say so.** Do not run the TypeScript extractor
 speculatively to "see what comes back"; a zero-unit inventory from the wrong stack is
 indistinguishable from a codebase that genuinely has nothing in it.

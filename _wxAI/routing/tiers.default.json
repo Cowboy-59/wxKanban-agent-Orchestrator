@@ -1,0 +1,18 @@
+{
+  "tiers": {
+    "easy": "claude-haiku-5-5",
+    "moderate": "claude-sonnet-5-5",
+    "heavy": "claude-opus-5-5"
+  },
+  "commands": {
+    "dbpush": "easy",
+    "kit:status": "easy",
+    "auditfences": "easy",
+    "wxLedger": "moderate",
+    "help": "moderate",
+    "buildscope": "heavy",
+    "createSpecs": "heavy",
+    "wxG-O-D": "heavy",
+    "implement": "heavy"
+  }
+}

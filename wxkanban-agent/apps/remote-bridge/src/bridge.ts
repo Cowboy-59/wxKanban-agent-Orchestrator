@@ -4,10 +4,13 @@ import {
   type YappchattMessage,
   type YappchattStatus,
 } from "../../../core/yappchatt";
+import { resolveApiToken } from "../../../core/http/mcp-client"; // [SCOPE 144 / T002]
 import { BridgeSession } from "./session";
 import { gitPush, gitTarget, runReview } from "./push-gate";
 import { createGateHook, type OverrideRequest } from "./override-gate"; // [SCOPE 134 / T018, T035]
 import { recordOverride } from "./agent-mode"; // [SCOPE 134 / T019]
+import { startOutboxDrain } from "./outbox"; // SPEC-142 / T010
+import { decisionReplyFor, handleDecisionReply, nodeRunner } from "./decision-reply"; // [SCOPE 142 / T025]
 
 // [SCOPE 134 / T018] One yes/no parser, used by BOTH the operator-initiated push
 // confirmation and the agent-initiated gate. It was inline in resolvePendingPush; two
@@ -69,10 +72,14 @@ export class RemoteBridge {
   private lastDecider?: string;
   private verboseBuffer = "";
   private verboseTimer?: ReturnType<typeof setTimeout>;
+  private stopOutboxDrain?: () => void;
 
   constructor(private readonly opts: RemoteBridgeOptions) {
     const { config, user } = resolveYappchattConfig();
-    this.client = new YappchattClient(config, user, {
+    // [SCOPE 144 / T002] The read login sends the project's kit token (FR-009): the server
+    // opens a session only for an email of the token's company. Absent, it goes without.
+    const kitApiToken = resolveApiToken({ projectRoot: opts.cwd }) ?? undefined;
+    this.client = new YappchattClient({ ...config, kitApiToken }, user, {
       onStatus: (s, d) => this.onStatus(s, d),
       onHistory: () => undefined,
       onMessage: (m) => this.onRoomMessage(m),
@@ -91,6 +98,8 @@ export class RemoteBridge {
     if (status === "connected" && !this.announced) {
       this.announced = true;
       void this.post(`Claude on project ${this.opts.projectName} is connected`);
+      // SPEC-142 / T010: relay blockers the Ask Gate queued in .wxai/room-outbox.jsonl.
+      this.stopOutboxDrain = startOutboxDrain(this.opts.cwd, (t) => this.post(t));
       this.startSession();
     }
   }
@@ -155,6 +164,7 @@ export class RemoteBridge {
   // [SCOPE 102 / T005] END
 
   // [SCOPE 102 / T006] BEGIN — inbound routing (room -> session), continue-and-fold
+  // MODIFIED-BY: [SCOPE 142 / T025] — queue answers and KAIN-reply reviews are recorded here, by author
   private onRoomMessage(m: YappchattMessage): void {
     let text = m.text.trim();
     if (!text) return;
@@ -189,6 +199,10 @@ export class RemoteBridge {
       this.resolvePendingApproval(text, from);
       return;
     }
+    // [SCOPE 142 / T025] A queue answer (DQ-nn) or a review verdict (KR-nnnn) is recorded here,
+    // where the author is still known: the supervisor's tag was stripped above, so the session
+    // could never tell the owner's answer from the supervisor's.
+    if (this.handleDecision(text, m.isAgent ? from : "owner")) return;
     if (this.handleControl(text)) return;
     if (!this.session) {
       console.log("[bridge] message before session ready — ignored:", text.slice(0, 60));
@@ -197,6 +211,20 @@ export class RemoteBridge {
     console.log(`[bridge] operator → session: ${text.slice(0, 80)}`);
     this.turnActive = true;
     this.session.send(text);
+  }
+
+  private handleDecision(text: string, by: string): boolean {
+    const reply = decisionReplyFor(this.opts.cwd, text);
+    if (!reply) return false;
+    process.stdout.write(`[bridge] decision reply from ${by}: ${text.slice(0, 80)}\n`);
+    void handleDecisionReply(reply, by, nodeRunner(this.opts.cwd)).then((o) => {
+      if (o.roomText) void this.post(o.roomText);
+      if (o.sessionText && this.session) {
+        this.turnActive = true;
+        this.session.send(o.sessionText);
+      }
+    });
+    return true;
   }
 
   private consumeSelfEcho(text: string): boolean {
@@ -450,6 +478,7 @@ export class RemoteBridge {
     // unresolved promise while the room goes away must end as a refusal, not as a session
     // that quietly proceeds once nobody is watching.
     this.abandonPendingApproval("bridge shutting down");
+    this.stopOutboxDrain?.();
     try {
       await this.post(`Claude on project ${this.opts.projectName} is disconnected`);
     } catch {
@@ -459,7 +488,7 @@ export class RemoteBridge {
     this.client.dispose();
   }
 
-  private async post(text: string): Promise<void> {
+  private async post(text: string): Promise<boolean> {
     // Posts are authored as the Claude agent server-side (isagent) and render on the left
     // as "🤖 Claude" — identical for every project. The content is therefore tagged with
     // the project name so a room shows which codebase is talking (config.postPrefix).
@@ -472,6 +501,7 @@ export class RemoteBridge {
     this.pruneSelfPosts(now);
     const ok = await this.client.send(text);
     if (!ok) console.error(`[bridge] failed to post: ${text.slice(0, 80)}`);
+    return ok;
   }
 
   // [SCOPE 102 / T005] Verbose token streaming: coalesce deltas into readable chunks so

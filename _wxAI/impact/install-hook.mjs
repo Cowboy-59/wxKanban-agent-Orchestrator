@@ -11,11 +11,13 @@
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // [SCOPE 137 / T009] BEGIN — Install, check or remove the Change Impact hook entry (FR-008)
 // MODIFIED-BY: [SCOPE 137 / T016] — installing also makes the project .gitignore cover the per-developer state (approvals, pending changes)
 // MODIFIED-BY: [SCOPE 137 / T018] — the matcher includes Bash (Amendment A, FR-008a)
 // MODIFIED-BY: [SCOPE 137 / T019] — the owner-set impactMode cache is per-developer state too (FR-007a)
+// MODIFIED-BY: [SCOPE 142 / T008] — the CLI also installs, checks or removes the Ask Gate hooks when the kit has them (FR-005)
 export const HOOK_SCRIPT = '_wxAI/impact/hook.mjs';
 export const HOOK_MATCHER = '^(Edit|Write|MultiEdit|NotebookEdit|Bash)$';
 
@@ -121,20 +123,32 @@ export function installHook(root, { mode = 'install' } = {}) {
   return { status: 'current', changed: true, file, ignored };
 }
 
-function main(argv) {
+/** The Ask Gate installer beside this kit (SPEC-142 FR-005), or null when the kit has none. */
+async function askGateInstaller() {
+  const file = join(dirname(fileURLToPath(import.meta.url)), '..', 'askgate', 'install.mjs');
+  if (!existsSync(file)) return null;
+  const mod = await import(pathToFileURL(file).href);
+  return typeof mod.installAskGate === 'function' ? mod.installAskGate : null;
+}
+
+async function main(argv) {
   const i = argv.indexOf('--root');
   const root = resolve(i >= 0 && argv[i + 1] ? argv[i + 1] : process.cwd());
   const mode = argv.includes('--uninstall') ? 'uninstall' : argv.includes('--check') ? 'check' : 'install';
   let result;
+  let gate = null;
   try {
     result = installHook(root, { mode });
+    const installAskGate = await askGateInstaller();
+    if (installAskGate) gate = installAskGate(root, { mode });
   } catch (e) {
     process.stderr.write(`Change Impact hook: could not read ${join(root, '.claude', 'settings.json')} (${e instanceof Error ? e.message : e}). Fix the file; nothing was changed.\n`);
     process.exit(2);
   }
-  const verb = mode === 'check' ? `is ${result.status}` : result.changed ? (mode === 'uninstall' ? 'removed' : 'installed') : `already ${result.status}`;
-  process.stdout.write(`Change Impact hook ${verb} (${result.file})\n`);
-  process.exit(mode === 'check' && result.status !== 'current' ? 1 : 0);
+  const verbOf = (r, is) => (mode === 'check' ? `${is} ${r.status}` : r.changed ? (mode === 'uninstall' ? 'removed' : 'installed') : `already ${r.status}`);
+  process.stdout.write(`Change Impact hook ${verbOf(result, 'is')} (${result.file})\n`);
+  if (gate) process.stdout.write(`Ask Gate hooks ${verbOf(gate, 'are')} (${gate.file})\n`);
+  process.exit(mode === 'check' && (result.status !== 'current' || (gate && gate.status !== 'current')) ? 1 : 0);
 }
 
 if (process.argv[1]?.replace(/\\/g, '/').endsWith('_wxAI/impact/install-hook.mjs')) main(process.argv.slice(2));

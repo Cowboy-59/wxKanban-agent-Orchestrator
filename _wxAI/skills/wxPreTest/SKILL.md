@@ -57,6 +57,11 @@ touching anything. Reason **`no-match`** means no adapter covers this stack: gen
 adapter that cannot be completed means: stop and say so. Do not clone speculatively: a target built
 for the wrong stack is worse than no target, because the run that follows it reports results.
 
+A result carrying **`byAppType`** means `stack.md` declares several application types and the
+answer is for one of them. Pick the type the scope's code belongs to from the files it touched, say
+it out loud, and re-resolve with `--app-type <type>` when it is not the top-level one — a `no-match`
+there generates as above. Never stand up one type's target for another type's code.
+
 Read the adapter's **Disposable target** answer. It names the posture and the exact commands. Three
 postures are supported and an adapter answers with exactly one:
 

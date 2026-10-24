@@ -107,7 +107,7 @@ Then ask, in plain text, which they want:
 - **change the summary first**: fix it, show it again, and ask again
 
 On either "record" answer, write the record (below). This is the first point at which anything is
-written. Then update the learnings file.
+written. Then write the ledger (§ Writing the ledger), then update the learnings file.
 
 ## Recording
 
@@ -152,6 +152,45 @@ new row that says what it replaces.
 **Privacy.** Customer suggestions often arrive with names, emails, or account details. Record the
 source by reference only (a feedback ID, "customer call, YYYY-MM-DD") and never copy personal data,
 credentials, or secrets into a record, the scratch pad, or chat.
+
+## Writing the ledger
+
+The decision ledger (`decisions/ledger.yaml`, SPEC-142) is how later agents learn what the owner
+already decided. It is written **only** here, after the record is written, **only** when the owner
+approved the summary, and **only** through the ledger script. Never edit, create or append to
+`decisions/ledger.yaml` by hand: a hook denies it.
+
+Nothing is written when the summary is not approved ("change the summary first", no answer, or a
+pause before approval).
+
+For each row of the approved summary, write one small JSON file in the system temp folder and run the
+script once per row:
+
+```bash
+node _wxAI/askgate/ledger.mjs append --file <entry.json> --approved-by owner
+```
+
+The JSON holds `scope` (the SCOPE-NNN or area it belongs to), `question` (the item), `decision` (the
+decision in one line), `rationale` (the reason, or ""), `kind`, `evidence`, `source`
+(`docs/brainstorms/<file>.md#<row number>`), and `date`. Do not include id, approved_by or supersedes
+unless needed; the script assigns the id and records who approved. For a Parked row, `decision`
+names who must answer it: `"Open: the owner answers."` or `"Open: the customer answers."`, and
+`rationale` says why it was parked.
+
+| Summary group | kind | evidence |
+|---|---|---|
+| Agreed | Agreed | confirmed |
+| Added | Added | confirmed |
+| Changed | Changed | confirmed |
+| Declined | Declined | confirmed |
+| Parked | Parked | unknown |
+
+`--approved-by` is `owner`, or the customer approver's role when the owner named one (never a
+customer's personal name). A Changed row that reverses an earlier ledger entry sets `supersedes` to
+that entry's id; find it with `node _wxAI/askgate/search.mjs "<the question>"`. The script refuses a
+duplicate or an empty approver: report a refusal in plain words and do not work around it. If
+`_wxAI/askgate/ledger.mjs` does not exist in this project, say the ledger is not installed and skip
+this step. Finish with one line: how many entries were written, and their ids.
 
 ## Learning from decisions
 
