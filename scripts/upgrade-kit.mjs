@@ -903,6 +903,13 @@ const PRESERVE_TREES = [
 
 const isPreserveTree = (rel) => PRESERVE_TREES.some((re) => re.test(rel));
 
+// SPEC-142 PROJECT-OWNED trees: the decision ledger, assumptions, gate log and
+// settings. The kit never ships these and an upgrade must never write them — not even in the
+// no-manifest "historic overwrite" path, which copies every archive entry. Belt and braces:
+// the server also strips decisions/ from the upgrade archive (KitProxyService).
+const PROJECT_OWNED_TREES = [/^decisions\//];
+const isProjectOwned = (rel) => PROJECT_OWNED_TREES.some((re) => re.test(rel));
+
 // ─── [SPEC 121 / T004] Reconcile staging into the project ────────────────────
 
 function reconcileStaging(stagingDir, manifest, { dryRun = false } = {}) {
@@ -912,6 +919,7 @@ function reconcileStaging(stagingDir, manifest, { dryRun = false } = {}) {
   const replaced = [];
 
   for (const rel of walkRelative(stagingDir)) {
+    if (isProjectOwned(rel)) continue; // project-owned: never touched, no sidecar
     let verdict = classifyFile(rel, stagingDir, manifest);
 
     // [SPEC 121 / T006] In a customizable tree, a file that differs from the
@@ -1184,6 +1192,7 @@ async function applyUpgrade({ download, manifest, dryRun, assumeYes, pendingWrit
       log('warn', '  A manifest is written at the end, so the NEXT upgrade will preserve your edits.');
       const written = [];
       for (const rel of walkRelative(stagingDir)) {
+        if (isProjectOwned(rel)) continue; // project-owned: never overwritten
         written.push(rel);
         if (dryRun) continue;
         const dest = path.join(root, rel);
