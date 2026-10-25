@@ -8,7 +8,7 @@ import { resolveApiToken } from "../../../core/http/mcp-client"; // [SCOPE 144 /
 import { BridgeSession } from "./session";
 import { gitPush, gitTarget, runReview } from "./push-gate";
 import { createGateHook, type OverrideRequest } from "./override-gate"; // [SCOPE 134 / T018, T035]
-import { recordOverride } from "./agent-mode"; // [SCOPE 134 / T019]
+import { readyLine, recordOverride } from "./agent-mode"; // [SCOPE 134 / T019] [SCOPE 145 / T006]
 import { startOutboxDrain } from "./outbox"; // SPEC-142 / T010
 import { decisionReplyFor, handleDecisionReply, nodeRunner } from "./decision-reply"; // [SCOPE 142 / T025]
 
@@ -27,6 +27,7 @@ function parseYesNo(text: string): boolean | undefined {
 }
 
 // [SCOPE 102 / T005] BEGIN — RemoteBridge: composes the room transport with the session
+// MODIFIED-BY: [SCOPE 145 / T006] — prints the fixed ready line once the "connected" post lands
 // Outbound relay (session -> room) is the handler set passed to BridgeSession; inbound
 // routing (room -> session) is onRoomMessage. Connect announce on first 'connected'
 // (FR-002), disconnect notice on shutdown (FR-009). Concise by default: assistant text
@@ -97,7 +98,10 @@ export class RemoteBridge {
     console.log(`[room] ${status}${detail ? " — " + detail : ""}`);
     if (status === "connected" && !this.announced) {
       this.announced = true;
-      void this.post(`Claude on project ${this.opts.projectName} is connected`);
+      // SPEC-145 FR-005: the Cockpit's ready signal, printed only once the post has landed.
+      void this.post(`Claude on project ${this.opts.projectName} is connected`).then((ok) => {
+        if (ok) process.stdout.write(`${readyLine(this.opts.projectName)}\n`);
+      });
       // SPEC-142 / T010: relay blockers the Ask Gate queued in .wxai/room-outbox.jsonl.
       this.stopOutboxDrain = startOutboxDrain(this.opts.cwd, (t) => this.post(t));
       this.startSession();

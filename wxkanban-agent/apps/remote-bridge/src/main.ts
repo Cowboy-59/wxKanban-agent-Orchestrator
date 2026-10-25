@@ -7,10 +7,14 @@ import {
   assertDistinctTag,
   connectProjectAgent,
   readProjectAgentConfig,
+  refusalCode,
+  refusedLine,
+  WORKTREE_LOCKED,
   type WorktreeLock,
-} from "./agent-mode"; // [SCOPE 134]
+} from "./agent-mode"; // [SCOPE 134] [SCOPE 145 / T006]
 
 // [SCOPE 102 / T004] BEGIN — remote-bridge entry point (GO REMOTE launcher)
+// MODIFIED-BY: [SCOPE 145 / T006] — fixed refusal lines; stop on SIGBREAK and stdin close; 5 s exit bound
 // Resolves config from the repo-root .env (tolerant of inline comments), derives the
 // project name, and runs the bridge. The GO REMOTE handoff seeds/resumes from the
 // current conversation via WXKANBAN_REMOTE_SEED / WXKANBAN_REMOTE_RESUME (set by the
@@ -20,6 +24,9 @@ import {
 // [SCOPE 134 / T032] The launcher passes the project root explicitly: from the compiled
 // bundle (wxkanban-agent/dist/) __dirname is a different depth than from src/.
 const REPO_ROOT = process.env.WXKANBAN_REPO_ROOT || join(__dirname, "..", "..", "..", "..");
+
+/** SPEC-145 FR-007: the most a clean shutdown may take before the process exits anyway. */
+const SHUTDOWN_BOUND_MS = 5000;
 
 function loadRepoEnv(): void {
   const envPath = join(REPO_ROOT, ".env");
@@ -58,6 +65,7 @@ async function main(): Promise<void> {
   loadRepoEnv();
 
   // [SCOPE 134 / T030, T022, T023] BEGIN — project-agent mode (Amendment A)
+  // MODIFIED-BY: [SCOPE 145 / T006] — prints `[project-agent] refused <code>` the Cockpit can match
   // The kit's per-project agent. Everything an operator used to paste by hand is fetched
   // with the project's own kit token instead: the room (derived server-side), a room token
   // minted once and kept locally, the read identity, and a bound MCP token for filing
@@ -79,6 +87,7 @@ async function main(): Promise<void> {
       lock = acquireWorktreeLock(REPO_ROOT, "project agent");
     } catch (err) {
       console.error((err as Error).message);
+      process.stdout.write(`${refusedLine(WORKTREE_LOCKED)}\n`);
       process.exit(3);
     }
     // FR-020 / SCOPE-102 seed policy: a directive seed is a second autonomous Claude on
@@ -100,6 +109,8 @@ async function main(): Promise<void> {
       );
     } catch (err) {
       console.error(`[project-agent] ${(err as Error).message}`);
+      // SPEC-145 FR-005: one fixed line naming the cause (remote_not_allowed, no_company_account, …).
+      process.stdout.write(`${refusedLine(refusalCode(err))}\n`);
       lock?.release();
       process.exit(4);
     }
@@ -125,8 +136,14 @@ async function main(): Promise<void> {
     supervisor, // [SCOPE 134 / T031]
   });
 
+  let shuttingDown = false;
   const shutdown = (signal: string) => {
-    console.log(`\n[bridge] ${signal} — shutting down`);
+    if (shuttingDown) return;
+    shuttingDown = true;
+    process.stdout.write(`\n[bridge] ${signal} — shutting down\n`);
+    // SPEC-145 FR-007: a disconnect post that hangs must not keep the process (and the
+    // worktree lock) alive; the lock is also released on exit below.
+    setTimeout(() => process.exit(0), SHUTDOWN_BOUND_MS).unref();
     void bridge.shutdown().finally(() => {
       lock?.release(); // [SCOPE 134 / T022]
       process.exit(0);
@@ -136,6 +153,15 @@ async function main(): Promise<void> {
   process.on("exit", () => lock?.release());
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
+  // SPEC-145 FR-007: Windows delivers no SIGTERM to a child (kill() terminates it outright),
+  // so the Cockpit stops the agent by closing its stdin instead. Only when it asks for that:
+  // a launch whose stdin is already closed must not shut down the moment it starts.
+  process.on("SIGBREAK", () => shutdown("SIGBREAK"));
+  if (process.env.WXKANBAN_STOP_ON_STDIN_CLOSE === "1") {
+    process.stdin.on("end", () => shutdown("stdin closed"));
+    process.stdin.on("close", () => shutdown("stdin closed"));
+    process.stdin.resume();
+  }
 
   console.log(`[bridge] going remote on project "${projectName()}" (cwd=${REPO_ROOT})`);
   await bridge.run();

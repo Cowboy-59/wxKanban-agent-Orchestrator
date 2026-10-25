@@ -275,3 +275,36 @@ export async function recordOverride(
   }
 }
 // [SCOPE 134 / T019] END
+
+// [SCOPE 145 / T006] BEGIN — fixed lines the Cockpit reads (SPEC-145 FR-005)
+/** Printed once the "connected" post has landed in the room. Never carries a token. */
+export function readyLine(projectName: string): string {
+  return `[bridge] ready project=${projectName}`;
+}
+
+/** Printed when the agent cannot start, so the Cockpit can name the cause. */
+export function refusedLine(code: string): string {
+  return `[project-agent] refused ${code}`;
+}
+
+/** The worktree lock's refusal code (FR-026). */
+export const WORKTREE_LOCKED = "worktree_locked";
+
+/**
+ * A short, fixed code for why connecting failed: the server's own error code when the room
+ * route answered (`remote_not_allowed`, `no_company_account`, …), `http_<status>` when it gave
+ * none, and `unreachable` when no answer came back at all.
+ */
+export function refusalCode(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const refused = /^project agent room refused \((\d{3})\): ([\s\S]*)$/.exec(message);
+  if (!refused) return "unreachable";
+  try {
+    const body = JSON.parse(refused[2]) as { error?: unknown };
+    if (typeof body.error === "string" && /^[a-z][a-z0-9_-]{0,63}$/i.test(body.error)) return body.error;
+  } catch {
+    /* not JSON: fall back to the status */
+  }
+  return `http_${refused[1]}`;
+}
+// [SCOPE 145 / T006] END
