@@ -262,7 +262,7 @@ def test_composite_key_members_are_rejoined_across_wrapped_lines():
 
 
 def test_an_unknown_type_in_the_type_position_is_reported_not_dropped():
-    """No recognised type in the window means the column is dropped. Say so instead."""
+    """Revised source contract: retain unknown records and block mapping, never drop them."""
     unmapped = []
     _, fields = _parse_raw("stdallergy", [
         "stdallergy data file items",
@@ -270,7 +270,9 @@ def test_an_unknown_type_in_the_type_position_is_reported_not_dropped():
         "allergy", "allergy", "Unicode string", "40",
         "typecode", "typecode", "Character",
     ], unmapped)
-    assert [f["name"] for f in fields] == ["allergy"], fields
+    assert [f["name"] for f in fields] == ["allergy", "typecode"], fields
+    assert fields[1]["key"] == "unknown", fields
+    assert fields[1]["mapping_status"] == "unresolved", fields
     assert any(u["type"] == "Character" for u in unmapped), unmapped
 
 

@@ -8,6 +8,59 @@ Execute implementation tasks for a spec using the MCP Project Hub. This command 
 
 If `stack.md` does **not** exist, proceed exactly as today — no change in behavior, and never emit a placeholder or block on the missing file. `stack.md` is materialized from the project's Stack & Style document by the kit (the web walkthrough / `/buildstack` writes the document; the kit writes the file on project open); do not hand-edit it here — use `/buildstack` to change it.
 
+## Model per subagent (SPEC-143 / T022)
+The main session runs on whatever model the user chose, usually the most expensive one. Hand the
+large pieces of work to subagents on the cheapest model that does them well, and keep the small
+steps where they are: a subagent starts cold, so briefing one for a two-call step costs more than
+the step itself.
+
+**What runs where**
+
+| Phase | Runs in | Model |
+|-------|---------|-------|
+| 1 Validate spec | main session | — |
+| 2 Execute tasks | a subagent per easy or moderate task; heavy tasks in the main session | by difficulty, below |
+| 3 Report | main session | — |
+| 4 Advisory review | one subagent per track | Sonnet; Opus when the diff is heavy |
+| 4b Conversion parity | one subagent | Sonnet |
+| 5 Test plan | subagents for the drafting and the item bodies; the gates in the main session | Sonnet |
+| 5b Seed | one subagent | Sonnet; Opus when an adapter must be generated |
+| 6, 6b Feedback, bug-trapping offer | main session | — |
+
+**Choosing the model**
+
+- [ ] Classify the work with `node _wxAI/routing/difficulty.mjs --files <n> --criteria <n> --touches <list>`
+  (add `--new-logic-with-tests` when the task adds branching logic that ships with tests).
+  `--touches` names any of `security`, `auth`, `money`, `schema`, `migration`, `production` the
+  task touches. The class is `easy`, `moderate` or `heavy`, with the reasons.
+- [ ] Resolve the model with `node _wxAI/routing/tiers.mjs --difficulty <class>`. It honors the
+  project's override in `decisions/settings.yaml`. Pass the Agent tool the family alias in the
+  resolved id (`haiku`, `sonnet`, `opus`), not the full id.
+- [ ] A `heavy` class runs in the main session, not in a subagent on Opus: the main session already
+  holds the context.
+- [ ] **Show the plan before launching anything**: one line per unit of work with its class, the
+  reasons and the model.
+- [ ] Log each choice, one event per subagent:
+  `node --input-type=module -e "import { appendRoutingEvent } from './_wxAI/routing/tiers.mjs'; appendRoutingEvent('.', { event: 'model-choice', taskid: '<Tnnn or phase>', command: 'implement', to: '<class> (<model id>)', reason: '<reasons>', evidence: 'difficulty.mjs' })"`.
+  Record the model from the tool's output, never from what a model says about itself.
+
+**What every subagent brief carries.** A subagent sees only its brief. Give it the task text, the
+spec's FRs it serves, `stack.md`, the files it may touch, and the house rules: no `any`, Pino not
+`console.log`, the code-fence convention, US spelling. Ask for a summary back — files changed, tests
+run with their result, anything blocked — not file contents.
+
+**How many at once.** Code-writing subagents (Phase 2) run one at a time unless `--cap=<n>` allows
+more; they share a working tree and a test run. Read-only subagents (Phases 4 and 4b) run at most 2
+at once. Neither ever exceeds `--cap`. The cap limits how many run together, never which model each
+one uses: under `--cap=1` every subagent still runs on its own model, one after another.
+
+**What a subagent never does:** run git or push, write to a production database, or ask the user
+anything. **Every approval gate in this command stays in the main session.**
+
+**Fallback.** If the routing scripts cannot run, the resolved model is not one the subagent tool
+accepts, or the AI client has no subagent tool, run that phase in the main session exactly as
+before, and say so in one line.
+
 ## Usage
 ```bash
 {{ai_config_dir}}/implement {{spec-number}} [options]
@@ -18,6 +71,8 @@ If `stack.md` does **not** exist, proceed exactly as today — no change in beha
 - `--dry-run` (optional): Validate without making changes
 - `--task-filter` (optional): Filter tasks by status (e.g., `todo`, `in_progress`)
 - `--auto-complete` (optional): Automatically mark completed tasks
+- `--cap=<n>` (optional): the most subagents this run may use at once — the same flag and meaning as
+  `/wxG-O-D`, which passes its own cap when it runs implement. `--cap=1` makes the run serial.
 
 ## MCP Tools Used
 - `project.list_open_items` — Get spec tasks and documents
@@ -34,9 +89,20 @@ If `stack.md` does **not** exist, proceed exactly as today — no change in beha
 ### Phase 2: Execute Tasks
 - [ ] List all tasks for the spec
 - [ ] Filter by status if `--task-filter` provided
+- [ ] Classify every task and show the plan (see *Model per subagent*). Count the files from the
+  paths the task names in `tasks.md`, and the acceptance criteria from its detail and the FRs it
+  serves.
 - [ ] For each task:
-  - Execute implementation logic
   - Call `project.update_task_status` to mark `in_progress`
+  - Execute implementation logic — in a subagent on the resolved model for an `easy` or `moderate`
+    task, in the main session for a `heavy` one
+  - Task subagents run one at a time. With `--cap=<n>` above 1, up to n tasks marked `[P]` that
+    share no file may run in parallel; every other task runs in order
+  - After each subagent returns, the main session checks its work: run `wxkanban-agent auditfences`
+    on the files it touched and run the tests the task names
+  - **Escalate after two failed test cycles**: move the task up one tier and run it again with
+    `node --input-type=module -e "import { escalateTask } from './_wxAI/routing/tiers.mjs'; console.log(JSON.stringify(escalateTask({ root: '.', taskid: '<Tnnn>', command: 'implement', tier: '<class>', failedTestCycles: 2 })))"`,
+    which logs the escalation; a task that reaches `heavy` continues in the main session
   - On completion, mark as `done`
   - Capture any blockers as `blocked`
 
@@ -61,6 +127,7 @@ the changes this run produced — it never blocks completion; implement is alrea
 - [ ] Run the `wxUIUXCodeReview` command: call `project.get_command_prompt` with `{ "command": "wxuiuxcodereview" }` and follow the returned methodology against those changes. If unavailable, fall back to the `wxUIUXCodeReview` skill under `.claude/skills/wxUIUXCodeReview/`, which ships with the kit and carries the same methodology. If neither is available, say so plainly and skip Phase 4; never improvise a review from memory or report one as if the methodology had been applied.
 - [ ] **Declare this is an auto-run** so the review applies its diff-bounded dimension set (see *Dimension scope by invocation* in that methodology). The repo-wide dimensions — wiring/reachability, test-suite validity, claim-vs-code, and defaults & first-run — are **not** run here: they need searches beyond the diff and surface mostly pre-existing findings, which would reprint on every implement run. They belong to an explicit `/wxUIUXCodeReview` or `/wxUIUXCodeReview --audit`.
 - [ ] Run the track(s) that match the diff: the code track always; the UI/UX track only when the run touched frontend files (`.tsx`/`.jsx`/`.css`/Tailwind/shadcn). Use a static UI review — do not launch the app here.
+- [ ] Run each track in its own subagent on Sonnet, in parallel unless `--cap=1`. Run the code track on Opus when the diff touches security, auth, money or schema. Each brief carries the methodology, the diff and the auto-run declaration; each returns its findings only.
 - [ ] Print the review findings (ordered by severity: must-fix / should-fix / nit) after the implement report.
 - [ ] Do **not** auto-apply fixes, edit code, restyle, or mark tasks blocked based on the review — surface findings for the user to act on. must-fix findings are called out prominently but do not fail the run.
 
@@ -80,6 +147,9 @@ coverage instead of arriving after the plan is written.
 - [ ] Run the parity audit scoped to **this scope's element only**: call `project.get_command_prompt`
   with `{ "command": "wxconversionparity" }` and follow the returned methodology. Do not sweep the
   whole app here — a full sweep is an explicit `/wxConversionParity` run.
+- [ ] Both guards run in the main session. The audit itself runs in one subagent on Sonnet, in
+  parallel with Phase 4 when the cap allows; its brief carries the methodology and the element, and it returns the
+  findings only.
 - [ ] Surface the result after the review findings: regressions by severity, the **dropped defaults**
   table, and any regression candidates that need a decision.
 - [ ] **Advisory and non-blocking** — implement is already reported done. Do not restore behavior, edit
@@ -102,6 +172,15 @@ separate, explicit user action).
 - [ ] Surface the coverage summary + schema-analysis referential-integrity score after the review
   findings. Do **not** execute tests, mutate a database, or file 200 tasks without the user's go-ahead
   at that command's manifest-confirm gate.
+- [ ] Split the work around those gates, because a subagent cannot stop to ask the user:
+  1. A subagent on Sonnet runs the command through its Phase-2A coverage summary — scope and DB
+     posture, adapter, inventory and the database schema analysis — and returns the summary and the
+     referential-integrity score. The schema analysis stays on Sonnet although it reads the schema:
+     it changes nothing.
+  2. The main session shows the coverage summary and holds the approval gate.
+  3. On approval, a subagent on Sonnet writes the item bodies, including the data-layer
+     constraint-gap analysis, and returns the manifest **without filing it**.
+  4. The main session holds the manifest-confirm gate and files the plan.
 
 ### Phase 5b: Author the scope's seed (SCOPE-120 / T006, SCOPE-127 / FR-002)
 
@@ -146,6 +225,10 @@ These rules hold on every stack, so they live here rather than in any adapter:
   adapter's stated verification step. A seed that has never been run is a guess.
 - [ ] A seed is written to the disposable target the adapter names and nowhere else. Writing to a
   shared or production target is a defect, not a shortcut.
+
+Resolving the adapter is a script, so it runs in the main session. Writing and verifying the seed
+runs in one subagent on Sonnet, with the adapter's Seeding form and the rules above in its brief.
+Generating a missing adapter per `GENERATE.md` runs on Opus.
 
 ### Phase 6: Report field defects back to wxperts (SCOPE-063 Amendment A / FR-011)
 `implement` is where kit defects surface first — a command that errors, a gate that misfires, a
