@@ -70,8 +70,7 @@ interface RoomResponse {
 
 /**
  * Where the project agent keeps its yca_ token. The server deliberately stores none
- * (migration 0068): YappChatt never revokes, so the one copy lives with the agent, as
- * SCOPE-102's bridge keeps YAPPCHATT_TOKEN. Gitignored.
+ * (migration 0068): YappChatt never revokes, so the one copy lives with the agent. Gitignored.
  */
 export function roomStatePath(repoRoot: string): string {
   return join(repoRoot, ".wxai", "agent-room.json");
@@ -148,6 +147,54 @@ export async function connectProjectAgent(cfg: ProjectAgentConfig, repoRoot: str
   };
 }
 
+// [SCOPE 148 / T012] BEGIN — the sink gate and the per-run MCP token refresh (SPEC-148 FR-001)
+//
+// A triage trigger needs two things from the app, both derived server-side from the project's
+// own kit token and never from anything this process claims:
+//
+//   feedbackSink   whether this project IS the feedback sink, so a schedule may be armed at all
+//   mcpToken       a FRESH bound MCP token for the run that is about to start
+//
+// The token is the part that is easy to get wrong. `connectProjectAgent` returns a short-lived
+// one, and the bridge is not short-lived: an agent up for a week would hand every 06:00 run the
+// token it was given on the day it started, every MCP call in the run would fail auth, and the
+// room would get "Feedback triage failed" each morning for a reason nobody could see. So a run
+// takes a new token seconds before it starts instead of reusing the connect-time copy.
+//
+// Refreshing goes back through the same room route, which re-checks `allowremote` on the way —
+// so revoking remote on the sink project stops triage by itself, with nothing else to switch off.
+// `mintAgentToken` stays false: refreshing must never grow the YappChatt token count (SC-5).
+
+export interface ProjectAgentSettings {
+  allowRemote: boolean;
+  /** True only when the token's project is the feedback sink (the server decides, FR-001). */
+  feedbackSink: boolean;
+}
+
+/**
+ * Read the project agent's server-side settings. An older app that predates SPEC-148 T006
+ * returns no `feedbackSink` at all; that reads as false, which arms no schedule — the safe
+ * direction, and the reason the caller reports "unreachable or not the sink" rather than
+ * assuming a missing field means yes.
+ */
+export async function fetchProjectAgentSettings(cfg: ProjectAgentConfig): Promise<ProjectAgentSettings> {
+  const res = await fetch(`${cfg.appBaseUrl}/api/project-agent/settings`, {
+    headers: { authorization: `Bearer ${cfg.projectToken}` },
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`project agent settings refused (${res.status}): ${text.slice(0, 300)}`);
+  const body = JSON.parse(text) as { allowRemote?: unknown; feedbackSink?: unknown };
+  return { allowRemote: body.allowRemote === true, feedbackSink: body.feedbackSink === true };
+}
+
+/** A bound MCP token minted for the run about to start. Never logged, never persisted. */
+export async function refreshMcpToken(cfg: ProjectAgentConfig): Promise<{ token: string; expiresAt: string }> {
+  const r = await postRoom(cfg, false);
+  if (!r.mcp?.token) throw new Error("the room route returned no MCP token");
+  return { token: r.mcp.token, expiresAt: r.mcp.expiresAt };
+}
+// [SCOPE 148 / T012] END
+
 /**
  * FR-032: the tag is the only thing telling the project agent from its supervisor in a
  * room where YappChatt makes them one user. A project agent tagged like its supervisor
@@ -219,6 +266,7 @@ export function acquireWorktreeLock(repoRoot: string, owner: string, pid: number
 // [SCOPE 134 / T022] END
 
 // [SCOPE 134 / T019] BEGIN — record the outcome after the room answers
+// MODIFIED-BY: [SCOPE 148 / T012] — returns the HTTP status, so a 401 can renew the token and retry (FR-016)
 //
 // The MCP is the RECORD, not the mechanism (FR-004): the decision was already made in
 // the room and enforced by canUseTool. Recording is best-effort by design — a failed
@@ -239,7 +287,7 @@ export async function recordOverride(
   mcpUrl: string,
   mcpToken: string,
   rec: OverrideRecord,
-): Promise<{ ok: boolean; detail: string }> {
+): Promise<{ ok: boolean; detail: string; status?: number }> {
   const args: Record<string, unknown> = {
     projectId: rec.projectId,
     agentName: rec.agentName,
@@ -268,7 +316,7 @@ export async function recordOverride(
     const body = await res.text();
     const ok = res.ok && /\\?"success\\?"\s*:\s*true/.test(body);
     if (!ok) console.error(`[override] record FAILED (${res.status}): ${body.slice(0, 300)}`);
-    return { ok, detail: body.slice(0, 500) };
+    return { ok, detail: body.slice(0, 500), status: res.status };
   } catch (err) {
     console.error(`[override] record FAILED: ${(err as Error).message}`);
     return { ok: false, detail: (err as Error).message };

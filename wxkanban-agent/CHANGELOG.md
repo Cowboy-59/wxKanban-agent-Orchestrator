@@ -4,6 +4,25 @@ All notable changes to `wxkanban-agent` are documented in this file.
 
 ## Unreleased
 
+### Removed — GO REMOTE and the plain `.env` bridge mode (SPEC-150)
+
+The remote bridge runs only as the project's Project Agent. `apps/remote-bridge/src/main.ts`
+refuses without project-agent configuration, and `npm run remote` now passes
+`--project-agent`. `resolveYappchattConfig` takes the agent's connection in memory and no
+longer reads `YAPPCHATT_ROOM`, `YAPPCHATT_TOKEN`, `YAPPCHATT_EMAIL` or the deprecated
+`WXKANBAN_YAPPCHATT_*`, `WXKANBAN_YAPPCHAT_*`, `WXKANBAN_REMOTE_ROOM_ID`, `WXKANBAN_CHAT_*`
+and `WXKANBAN_WS_URL` aliases. `WXKANBAN_REMOTE_SEED` and `WXKANBAN_REMOTE_RESUME` and the
+seed/resume session options are gone, as is `scripts/yappchatt-smoke.ts`. GO REMOTE is
+replaced by HANDOFF REMOTE (SPEC-149), which hands the editor's state to the running agent.
+
+### Added — one-time notice for retired room keys (SPEC-150 FR-014)
+
+`core/bootstrap/retired-room-keys.ts`: on the Project Agent's start and the kit CLI entry, if
+the repo-root `.env` still sets any retired key, one notice names them (names only, never a
+value) and `.wxai/retired-room-keys-notice.json` records it so it never repeats. The kit never
+writes `.env`. The state file joins the `.gitignore` entries the kit appends and the
+`.gitignore.snippet` template.
+
 ### Changed — `/wxG-O-D` methodology is server-delivered; the kit ships a stub plus scripts
 
 `/wxG-O-D` (G.O.D., the customer development planner) now runs on the same machinery

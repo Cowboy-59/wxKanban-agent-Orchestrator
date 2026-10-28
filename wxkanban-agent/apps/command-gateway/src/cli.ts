@@ -34,6 +34,8 @@ import { handleKitConfigureCommand } from '../../../core/orchestrator/command-ha
 // .env so every gateway command (dbpush etc.) is authenticated (Issue 4).
 import { trustSystemCertificates } from '../../../core/bootstrap/system-ca';
 import { loadProjectEnv } from '../../../core/bootstrap/load-env';
+// [SCOPE 150 / T006] one-time notice for the retired room keys in .env (FR-014)
+import { noticeRetiredRoomKeys } from '../../../core/bootstrap/retired-room-keys';
 // Dogfood the cockpit self-update from the kit's own startup path: the
 // SessionStart hook runs `cli.ts --help`, which is the closest thing wxKanban
 // has to a "terminal process that runs at startup". Without this the self-heal
@@ -286,6 +288,7 @@ function runKitConfigureBootstrap(args: string[]): number {
 async function main(): Promise<void> {
 	trustSystemCertificates();
 	loadProjectEnv();
+	noticeRetiredRoomKeys(process.cwd()); // [SCOPE 150 / T006]
 	const args = process.argv.slice(2);
 
 	// [SCOPE 095 / T007] Bootstrap command — must be reachable before the project

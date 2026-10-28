@@ -84,7 +84,23 @@ async function main(): Promise<void> {
     bodyMarkdown: body,
   });
 
-  say("\nresult:", JSON.stringify(res, null, 2).slice(0, 1200));
+  // say() takes one line. This used to pass the result as a second argument, which
+  // was silently dropped (hidden by --transpile-only), so every push printed an
+  // empty "result:" and a refused write still exited 0.
+  const payload = res.data as { isError?: boolean; content?: Array<{ text?: string }> } | undefined;
+  const text = payload?.content?.[0]?.text ?? "";
+  const failed = !res.ok || payload?.isError === true;
+  let documentId = "";
+  try {
+    documentId = (JSON.parse(text) as { document?: { id?: string } }).document?.id ?? "";
+  } catch {
+    // Not JSON: an error message, reported below as-is.
+  }
+
+  say(`\nresult    : HTTP ${res.status}${failed ? " — FAILED" : ""}`);
+  if (documentId) say(`document  : ${documentId}`);
+  if (failed || !documentId) say(text.slice(0, 1200) || JSON.stringify(res.data).slice(0, 1200));
+  if (failed || !documentId) process.exitCode = 1;
 }
 
 main().catch((err) => {

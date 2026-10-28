@@ -4,6 +4,7 @@ import { GATE_HOOK_TIMEOUT_S } from "./override-gate"; // [SCOPE 134 / T035]
 
 // [SCOPE 102 / T003] BEGIN — BridgeSession: owns a driveable headless Claude session
 // MODIFIED-BY: [SCOPE 137 / T010] — the session runs with WXAI_UNATTENDED=1 and WXAI_REMOTE=1 so the Change Impact hook treats it as unattended
+// MODIFIED-BY: [SCOPE 149 / T007] — an optional handoff-turn guard, registered as a PreToolUse hook with no matcher (FR-007)
 // Wraps the Agent SDK `query()` with a push-based input queue (so the room can feed
 // new user messages over time), routes the output stream to typed handler callbacks,
 // and exposes interrupt/stop/resume. Runs in bypassPermissions so native prompts never
@@ -59,10 +60,8 @@ export interface BridgeSessionOptions {
   cwd: string;
   /** Model override; omit to inherit the SDK/CLI default. */
   model?: string;
-  /** Resume a prior session id (the GO REMOTE handoff, when resume is available). */
-  resumeSessionId?: string;
-  /** Seed text prepended as the first user turn (handoff fallback when resume can't be used). */
-  seedContext?: string;
+  // [SCOPE 150 / T004] No seed or resume options: the plain .env launch that set them is
+  // retired; the Project Agent always starts a fresh session (FR-012).
   /** Tool patterns to hard-block. Defaults to blocking `git push` (FR-006 safety default). */
   disallowedTools?: string[];
   // [SCOPE 134 / T013] When supplied, `git push` is no longer hard-blocked: it becomes
@@ -71,6 +70,9 @@ export interface BridgeSessionOptions {
   // rather than replace it, so the two move together and `start()` refuses to separate
   // them — see the guard there.
   overrideGate?: HookCallback; // [SCOPE 134 / T035] a PreToolUse hook — see override-gate.ts
+  // [SCOPE 149 / T007] A PreToolUse hook with NO matcher, so it sees every tool. It answers
+  // only while a handoff turn runs and has no opinion otherwise — see handoff-turn.ts.
+  turnGuard?: HookCallback;
 }
 
 export interface BridgeSessionHandlers {
@@ -108,9 +110,6 @@ export class BridgeSession {
 
   async start(): Promise<void> {
     const { query } = await loadAgentSdk();
-    if (this.opts.seedContext && !this.opts.resumeSessionId) {
-      this.input.push(`Context handed off from my desk session:\n\n${this.opts.seedContext}`);
-    }
     // [SCOPE 134 / T010, T013] With a gate supplied, `git push` stops being hard-blocked
     // and becomes reachable-but-gated: the call suspends in `canUseTool` until the
     // operator answers. Without a gate the original hard block stands.
@@ -119,6 +118,7 @@ export class BridgeSession {
     // would be removing the safeguard rather than replacing it, and it would look like
     // configuration rather than a decision — so that combination is refused outright.
     const gate = this.opts.overrideGate;
+    const guard = this.opts.turnGuard; // [SCOPE 149 / T007]
     const blocked = this.opts.disallowedTools ?? (gate ? [] : ["Bash(git push:*)"]);
 
     if (!gate && this.opts.disallowedTools && !this.opts.disallowedTools.some((t) => /git\s+push/i.test(t))) {
@@ -136,7 +136,6 @@ export class BridgeSession {
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,
         includePartialMessages: true,
-        resume: this.opts.resumeSessionId,
         disallowedTools: blocked,
         // [SCOPE 137 / T010] Nobody is at the keyboard: the Change Impact hook logs an Impact
         // Boundary crossing and continues, and stops on possible data loss, which this bridge
@@ -146,7 +145,18 @@ export class BridgeSession {
         // canUseTool is never consulted under bypassPermissions (found live 2026-09-25:
         // the gate never ran and push was ungated). A PreToolUse hook runs before EVERY
         // tool call in every permission mode and its deny beats any settings allow rule.
-        ...(gate ? { hooks: { PreToolUse: [{ matcher: "Bash", timeout: GATE_HOOK_TIMEOUT_S, hooks: [gate] }] } } : {}),
+        // [SCOPE 149 / T007] The handoff-turn guard rides beside the gate, with no matcher.
+        // Without a guard the registration is exactly what it was.
+        ...(gate || guard
+          ? {
+              hooks: {
+                PreToolUse: [
+                  ...(gate ? [{ matcher: "Bash", timeout: GATE_HOOK_TIMEOUT_S, hooks: [gate] }] : []),
+                  ...(guard ? [{ hooks: [guard] }] : []),
+                ],
+              },
+            }
+          : {}),
       },
     });
     this.running = true;

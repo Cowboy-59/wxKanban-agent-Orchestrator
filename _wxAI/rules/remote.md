@@ -1,40 +1,80 @@
-# Rule: "GO REMOTE" — launch the Remote Session Bridge (SCOPE-102)
+# Rule: "HANDOFF REMOTE" — hand the session's state to the Project Agent (SCOPE-149)
 
-**Trigger:** the operator says **"GO REMOTE"** (any casing) in conversation, or invokes
-`/remote`. Both mean the same thing: hand this session off to the phone-drivable Remote
-Session Bridge for this project.
+**Trigger:** the operator says **"HANDOFF REMOTE"** (any casing) in conversation, or invokes
+`/remote`. Both mean the same thing: hand where the work stands to this repo's Project Agent.
 
-This is a **recognized command, not a literal instruction to relay.** When you see "GO REMOTE",
-do **not** treat it as a task to work on — run the handoff below.
+This is a **recognized command, not a literal instruction to relay.** When you see
+"HANDOFF REMOTE", do **not** treat it as a task to work on — run the handoff below.
+
+## Purpose
+
+The Project Agent for this repo is already connected to the project's room. A handoff gives it
+where the work stands. The agent posts it as `[HANDOFF]` under its own tag, then posts one
+reading of where the work stands and one question for the operator. The operator carries on
+from the phone.
 
 ## What to do
 
-1. **Preflight the repo-root `.env`.** The bridge requires, per project:
-   - `YAPPCHATT_ROOM` — private YappChatt room `conversationId`.
-   - `YAPPCHATT_EMAIL` — operator identity (broker read session).
-   - `YAPPCHATT_TOKEN` — per-room agent token (`yca_…`), from the YappChatt web app:
-     room → **Connect Claude** → copy.
-   If any are missing, **stop and tell the operator which one(s)** — never launch a
-   half-configured bridge.
+1. **Compose the summary fields** from the current session as JSON. All keys are optional;
+   empty means `none`.
 
-2. **Launch in the background:** `cd wxkanban-agent && npm run remote`. It is a long-lived
-   relay — run it as a background process, not a blocking one. It connects, announces
-   `Claude on project <name> is connected`, and stays **idle** until a room message arrives.
+   | Key | Content |
+   | --- | --- |
+   | `repo` | repository name |
+   | `branch` | current branch |
+   | `workingOn` | scope and task |
+   | `done` | what is finished (string or array of strings) |
+   | `inFlight` | what is under way (string or array of strings) |
+   | `blocked` | blocked, or waiting on a decision (string or array of strings) |
+   | `uncommitted` | `{ "count": <n>, "files": ["path", ...] }` — counts and file NAMES only |
+   | `nextStep` | the next step |
+   | `resume` | where to resume |
 
-3. **Default to a MINIMAL / empty seed.** Do **not** stuff the current conversation into
-   `WXKANBAN_REMOTE_SEED`. A directive seed spawns a second autonomous Claude that edits files
-   on the shared working tree. Only set a seed when the operator explicitly asks to hand off the
-   current task; otherwise leave it empty so the bridge waits for the phone.
+   **Never** include file contents, diffs, or secrets. The writer also strips diffs and file
+   bodies and masks secrets, but do not rely on that.
 
-4. **Confirm the entrance is live** — tell the operator the bridge is connected to their room
-   and list the control words (`STOP`, `CONTINUE`, `STATUS`, `VERBOSE`/`CONCISE`,
-   `PUSH`→`CONFIRMED`/`NO`, `CANCEL REMOTE`).
+2. **Write the JSON to a temp file** (the OS temp folder or the session scratchpad, NOT inside
+   the repo) and run the writer from the repo root:
 
-## Safety (non-negotiable)
+   `node wxkanban-agent/apps/remote-bridge/bin/handoff-remote.mjs --input <that temp file>`
 
-- The bridge runs in `bypassPermissions`; the **private room is the security boundary**.
-- The remote session **cannot `git push` on its own** — the only push path is operator
-  `PUSH` → clean review → explicit `CONFIRMED`. This upholds the never-push-without-approval rule.
-- To end: `CANCEL REMOTE` from the room, or `Ctrl-C` where the bridge runs.
+   Equivalent: `cd wxkanban-agent && npm run handoff -- --input <file>`.
 
-Full reference: `wxkanban-agent/apps/remote-bridge/README.md`. Spec: SCOPE-102.
+3. **Report the writer's ONE output line back to the operator verbatim.** It is either:
+   - `Handoff written: .wxai/handoff/<timestamp>.md (N items masked). The Project Agent will post it to the room.`
+   - or `Handoff stopped: <cause>. Fix: <fix>` — the cause is one of: Allow remote is off, no
+     company YappChatt account, Project Agent not running, another session holds the tree, no
+     kit token, settings unreachable.
+
+   On a stop, do nothing else: do not launch the agent and do not retry in a loop.
+
+## Safety / what it never does
+
+- It launches no process. No bridge, no agent. The operator starts the Project Agent from the
+  Dev Cockpit, or with `npm run project-agent` in `wxkanban-agent/`.
+- The session NEVER posts to the room itself. Only the Project Agent posts.
+- It never reads or edits `.env`.
+- Summaries are capped at 2,000 characters.
+- Secret-looking text is masked as `[redacted]`; the handoff still goes through.
+- An unposted handoff older than 4 hours is deleted by the agent, with a short removal note in
+  the room. A newer handoff replaces an unposted one.
+- The agent treats a `[HANDOFF]` as context only. It does not carry out the next step, edit
+  files, or run commands because of it.
+
+## Driving it from the room
+
+The Project Agent still honors these control words (case-insensitive):
+
+| Word | Effect |
+| --- | --- |
+| `STOP` / `CONTINUE` | interrupt the current turn / resume after a stop |
+| `STATUS` | report project, session, working or idle, verbosity |
+| `VERBOSE` / `CONCISE` | output detail |
+| `PUSH` → `CONFIRMED` / `NO` | run a pre-push review; push only on `CONFIRMED` |
+| `CANCEL REMOTE` | end remote mode |
+| `TRIAGE` | run feedback triage (feedback-sink project only) |
+
+## References
+
+Spec SCOPE-149 / SPEC-149 (`specs/149-handoff-remote/spec.md`). The Project Agent is
+SCOPE-134 / SCOPE-145.

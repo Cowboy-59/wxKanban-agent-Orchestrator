@@ -8,6 +8,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join, relative, resolve } from 'path';
+import { createInterface } from 'readline';
 import { ScopeDraft } from '../../core/schemas/artifacts';
 import { McpClient } from '../../core/http/mcp-client';
 
@@ -84,12 +85,42 @@ export function findLocalScopeFile(root: string, specNumber: string): string | n
 }
 // [SCOPE 135 / T012] END
 
+// [SCOPE 135 / T018] BEGIN — an edit is shown as a diff and written only after a confirm
+/** FR-020. `--yes` is the unattended confirm; it never reaches the server. */
+function isYes(value: unknown): boolean {
+	return value === true || (typeof value === 'string' && /^(true|yes|y|1)$/i.test(value.trim()));
+}
+
+/**
+ * Ask on the terminal. With no terminal to ask on, the answer is no: an unattended run that did not
+ * say `--yes` must not overwrite the author's file.
+ */
+export async function askToWrite(question: string): Promise<boolean> {
+	if (!process.stdin.isTTY) return false;
+	const rl = createInterface({ input: process.stdin, output: process.stdout });
+	try {
+		const answer: string = await new Promise((done) => rl.question(question, done));
+		return /^y(es)?$/i.test(answer.trim());
+	} finally {
+		rl.close();
+	}
+}
+// [SCOPE 135 / T018] END
+
 // [SCOPE 124 / T020] BEGIN — buildscope reports what it actually did
 // MODIFIED-BY: [SCOPE 135 / T012] — sends local numbers / the local file; writes an edit back in place
 export class BuildScopeWorker {
+	// [SCOPE 135 / T018] Replaceable so tests (and an embedding UI) can answer without a terminal.
+	static confirmWrite: (question: string) => Promise<boolean> = askToWrite;
+
 	static async generateScopeDraft(input: Partial<ScopeDraft> & Record<string, unknown>): Promise<ScopeDraft> {
 		const args = parseArrayInputs(mapInputsToMcpArgs(input as Record<string, unknown>));
 		const root = process.cwd();
+		// [SCOPE 135 / T018] FR-020 - the confirm flag is the kit's, not the server's.
+		const assumeYes = isYes(args['yes']);
+		delete args['yes'];
+		// [SCOPE 135 / T020] FR-022 - the server records an unattended write in the Amendment Log entry.
+		if (assumeYes) args['unattended'] = true;
 
 		// [SCOPE 135 / T012] FR-016 — an edit is applied to the author's file and written back to it;
 		// a create is numbered past what is on disk as well as what is stored.
@@ -139,6 +170,8 @@ export class BuildScopeWorker {
 			// [SCOPE 028 / Phase 12 — FR-021] content the client writes locally.
 			filePath?: string;
 			scopeContent?: string;
+			// [SCOPE 135 / T018] on an edit: the lines it changes.
+			editDiff?: { hunks: Array<{ line: number; before: string[]; after: string[] }>; text: string };
 			checklistPath?: string;
 			checklistContent?: string;
 			// [SCOPE 135 / T012] additive fields from a SCOPE-135 server; absent on older servers.
@@ -188,11 +221,27 @@ export class BuildScopeWorker {
 			: typeof mcpResult.checklistPath === 'string'
 				? resolve(root, mcpResult.checklistPath)
 				: null;
-		if (scopeTarget && typeof mcpResult.scopeContent === 'string') {
+		// [SCOPE 135 / T018] FR-020 - show what the edit changes and write only after a yes. A decline
+		// leaves the scope and its checklist exactly as they were; the draft exists only in this response.
+		let writeAllowed = true;
+		let notWrittenReason = '';
+		if (scopeTarget && mcpResult.editDiff && mcpResult.editDiff.hunks.length > 0) {
+			const shown = relative(root, scopeTarget).replace(/\\/g, '/');
+			process.stdout.write(`\nChanges to ${shown}:\n${mcpResult.editDiff.text}\n\n`);
+			if (assumeYes) {
+				process.stdout.write('--yes given: writing without asking.\n');
+			} else if (!(await BuildScopeWorker.confirmWrite(`Write these changes to ${shown}? [y/N] `))) {
+				writeAllowed = false;
+				notWrittenReason = process.stdin.isTTY
+					? 'declined'
+					: 'no terminal to confirm on - rerun with --yes to write unattended';
+			}
+		}
+		if (writeAllowed && scopeTarget && typeof mcpResult.scopeContent === 'string') {
 			mkdirSync(dirname(scopeTarget), { recursive: true });
 			writeFileSync(scopeTarget, mcpResult.scopeContent, 'utf8');
 		}
-		if (checklistTarget && typeof mcpResult.checklistContent === 'string') {
+		if (writeAllowed && checklistTarget && typeof mcpResult.checklistContent === 'string') {
 			mkdirSync(dirname(checklistTarget), { recursive: true });
 			writeFileSync(checklistTarget, mcpResult.checklistContent, 'utf8');
 		}
@@ -217,14 +266,16 @@ export class BuildScopeWorker {
 		// developer sees overlapping existing scopes while authoring (warn-only).
 		const reuseNote = mcpResult.reuseWarning ? `\n\n${mcpResult.reuseWarning}` : '';
 		// [SCOPE 135 / T012] Say where the file went and what is still open, not just the verb.
-		const whereNote = scopeTarget ? ` Written to ${relative(root, scopeTarget).replace(/\\/g, '/')}.` : '';
+		const whereNote = !writeAllowed
+			? ` NOT written (${notWrittenReason}); ${scopeTarget ? relative(root, scopeTarget).replace(/\\/g, '/') : 'the scope file'} and its checklist are unchanged.`
+			: scopeTarget ? ` Written to ${relative(root, scopeTarget).replace(/\\/g, '/')}.` : '';
 		const missingNote = mcpResult.missingInputs && mcpResult.missingInputs.length > 0
 			? `\n\nStill blocked — supply: ${mcpResult.missingInputs.join(', ')}.`
 			: '';
 		const advisoryNote = mcpResult.advisories && mcpResult.advisories.length > 0
 			? `\n\nAdvisory (not enforced by the gate): ${mcpResult.advisories.join('; ')}.`
 			: '';
-		const notes = `Spec ${mcpResult.specNumber ?? '?'} ${verb} via project.buildscope (mode: ${mcpResult.mode ?? 'unknown'}).${whereNote}${missingNote}${advisoryNote}${reuseNote}`;
+		const notes = `Spec ${mcpResult.specNumber ?? '?'} ${writeAllowed ? verb : 'drafted'} via project.buildscope (mode: ${mcpResult.mode ?? 'unknown'}).${whereNote}${missingNote}${advisoryNote}${reuseNote}`;
 
 		return {
 			title,

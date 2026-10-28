@@ -22,6 +22,7 @@ import { rewriteHeadings } from './core/orchestrator/spec-heading-rewriter';
 import { emitCockpitRefresh, ensureCockpitUpToDate } from './core/orchestrator/cockpit-refresh';
 import { syncTaskStatuses, buildDoneTitles } from './core/orchestrator/sync-task-status';
 import { syncArchivedFiles } from './core/orchestrator/sync-archived-files';
+import { syncScopeDocs, type SyncScopeDocsResult } from './core/orchestrator/sync-scope-docs'; // [SCOPE 135 / T019]
 import { trustSystemCertificates } from './core/bootstrap/system-ca';
 import { loadProjectEnv } from './core/bootstrap/load-env';
 
@@ -297,6 +298,8 @@ export interface DbPushReport {
   // skipInteractiveRetry was set).
   retryAttempted?: boolean;
   rewroteSpecs?: Array<{ scope: string; bakPath: string; rewroteSections: string[] }>;
+  // [SCOPE 135 / T019] FR-021 — scope documents stored this run (would be, on a dry run).
+  scopeDocs?: SyncScopeDocsResult;
 }
 
 // ---------------------------------------------------------------------------
@@ -942,6 +945,22 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
   }
   // [SCOPE 103 / T007] END
 
+  // [SCOPE 135 / T019] FR-021 — store each scope document and write its synced hash into the file.
+  // Runs on a dry run too, to report the plan; it writes nothing then. Its errors are reported
+  // beside the spec push, never inside totals.errors (which tests treat as spec-push failures).
+  let scopeDocs: SyncScopeDocsResult | undefined;
+  if (!dbState.unreachable || options.dryRun) {
+    try {
+      scopeDocs = await syncScopeDocs({ projectId: config.projectId, projectRoot, dryRun: options.dryRun === true });
+      if (scopeDocs.pushed.length) {
+        process.stdout.write(`dbpush: scope document(s) ${options.dryRun ? 'that would be stored' : 'stored'}: ${scopeDocs.pushed.join(', ')}\n`);
+      }
+      for (const e of scopeDocs.errors) console.warn(`dbpush: scope document sync: ${e}`);
+    } catch (err) {
+      console.warn(`dbpush: scope document sync failed (non-fatal): ${(err as Error).message}`);
+    }
+  }
+
   return {
     validation: {
       specsParsed: validation.artifacts.length,
@@ -954,6 +973,7 @@ export async function dbpush(options: DbPushOptions = {}): Promise<DbPushReport>
     dryRun: !!options.dryRun,
     dbUnreachable: dbState.unreachable,
     retryAttempted: false,
+    ...(scopeDocs ? { scopeDocs } : {}),
   };
 }
 

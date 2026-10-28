@@ -1,6 +1,7 @@
 import {
   YappchattClient,
   resolveYappchattConfig,
+  type YappchattConnection, // [SCOPE 150 / T003]
   type YappchattMessage,
   type YappchattStatus,
 } from "../../../core/yappchatt";
@@ -8,9 +9,16 @@ import { resolveApiToken } from "../../../core/http/mcp-client"; // [SCOPE 144 /
 import { BridgeSession } from "./session";
 import { gitPush, gitTarget, runReview } from "./push-gate";
 import { createGateHook, type OverrideRequest } from "./override-gate"; // [SCOPE 134 / T018, T035]
-import { readyLine, recordOverride } from "./agent-mode"; // [SCOPE 134 / T019] [SCOPE 145 / T006]
+import { readyLine, recordOverride, refreshMcpToken, type ProjectAgentConfig } from "./agent-mode"; // [SCOPE 134 / T019] [SCOPE 145 / T006] [SCOPE 148 / T012]
+import { TriageSchedule } from "./triage-schedule"; // [SCOPE 148 / T012]
+import { McpTokenHolder } from "./mcp-token"; // [SCOPE 148 / T012]
 import { startOutboxDrain } from "./outbox"; // SPEC-142 / T010
 import { decisionReplyFor, handleDecisionReply, nodeRunner } from "./decision-reply"; // [SCOPE 142 / T025]
+import { HandoffWatcher } from "./handoff-watch"; // [SCOPE 149 / T006]
+import { HandoffQueue } from "./handoff-queue"; // [SCOPE 149 / T006]
+import { createHandoffLogger } from "./handoff-log"; // [SCOPE 149 / T006]
+import { HandoffTurnGuard, handoffPrompt, isHandoffText, stripHandoffTag } from "./handoff-turn"; // [SCOPE 149 / T007]
+import type { HookCallback } from "@anthropic-ai/claude-agent-sdk"; // [SCOPE 149 / T007]
 
 // [SCOPE 134 / T018] One yes/no parser, used by BOTH the operator-initiated push
 // confirmation and the agent-initiated gate. It was inline in resolvePendingPush; two
@@ -28,6 +36,10 @@ function parseYesNo(text: string): boolean | undefined {
 
 // [SCOPE 102 / T005] BEGIN — RemoteBridge: composes the room transport with the session
 // MODIFIED-BY: [SCOPE 145 / T006] — prints the fixed ready line once the "connected" post lands
+// MODIFIED-BY: [SCOPE 148 / T012] — feedback triage schedule, TRIAGE command, one shared MCP token holder (FR-016)
+// MODIFIED-BY: [SCOPE 149 / T006] — arms the hand-off watcher and one-slot queue in project-agent mode; posts [HANDOFF] when free (FR-006, FR-008)
+// MODIFIED-BY: [SCOPE 149 / T007] — a posted [HANDOFF] starts a context-only turn under the handoff guard; the guard lifts when the turn ends (FR-007)
+// MODIFIED-BY: [SCOPE 151 / T004] — connectionState() for the connection record's heartbeat (FR-060)
 // Outbound relay (session -> room) is the handler set passed to BridgeSession; inbound
 // routing (room -> session) is onRoomMessage. Connect announce on first 'connected'
 // (FR-002), disconnect notice on shutdown (FR-009). Concise by default: assistant text
@@ -37,17 +49,20 @@ export interface RemoteBridgeOptions {
   projectName: string;
   cwd: string;
   model?: string;
-  /** Handoff context prepended as the first turn when we can't resume by id (FR-001). */
-  seedContext?: string;
-  /** Resume a prior session id instead of starting fresh (GO REMOTE handoff). */
-  resumeSessionId?: string;
+  // [SCOPE 150 / T003, T004] The room connection the project agent fetched, handed over in
+  // memory (FR-011). The seed and resume hooks are gone (FR-012).
+  connection?: YappchattConnection;
   // [SCOPE 134 / T019, T030] Present in project-agent mode: the audit identity and bound
-  // MCP token every gate decision is filed through.
-  agent?: { name: string; projectId: string; mcpUrl: string; mcpToken: string };
+  // MCP token every gate decision is filed through. [SCOPE 148 / T012] mcpExpiresAt seeds the
+  // token holder; absent, the first use renews.
+  agent?: { name: string; projectId: string; mcpUrl: string; mcpToken: string; mcpExpiresAt?: string };
   // [SCOPE 134 / T031] The supervising agent (KAIN). Agent-authored messages tagged with
   // its name are input to the session and may answer a gate (FR-032, FR-033). Absent =
   // operator-driven bridge: every agent-authored message is dropped, as before.
   supervisor?: string;
+  // [SCOPE 148 / T012] Present in project-agent mode: the config a triage run re-authenticates
+  // with. Absent = no feedback triage at all, and TRIAGE stays ordinary text (SCOPE-102 intact).
+  projectAgentConfig?: ProjectAgentConfig;
 }
 
 export class RemoteBridge {
@@ -74,9 +89,25 @@ export class RemoteBridge {
   private verboseBuffer = "";
   private verboseTimer?: ReturnType<typeof setTimeout>;
   private stopOutboxDrain?: () => void;
+  // [SCOPE 148 / T012] The feedback-triage schedule. Only ever constructed in project-agent
+  // mode, and it arms itself only once the server says this project is the sink (FR-001).
+  private triage?: TriageSchedule;
+  // [SCOPE 148 / T012] FR-016: the one bound MCP token holder. The room gate's records and the
+  // triage runs both draw from it, so a renewal for one never revokes the other's copy. Only in
+  // project-agent mode with a config to renew through; otherwise the gate uses agent.mcpToken.
+  private readonly tokens?: McpTokenHolder;
+  // [SCOPE 149 / T006] Project-agent mode only: the hand-off folder watcher and its one-slot queue.
+  private handoffWatcher?: HandoffWatcher;
+  private handoffQueue?: HandoffQueue;
+  // [SCOPE 149 / T007] Project-agent mode only: the context-only guard for a [HANDOFF] turn, a
+  // handoff waiting for the current turn to end, and operator messages held while one runs.
+  private handoffGuard?: HandoffTurnGuard;
+  private deferredHandoff?: string;
+  private readonly heldDuringHandoff: string[] = [];
+  private handoffLogger?: ReturnType<typeof createHandoffLogger>;
 
   constructor(private readonly opts: RemoteBridgeOptions) {
-    const { config, user } = resolveYappchattConfig();
+    const { config, user } = resolveYappchattConfig(opts.connection); // [SCOPE 150 / T003]
     // [SCOPE 144 / T002] The read login sends the project's kit token (FR-009): the server
     // opens a session only for an email of the token's company. Absent, it goes without.
     const kitApiToken = resolveApiToken({ projectRoot: opts.cwd }) ?? undefined;
@@ -87,6 +118,19 @@ export class RemoteBridge {
       onTyping: () => undefined,
       onError: (e) => console.error(`[room] ${e}`),
     });
+    const agent = opts.agent;
+    const paCfg = opts.projectAgentConfig;
+    if (agent && paCfg) {
+      this.tokens = new McpTokenHolder({
+        initial: { token: agent.mcpToken, expiresAt: agent.mcpExpiresAt ?? "" },
+        renew: () => refreshMcpToken(paCfg),
+        // Once per failure streak, and never the token itself.
+        onRenewFailed: (reason) =>
+          void this.post(
+            `⚠ The MCP token could not be renewed (${reason.slice(0, 160)}). Gate records and feedback triage may fail until it can.`,
+          ),
+      });
+    }
   }
 
   /** Connect to the room; the session starts once the socket is live. */
@@ -105,16 +149,122 @@ export class RemoteBridge {
       // SPEC-142 / T010: relay blockers the Ask Gate queued in .wxai/room-outbox.jsonl.
       this.stopOutboxDrain = startOutboxDrain(this.opts.cwd, (t) => this.post(t));
       this.startSession();
+      // [SCOPE 148 / T012] Armed after the room is live, so the sink gate's verdict and any
+      // catch-up run can actually be reported. Its own session is separate from the room's.
+      const paCfg = this.opts.projectAgentConfig;
+      // Both, not either: the config authenticates the run and the agent carries the projectId
+      // the fingerprint's feedback calls are scoped to. They are set together or not at all.
+      if (paCfg && this.opts.agent) {
+        this.triage = new TriageSchedule({
+          repoRoot: this.opts.cwd,
+          config: paCfg,
+          projectId: this.opts.agent.projectId, // [SCOPE 148 / T013]
+          tokens: this.tokens, // FR-016: the same token the gate files with
+          // post() reports delivery with a boolean; the schedule only needs it to have been
+          // attempted, and a failed post is already logged where it happens.
+          post: async (t) => {
+            await this.post(t);
+          },
+        });
+        void this.triage.start().catch((err) => {
+          console.error(`[triage] schedule failed to start: ${(err as Error).message}`);
+        });
+        // [SCOPE 149 / T006] A waiting hand-off is posted once the agent is free (FR-006, FR-008).
+        const handoffLogger = this.handoffLog();
+        this.handoffQueue = new HandoffQueue({
+          isBusy: () => this.handoffBusy(),
+          // [SCOPE 149 / T007] Once the [HANDOFF] post has landed, the context-only turn starts,
+          // so the reading and the question always follow the post (FR-007).
+          deliver: async (f) => {
+            const ok = await this.post(`[HANDOFF]\n${f.body}`);
+            if (ok) this.startHandoffTurn(f.body);
+            return ok;
+          },
+          logger: handoffLogger,
+        });
+        this.handoffQueue.start();
+        this.handoffWatcher = new HandoffWatcher({
+          repoRoot: this.opts.cwd,
+          onReady: (f) => this.handoffQueue?.offer(f),
+          onExpired: () => void this.post("A handoff older than 4 hours was removed without being posted."),
+          logger: handoffLogger,
+        });
+        this.handoffWatcher.start();
+      }
     }
   }
 
+  // [SCOPE 149 / T006] The agent is free only with a live session, no turn, no gate, no triage run.
+  private handoffBusy(): boolean {
+    return !this.session || this.turnActive || !!this.pendingPush || !!this.pendingApproval || !!this.triage?.isRunning;
+  }
+
+  // [SCOPE 151 / T004] What the connection record's heartbeat reports (FR-060): a gated action
+  // pending is `waiting`, a turn or a triage run is `working`, anything else is `idle`.
+  connectionState(): "idle" | "working" | "waiting" {
+    if (this.pendingPush || this.pendingApproval) return "waiting";
+    if (this.turnActive || this.triage?.isRunning) return "working";
+    return "idle";
+  }
+
+  // [SCOPE 149 / T007] One handoff logger per bridge, shared by the guard, queue and watcher.
+  private handoffLog(): ReturnType<typeof createHandoffLogger> {
+    this.handoffLogger ??= createHandoffLogger();
+    return this.handoffLogger;
+  }
+
+  // [SCOPE 149 / T007] Start the context-only turn for a [HANDOFF], or keep it (the newest only)
+  // until the current turn ends. The guard is armed for exactly this turn.
+  private startHandoffTurn(summary: string): void {
+    if (!this.session || !this.handoffGuard) return;
+    if (this.turnActive || this.handoffGuard.active) {
+      this.deferredHandoff = summary;
+      return;
+    }
+    this.handoffGuard.arm();
+    this.turnActive = true;
+    this.session.send(handoffPrompt(summary));
+  }
+
+  // [SCOPE 149 / T007] After any turn: lift the guard, then send what waited behind the handoff
+  // turn — held operator messages first, then a deferred handoff.
+  private afterTurn(): void {
+    if (this.handoffGuard?.active) {
+      this.handoffGuard.disarm();
+      const held = this.heldDuringHandoff.splice(0);
+      if (held.length > 0 && this.session) {
+        this.turnActive = true;
+        this.session.send(held.join("\n\n"));
+        return;
+      }
+    }
+    const next = this.deferredHandoff;
+    if (next !== undefined && !this.turnActive) {
+      this.deferredHandoff = undefined;
+      this.startHandoffTurn(next);
+    }
+  }
+
+  // [SCOPE 149 / T007] STOP during a handoff turn: lift the guard now (the interrupted turn may
+  // never report), drop what waited behind it, and return the room notice saying so.
+  private stopHandoffTurn(): string {
+    const notice = "⏹ stopping the current task";
+    if (!this.handoffGuard?.active) return notice;
+    this.handoffGuard.disarm();
+    const dropped = this.heldDuringHandoff.splice(0).length + (this.deferredHandoff !== undefined ? 1 : 0);
+    this.deferredHandoff = undefined;
+    return dropped > 0 ? `${notice} — ${dropped} held message(s) dropped, resend if still wanted` : notice;
+  }
+
   private startSession(): void {
+    // [SCOPE 149 / T007] Project-agent mode only, like the watcher: operator mode is unchanged.
+    if (this.opts.projectAgentConfig && this.opts.agent) {
+      this.handoffGuard = new HandoffTurnGuard({ repoRoot: this.opts.cwd, logger: this.handoffLog() });
+    }
     this.session = new BridgeSession(
       {
         cwd: this.opts.cwd,
         model: this.opts.model,
-        seedContext: this.opts.seedContext,
-        resumeSessionId: this.opts.resumeSessionId,
         // [SCOPE 134 / T010, T018] Supplying a gate is what lifts the hard `git push`
         // block: the action becomes reachable, and reaching it means suspending here
         // until the operator answers. BridgeSession refuses to accept one without the
@@ -130,6 +280,8 @@ export class RemoteBridge {
           // must never hold a granted action hostage or flip a refusal.
           onDecision: (req, granted) => this.recordDecision(req, granted),
         }),
+        // [SCOPE 149 / T007] No opinion except during a handoff turn (see handoff-turn.ts).
+        turnGuard: this.handoffGuard ? (this.handoffGuard.hook() as unknown as HookCallback) : undefined,
       },
       {
         onSessionInit: (id) => console.log(`[session] init ${id}`),
@@ -153,6 +305,7 @@ export class RemoteBridge {
           if (this.verbose) this.flushVerbose();
           this.turnActive = false;
           if (subtype !== "success") void this.post(`⚠ turn ended: ${subtype}`);
+          this.afterTurn(); // [SCOPE 149 / T007]
         },
         onError: (message) => {
           console.error(`[session] error: ${message}`);
@@ -169,6 +322,7 @@ export class RemoteBridge {
 
   // [SCOPE 102 / T006] BEGIN — inbound routing (room -> session), continue-and-fold
   // MODIFIED-BY: [SCOPE 142 / T025] — queue answers and KAIN-reply reviews are recorded here, by author
+  // MODIFIED-BY: [SCOPE 149 / T007] — a person-typed [HANDOFF] gets the context-only turn; messages during that turn wait for it to end (FR-007)
   private onRoomMessage(m: YappchattMessage): void {
     let text = m.text.trim();
     if (!text) return;
@@ -212,6 +366,17 @@ export class RemoteBridge {
       console.log("[bridge] message before session ready — ignored:", text.slice(0, 60));
       return;
     }
+    // [SCOPE 149 / T007] A [HANDOFF] typed by a person gets the same context-only turn.
+    if (this.handoffGuard && isHandoffText(text)) {
+      this.startHandoffTurn(stripHandoffTag(text));
+      return;
+    }
+    // [SCOPE 149 / T007] While a handoff turn runs, an instruction waits for it to end, so the
+    // guard never applies to it and it never folds into the context-only turn.
+    if (this.handoffGuard?.active) {
+      this.heldDuringHandoff.push(text);
+      return;
+    }
     console.log(`[bridge] operator → session: ${text.slice(0, 80)}`);
     this.turnActive = true;
     this.session.send(text);
@@ -248,10 +413,11 @@ export class RemoteBridge {
   // [SCOPE 102 / T006] END
 
   // [SCOPE 102 / T007] BEGIN — control vocabulary (parsed before relaying to the session)
+  // MODIFIED-BY: [SCOPE 149 / T007] — STOP lifts the handoff guard and drops what it held (FR-007)
   private handleControl(text: string): boolean {
     switch (text.toUpperCase()) {
       case "STOP":
-        void this.post("⏹ stopping the current task");
+        void this.post(this.stopHandoffTurn()); // [SCOPE 149 / T007]
         void this.session?.interrupt();
         this.turnActive = false;
         return true;
@@ -277,6 +443,15 @@ export class RemoteBridge {
       // MODIFIED-BY: [SCOPE 102 / T008] — review-gated push control words
       case "PUSH":
         void this.runPushGate();
+        return true;
+      // MODIFIED-BY: [SCOPE 148 / T012] — TRIAGE runs the feedback sweep (FR-002)
+      // Whole message, any casing, and the supervisor's tag was already stripped upstream, so
+      // KAIN's "[KAIN] TRIAGE" arrives here as plain TRIAGE. With no schedule (an operator
+      // bridge, or a non-sink project that never armed) it falls through as ordinary text
+      // rather than being swallowed: SCOPE-102's behavior is unchanged where triage is absent.
+      case "TRIAGE":
+        if (!this.triage) return false;
+        void this.triage.trigger();
         return true;
       // CONFIRMED / NO are handled by resolvePendingPush (leniently) while a push is pending;
       // with no pending push they fall through to the session as ordinary text.
@@ -337,6 +512,7 @@ export class RemoteBridge {
   }
 
   // [SCOPE 134 / T018] BEGIN — agent-initiated approval (the canUseTool side)
+  // MODIFIED-BY: [SCOPE 148 / T012] — recordDecision files through the shared token holder (FR-016)
   /**
    * Surface a gated action to the operator and resolve with their answer.
    *
@@ -433,7 +609,7 @@ export class RemoteBridge {
     const decider = this.lastDecider;
     this.lastDecider = undefined;
     if (!agent) return; // operator-driven bridge: no agent token to file with
-    void recordOverride(agent.mcpUrl, agent.mcpToken, {
+    const rec: Parameters<typeof recordOverride>[2] = {
       projectId: agent.projectId,
       agentName: agent.name,
       sessionId: this.session?.id,
@@ -441,7 +617,13 @@ export class RemoteBridge {
       granted,
       grantedBy: granted ? decider ?? "operator" : undefined,
       requestText: request.detail,
-    }).then((r) => {
+    };
+    // [SCOPE 148 / T012] FR-016: through the shared holder — renewed near expiry, and renewed
+    // and retried once when the MCP answers 401 (revoked, expired, or replaced elsewhere).
+    const filed = this.tokens
+      ? this.tokens.withToken((t) => recordOverride(agent.mcpUrl, t, rec), { isRejected: (r) => r.status === 401 })
+      : recordOverride(agent.mcpUrl, agent.mcpToken, rec);
+    void filed.then((r) => {
       if (!r.ok) void this.post(`⚠ Could not file the audit record for that decision — ${r.detail.slice(0, 160)}`);
     });
   }
@@ -475,6 +657,7 @@ export class RemoteBridge {
   // [SCOPE 102 / T008] END
 
   // [SCOPE 102 / T005] BEGIN — teardown notice (FR-009 seed; full CANCEL REMOTE in T009)
+// MODIFIED-BY: [SCOPE 149 / T006] — arms the hand-off watcher and one-slot queue in project-agent mode; posts [HANDOFF] when free (FR-006, FR-008)
   async shutdown(): Promise<void> {
     if (this.tornDown) return;
     this.tornDown = true;
@@ -483,6 +666,11 @@ export class RemoteBridge {
     // that quietly proceeds once nobody is watching.
     this.abandonPendingApproval("bridge shutting down");
     this.stopOutboxDrain?.();
+    // [SCOPE 148 / T012] Disarm the tick. A run already in flight is its own session and is
+    // left to finish or fail on its own: killing it mid-sweep is what leaves a partial report.
+    this.triage?.stop();
+    this.handoffWatcher?.stop(); // [SCOPE 149 / T006]
+    this.handoffQueue?.stop();
     try {
       await this.post(`Claude on project ${this.opts.projectName} is disconnected`);
     } catch {

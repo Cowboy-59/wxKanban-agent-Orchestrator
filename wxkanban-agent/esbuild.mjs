@@ -32,13 +32,43 @@ await build({
   outExtension: { ".js": ".cjs" },
 });
 
+// [SCOPE 149 / T008] BEGIN — bundle pino into the bridge bundles (FR-017)
+// The handoff audit lines use Pino. A consumer's kit install may not have pino in its tree,
+// so pino and everything it pulls in are bundled; every OTHER npm package stays external as
+// before. Only bare imports made from our own source are externalized — imports made from
+// inside node_modules (pino's own dependencies) are bundled with it.
+const bundlePino = {
+  name: "bundle-pino",
+  setup(b) {
+    // Bare specifiers only: relative ("./x", "../x") and absolute paths resolve as usual.
+    b.onResolve({ filter: /^[^./\\]/ }, (args) => {
+      if (args.kind === "entry-point" || /^[A-Za-z]:[\\/]/.test(args.path)) return undefined;
+      if (/[\\/]node_modules[\\/]/.test(args.importer)) return undefined;
+      if (args.path === "pino" || args.path.startsWith("pino/")) return undefined;
+      return { path: args.path, external: true };
+    });
+  },
+};
+const { packages: _allExternal, ...bridgeCommon } = common;
+const bridgeBuild = { ...bridgeCommon, plugins: [bundlePino] };
+// [SCOPE 149 / T008] END
+
 // [SCOPE 134 / T032] The project agent (remote bridge) ships compiled too, so the Cockpit
 // can start it with plain node in a consumer project. The Agent SDK stays external.
+// MODIFIED-BY: [SCOPE 149 / T008] — bundles pino; other npm packages stay external
 await build({
-  ...common,
+  ...bridgeBuild,
   entryPoints: { "remote-bridge": "apps/remote-bridge/src/main.ts" },
   outdir: "dist",
   outExtension: { ".js": ".cjs" },
 });
 
-console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs + dist/remote-bridge.cjs");
+// [SCOPE 149 / T002] The HANDOFF REMOTE writer, loaded by bin/handoff-remote.mjs.
+await build({
+  ...bridgeBuild,
+  entryPoints: { "handoff-remote": "apps/remote-bridge/src/handoff-main.ts" },
+  outdir: "dist",
+  outExtension: { ".js": ".cjs" },
+});
+
+console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs + dist/remote-bridge.cjs + dist/handoff-remote.cjs");

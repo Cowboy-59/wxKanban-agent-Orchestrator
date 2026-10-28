@@ -1,26 +1,33 @@
-# Remote Session Bridge (SCOPE-102)
+# Project Agent (remote bridge — SCOPE-102, SCOPE-134)
 
-Drive a Claude Code session running on this machine **from your phone**, through a private
-YappChatt room. You launch it at your desk; from then on your room is the terminal — output
-streams in, your messages drive the session, and you can start/answer/steer/stop remotely.
+Drive a Claude Code session running on this machine **from your phone**, through the project's
+company-owned YappChatt room. The bridge runs only as the project's **Project Agent**: output
+streams into the room, your messages drive the session, and you can start/answer/steer/stop
+remotely. To hand the work you are doing in the editor over to it, say **HANDOFF REMOTE**
+(or `/remote`) — see `_wxAI/rules/remote.md`.
 
 ## Setup
 
-Set these in the project's `.env` (each repo has its own, so the room is per-project):
+Nothing to paste. The agent fetches everything with the project's kit token
+(`WXKANBAN_API_TOKEN`): the room (derived server-side), a room token minted once and kept in
+the gitignored `.wxai/agent-room.json`, the read identity, and a bound MCP token. The project
+must have **Allow remote** switched on in wxKanban.
 
-Auth is **hybrid** (YappChatt spec 091): the bridge **posts** as the Claude agent using a
+Auth is **hybrid** (YappChatt spec 091): the bridge **posts** as the Claude agent using the
 per-room token, and **reads** your control messages over the WebSocket using a broker session.
 
-| Variable | Required | Default | Purpose |
-|----------|----------|---------|---------|
-| `YAPPCHATT_ROOM` | **yes** | — | The private YappChatt room's `conversationId`. Provision the room in YappChatt first. Deprecated aliases: `WXKANBAN_YAPPCHATT_ROOM`, `WXKANBAN_YAPPCHAT_ROOM`, `WXKANBAN_REMOTE_ROOM_ID`. |
-| `YAPPCHATT_TOKEN` | **yes** | — | **Write** identity — the per-room agent token (`yca_…`). In the YappChatt web app, open the room → **Connect Claude** → copy. Posts are authored as "Claude". Per-room + revocable. |
-| `YAPPCHATT_EMAIL` | **yes** | — | **Read** identity — the operator email the broker mints the session from (e.g. `you@example.com`). Needed so you can steer / approve pushes from the phone (the agent token can't read). |
-| `YAPPCHATT_DISPLAY_NAME` | no | the email | Display name of the read session. Deprecated alias: `WXKANBAN_CHAT_DISPLAY_NAME`. |
-| `WXKANBAN_REMOTE_MODEL` | no | SDK default | Model override for the session. |
-| `WXKANBAN_REMOTE_SEED` | no | — | Text seeded as the first turn (GO REMOTE context handoff). |
-| `WXKANBAN_REMOTE_RESUME` | no | — | Resume a prior session id instead of starting fresh. |
-| `YAPPCHATT_URL` / `YAPPCHATT_WS_URL` / `WXKANBAN_APP_BASE_URL` | no | hosted defaults | Override broker / YappChatt / websocket endpoints. Deprecated aliases: `WXKANBAN_YAPPCHATT_URL`, `WXKANBAN_YAPPCHAT_URL`, `WXKANBAN_YAPPCHAT_BASE_URL`, `WXKANBAN_WS_URL`. |
+Optional settings in the project's `.env`:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `WXKANBAN_REMOTE_MODEL` | SDK default | Model override for the session. |
+| `YAPPCHATT_DISPLAY_NAME` | the project name | Display name of the read session and the post prefix. |
+| `YAPPCHATT_URL` / `YAPPCHATT_WS_URL` / `WXKANBAN_APP_BASE_URL` | hosted defaults | Override broker / YappChatt / websocket endpoints. |
+
+The room keys the plain mode once read (`YAPPCHATT_ROOM`, `YAPPCHATT_TOKEN`,
+`YAPPCHATT_EMAIL`, their `WXKANBAN_*` aliases, `WXKANBAN_REMOTE_SEED` and
+`WXKANBAN_REMOTE_RESUME`) are no longer read (SPEC-150). The kit prints one notice when it
+finds them and never edits `.env`; you can delete them.
 
 The YappChatt **consumer secret is never used here** — it stays server-side in the broker
 (`/api/community/session`) for the read session. The agent token is the only credential the
@@ -28,14 +35,16 @@ bridge holds for **posting**; it can only post to the room it was minted for.
 
 ## Run
 
+Start it from the Dev Cockpit (**wxKanban: Start Project Agent**), or:
+
 ```
 cd wxkanban-agent
 npm run remote
 ```
 
-It connects, posts `on project <name> is connected` (rendered as **🤖 Claude** on the left),
-and starts an **idle** session
-(it does nothing until you message it). `Ctrl-C` posts the disconnect notice and tears down.
+Both run the project-agent path. It binds the room, posts `on project <name> is connected`
+(rendered as **🤖 Claude** on the left) and starts an **idle** session (it does nothing until
+you message it). `Ctrl-C` posts the disconnect notice and tears down.
 
 ## From the room
 

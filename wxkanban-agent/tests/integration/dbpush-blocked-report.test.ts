@@ -77,12 +77,19 @@ describe('dbpush — blocked report end-to-end (FR-023, Layer 2 portions)', () =
   let captureEventCalls: Array<Record<string, unknown>> = [];
 
   beforeEach(() => {
+    // A real push pings the Dev Cockpit with a detached `code --open-url` whose working
+    // directory is the fixture. On Windows that child keeps the folder locked, so cleanup
+    // fails with EPERM, and the test would drive the developer's real VS Code. Switch both off.
+    process.env.WXKANBAN_NO_COCKPIT_REFRESH = '1';
+    process.env.WXKANBAN_NO_COCKPIT_UPDATE = '1';
     callMcpToolWithEnvelopeMock.mockReset();
     callMcpToolMock.mockReset();
     captureEventCalls = [];
     callMcpToolMock.mockImplementation((tool: unknown, args: unknown) => {
       if (tool === 'project.list_open_items') {
-        return Promise.resolve({ tasks: [], documents: [], events: [] });
+        // SCOPE-124 T006: dbpush refuses to push unless the server says which specs exist
+        // and that the list is complete, so a server with no specs yet returns both.
+        return Promise.resolve({ tasks: [], documents: [], events: [], specs: [], specsComplete: true });
       }
       if (tool === 'project.capture_event') {
         captureEventCalls.push(args as Record<string, unknown>);

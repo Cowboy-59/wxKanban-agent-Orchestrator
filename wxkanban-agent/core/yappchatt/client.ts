@@ -2,6 +2,7 @@ import WebSocket from "ws";
 
 // [SCOPE 102 / T001] BEGIN — YappChatt client (plain-Node port of SCOPE-079 chatSocket)
 // MODIFIED-BY: [SCOPE 144 / T002] — read login sends the kit token as Bearer; messages carry authorId (C4)
+// MODIFIED-BY: [SCOPE 150 / T007] — the identities come from the project agent's connection, not .env (FR-011)
 // Ported from vscode-extension/src/services/chatSocket.ts (ChatSocket, SCOPE-079/T006)
 // into the kit core so the Remote Session Bridge can reuse the exact same transport
 // without any VS Code dependency.
@@ -9,14 +10,14 @@ import WebSocket from "ws";
 // HYBRID auth (YappChatt spec 091 slice #1): the two directions now use DIFFERENT
 // identities.
 //   READ  (inbound control from the phone): broker-minted yc_session over the WS —
-//         history + ws-token + subscribe. Requires YAPPCHATT_EMAIL. Reading still
+//         history + ws-token + subscribe. Needs the operator email. Reading still
 //         needs a user session; the agent token cannot read.
 //   WRITE (status/output to the room): per-room agent token (yca_…) over REST POST —
 //         authored server-side as "Claude" (isagent), rendered on the left. No broker
-//         session, no 🤖 prefix. Requires YAPPCHATT_TOKEN.
+//         session, no 🤖 prefix.
 //
-// The target conversation is an EXPLICIT input (the operator's private room,
-// YAPPCHATT_ROOM) rather than the broker's returned community default. We keep
+// The target conversation is an EXPLICIT input (the project's company-owned room, which the
+// project agent fetches) rather than the broker's returned community default. We keep
 // session.userid + the isagent flag for "mine"/self-echo detection.
 
 export interface YappchattConfig {
@@ -36,7 +37,7 @@ export interface YappchattConfig {
    * Empty or unset means no tagging.
    */
   postPrefix?: string;
-  /** the private room to bind to (YAPPCHATT_ROOM) — NOT the broker default */
+  /** the project's company-owned room, fetched by the project agent — NOT the broker default */
   conversationId: string;
   /**
    * Per-room agent token (`yca_…`) used to POST as the Claude agent (YappChatt
@@ -428,16 +429,25 @@ async function safeText(res: { text(): Promise<string> }): Promise<string> {
 }
 // [SCOPE 102 / T001] END
 
-// [SCOPE 102 / T001] BEGIN — YappChatt config + identity resolver (env-driven)
-// Base URLs mirror SCOPE-079's resolveChatConfig (same env names + hosted defaults).
-// The conversation and identity are new for SCOPE-102: the private room id and the
-// operator identity the broker mints a session from. Per-project falls out because
-// each repo has its own .env (see SCOPE-102 FR-001).
+// [SCOPE 150 / T003] BEGIN — YappChatt config from the project agent's connection (replaces 102/T001)
+// The room, its agent token and the read identity come from the project agent, which fetches
+// them with the project's kit token (SCOPE-134) and hands them over in memory. Nothing here
+// reads them from the environment: the per-repo `.env` room keys and their aliases are retired
+// (SPEC-150 FR-011). Only the optional endpoint overrides still come from the environment.
+export interface YappchattConnection {
+  /** the project's company-owned room (conversationId) */
+  conversationId: string;
+  /** WRITE identity: the per-room agent token (yca_…) */
+  yappchatToken: string;
+  /** READ identity: the operator email the broker mints the read session from */
+  email: string;
+  /** the read session's name and the post prefix; defaults to the project's name */
+  displayName: string;
+}
+
 export interface YappchattResolved {
   config: YappchattConfig;
   user: YappchattUser;
-  /** Deprecated one-T env names still in use, as "OLD -> CANONICAL". Empty when current. */
-  deprecated: string[];
 }
 
 export class YappchattConfigError extends Error {
@@ -447,129 +457,36 @@ export class YappchattConfigError extends Error {
   }
 }
 
-export function resolveYappchattConfig(env: NodeJS.ProcessEnv = process.env): YappchattResolved {
-  const wxkanbanBaseUrl =
-    (typeof env.WXKANBAN_APP_BASE_URL === "string" && env.WXKANBAN_APP_BASE_URL) ||
-    "https://wxkanban.wxperts.com";
-  // CANONICAL NAMES ARE THE BARE YAPPCHATT_* FAMILY. These five are everything needed
-  // to connect and chat, they belong to YappChatt rather than to wxKanban, and the
-  // product is spelled with two Ts (as is its domain, yappchatt.com):
-  //
-  //   YAPPCHATT_ROOM          private room conversationId
-  //   YAPPCHATT_TOKEN         WRITE identity, the per-room yca_ agent token
-  //   YAPPCHATT_EMAIL         READ identity, mints the inbound-control session
-  //   YAPPCHATT_DISPLAY_NAME  read session's name (optional; defaults to the PROJECT name)
-  //   YAPPCHATT_URL           app base                     (optional)
-  //   YAPPCHATT_WS_URL        websocket endpoint           (optional)
-  //
-  // Everything that configures the BRIDGE rather than the connection keeps its
-  // WXKANBAN_ prefix (WXKANBAN_REMOTE_SEED / _MODEL / _RESUME, WXKANBAN_PROJECT_NAME,
-  // WXKANBAN_APP_BASE_URL) — those are wxKanban's, not YappChatt's.
-  //
-  // Every earlier spelling is accepted as a deprecated fallback so no deployed .env
-  // breaks, and the resolver REPORTS which ones were used: a stale .env should be
-  // visible, not merely working. Precedence, most to least preferred:
-  //
-  //   YAPPCHATT_ROOM    -> WXKANBAN_YAPPCHATT_ROOM -> WXKANBAN_YAPPCHAT_ROOM -> WXKANBAN_REMOTE_ROOM_ID
-  //   YAPPCHATT_TOKEN   -> WXKANBAN_YAPPCHATT_TOKEN -> WXKANBAN_YAPPCHAT_TOKEN
-  //   YAPPCHATT_EMAIL   -> WXKANBAN_CHAT_EMAIL
-  //   YAPPCHATT_DISPLAY_NAME -> WXKANBAN_CHAT_DISPLAY_NAME
-  //   YAPPCHATT_URL     -> WXKANBAN_YAPPCHATT_URL -> WXKANBAN_YAPPCHAT_URL -> WXKANBAN_YAPPCHAT_BASE_URL
-  //   YAPPCHATT_WS_URL  -> WXKANBAN_WS_URL
-  const deprecatedInUse: string[] = [];
-  const pick = (canonical: string, ...fallbacks: string[]): string => {
-    const v = env[canonical];
-    if (typeof v === "string" && v.trim()) return v.trim();
-    for (const name of fallbacks) {
-      const f = env[name];
-      if (typeof f === "string" && f.trim()) {
-        deprecatedInUse.push(`${name} -> ${canonical}`);
-        return f.trim();
-      }
-    }
-    return "";
+export function resolveYappchattConfig(
+  connection: YappchattConnection | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): YappchattResolved {
+  const conn: YappchattConnection = connection ?? { conversationId: "", yappchatToken: "", email: "", displayName: "" };
+  const missing = (["conversationId", "yappchatToken", "email"] as const).filter((k) => !conn[k].trim());
+  if (missing.length > 0) {
+    throw new YappchattConfigError(
+      `The project agent's room connection is incomplete (${missing.join(", ")}). ` +
+        "Start the Project Agent from the Dev Cockpit, or run `npm run remote` in wxkanban-agent/.",
+    );
+  }
+  const opt = (name: string, fallback: string): string => {
+    const v = env[name];
+    return (typeof v === "string" && v.trim() ? v.trim() : fallback).replace(/\/$/, "");
   };
-
-  const yappchatBaseUrl =
-    pick(
-      "YAPPCHATT_URL",
-      "WXKANBAN_YAPPCHATT_URL",
-      "WXKANBAN_YAPPCHAT_URL",
-      "WXKANBAN_YAPPCHAT_BASE_URL",
-    ) || "https://www.yappchatt.com";
-  const wsUrl = pick("YAPPCHATT_WS_URL", "WXKANBAN_WS_URL") || "wss://ws.wxperts.com";
-
-  const conversationId = pick(
-    "YAPPCHATT_ROOM",
-    "WXKANBAN_YAPPCHATT_ROOM",
-    "WXKANBAN_YAPPCHAT_ROOM",
-    "WXKANBAN_REMOTE_ROOM_ID",
-  );
-  if (!conversationId) {
-    throw new YappchattConfigError(
-      "YAPPCHATT_ROOM is not set. Provision a private YappChatt room and set its " +
-        "conversationId in this project's .env before going remote. " +
-        "(Deprecated aliases still accepted: WXKANBAN_YAPPCHATT_ROOM, WXKANBAN_YAPPCHAT_ROOM, WXKANBAN_REMOTE_ROOM_ID.)",
-    );
-  }
-
-  // WRITE identity — the per-room agent token (yca_…). Posting is authored as "Claude".
-  const yappchatToken = pick("YAPPCHATT_TOKEN", "WXKANBAN_YAPPCHATT_TOKEN", "WXKANBAN_YAPPCHAT_TOKEN");
-  if (!yappchatToken) {
-    throw new YappchattConfigError(
-      "YAPPCHATT_TOKEN is not set. In the YappChatt web app, open this project's room, " +
-        "click 'Connect Claude', and copy the yca_ token into this project's .env " +
-        "(YappChatt spec 091). (Deprecated aliases: WXKANBAN_YAPPCHATT_TOKEN, WXKANBAN_YAPPCHAT_TOKEN.)",
-    );
-  }
-
-  // READ identity — the broker-minted user session (kept for inbound control from the
-  // phone; the agent token cannot read history/subscribe).
-  const email = pick("YAPPCHATT_EMAIL", "WXKANBAN_CHAT_EMAIL");
-  if (!email) {
-    throw new YappchattConfigError(
-      "YAPPCHATT_EMAIL is not set. It mints the read session used for inbound control " +
-        "(steering / push approval from the phone), because the agent token can post but " +
-        "cannot read history or subscribe. Posting uses YAPPCHATT_TOKEN instead. " +
-        "(Deprecated alias still accepted: WXKANBAN_CHAT_EMAIL.)",
-    );
-  }
-  // Defaults to the PROJECT NAME, not the email. With a bridge per repo, several
-  // rooms carry a session that would otherwise all identify as the same person —
-  // naming it after the project is what tells you which codebase you are talking
-  // to. The email is kept only as a last resort, for the case where no project
-  // name is resolvable at all.
-  //
-  // Callers set WXKANBAN_PROJECT_NAME from .wxai/project.json or the repo directory
-  // before resolving, so this sees the same name the bridge announces itself with.
-  //
-  // NOTE: this is the READ session's name. What appears as the AUTHOR on Claude's
-  // posts is decided server-side from the yca_ agent token (send() carries no name
-  // field), so it cannot be set from here — see the header note on hybrid auth.
-  const displayName =
-    pick("YAPPCHATT_DISPLAY_NAME", "WXKANBAN_CHAT_DISPLAY_NAME") ||
-    (typeof env.WXKANBAN_PROJECT_NAME === "string" && env.WXKANBAN_PROJECT_NAME.trim()) ||
-    email;
-
+  // The read session's name and the post prefix are one knob, so the room shows a single
+  // identity per project. What appears as the AUTHOR of Claude's posts is decided
+  // server-side from the yca_ agent token (send() carries no name field).
+  const displayName = conn.displayName.trim() || conn.email;
   return {
     config: {
-      wxkanbanBaseUrl: wxkanbanBaseUrl.replace(/\/$/, ""),
-      yappchatBaseUrl: yappchatBaseUrl.replace(/\/$/, ""),
-      wsUrl,
-      conversationId,
-      yappchatToken,
-      // Tag posts with the same name the read session uses, which defaults to the
-      // project. One knob, so the room shows a single consistent identity per repo.
+      wxkanbanBaseUrl: opt("WXKANBAN_APP_BASE_URL", "https://wxkanban.wxperts.com"),
+      yappchatBaseUrl: opt("YAPPCHATT_URL", "https://www.yappchatt.com"),
+      wsUrl: opt("YAPPCHATT_WS_URL", "wss://ws.wxperts.com"),
+      conversationId: conn.conversationId.trim(),
+      yappchatToken: conn.yappchatToken.trim(),
       postPrefix: displayName,
     },
-    user: { email, displayName },
-    // Which deprecated one-T names this .env is still relying on, as
-    // "OLD_NAME -> CANONICAL_NAME" strings. Empty when the .env is current.
-    //
-    // Returned rather than logged so the caller decides how loudly to say it: the
-    // resolver is used by the smoke script, the bridge and the tests, and a config
-    // helper that writes to stderr on its own is unusable in the last of those.
-    deprecated: deprecatedInUse,
+    user: { email: conn.email.trim(), displayName },
   };
 }
-// [SCOPE 102 / T001] END
+// [SCOPE 150 / T003] END

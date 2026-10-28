@@ -6,6 +6,7 @@ import { loadAgentSdk, type QueryFn } from "./sdk-loader";
 import { createTriageHook, TRIAGE_DIR, type TriageBlock } from "./triage-hook";
 
 // [SCOPE 148 / T011] BEGIN — the one-shot triage session runner (SPEC-148 FR-004, FR-007)
+// MODIFIED-BY: [SCOPE 148 / T013] — fingerprint may be a function, taken after the session succeeds
 //
 // Each triage run is its own Agent SDK session, apart from the room session: it starts, sweeps
 // the feedback queue, writes one report and ends. Nothing lives on between runs (no persisted
@@ -35,8 +36,12 @@ export interface TriageRunOptions {
   mcpToken: string;
   /** Tells the room why a run failed. Never given customer text. */
   notify: (text: string) => void | Promise<void>;
-  /** The FR-003 fingerprint line (T013), inserted into the report on success. */
-  fingerprint?: string;
+  /**
+   * The FR-003 fingerprint line (T013), inserted into the report on success. A function is called
+   * only after the session succeeds, so the line reflects the queue as the run left it; a function
+   * that fails leaves the report without one.
+   */
+  fingerprint?: string | (() => Promise<string | undefined>);
   /** Test seams. */
   now?: () => Date;
   query?: QueryFn;
@@ -239,7 +244,9 @@ export async function runTriage(opts: TriageRunOptions): Promise<TriageRunResult
   const problem = reportProblem(written);
   if (problem) return fail(problem);
 
-  const report = finalizeReport(written, blocks.length, opts.fingerprint);
+  const fingerprint =
+    typeof opts.fingerprint === "function" ? await opts.fingerprint().catch(() => undefined) : opts.fingerprint;
+  const report = finalizeReport(written, blocks.length, fingerprint);
   const name = nextReportName(dir, localDate(runAt));
   writeFileSync(pendingAbs, report, "utf8");
   renameSync(pendingAbs, join(dir, name));

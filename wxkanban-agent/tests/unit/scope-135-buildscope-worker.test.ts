@@ -82,11 +82,13 @@ describe('SCOPE-135 FR-016 — buildscope worker', () => {
 			checklistPath: 'specs/Project-Scope/010-parametres-serveur-stored-slug/checklists/requirements.md',
 			scopeContent: '# Scope 010: Paramètres\n\nauthored and edited\n',
 			checklistContent: '# checklist\n',
+			editDiff: { hunks: [{ line: 3, before: ['authored'], after: ['authored and edited'] }], text: '@@ line 3 @@\n- authored\n+ authored and edited' },
 		};
-		await BuildScopeWorker.generateScopeDraft({ 'feature-description': 'Correct the actors', 'edit-spec-number': '010' });
+		await BuildScopeWorker.generateScopeDraft({ 'feature-description': 'Correct the actors', 'edit-spec-number': '010', yes: true });
 
 		expect(calls[0].args.currentScopeContent).toBe('# Scope 010: Paramètres\n\nauthored\n');
 		expect(calls[0].args.localSpecNumbers).toBeUndefined();
+		expect(calls[0].args.yes).toBeUndefined(); // [SCOPE 135 / T018] the confirm flag is the kit's
 		const scopeDir = join(root, 'specs', 'Project-Scope');
 		expect(readFileSync(join(scopeDir, '010-parametres-serveur.md'), 'utf8')).toBe('# Scope 010: Paramètres\n\nauthored and edited\n');
 		expect(existsSync(join(scopeDir, '010-parametres-serveur', 'checklists', 'requirements.md'))).toBe(true);
@@ -105,4 +107,67 @@ describe('SCOPE-135 FR-016 — buildscope worker', () => {
 			'functionalRequirements: What are the functional requirements?',
 		);
 	});
+
+	// [SCOPE 135 / T018] BEGIN — diff before write; nothing written until confirmed (FR-020)
+	describe('edit confirmation', () => {
+		const editResponse = {
+			success: true,
+			status: 'draft_updated',
+			specNumber: '010',
+			shortName: 'parametres-serveur',
+			filePath: 'specs/Project-Scope/010-parametres-serveur.md',
+			scopeContent: '# Scope 010: Paramètres\n\nauthored and edited\n',
+			checklistContent: '# checklist\n',
+			editDiff: { hunks: [{ line: 3, before: ['authored'], after: ['authored and edited'] }], text: '@@ line 3 @@\n- authored\n+ authored and edited' },
+		};
+		const scopeFile = () => join(root, 'specs', 'Project-Scope', '010-parametres-serveur.md');
+		const checklistFile = () => join(root, 'specs', 'Project-Scope', '010-parametres-serveur', 'checklists', 'requirements.md');
+		const original = '# Scope 010: Paramètres\n\nauthored\n';
+
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
+		it('a declined confirm leaves the scope and checklist untouched, shows the diff, and says so', async () => {
+			nextResponse = editResponse;
+			const out = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+			const ask = vi.spyOn(BuildScopeWorker, 'confirmWrite').mockResolvedValue(false);
+			const draft = await BuildScopeWorker.generateScopeDraft({ 'feature-description': 'x', 'edit-spec-number': '010' });
+			expect(ask).toHaveBeenCalledOnce();
+			expect(out.mock.calls.map((c) => String(c[0])).join('')).toContain('- authored\n+ authored and edited');
+			expect(readFileSync(scopeFile(), 'utf8')).toBe(original);
+			expect(existsSync(checklistFile())).toBe(false);
+			expect(draft.notes).toContain('NOT written');
+		});
+
+		it('a confirmed edit writes exactly the diffed change', async () => {
+			nextResponse = editResponse;
+			vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+			vi.spyOn(BuildScopeWorker, 'confirmWrite').mockResolvedValue(true);
+			await BuildScopeWorker.generateScopeDraft({ 'feature-description': 'x', 'edit-spec-number': '010' });
+			expect(readFileSync(scopeFile(), 'utf8')).toBe('# Scope 010: Paramètres\n\nauthored and edited\n');
+			expect(existsSync(checklistFile())).toBe(true);
+		});
+
+		it('--yes writes without asking', async () => {
+			nextResponse = editResponse;
+			vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+			const ask = vi.spyOn(BuildScopeWorker, 'confirmWrite');
+			await BuildScopeWorker.generateScopeDraft({ 'feature-description': 'x', 'edit-spec-number': '010', yes: 'true' });
+			expect(ask).not.toHaveBeenCalled();
+			// [SCOPE 135 / T020] the server is told, so the Amendment Log entry records the unattended write.
+			expect(calls[calls.length - 1].args.unattended).toBe(true);
+			expect(calls[calls.length - 1].args.yes).toBeUndefined();
+			expect(readFileSync(scopeFile(), 'utf8')).toContain('authored and edited');
+		});
+
+		it('with no terminal and no --yes nothing is written', async () => {
+			nextResponse = editResponse;
+			vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+			const draft = await BuildScopeWorker.generateScopeDraft({ 'feature-description': 'x', 'edit-spec-number': '010' });
+			expect(readFileSync(scopeFile(), 'utf8')).toBe(original);
+			expect(draft.notes).toMatch(/rerun with --yes|declined/);
+		});
+	});
+	// [SCOPE 135 / T018] END
 });

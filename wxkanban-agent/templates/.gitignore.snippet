@@ -25,6 +25,15 @@
 # Captured once per machine; safe to leave gitignored.
 .wxai/auditfences-legacy.json
 
+# SPEC-149 FR-005 — HANDOFF REMOTE summaries and the Project Agent's recorded start refusal.
+# Short-lived, per-developer state; never commit.
+**/.wxai/handoff/
+**/.wxai/project-agent-status.json
+# SPEC-150 FR-014 — records that the retired room key notice was shown, so it never repeats.
+**/.wxai/retired-room-keys-notice.json
+# SPEC-151 — the Project Agent's room token (a live yca_ credential). Never commit.
+**/.wxai/agent-room.json
+
 # Kit runtime logs.
 logs/
 

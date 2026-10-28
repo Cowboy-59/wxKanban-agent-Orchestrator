@@ -39,9 +39,9 @@ export interface ScopeCompleteness {
 const FR_ID = /\bFR-(\d+)\b/;
 // FR-NNN leading a heading, a list item, a bold run, or a table cell.
 const FR_LINE = /^\s*(?:#{1,6}\s*|[-*]\s+|\|\s*)?\**\s*FR-\d+\b/;
-const FR_HEADING = /^(#{1,6})\s*\**\s*FR-\d+\b/;
-const SCENARIO_HEADING = /^#{1,6}\s*\**\s*(?:US-?\s?\d+|User\s+Stor(?:y|ies)\s+\d+|Scenario\s+\d+)\b/i;
-const HEADING = /^(#{1,6})\s+/;
+export const FR_HEADING = /^(#{1,6})\s*\**\s*FR-\d+\b/;
+export const SCENARIO_HEADING = /^#{1,6}\s*\**\s*(?:US-?\s?\d+|User\s+Stor(?:y|ies)\s+\d+|Scenario\s+\d+)\b/i;
+export const HEADING = /^(#{1,6})\s+/;
 // "**Acceptance Criteria**", "Acceptance criteria:", "#### Acceptance Criteria", or checkbox lines.
 const CRITERIA = /acceptance\s+criteria|^\s*[-*]\s+\[[ xX]\]/im;
 

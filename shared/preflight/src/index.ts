@@ -34,6 +34,18 @@ export { DEFAULT_SCOPE_CONTENT } from './defaults.js';
 export {
   BOILERPLATE_FR_TITLES,
   countScopeCompleteness,
+  FR_HEADING,
+  SCENARIO_HEADING,
+  HEADING,
   completenessWarnings,
   type ScopeCompleteness,
 } from './completeness.js';
+
+// [SCOPE 135 / T019] FR-021 — the synced-hash marker, one implementation for the kit and the server.
+export {
+  readScopeSyncMarker,
+  stripScopeSyncMarker,
+  scopeSyncHash,
+  withScopeSyncMarker,
+  type ScopeSyncMarker,
+} from './scope-sync.js';

@@ -352,3 +352,44 @@ describe("FR-003 / FR-004 — Existing fence flow (decision routing)", () => {
     expect(result.dbWrites.some((w) => w.kind === "history")).toBe(true);
   });
 });
+
+// [SCOPE 150 / T011] BEGIN — repeat run keeps an existing fence (no fence rows)
+describe("emitFence — a proposal that leaves a fenced declaration untouched", () => {
+  const bare = "export function idem(): number { return 1; }";
+  const run = (currentContent: string | null) =>
+    emitFence({
+      filepath: "src/idem.ts",
+      currentContent,
+      proposedContent: bare,
+      ownerScope: "099",
+      ownerTask: "T002",
+      description: "Second task",
+      existingFences: [],
+    });
+
+  it("keeps the fence and adds no new one, so a repeat run is a no-op", () => {
+    const first = run(null).content;
+    expect(first).toContain("[SCOPE 099 / T002] BEGIN");
+    const second = run(first);
+    expect(second.content).toBe(first);
+    expect(second.dbWrites).toEqual([]);
+  });
+
+  it("keeps MODIFIED-BY lines with the fence", () => {
+    const current = [
+      "// [SCOPE 013 / T042] BEGIN — Original task",
+      "// [SCOPE 015 / T055] MODIFIED-BY — Later task",
+      bare,
+      "// [SCOPE 013 / T042] END",
+    ].join("\n");
+    const out = run(current);
+    expect(out.content).toBe(current);
+    expect(out.content).not.toContain("[SCOPE 099 / T002]");
+  });
+
+  it("still fences a legacy declaration that was never fenced, as before", () => {
+    const out = run(bare);
+    expect(out.content).toBe(bare);
+  });
+});
+// [SCOPE 150 / T011] END

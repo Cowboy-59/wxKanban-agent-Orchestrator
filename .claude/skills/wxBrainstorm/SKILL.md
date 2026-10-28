@@ -1,5 +1,6 @@
 ---
 name: wxBrainstorm
+model: sonnet
 description: Brainstorm a customer suggestion, feature request, or new idea with a panel of the eleven wxG-O-D agent roles (Lead Architect, Domain Analyst, Legacy Analyst, Database, Backend, Frontend, DevOps, Security, QA, Migration, and Documentation engineers). It seats the panel, then asks what to brainstorm and confirms the topic BEFORE searching anything in the application; only then does it search the code, scopes, specs, help, and earlier brainstorms for what already exists. It discusses the idea one item at a time as plain text at the user's level (--level=amateur|junior|senior), each item closing on the panel's recommendation, and writes nothing until the user approves a summary, which is recorded in docs/brainstorms/. On the user's go it hands the agreed items to /buildscope and /validateScope under their own rules, and can draft a plain-words reply to the customer. Use this skill when asked to brainstorm, talk through, weigh up, or decide on a customer idea, suggestion, or feature request, to work through several customer suggestions, or to run wxBrainstorm. It never writes scopes, specs, or code itself, and never commits or pushes.
 ---
 

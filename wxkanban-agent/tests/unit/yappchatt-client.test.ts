@@ -10,6 +10,7 @@ import {
   resolveYappchattConfig,
   YappchattConfigError,
   type YappchattConfig,
+  type YappchattConnection,
   type YappchattUser,
   type FetchImpl,
 } from '../../core/yappchatt';
@@ -87,169 +88,70 @@ describe('YappchattClient.send — agent-token posting', () => {
   });
 });
 
-describe('resolveYappchattConfig — hybrid identities', () => {
-  const full = {
-    WXKANBAN_REMOTE_ROOM_ID: 'room-1',
-    WXKANBAN_YAPPCHAT_TOKEN: 'yca_x',
-    WXKANBAN_CHAT_EMAIL: 'op@example.com',
-  } as NodeJS.ProcessEnv;
+// [SCOPE 150 / T005] BEGIN — the resolver takes the project agent's in-memory connection (FR-011, FR-013)
+describe('resolveYappchattConfig — the project agent connection', () => {
+  const conn: YappchattConnection = {
+    conversationId: 'room-1',
+    yappchatToken: 'yca_x',
+    email: 'op@example.com',
+    displayName: 'wxKanban',
+  };
 
-  it('resolves the agent token (write) and the operator email (read)', () => {
-    const { config, user: u } = resolveYappchattConfig(full);
-    expect(config.yappchatToken).toBe('yca_x');
+  it('resolves the agent token (write), the operator email (read) and the post prefix', () => {
+    const { config, user: u } = resolveYappchattConfig(conn, {});
     expect(config.conversationId).toBe('room-1');
-    expect(u.email).toBe('op@example.com');
+    expect(config.yappchatToken).toBe('yca_x');
+    expect(config.postPrefix).toBe('wxKanban');
+    expect(u).toEqual({ email: 'op@example.com', displayName: 'wxKanban' });
   });
 
-  it('throws when the agent token is missing (cannot post)', () => {
-    const env = { WXKANBAN_REMOTE_ROOM_ID: 'room-1', WXKANBAN_CHAT_EMAIL: 'op@example.com' } as NodeJS.ProcessEnv;
-    expect(() => resolveYappchattConfig(env)).toThrow(YappchattConfigError);
+  it('uses the hosted endpoints unless the canonical overrides are set', () => {
+    expect(resolveYappchattConfig(conn, {}).config).toMatchObject({
+      wxkanbanBaseUrl: 'https://wxkanban.wxperts.com',
+      yappchatBaseUrl: 'https://www.yappchatt.com',
+      wsUrl: 'wss://ws.wxperts.com',
+    });
+    const env = {
+      WXKANBAN_APP_BASE_URL: 'https://app.example/',
+      YAPPCHATT_URL: 'https://yc.example/',
+      YAPPCHATT_WS_URL: 'wss://ws.example',
+    } as NodeJS.ProcessEnv;
+    expect(resolveYappchattConfig(conn, env).config).toMatchObject({
+      wxkanbanBaseUrl: 'https://app.example',
+      yappchatBaseUrl: 'https://yc.example',
+      wsUrl: 'wss://ws.example',
+    });
   });
 
-  it('throws when the read email is missing (cannot be driven from the phone)', () => {
-    const env = { YAPPCHATT_ROOM: 'room-1', YAPPCHATT_TOKEN: 'yca_x' } as NodeJS.ProcessEnv;
-    expect(() => resolveYappchattConfig(env)).toThrow(YappchattConfigError);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Canonical env names (two Ts, matching the product and yappchatt.com).
-//
-// Every original name spelled YappChatt with one T. The canonical names are now
-// WXKANBAN_YAPPCHATT_*, with the one-T spellings accepted as deprecated
-// fallbacks so no existing .env breaks. Both halves need pinning: a regression
-// that dropped the fallbacks would break every deployed consumer .env silently,
-// and one that dropped canonical precedence would make a corrected .env behave
-// differently from a stale one for no visible reason.
-describe('canonical vs deprecated env names', () => {
-  const base = { YAPPCHATT_EMAIL: 'a@b.c' };
-
-  it('prefers the bare canonical names and reports nothing deprecated', () => {
-    const r = resolveYappchattConfig({
-      ...base,
-      YAPPCHATT_ROOM: 'canonical-room',
-      YAPPCHATT_TOKEN: 'yca_canonical',
-      YAPPCHATT_URL: 'https://canonical.example.com',
-    } as NodeJS.ProcessEnv);
-    expect(r.config.conversationId).toBe('canonical-room');
-    expect(r.config.yappchatToken).toBe('yca_canonical');
-    expect(r.config.yappchatBaseUrl).toBe('https://canonical.example.com');
-    expect(r.deprecated).toEqual([]);
+  it('never reads the room from the environment: the retired keys and aliases are ignored', () => {
+    const env = {
+      YAPPCHATT_ROOM: 'env-room',
+      YAPPCHATT_TOKEN: 'yca_env',
+      YAPPCHATT_EMAIL: 'env@example.com',
+      WXKANBAN_REMOTE_ROOM_ID: 'alias-room',
+      WXKANBAN_YAPPCHAT_TOKEN: 'yca_alias',
+      WXKANBAN_CHAT_EMAIL: 'alias@example.com',
+      WXKANBAN_YAPPCHAT_BASE_URL: 'https://alias.example',
+    } as NodeJS.ProcessEnv;
+    const r = resolveYappchattConfig(conn, env);
+    expect(r.config.conversationId).toBe('room-1');
+    expect(r.config.yappchatToken).toBe('yca_x');
+    expect(r.user.email).toBe('op@example.com');
+    expect(r.config.yappchatBaseUrl).toBe('https://www.yappchatt.com');
+    expect(() => resolveYappchattConfig(undefined, env)).toThrow(YappchattConfigError);
   });
 
-  it('still resolves a fully legacy .env, and says which names are stale', () => {
-    const r = resolveYappchattConfig({
-      WXKANBAN_CHAT_EMAIL: 'old@example.com',
-      WXKANBAN_REMOTE_ROOM_ID: 'legacy-room',
-      WXKANBAN_YAPPCHAT_TOKEN: 'yca_legacy',
-      WXKANBAN_YAPPCHAT_BASE_URL: 'https://legacy.example.com',
-    } as NodeJS.ProcessEnv);
-    expect(r.config.conversationId).toBe('legacy-room');
-    expect(r.config.yappchatToken).toBe('yca_legacy');
-    expect(r.config.yappchatBaseUrl).toBe('https://legacy.example.com');
-    expect(r.user.email).toBe('old@example.com');
-    expect(r.deprecated).toContain('WXKANBAN_REMOTE_ROOM_ID -> YAPPCHATT_ROOM');
-    expect(r.deprecated).toContain('WXKANBAN_YAPPCHAT_TOKEN -> YAPPCHATT_TOKEN');
-    expect(r.deprecated).toContain('WXKANBAN_YAPPCHAT_BASE_URL -> YAPPCHATT_URL');
-    expect(r.deprecated).toContain('WXKANBAN_CHAT_EMAIL -> YAPPCHATT_EMAIL');
+  it('names the missing parts and points at the Project Agent when the connection is incomplete', () => {
+    expect(() => resolveYappchattConfig(undefined, {})).toThrow(/conversationId, yappchatToken, email.*Project Agent/);
+    expect(() => resolveYappchattConfig({ ...conn, yappchatToken: '  ' }, {})).toThrow(/\(yappchatToken\)/);
+    expect(() => resolveYappchattConfig({ ...conn, email: '' }, {})).toThrow(YappchattConfigError);
   });
 
-  it('lets canonical win when both spellings are present', () => {
-    // The state every migrating .env passes through. Silently preferring the
-    // legacy value here would make a corrected .env do nothing.
-    const r = resolveYappchattConfig({
-      ...base,
-      YAPPCHATT_ROOM: 'wins',
-      WXKANBAN_YAPPCHATT_ROOM: 'loses',
-      WXKANBAN_YAPPCHAT_ROOM: 'loses-more',
-      WXKANBAN_REMOTE_ROOM_ID: 'loses-hardest',
-      YAPPCHATT_TOKEN: 'yca_wins',
-      WXKANBAN_YAPPCHAT_TOKEN: 'yca_loses',
-    } as NodeJS.ProcessEnv);
-    expect(r.config.conversationId).toBe('wins');
-    expect(r.config.yappchatToken).toBe('yca_wins');
-    expect(r.deprecated).toEqual([]);
-  });
-
-  it('honours the middle fallback before the oldest one', () => {
-    const r = resolveYappchattConfig({
-      ...base,
-      WXKANBAN_YAPPCHATT_ROOM: 'middle',
-      WXKANBAN_YAPPCHAT_ROOM: 'older',
-      WXKANBAN_REMOTE_ROOM_ID: 'oldest',
-      YAPPCHATT_TOKEN: 'yca_x',
-    } as NodeJS.ProcessEnv);
-    expect(r.config.conversationId).toBe('middle');
-  });
-
-  it('names the CANONICAL variable when a required one is missing', () => {
-    // The error is the only documentation an operator reads at 2am, so it must
-    // point at the name they should add, not the one being retired.
-    expect(() => resolveYappchattConfig({ ...base } as NodeJS.ProcessEnv))
-      .toThrow(/YAPPCHATT_ROOM is not set/);
-    expect(() => resolveYappchattConfig({
-      ...base,
-      YAPPCHATT_ROOM: 'r',
-    } as NodeJS.ProcessEnv)).toThrow(/YAPPCHATT_TOKEN is not set/);
-  });
-
-  it('takes the display name from the canonical name, then the alias, then the email', () => {
-    const both = resolveYappchattConfig({
-      ...base,
-      YAPPCHATT_ROOM: 'r', YAPPCHATT_TOKEN: 'yca_x',
-      YAPPCHATT_DISPLAY_NAME: 'Canonical Name',
-      WXKANBAN_CHAT_DISPLAY_NAME: 'Legacy Name',
-    } as NodeJS.ProcessEnv);
-    expect(both.user.displayName).toBe('Canonical Name');
-    expect(both.deprecated).toEqual([]);
-
-    const legacyOnly = resolveYappchattConfig({
-      ...base,
-      YAPPCHATT_ROOM: 'r', YAPPCHATT_TOKEN: 'yca_x',
-      WXKANBAN_CHAT_DISPLAY_NAME: 'Legacy Name',
-    } as NodeJS.ProcessEnv);
-    expect(legacyOnly.user.displayName).toBe('Legacy Name');
-    expect(legacyOnly.deprecated).toContain('WXKANBAN_CHAT_DISPLAY_NAME -> YAPPCHATT_DISPLAY_NAME');
-
-    // Neither set: falls back to the PROJECT NAME, so several bridges do not all
-    // identify as the same person. Reports nothing stale — no deprecated name
-    // supplied the value, it is just the default.
-    const byProject = resolveYappchattConfig({
-      ...base,
-      YAPPCHATT_ROOM: 'r', YAPPCHATT_TOKEN: 'yca_x',
-      WXKANBAN_PROJECT_NAME: 'wxKanban',
-    } as NodeJS.ProcessEnv);
-    expect(byProject.user.displayName).toBe('wxKanban');
-    expect(byProject.deprecated).toEqual([]);
-
-    // Only with no project name at all does it fall back to the email.
-    const lastResort = resolveYappchattConfig({
-      ...base,
-      YAPPCHATT_ROOM: 'r', YAPPCHATT_TOKEN: 'yca_x',
-    } as NodeJS.ProcessEnv);
-    expect(lastResort.user.displayName).toBe('a@b.c');
-
-    // An explicit name still beats the project name.
-    const explicit = resolveYappchattConfig({
-      ...base,
-      YAPPCHATT_ROOM: 'r', YAPPCHATT_TOKEN: 'yca_x',
-      WXKANBAN_PROJECT_NAME: 'wxKanban',
-      YAPPCHATT_DISPLAY_NAME: 'Chosen',
-    } as NodeJS.ProcessEnv);
-    expect(explicit.user.displayName).toBe('Chosen');
-  });
-
-  it('ignores a whitespace-only value rather than treating it as set', () => {
-    const r = resolveYappchattConfig({
-      ...base,
-      YAPPCHATT_ROOM: '   ',
-      WXKANBAN_REMOTE_ROOM_ID: 'real-room',
-      YAPPCHATT_TOKEN: 'yca_x',
-    } as NodeJS.ProcessEnv);
-    expect(r.config.conversationId).toBe('real-room');
-    expect(r.deprecated).toContain('WXKANBAN_REMOTE_ROOM_ID -> YAPPCHATT_ROOM');
+  it('falls back to the email only when no display name is given', () => {
+    expect(resolveYappchattConfig({ ...conn, displayName: ' ' }, {}).user.displayName).toBe('op@example.com');
   });
 });
+// [SCOPE 150 / T005] END
 
 // ---------------------------------------------------------------------------
 // Content tagging (option 2 for per-project identity).

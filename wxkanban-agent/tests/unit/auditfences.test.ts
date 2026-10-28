@@ -168,7 +168,32 @@ describe("auditfences scanner — warnings (FR-007)", () => {
 
 describe("auditfences scanner — strict mode promotes warnings to errors", () => {
   it("promotes warning-class findings to errors and bumps exit code", () => {
+    // MODIFIED-BY entries are real tasks (T042) so the only warning is the count: more than
+    // MODIFIED_BY_WARN_AT (5). A ghost task would not do here: SCOPE-118 T003 exempts broken
+    // references (UNKNOWN_TASK, UNKNOWN_MODIFIER_TASK) from promotion, pinned by the next test.
     const file = join(sourceRoot, "warn2.ts");
+    writeFileSync(
+      file,
+      [
+        "// [SCOPE 013 / T042] BEGIN — Audit log retention pruning",
+        ...Array.from({ length: 6 }, () => "// [SCOPE 013 / T042] MODIFIED-BY — edit"),
+        "export function pruneAuditLogs(x: number) { return x; }",
+        "// [SCOPE 013 / T042] END",
+      ].join("\n"),
+    );
+    const result = scanTree({
+      root: sourceRoot,
+      taskIndex: buildTaskIdIndex(specsDir),
+    });
+    expect(result.findings.some((f) => f.code === "TOO_MANY_MODIFIERS")).toBe(true);
+    const promoted = promoteWarningsToErrors(result);
+    expect(promoted.summary.warnings).toBe(0);
+    expect(promoted.summary.errors).toBeGreaterThan(result.summary.errors);
+    rmSync(file);
+  });
+
+  it("leaves broken task references as warnings (SCOPE-118 T003)", () => {
+    const file = join(sourceRoot, "warn3.ts");
     writeFileSync(
       file,
       [
@@ -183,8 +208,11 @@ describe("auditfences scanner — strict mode promotes warnings to errors", () =
       taskIndex: buildTaskIdIndex(specsDir),
     });
     const promoted = promoteWarningsToErrors(result);
-    expect(promoted.summary.warnings).toBe(0);
-    expect(promoted.summary.errors).toBeGreaterThan(result.summary.errors);
+    expect(
+      promoted.findings.some(
+        (f) => f.code === "UNKNOWN_MODIFIER_TASK" && f.severity === "warning",
+      ),
+    ).toBe(true);
     rmSync(file);
   });
 });

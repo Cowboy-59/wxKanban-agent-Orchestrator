@@ -242,13 +242,31 @@ export function emitFence(opts: EmitFenceOptions): EmitFenceResult {
   // under the modifying task — misattributing code the task never wrote. Empty
   // for a create (currentContent === null), so new files fence everything.
   const currentDeclBodies = new Map<string, string>();
+  // The fence lines (BEGIN plus any MODIFIED-BY, and END) the CURRENT file already wraps each
+  // declaration in. A proposal carries the bare body, so when it leaves a declaration
+  // untouched those lines must be put back, or a repeat run would strip the fence.
+  const currentFenceLines = new Map<string, { header: string[]; end: string }>();
   if (opts.currentContent) {
     const currentLines = opts.currentContent.split(/\r?\n/);
+    let currentFences: ParsedFence[] = [];
+    try {
+      currentFences = parseFences(opts.currentContent).fences;
+    } catch {
+      /* a malformed current file has no fences we can safely restore */
+    }
     for (const d of detectTopLevelDeclarations(opts.currentContent, ext)) {
+      const key = `${d.kind}::${d.name}`;
       currentDeclBodies.set(
-        `${d.kind}::${d.name}`,
+        key,
         currentLines.slice(d.startLine - 1, d.endLine).join("\n"),
       );
+      const fence = findFenceCoveringRange(currentFences, d.startLine, d.endLine);
+      if (fence) {
+        currentFenceLines.set(key, {
+          header: currentLines.slice(fence.beginLineIdx, fence.bodyStartIdx),
+          end: currentLines[fence.endLineIdx] ?? "",
+        });
+      }
     }
   }
 
@@ -275,12 +293,19 @@ export function emitFence(opts: EmitFenceOptions): EmitFenceResult {
       // its body: it is legacy un-fenced code (or an untouched unit), not
       // something the current task authored. Only newly-added or genuinely
       // changed un-fenced declarations get a fresh fence under the current task.
-      const currentBody = currentDeclBodies.get(`${decl.kind}::${decl.name}`);
+      const declKey = `${decl.kind}::${decl.name}`;
+      const currentBody = currentDeclBodies.get(declKey);
       if (
         currentBody !== undefined &&
         currentBody ===
           proposedLines.slice(decl.startLine - 1, decl.endLine).join("\n")
       ) {
+        // Untouched, but already fenced in the current file: keep that fence as it was.
+        const kept = currentFenceLines.get(declKey);
+        if (kept) {
+          insertions.push({ atLine: decl.endLine, lines: [kept.end] });
+          insertions.push({ atLine: decl.startLine - 1, lines: kept.header });
+        }
         continue;
       }
       const beginLine = buildFenceLine(
