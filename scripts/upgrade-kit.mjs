@@ -459,6 +459,9 @@ function snapshotBeforeUpgrade(archivePath, { dryRun = false } = {}) {
     targets.add(rel);
   }
   for (const rel of STALE_RENAMED) targets.add(rel);
+  // [SPEC 121 / T020] The manifest is not in the archive, but the upgrade rewrites
+  // it and nothing else can reconstruct it — so it is backed up with the rest.
+  targets.add('.wxai/kit-manifest.json');
   if (archiveHasDist || fs.existsSync(path.join(root, 'wxkanban-agent', 'dist', 'cli.cjs'))) {
     for (const rel of STALE_SOURCE_TREES) targets.add(rel);
   }
@@ -747,37 +750,94 @@ function reconcileLockfile(snapshotDir) {
 // manifest, main() extracts to a staging directory instead and reconciles, which
 // is the only way to be selective: neither Expand-Archive nor tar can be told
 // "skip the files this consumer edited".
+//
+// [SPEC 121 / T020] An exit status of 0 is not proof the files arrived. One file
+// locked by antivirus real-time scanning makes Expand-Archive roll back everything
+// it had extracted, but the error is non-terminating, so powershell.exe exits 0 —
+// and the run went on to install nothing, stamp the new version and write an empty
+// manifest over the good one (wxKanban 11ee7968, e7ee95c6, a5a21bd8). So Windows
+// now uses the bundled tar.exe, which fails per entry; a transient lock gets a
+// retry; and every file the archive lists is checked for in staging before
+// anything downstream is allowed to trust it.
+const EXTRACT_ATTEMPTS = 3;
+const EXTRACT_RETRY_MS = 2000;
+
+function extractOnce(archivePath, destination, ext) {
+  const tarBin = resolveTarBinary();
+  if (ext === 'zip' && process.platform === 'win32' && tarBin === 'tar') {
+    // No bundled tar.exe (Windows before 1803). Errors made terminating, so a
+    // rollback exits non-zero instead of 0. windowsHide: powershell.exe is a console
+    // program; launched from a console-less parent it gets a fresh, visible window.
+    const ps = spawnSync(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command',
+        `$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath '${archivePath}' -DestinationPath '${destination}' -Force`],
+      { stdio: 'inherit', windowsHide: true }
+    );
+    return ps.status === 0 ? null : 'Expand-Archive';
+  }
+  // tar.gz anywhere, and zip on Unix or via Windows' bundled bsdtar.
+  // cwd rather than -C: bsdtar reads a drive-letter -C argument as a remote host.
+  const args = ext === 'tar.gz' ? ['-xzf', archivePath] : ['-xf', archivePath];
+  const result = spawnSync(tarBin, args, { cwd: destination, stdio: 'inherit', windowsHide: true });
+  return result.status === 0 ? null : `tar=${tarBin}`;
+}
+
+/** Archive file entries (not directories) that are absent from `destination`. */
+function missingFromExtraction(archivePath, destination) {
+  const entries = listArchiveEntries(archivePath);
+  if (!entries) return null;
+  const files = entries
+    .map((e) => e.replace(/\\/g, '/').replace(/^\.\//, ''))
+    .filter((rel) => rel && !rel.endsWith('/'));
+  return { total: files.length, missing: files.filter((rel) => !fs.existsSync(path.join(destination, rel))) };
+}
+
+function pause(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
 function extractArchive(archivePath, destination = root) {
   const ext = archivePath.endsWith('.zip') ? 'zip' : 'tar.gz';
   log('info', `Extracting ${ext} archive${destination === root ? ' over project root' : ' to staging'}`);
   fs.mkdirSync(destination, { recursive: true });
 
-  if (ext === 'zip' && process.platform === 'win32') {
-    // bsdtar misreads drive-letter paths (e.g. E:\...) in -C as remote hosts.
-    // PowerShell's Expand-Archive handles Windows paths correctly.
-    // windowsHide: powershell.exe is a console program; launched from a console-less
-    // parent it gets a fresh, visible window. Inherited stdio still carries output.
-    const ps = spawnSync(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-Command',
-        `Expand-Archive -LiteralPath '${archivePath}' -DestinationPath '${destination}' -Force`],
-      { stdio: 'inherit', windowsHide: true }
-    );
-    if (ps.status !== 0) {
-      throw new Error('Extraction failed (Expand-Archive)');
+  let problem = '';
+  for (let attempt = 1; attempt <= EXTRACT_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      log('warn', `${problem} — retrying (attempt ${attempt} of ${EXTRACT_ATTEMPTS})`);
+      pause(EXTRACT_RETRY_MS);
     }
-  } else {
-    // tar.gz on any platform, and zip on Unix.
-    // Use cwd instead of -C to avoid drive-letter parsing issues on Windows.
-    const tarBin = resolveTarBinary();
-    const args = ext === 'tar.gz' ? ['-xzf', archivePath] : ['-xf', archivePath];
-    const result = spawnSync(tarBin, args, { cwd: destination, stdio: 'inherit', windowsHide: true });
-    if (result.status !== 0) {
-      throw new Error(`Extraction failed (tar=${tarBin})`);
+    const failedTool = extractOnce(archivePath, destination, ext);
+    const check = missingFromExtraction(archivePath, destination);
+    if (!check) {
+      problem = 'could not list the archive to confirm the extraction';
+    } else if (check.total === 0) {
+      problem = 'the archive lists no files';
+    } else if (check.missing.length > 0) {
+      problem = `${check.missing.length} of ${check.total} files did not extract` +
+        (failedTool ? ` (${failedTool} reported an error)` : ' (the extractor reported success)');
+    } else if (failedTool) {
+      // Every path exists, but presence is not content: a retry runs over the
+      // previous attempt's files, and the one the extractor failed on may be a
+      // stale or truncated copy. The extractor's own error stands.
+      problem = `${failedTool} reported an error`;
+    } else {
+      log('ok', `Extraction complete (${check.total} files verified)`);
+      return;
+    }
+    if (check && check.missing.length > 0) {
+      for (const rel of check.missing.slice(0, 5)) log('warn', `  missing: ${rel}`);
     }
   }
 
-  log('ok', 'Extraction complete');
+  throw new Error(
+    `Extraction failed: ${problem}.\n` +
+    (destination === root
+      ? '  Some kit files may have been written over your project — restore from the snapshot above.\n'
+      : '  Nothing in your project was changed — the version, the kit manifest and your files are as they were.\n') +
+    '  A file locked by antivirus scanning is the usual cause; it is safe to re-run the upgrade.'
+  );
 }
 
 // ─── [SPEC 121 / T001] Kit manifest ──────────────────────────────────────────
@@ -812,6 +872,14 @@ function writeKitManifest(stagingDir, version, { dryRun = false } = {}) {
     } catch {
       /* unreadable file in staging — omit rather than record a wrong hash */
     }
+  }
+  // [SPEC 121 / T020] A kit always ships files, so 0 means staging was empty, not
+  // that the kit is. Written anyway, it replaced the one record that tells the
+  // consumer's edits from stock files, and every later upgrade misclassified them.
+  // Independent of the extraction check, so a future extractor bug cannot redo it.
+  if (Object.keys(files).length === 0) {
+    log('err', 'Refusing to write a kit manifest with 0 files — the existing one is kept.');
+    return 0;
   }
   if (dryRun) {
     log('info', `kit manifest would be written (${Object.keys(files).length} files)`);
@@ -917,6 +985,7 @@ function reconcileStaging(stagingDir, manifest, { dryRun = false } = {}) {
   const preserved = [];
   const kitNew = [];
   const replaced = [];
+  const failed = [];
 
   for (const rel of walkRelative(stagingDir)) {
     if (isProjectOwned(rel)) continue; // project-owned: never touched, no sidecar
@@ -959,7 +1028,11 @@ function reconcileStaging(stagingDir, manifest, { dryRun = false } = {}) {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(path.join(stagingDir, rel), dest);
     } catch (err) {
-      log('warn', `could not write ${rel}: ${err.message}`);
+      // [SPEC 121 / T020] Collected, not just logged: applyUpgrade fails the run
+      // on these, because a manifest recording a file that never landed turns a
+      // pristine file into a "modified" one on every later upgrade.
+      log('err', `could not write ${rel}: ${err.message}`);
+      failed.push(rel);
     }
   }
 
@@ -967,7 +1040,7 @@ function reconcileStaging(stagingDir, manifest, { dryRun = false } = {}) {
     `${dryRun ? 'Would reconcile' : 'Reconciled'}: ${counts.new} new, ${counts.pristine} updated, ` +
     `${counts.unchanged} already current, ${counts.modified + counts['project-only']} preserved`);
 
-  return { counts, preserved, kitNew, replaced };
+  return { counts, preserved, kitNew, replaced, failed };
 }
 
 // ─── [SPEC 121 / T007+T008+T009] Change manifest ─────────────────────────────
@@ -1191,6 +1264,7 @@ async function applyUpgrade({ download, manifest, dryRun, assumeYes, pendingWrit
       log('warn', '  Falling back to a full overwrite. Your snapshot above is the safety net.');
       log('warn', '  A manifest is written at the end, so the NEXT upgrade will preserve your edits.');
       const written = [];
+      const failed = [];
       for (const rel of walkRelative(stagingDir)) {
         if (isProjectOwned(rel)) continue; // project-owned: never overwritten
         written.push(rel);
@@ -1200,24 +1274,39 @@ async function applyUpgrade({ download, manifest, dryRun, assumeYes, pendingWrit
           fs.mkdirSync(path.dirname(dest), { recursive: true });
           fs.copyFileSync(path.join(stagingDir, rel), dest);
         } catch (err) {
-          log('warn', `could not write ${rel}: ${err.message}`);
+          log('err', `could not write ${rel}: ${err.message}`);
+          failed.push(rel);
         }
       }
-      changes = { preserved: [], kitNew: [], replaced: written };
+      changes = { preserved: [], kitNew: [], replaced: written, failed };
+    }
+
+    // [SPEC 121 / T005] Put the consumer's half of package.json back before
+    // anything installs against the archive's copy. Inside the try, because the
+    // kit's own package.json exists only in stagingDir on the reconcile path and
+    // the finally below removes it. [T020] Before the write-failure check too, so
+    // a run that fails part-way never leaves the kit's package.json in theirs' place.
+    const merged = mergePackageJson(snapshot.dir, stagingDir, { dryRun });
+    if (dryRun && merged) {
+      alsoWrites.push(`rewrite package.json (${merged.notes.length} change(s)) and re-derive package-lock.json`);
+    }
+
+    // [SPEC 121 / T020] Stop before anything records this upgrade as done. With
+    // the manifest, version and init left alone, a re-run converges: files that
+    // landed read as already current, the rest as pristine against the old manifest.
+    const failed = changes.failed || [];
+    if (failed.length > 0) {
+      throw new Error(
+        `Upgrade stopped: ${failed.length} kit file(s) could not be written (first: ${failed[0]}).\n` +
+        '  Your package.json was kept, and the version and kit manifest are unchanged.\n' +
+        '  A file locked by antivirus scanning or an open editor is the usual cause; close it and re-run —\n' +
+        `  that is safe. Anything else this run overwrote is in the snapshot: ${snapshot.archive}`
+      );
     }
 
     // [SPEC 121 / T001] Record what this kit shipped, as shipped.
     const manifestFiles = writeKitManifest(stagingDir, download.toVersion, { dryRun });
     if (dryRun) alsoWrites.push(`write .wxai/kit-manifest.json (${manifestFiles} files)`);
-
-    // [SPEC 121 / T005] Put the consumer's half of package.json back before
-    // anything installs against the archive's copy. Inside the try, because the
-    // kit's own package.json exists only in stagingDir on the reconcile path and
-    // the finally below removes it.
-    const merged = mergePackageJson(snapshot.dir, stagingDir, { dryRun });
-    if (dryRun && merged) {
-      alsoWrites.push(`rewrite package.json (${merged.notes.length} change(s)) and re-derive package-lock.json`);
-    }
 
     // Remove files the new kit renamed/removed (overlay-extract never deletes).
     // `willWrite` is what makes the preview honest: the deletion list depends on

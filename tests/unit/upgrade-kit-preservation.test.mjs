@@ -45,12 +45,17 @@ afterEach(() => {
   }
 });
 
-/** Copy the shipped script into the fake consumer and import it. */
-async function loadKit(consumerRoot) {
+/**
+ * Copy the shipped script into the fake consumer and import it. `transform` lets a
+ * test stand in for a system tool that cannot be made to misbehave on demand — the
+ * T020 tests replace the extractor with one that reports success and writes nothing,
+ * which is what Expand-Archive does when antivirus makes it roll back.
+ */
+async function loadKit(consumerRoot, transform = (s) => s) {
   let src = fs.readFileSync(REAL_SCRIPT, 'utf8');
   const cut = src.indexOf('main().catch');
   expect(cut, 'main() invocation should be present in the shipped script').toBeGreaterThan(0);
-  src = src.slice(0, cut);
+  src = transform(src.slice(0, cut));
   src +=
     '\nexport { snapshotBeforeUpgrade, extractArchive, mergePackageJson, readKitManifest,' +
     ' writeKitManifest, reconcileStaging, walkRelative, classifyFile, reportChanges, isPreserveTree, applyUpgrade, cleanupStaleAfterExtract,' +
@@ -695,5 +700,146 @@ describe('[SCOPE 083 / T016] a successful upgrade clears the cached update check
     m.updateProjectConfigVersion('1.7.74', { dryRun: true });
 
     expect(fs.existsSync(path.join(consumer, '.wxai', 'kit-update-check.json'))).toBe(true);
+  });
+});
+
+// [SPEC 121 / T020] Amendment C — wxKanban 11ee7968, e7ee95c6, a5a21bd8. One file
+// locked by antivirus made Expand-Archive roll back everything while exiting 0, and
+// the upgrade then installed nothing, stamped the new version and wrote `files: {}`
+// over the manifest. These drive the REAL applyUpgrade with dryRun:false.
+describe('[SPEC 121 / T020] a failed extraction or write never records the upgrade', () => {
+  /** Replace the extractor with one that reports success and writes nothing. */
+  const silentExtractor = (calls) => (src) => {
+    expect(src).toContain('function extractOnce(');
+    return src
+      .replace('function extractOnce(', () => 'function extractOnceReal(')
+      .replace('const EXTRACT_RETRY_MS = 2000;', () => 'const EXTRACT_RETRY_MS = 5;') +
+      `\nlet __calls = 0;\nfunction extractOnce(a, d, e) {\n` +
+      `  __calls++;\n  return __calls <= ${calls} ? null : extractOnceReal(a, d, e);\n}\n`;
+  };
+
+  function readText(file) {
+    return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+  }
+
+  /** A consumer at v1 with a real v1 manifest, plus a v2 archive to upgrade to. */
+  async function consumerAtV1(ctx) {
+    const consumer = path.join(tmp, 'consumer');
+    buildUpgradeableConsumer(consumer);
+    write(path.join(consumer, 'scripts/init.mjs'), 'process.exit(0);\n');
+    const k1 = path.join(tmp, 'k1');
+    buildKitTree(k1, 1);
+    const a1 = makeArchive(k1, path.join(tmp, 'k1.tar.gz'), 'tar.gz');
+    if (!a1) ctx.skip('no tar archiver on this platform');
+    await upgrade(consumer, a1, { firstRun: true });
+    const k2 = path.join(tmp, 'k2');
+    buildKitTree(k2, 2);
+    const a2 = makeArchive(k2, path.join(tmp, 'k2.tar.gz'), 'tar.gz');
+    return { consumer, a2 };
+  }
+
+  /** applyUpgrade deletes the archive it was given, so each run gets a copy. */
+  function runCopy(a2, n) {
+    const run = path.join(tmp, `run-${n}.tar.gz`);
+    fs.copyFileSync(a2, run);
+    return { archivePath: run, toVersion: 'v2', fromVersion: 'v1', source: 'test' };
+  }
+
+  it('stops when the extractor reports success but extracts nothing — version and manifest untouched', async (ctx) => {
+    const { consumer, a2 } = await consumerAtV1(ctx);
+    const config = path.join(consumer, '.wxkanban-project.json');
+    const manifest = path.join(consumer, '.wxai', 'kit-manifest.json');
+    const configBefore = readText(config);
+    const manifestBefore = readText(manifest);
+    expect(JSON.parse(manifestBefore).files).not.toEqual({});
+
+    const m = await loadKit(consumer, silentExtractor(Infinity));
+    await expect(
+      m.applyUpgrade({ download: runCopy(a2, 1), manifest: m.readKitManifest(), dryRun: false, assumeYes: true })
+    ).rejects.toThrow(/Extraction failed: \d+ of \d+ files did not extract.*extractor reported success/s);
+
+    expect(readText(config)).toBe(configBefore);
+    expect(readText(manifest)).toBe(manifestBefore);
+    expect(readText(path.join(consumer, '_wxAI/rules/house.md'))).toBe('stock rule v1\n');
+    const wxai = fs.readdirSync(path.join(consumer, '.wxai'));
+    expect(wxai.filter((n) => n.startsWith('kit-staging-'))).toEqual([]);
+  });
+
+  it('retries a transient failure and then completes normally', async (ctx) => {
+    const { consumer, a2 } = await consumerAtV1(ctx);
+    const m = await loadKit(consumer, silentExtractor(1));
+    const result = await m.applyUpgrade({
+      download: runCopy(a2, 1), manifest: m.readKitManifest(), dryRun: false, assumeYes: true,
+    });
+    expect(result.code).toBe(0);
+    expect(readText(path.join(consumer, '_wxAI/rules/house.md'))).toBe('stock rule v2\n');
+    expect(JSON.parse(readText(path.join(consumer, '.wxkanban-project.json'))).kitVersion).toBe('v2');
+  });
+
+  it('stops on a file it cannot write, keeps package.json, and a re-run converges with nothing misreported', async (ctx) => {
+    const { consumer, a2 } = await consumerAtV1(ctx);
+    const locked = path.join(consumer, '_wxAI/rules/house.md');
+    fs.chmodSync(locked, 0o444);
+    try {
+      fs.writeFileSync(locked, 'stock rule v1\n');
+      fs.chmodSync(locked, 0o644);
+      ctx.skip('read-only files are writable here (running as root)');
+    } catch {
+      /* expected: the file cannot be written, which is the condition under test */
+    }
+    const manifest = path.join(consumer, '.wxai', 'kit-manifest.json');
+    const manifestBefore = readText(manifest);
+
+    const m = await loadKit(consumer);
+    try {
+      await expect(
+        m.applyUpgrade({ download: runCopy(a2, 1), manifest: m.readKitManifest(), dryRun: false, assumeYes: true })
+      ).rejects.toThrow(/Upgrade stopped: 1 kit file\(s\) could not be written \(first: _wxAI\/rules\/house\.md\)/);
+    } finally {
+      fs.chmodSync(locked, 0o644);
+    }
+
+    expect(readText(manifest)).toBe(manifestBefore);
+    expect(JSON.parse(readText(path.join(consumer, '.wxkanban-project.json'))).kitVersion).toBe('v1');
+    const pkg = JSON.parse(readText(path.join(consumer, 'package.json')));
+    expect(pkg.scripts['dev:mine']).toBe('vite');
+    expect(pkg.dependencies['@me/lib']).toBe('file:local/lib');
+
+    // The lock is gone; the same upgrade again must finish, and must not report the
+    // files the first attempt did write as the consumer's own edits.
+    const again = await m.applyUpgrade({
+      download: runCopy(a2, 2), manifest: m.readKitManifest(), dryRun: false, assumeYes: true,
+    });
+    // package.json is merged rather than copied, so it reads as preserved on every
+    // upgrade, clean ones included; nothing else may.
+    expect(again.changes.preserved.filter((rel) => rel !== 'package.json')).toEqual([]);
+    expect(readText(locked)).toBe('stock rule v2\n');
+    expect(readText(path.join(consumer, '.claude/wxConversion/scripts/split.py'))).toBe('STOCK v2 improved\n');
+    expect(JSON.parse(readText(manifest)).kitVersion).toBe('v2');
+    expect(JSON.parse(readText(path.join(consumer, '.wxkanban-project.json'))).kitVersion).toBe('v2');
+  });
+
+  it('never writes a 0-file manifest over a good one', async () => {
+    const consumer = path.join(tmp, 'consumer');
+    const manifest = path.join(consumer, '.wxai', 'kit-manifest.json');
+    write(manifest, JSON.stringify({ kitVersion: 'v1', files: { 'a.txt': 'abc' } }) + '\n');
+    const before = readText(manifest);
+    const empty = path.join(tmp, 'empty-staging');
+    fs.mkdirSync(empty, { recursive: true });
+
+    const m = await loadKit(consumer);
+    expect(m.writeKitManifest(empty, 'v2')).toBe(0);
+    expect(readText(manifest)).toBe(before);
+  });
+
+  it('backs up the previous manifest in the pre-upgrade snapshot', async (ctx) => {
+    const { consumer, a2 } = await consumerAtV1(ctx);
+    const m = await loadKit(consumer);
+    const snap = m.snapshotBeforeUpgrade(a2);
+    try {
+      expect(fs.existsSync(path.join(snap.dir, '.wxai', 'kit-manifest.json'))).toBe(true);
+    } finally {
+      fs.rmSync(snap.dir, { recursive: true, force: true });
+    }
   });
 });

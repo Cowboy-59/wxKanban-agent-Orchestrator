@@ -254,6 +254,59 @@ async function ensureDepsInstalled() {
   });
 }
 
+// [SPEC 121 / T022] The Project Agent's bundle (wxkanban-agent/dist/remote-bridge.cjs)
+// keeps @anthropic-ai/claude-agent-sdk and ws external, and only wxkanban-agent/package.json
+// declares them. ensureDepsInstalled() above installs the ROOT manifest, and only when tsx
+// is missing — so no install and no upgrade ever installed the agent's, and the agent could
+// not load its SDK on any consumer. Probed per package and independently of the root check,
+// because an upgrade that adds an agent dependency finds the root's tsx already present.
+function missingAgentDeps(agentDir) {
+  const manifestPath = path.join(agentDir, 'package.json');
+  if (!fs.existsSync(manifestPath)) return []; // older kit layout: no agent to install
+  let deps;
+  try {
+    deps = Object.keys(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).dependencies || {});
+  } catch (err) {
+    console.warn(`[init] ⚠ could not read wxkanban-agent/package.json: ${err.message}`);
+    return [];
+  }
+  // Node resolves from wxkanban-agent/ through its own node_modules, then the root's.
+  const lookIn = [path.join(agentDir, 'node_modules'), path.join(root, 'node_modules')];
+  return deps.filter((name) =>
+    !lookIn.some((dir) => fs.existsSync(path.join(dir, ...name.split('/'), 'package.json'))));
+}
+
+async function ensureAgentDepsInstalled() {
+  const agentDir = path.join(root, 'wxkanban-agent');
+  const missing = missingAgentDeps(agentDir);
+  if (missing.length === 0) return;
+  console.log(`[init] agent dependencies missing (${missing.join(', ')}) → running \`npm install\` in wxkanban-agent/…`);
+  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const code = await new Promise((resolve) => {
+    const c = spawn(npmCmd, ['install', '--omit=dev', '--no-audit', '--no-fund'], {
+      cwd: agentDir,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+      windowsHide: true, // see the npm install spawn in ensureDepsInstalled
+    });
+    c.on('exit', (rc) => resolve(rc ?? 1));
+    c.on('error', (err) => {
+      console.error(`[init] failed to spawn npm: ${err.message}`);
+      resolve(1);
+    });
+  });
+  const still = code === 0 ? missingAgentDeps(agentDir) : missing;
+  if (code !== 0 || still.length > 0) {
+    // Not fatal: the gateway and every kit command still work without the agent. Loud,
+    // because a Project Agent that cannot start is otherwise only discovered from a phone.
+    console.warn(`[init] ⚠ agent dependencies NOT installed (${code !== 0 ? `npm exit ${code}` : `still missing: ${still.join(', ')}`}).`);
+    console.warn('[init]   The Project Agent / remote bridge will not start until they are. Run by hand:');
+    console.warn('[init]     cd wxkanban-agent && npm install --omit=dev');
+    return;
+  }
+  console.log('[init] ✓ agent dependencies installed');
+}
+
 // Trust the OS cert store so install runs behind a corporate TLS-inspection
 // proxy (Cisco Secure Access, Zscaler, …) without a NODE_OPTIONS=--use-system-ca
 // prefix. init.mjs is spawned by upgrade-kit as its own process, so it needs the
@@ -427,6 +480,7 @@ async function main() {
   cleanupStaleKitFiles();
 
   await ensureDepsInstalled();
+  await ensureAgentDepsInstalled();
 
   const cfg = loadConfig();
   console.log(`[init] config: mcpBaseUrl=${cfg.mcpBaseUrl}  token=${fmt(cfg.apiToken)}  projectId=${cfg.projectId || '(missing)'}`);
