@@ -5,6 +5,7 @@ ai-compat: universal
 claude-code: true
 cursor: true
 blackboxai: true
+model: sonnet
 ---
 
 # wxLedger — the decision ledger

@@ -4,6 +4,9 @@
  * Writes the three hosted-MCP fields into `.wxai/project.json` (default) or
  * `.env` (when `--write-to=.env`). Token is never echoed in full to stdout.
  *
+ * SPEC-143 T026: then stores the same project token on this machine for the agent-run forwarder
+ * and installs the routing hooks (best effort; see setUpAgentRunForwarding).
+ *
  * Exit codes:
  *   0 — write succeeded
  *   1 — runtime / I/O error
@@ -12,6 +15,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { randomBytes } from "crypto";
+import { spawnSync } from "child_process";
 
 // [SCOPE 095 / T004] Accept the real minted token format. generateApiToken() emits
 // crypto.randomBytes(32).toString('base64url') → ~43 URL-safe chars with no prefix;
@@ -90,6 +94,41 @@ function writeToEnv(projectRoot: string, block: { mcpBaseUrl: string; apiToken: 
   return path;
 }
 
+// [SCOPE 143 / T026] BEGIN — store the agent-run token on this machine and install the routing hooks (FR-018)
+/**
+ * After the config is written: hand the same project API token to `_wxAI/routing/token-store.mjs`
+ * (stdin, never argv) so the agent-run forwarder can send runs from this machine, and run
+ * `_wxAI/routing/install.mjs` (an idempotent hook merge). Both are best effort: a project without
+ * the routing kit, or a failure here, never fails kit:configure. The lines returned never carry
+ * the token.
+ */
+export function setUpAgentRunForwarding(projectRoot: string, projectId: string, token: string): string[] {
+  const routing = join(projectRoot, "_wxAI", "routing");
+  const store = join(routing, "token-store.mjs");
+  const install = join(routing, "install.mjs");
+  if (!existsSync(store) || !existsSync(install)) return [];
+  const lines: string[] = [];
+  const saved = spawnSync(process.execPath, [store, "--save", "--project", projectId, "--root", projectRoot], {
+    input: token,
+    encoding: "utf-8",
+    windowsHide: true,
+    timeout: 15_000,
+  });
+  lines.push(
+    saved.status === 0
+      ? "  agent runs: project token stored on this machine (~/.wxai/agentrun-tokens.json)"
+      : `  agent runs: token NOT stored — ${(saved.stderr || saved.error?.message || "unknown error").trim()}`,
+  );
+  const hooked = spawnSync(process.execPath, [install, "--root", projectRoot], { encoding: "utf-8", windowsHide: true, timeout: 15_000 });
+  lines.push(
+    hooked.status === 0
+      ? `  routing hooks: ${(hooked.stdout || "installed").trim()}`
+      : `  routing hooks: NOT installed — ${(hooked.stderr || hooked.error?.message || "unknown error").trim()}`,
+  );
+  return lines;
+}
+// [SCOPE 143 / T026] END
+
 export function handleKitConfigureCommand(args: KitConfigureArgs): KitConfigureResult {
   const mcpUrl = args.mcpUrl ?? "https://mcp.wxperts.com";
   const projectRoot = args.projectRoot ?? process.cwd();
@@ -122,6 +161,8 @@ export function handleKitConfigureCommand(args: KitConfigureArgs): KitConfigureR
 
   try {
     const written = target === ".env" ? writeToEnv(projectRoot, block) : writeToProjectJson(projectRoot, block);
+    // [SCOPE 143 / T026] the agent-run forwarder's token and hooks (best effort, never fatal)
+    const forwarding = setUpAgentRunForwarding(projectRoot, block.projectId, block.apiToken);
     return {
       exitCode: 0,
       writtenTo: written,
@@ -129,7 +170,8 @@ export function handleKitConfigureCommand(args: KitConfigureArgs): KitConfigureR
         `kit:configure: wrote hosted-MCP config to ${written}\n` +
         `  mcpBaseUrl: ${block.mcpBaseUrl}\n` +
         `  projectId:  ${block.projectId}\n` +
-        `  apiToken:   ${maskToken(block.apiToken)}`,
+        `  apiToken:   ${maskToken(block.apiToken)}` +
+        (forwarding.length ? `\n${forwarding.join("\n")}` : ""),
     };
   } catch (err) {
     return {

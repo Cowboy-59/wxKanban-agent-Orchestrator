@@ -6,8 +6,17 @@
 // (difficulty) and model pair: n >= 5 comparisons, a lower cost per task for the candidate, and a
 // first-pass rate no more than 5 points worse. flagged = true when the candidate is worse at all
 // on first pass, so the owner reads the evidence before approving.
+//
+// Anthropic only (FR-007, Amendment A): a comparison whose runs are not both Claude models on the
+// official client is skipped, so no proposal can name another model or route. compare.mjs refuses
+// and logs such a comparison when it is planned or recorded.
 
+import { isAnthropicProvider } from './policy.mjs';
 import { costOf, loadPrices } from './report-lib.mjs';
+import { isClaudeModel } from './tiers.mjs';
+
+const claudeOfficial = (r) =>
+  isClaudeModel(r.model) && (r.route == null || r.route === 'official') && (r.provider == null || isAnthropicProvider(r.provider));
 
 export const MIN_COMPARISONS = 5;
 export const MAX_PASS_DROP = 5;
@@ -24,6 +33,7 @@ export function buildProposals(records, prices = loadPrices()) {
     const cur = runs.find((r) => r.variant === 'current');
     const cand = runs.find((r) => r.variant === 'candidate');
     if (!cur || !cand) continue;
+    if (!claudeOfficial(cur) || !claudeOfficial(cand)) continue;
     if (typeof cur.firstpass !== 'boolean' || typeof cand.firstpass !== 'boolean') continue;
     const cc = costOf(cur, prices);
     const kc = costOf(cand, prices);

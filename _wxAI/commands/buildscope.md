@@ -5,6 +5,7 @@ ai-compat: universal
 claude-code: true
 cursor: true
 blackboxai: true
+model: opus
 ---
 
 # buildscope — Build Scope of Project

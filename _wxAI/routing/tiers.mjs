@@ -8,18 +8,21 @@
 //       easy: claude-haiku-5-5
 //     commands:              # per-command override of the command's declared tier
 //       dbpush: easy
-//   allowedProviders: []     # read by policy.mjs; empty = Anthropic only
 //
-// resolveTier({ difficulty, command, root }) -> { model, tier, source: 'project' | 'kit' }
+// Anthropic only (FR-007, Amendment A): a project tier must name a Claude model (claude-...).
+// Any other model id is refused: the tier falls back to the kit's Claude model for that class
+// and a `refusal` event is logged. There is no allowedProviders setting.
+//
+// resolveTier({ difficulty, command, root, log }) -> { model, tier, source: 'project' | 'kit' }
 //   tier: an explicit difficulty wins; otherwise the project's commands entry, then the kit's,
 //   then 'moderate' for a command nobody declared. source is 'project' when the project settings
-//   chose the tier or the model, 'kit' otherwise.
+//   chose the tier or the model, 'kit' otherwise. log: false skips the refusal event.
 // escalate(tier) -> the next tier up; heavy stays heavy.
 // shouldEscalate(failedTestCycles) -> true once a task has failed its tests twice.
 //
 // The settings file is parsed with a small YAML subset reader (block maps, block lists, flow
 // [lists] and {maps}, quoted scalars, comments). A file that will not parse falls back to the kit
-// default for models and to an empty allowedProviders, the safe side of both.
+// default for models, the safe side.
 //
 // Nothing here writes decisions/settings.yaml. The only write is appendRoutingEvent, an append to
 // decisions/routing-log.jsonl in the C5 shape through log.mjs.
@@ -36,6 +39,10 @@ export const ESCALATE_AFTER_FAILED_CYCLES = 2;
 export const ROUTING_EVENTS = Object.freeze(['model-choice', 'escalation', 'refusal', 'comparison', 'proposal', 'approval', 'override']);
 
 const MODEL_ID_RE = /^[A-Za-z0-9][\w.:/-]*$/;
+const CLAUDE_MODEL_RE = /^claude-[a-z0-9][a-z0-9.-]*$/i;
+
+/** True for a Claude model id (claude-...), the only kind a tier may name (FR-007). */
+export const isClaudeModel = (m) => typeof m === 'string' && CLAUDE_MODEL_RE.test(m.trim());
 const KIT_DEFAULT_FILE = fileURLToPath(new URL('./tiers.default.json', import.meta.url));
 
 export const isTier = (t) => typeof t === 'string' && TIERS.includes(t);
@@ -52,8 +59,8 @@ export function routingLogFile(root) {
 export function kitDefaults() {
   const raw = JSON.parse(readFileSync(KIT_DEFAULT_FILE, 'utf8'));
   for (const t of TIERS) {
-    if (typeof raw?.tiers?.[t] !== 'string' || !MODEL_ID_RE.test(raw.tiers[t])) {
-      throw new Error(`${KIT_DEFAULT_FILE}: tiers.${t} is missing or not a model id`);
+    if (!isClaudeModel(raw?.tiers?.[t])) {
+      throw new Error(`${KIT_DEFAULT_FILE}: tiers.${t} is missing or not a Claude model id`);
     }
   }
   const commands = {};
@@ -210,12 +217,14 @@ export function parseYamlSubset(text) {
 // Routing settings
 
 function normalizeModels(raw) {
-  const out = { tiers: {}, commands: {} };
+  const out = { tiers: {}, commands: {}, refused: {} };
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   if (raw.tiers && typeof raw.tiers === 'object' && !Array.isArray(raw.tiers)) {
     for (const t of TIERS) {
       const m = raw.tiers[t];
-      if (typeof m === 'string' && MODEL_ID_RE.test(m.trim())) out.tiers[t] = m.trim();
+      if (typeof m !== 'string' || !MODEL_ID_RE.test(m.trim())) continue;
+      if (isClaudeModel(m)) out.tiers[t] = m.trim();
+      else out.refused[t] = m.trim();
     }
   }
   if (raw.commands && typeof raw.commands === 'object' && !Array.isArray(raw.commands)) {
@@ -226,39 +235,28 @@ function normalizeModels(raw) {
   return out;
 }
 
-function normalizeProviders(raw) {
-  if (!Array.isArray(raw)) return [];
-  const out = [];
-  for (const entry of raw) {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
-    const provider = typeof entry.provider === 'string' ? entry.provider.trim().toLowerCase() : '';
-    if (!provider) continue;
-    const kinds = Array.isArray(entry.kinds) ? entry.kinds : typeof entry.kinds === 'string' ? [entry.kinds] : [];
-    out.push({ provider, kinds: kinds.filter((k) => typeof k === 'string').map((k) => k.trim().toLowerCase()) });
-  }
-  return out;
-}
+const emptyModels = () => ({ tiers: {}, commands: {}, refused: {} });
 
-/** Routing settings from settings text: { models: {tiers, commands}, allowedProviders, readable }. */
+/** Routing settings from settings text: { models: {tiers, commands, refused}, readable }. */
 export function parseRoutingSettings(text) {
   let doc;
   try {
     doc = parseYamlSubset(text);
   } catch {
-    return { models: { tiers: {}, commands: {} }, allowedProviders: [], readable: false };
+    return { models: emptyModels(), readable: false };
   }
-  return { models: normalizeModels(doc.models), allowedProviders: normalizeProviders(doc.allowedProviders), readable: true };
+  return { models: normalizeModels(doc.models), readable: true };
 }
 
-/** The project's routing settings; a missing file is an empty override and no extra providers. */
+/** The project's routing settings; a missing file is an empty override. */
 export function readRoutingSettings(root) {
   const file = settingsFile(root);
-  if (!existsSync(file)) return { models: { tiers: {}, commands: {} }, allowedProviders: [], readable: true, present: false };
+  if (!existsSync(file)) return { models: emptyModels(), readable: true, present: false };
   let text;
   try {
     text = readFileSync(file, 'utf8');
   } catch {
-    return { models: { tiers: {}, commands: {} }, allowedProviders: [], readable: false, present: true };
+    return { models: emptyModels(), readable: false, present: true };
   }
   return { ...parseRoutingSettings(text), present: true };
 }
@@ -272,7 +270,7 @@ function lookupCommand(map, command) {
   return undefined;
 }
 
-export function resolveTier({ difficulty, command, root } = {}) {
+export function resolveTier({ difficulty, command, root, log = true } = {}) {
   if (difficulty !== undefined && difficulty !== null && !isTier(difficulty)) {
     throw new TypeError(`difficulty must be easy, moderate or heavy (got ${JSON.stringify(difficulty)})`);
   }
@@ -291,6 +289,17 @@ export function resolveTier({ difficulty, command, root } = {}) {
     }
   }
   const projectModel = project.tiers[tier];
+  if (log && project.refused[tier]) {
+    appendRoutingEvent(root, {
+      event: 'refusal',
+      taskid: null,
+      command: command ?? null,
+      from: project.refused[tier],
+      to: kit.tiers[tier],
+      reason: `models.tiers.${tier} names ${project.refused[tier]}, which is not a Claude model; the kit's Claude model is used`,
+      evidence: 'Anthropic only: a Claude model on the official Claude client (FR-007, Amendment A)',
+    });
+  }
   return {
     model: projectModel ?? kit.tiers[tier],
     tier,

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Claude Code PreToolUse hook: agents never change the models: or allowedProviders: sections of
-// decisions/settings.yaml (SPEC-143 FR-005, FR-007; contract C2).
+// Claude Code PreToolUse hook: agents never change the models: section of
+// decisions/settings.yaml (SPEC-143 FR-005; contract C2). Amendment A retired allowedProviders:
+// (Anthropic only), so models: is the one protected section.
 //
 // Edit, Write and MultiEdit on decisions/settings.yaml are simulated against the file on disk:
-// the call is denied when the result would change either protected section (added, removed,
+// the call is denied when the result would change the protected section (added, removed,
 // re-indented or edited), and allowed when only other sections change (gate:, minimalCode:,
 // links:, ...). Comment-only and blank-line changes inside a section are not changes.
 // NotebookEdit on the file is denied (its result cannot be simulated).
@@ -19,20 +20,20 @@ import { isAbsolute, resolve } from 'node:path';
 
 import { parseRoutingSettings } from './tiers.mjs';
 
-export const PROTECTED_SECTIONS = Object.freeze(['models', 'allowedProviders']);
+export const PROTECTED_SECTIONS = Object.freeze(['models']);
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const SETTINGS_RE = /decisions[\\/]settings\.ya?ml(?![\w-]|\.\w)/i;
 const BARE_SETTINGS_RE = /(?:^|[\s"'=/\\])settings\.ya?ml(?![\w-]|\.\w)/i;
 
 export const DENY_MESSAGE =
-  'The models: and allowedProviders: sections of decisions/settings.yaml decide which AI models and providers ' +
-  "may work on this project's code. Only the project owner changes them, by editing the file by hand; an agent " +
-  'may not add, remove or edit them. Other sections (gate:, minimalCode:, links:) can still be changed with the Edit tool.';
+  'The models: section of decisions/settings.yaml decides which Claude models ' +
+  "work on this project's code. Only the project owner changes it, by editing the file by hand; an agent " +
+  'may not add, remove or edit it. Other sections (gate:, minimalCode:, links:) can still be changed with the Edit tool.';
 
 export const DENY_BASH_MESSAGE =
-  'Shell commands may not write decisions/settings.yaml: the models: and allowedProviders: sections are changed ' +
-  'only by the project owner, by hand, and a shell write cannot be checked to leave them alone. To change another ' +
+  'Shell commands may not write decisions/settings.yaml: the models: section is changed ' +
+  'only by the project owner, by hand, and a shell write cannot be checked to leave it alone. To change another ' +
   'section (gate:, minimalCode:, links:), use the Edit tool on that section.';
 
 const deny = (reason) => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason } });
@@ -53,7 +54,7 @@ function stripComment(line) {
   return line;
 }
 
-/** The protected sections as normalized text: { models, allowedProviders }; '' when absent. */
+/** The protected sections as normalized text: { models }; '' when absent. */
 export function protectedBlocks(text) {
   const out = Object.fromEntries(PROTECTED_SECTIONS.map((s) => [s, []]));
   let section = null;
@@ -74,7 +75,7 @@ export function changesProtected(before, after) {
   if (PROTECTED_SECTIONS.some((s) => a[s] !== b[s])) return true;
   const pa = parseRoutingSettings(before);
   const pb = parseRoutingSettings(after);
-  return JSON.stringify([pa.models, pa.allowedProviders]) !== JSON.stringify([pb.models, pb.allowedProviders]);
+  return JSON.stringify(pa.models) !== JSON.stringify(pb.models);
 }
 
 function replaceText(text, oldStr, newStr, all) {
@@ -85,7 +86,7 @@ function replaceText(text, oldStr, newStr, all) {
   return text.slice(0, at) + newStr + text.slice(at + oldStr.length);
 }
 
-const mentionsProtected = (s) => /\b(models|allowedProviders)\b/.test(String(s ?? ''));
+const mentionsProtected = (s) => /\bmodels\b/.test(String(s ?? ''));
 
 /** Apply one edit; when it cannot be placed, fall back to a conservative text check. */
 function applyEdit(text, edit) {

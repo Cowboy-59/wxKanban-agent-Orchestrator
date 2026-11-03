@@ -5,6 +5,7 @@ ai-compat: universal
 claude-code: true
 cursor: true
 blackboxai: true
+model: opus
 ---
 
 # wxG-O-D — Guru of Development

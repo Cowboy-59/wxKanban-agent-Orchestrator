@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mkdtempSync, readFileSync, existsSync, rmSync, mkdirSync, writeFileSync } from 'fs';
+import { mkdtempSync, readFileSync, existsSync, rmSync, mkdirSync, writeFileSync, cpSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { handleKitConfigureCommand } from '../../core/orchestrator/command-handlers/kit-configure';
@@ -124,3 +124,46 @@ describe('handleKitConfigureCommand', () => {
 });
 
 import { afterEach } from 'vitest';
+
+// [SCOPE 143 / T026] BEGIN — kit:configure stores the agent-run token on this machine and installs the hooks
+describe('kit:configure sets up agent-run forwarding (SPEC-143 T026)', () => {
+	const REPO_ROUTING = join(__dirname, '..', '..', '..', '_wxAI', 'routing');
+	let root: string;
+	let home: string;
+	const savedHome = process.env.WXAI_HOME;
+
+	beforeEach(() => {
+		root = freshRoot();
+		home = mkdtempSync(join(tmpdir(), 'kit-configure-home-'));
+		process.env.WXAI_HOME = home; // the token store goes here, never into the real ~/.wxai
+	});
+	afterEach(() => {
+		if (savedHome === undefined) delete process.env.WXAI_HOME;
+		else process.env.WXAI_HOME = savedHome;
+		for (const d of [root, home]) {
+			try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ }
+		}
+	});
+
+	it('stores the token keyed by project and installs the routing hooks, without printing the token', () => {
+		cpSync(REPO_ROUTING, join(root, '_wxAI', 'routing'), { recursive: true });
+		const r = handleKitConfigureCommand({ token: REAL_TOKEN, projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(0);
+		expect(r.message).not.toContain(REAL_TOKEN);
+		expect(r.message).toContain('project token stored on this machine');
+		const store = JSON.parse(readFileSync(join(home, '.wxai', 'agentrun-tokens.json'), 'utf-8'));
+		expect(store.projects[VALID_PROJECT].token).toBe(REAL_TOKEN);
+		const settings = JSON.parse(readFileSync(join(root, '.claude', 'settings.json'), 'utf-8'));
+		expect(Object.keys(settings.hooks)).toContain('SessionStart');
+		// a second run changes nothing in the hooks
+		expect(handleKitConfigureCommand({ token: REAL_TOKEN, projectId: VALID_PROJECT, projectRoot: root }).message).toContain('already current');
+	});
+
+	it('a project without the routing kit is configured as before, with no extra lines', () => {
+		const r = handleKitConfigureCommand({ token: REAL_TOKEN, projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(0);
+		expect(r.message).not.toContain('agent runs');
+		expect(existsSync(join(home, '.wxai', 'agentrun-tokens.json'))).toBe(false);
+	});
+});
+// [SCOPE 143 / T026] END

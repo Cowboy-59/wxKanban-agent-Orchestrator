@@ -46,6 +46,7 @@ import { ensureCockpitUpToDate } from '../../../core/orchestrator/cockpit-refres
 // nothing is overwritten here). Best-effort, throttled, silent in the author
 // repo. See core/orchestrator/kit-update-check.ts.
 import { ensureKitUpToDate } from '../../../core/orchestrator/kit-update-check';
+import { ensureRoutingHooksForKitVersion } from '../../../core/orchestrator/routing-hooks-sync'; // [SCOPE 143 / T026]
 
 interface ProjectConfig {
 	projectId: string;
@@ -307,6 +308,7 @@ async function main(): Promise<void> {
 		// throttled once per process — never blocks or fails the help output.
 		ensureCockpitUpToDate();
 		ensureKitUpToDate();
+		ensureRoutingHooksForKitVersion(); // [SCOPE 143 / T026] first run after a kit upgrade
 		printAvailableCommands(context.customCommands);
 		return;
 	}

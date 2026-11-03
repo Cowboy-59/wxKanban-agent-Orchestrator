@@ -26,6 +26,10 @@ import { kitDefaults } from './tiers.mjs';
 
 export const TIER_ALIAS = Object.freeze({ easy: 'haiku', moderate: 'sonnet', heavy: 'opus' });
 export const MIRRORS = Object.freeze(['_wxAI/commands', '.claude/commands']);
+// [SCOPE 143 / T019] Commands that never get a model: line although they have a tier. implement routes
+// per task with subagents (T022); a frontmatter model saves nothing on an Opus session and would force
+// Opus on a cheaper one (owner decision 2026-10-27).
+export const KEEP_SESSION_MODEL = Object.freeze(new Set(['implement']));
 
 const FRONT_RE = /^---(\r?\n)([\s\S]*?)(?:\r?\n)?^---[ \t]*(\r?\n|$)/m;
 
@@ -80,6 +84,10 @@ export function planCommandTiers({ root, force = false, only = null } = {}) {
     const files = MIRRORS.map((d) => join(base, d, `${command}.md`));
     const present = files.filter((f) => existsSync(f));
     const entry = { command, tier, alias, files, action: 'skipped', from: null, reason: '', newText: null };
+    if (KEEP_SESSION_MODEL.has(command)) {
+      plan.push({ ...entry, reason: 'keeps the session model (owner decision, SPEC-143 T022)' });
+      continue;
+    }
     if (!present.length) {
       plan.push({ ...entry, reason: 'no command file in either mirror' });
       continue;

@@ -1,3 +1,6 @@
+---
+model: sonnet
+---
 # wxHelp — Show Available wxAI Commands
 
 This reference provides a visual and categorized list of all available wxAI commands for the wxKanban Project Hub.

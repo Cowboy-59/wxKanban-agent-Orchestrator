@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // Comparison mode (SPEC-143 T013, FR-010).
 //
-// Same task, two routes, two separate worktrees. This module only PLANS and RECORDS: it never
-// spawns an agent and never runs git. The plan lists the git commands for G.O.D. to run, and
+// Same task, two Claude models, two separate worktrees. This module only PLANS and RECORDS: it
+// never spawns an agent and never runs git. The plan lists the git commands for G.O.D. to run, and
 // G.O.D. runs the two agents. A third model then reviews both diffs.
 //
-//   node compare.mjs plan   --task <id> --current <model>[:route] --candidate <model>[:route] [--root <dir>] [--class easy|moderate|heavy]
+// Anthropic only (FR-007, Amendment A): both sides must be Claude models on the official client.
+// A side naming another model, provider or route is refused and the refusal is logged (policy.mjs).
+//
+//   node compare.mjs plan   --task <id> --current <model>[:official] --candidate <model>[:official] [--root <dir>] [--class easy|moderate|heavy]
 //   node compare.mjs record --file outcomes.json [--root <dir>]
 //
 // outcomes.json: { comparisonid, taskid, difficulty, command, runs: [ { variant: "current"|"candidate",
@@ -23,6 +26,7 @@ import { randomBytes } from 'node:crypto';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { logEvent } from './log.mjs';
+import { checkRoute, SUBSCRIPTION_PROVIDER } from './policy.mjs';
 import { RUN_LOG_REL } from './report-lib.mjs';
 
 export function uuidv7(now = Date.now()) {
@@ -52,8 +56,17 @@ export function projectKind(root) {
 
 function parseRoute(spec) {
   const [model, route] = String(spec ?? '').split(':');
-  if (!model) throw new Error('a route is <model>[:official|omniroute]');
+  if (!model) throw new Error('a route is <model>[:official]');
   return { model, route: route || 'official' };
+}
+
+/** The first side that is not a Claude model on the official client, as a refusal; else null. */
+function refuseNonClaude({ root, taskid, difficulty, sides }) {
+  for (const s of sides) {
+    const out = checkRoute({ provider: s.provider ?? SUBSCRIPTION_PROVIDER, route: s.route ?? 'official', model: s.model, difficulty, command: 'compare', taskid, root });
+    if (!out.allowed) return { ok: false, refused: true, reason: `Comparison refused: ${out.reason}.`, fallbackModel: out.fallbackModel };
+  }
+  return null;
 }
 
 export function planComparison({ root, taskid, current, candidate, difficulty, id }) {
@@ -65,6 +78,8 @@ export function planComparison({ root, taskid, current, candidate, difficulty, i
   }
   const cur = parseRoute(current);
   const cand = parseRoute(candidate);
+  const refused = refuseNonClaude({ root, taskid, difficulty, sides: [cur, cand] });
+  if (refused) return refused;
   const comparisonid = id ?? uuidv7();
   const short = comparisonid.replace(/-/g, '').slice(-8);
   const parent = dirname(root);
@@ -108,6 +123,8 @@ export function recordOutcomes({ root, outcomes, now = () => new Date().toISOStr
   }
   const variants = outcomes.runs.map((r) => r.variant).sort().join(',');
   if (variants !== 'candidate,current') throw new Error('the two runs must be one "current" and one "candidate"');
+  const refused = refuseNonClaude({ root, taskid: outcomes.taskid ?? null, difficulty: outcomes.difficulty, sides: outcomes.runs });
+  if (refused) return refused;
   const written = [];
   const file = join(root, RUN_LOG_REL);
   mkdirSync(dirname(file), { recursive: true });

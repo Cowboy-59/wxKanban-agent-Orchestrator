@@ -1,3 +1,6 @@
+---
+model: haiku
+---
 # dbpush — Validate and Push All Data to Database
 
 ## Purpose

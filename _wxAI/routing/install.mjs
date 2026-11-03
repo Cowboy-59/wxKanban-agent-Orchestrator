@@ -6,12 +6,14 @@
 //   node _wxAI/routing/install.mjs --uninstall  remove them, leaving every other hook alone
 //   --root <dir>                                another project (default: the current one)
 //
-// Four entries, each running a script under _wxAI/routing/:
-//   PreToolUse  ^(Edit|Write|MultiEdit|Bash)$  hook-settings-guard.mjs  (agents never write models:/allowedProviders:)
+// Six entries, each running a script under _wxAI/routing/:
+//   PreToolUse  ^(Edit|Write|MultiEdit|Bash)$  hook-settings-guard.mjs  (agents never write models:)
 //   SubagentStop, PostToolUse (matcher ^Agent$), Stop  capture-hook.mjs  (run capture)
+//   Stop, SessionStart                         forward-hook.mjs  (send the run log to wxKanban, T025)
 // TRAP: one hook event name the CLI build does not know silently disables EVERY hook in the file,
-// so only PreToolUse, PostToolUse, SubagentStop and Stop are ever registered here. Only entries whose
-// command contains _wxAI/routing/ are touched; Ask Gate, Change Impact and all other hooks stay as they are.
+// so only PreToolUse, PostToolUse, SubagentStop, Stop and SessionStart are ever registered here. Only
+// entries whose command contains _wxAI/routing/ are touched; Ask Gate, Change Impact and all other
+// hooks stay as they are.
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -23,13 +25,17 @@ export const OWN_MARK = '_wxAI/routing/';
 const CMD = 'node "${CLAUDE_PROJECT_DIR}/_wxAI/routing/capture-hook.mjs"';
 const hook = () => [{ type: 'command', command: CMD, timeout: 5 }];
 const GUARD = 'node "${CLAUDE_PROJECT_DIR}/_wxAI/routing/hook-settings-guard.mjs"';
+// [SCOPE 143 / T025] the forwarder, detached by forward-hook.mjs so the session never waits on it
+const FORWARD = 'node "${CLAUDE_PROJECT_DIR}/_wxAI/routing/forward-hook.mjs"';
+const forwardHook = () => [{ type: 'command', command: FORWARD, timeout: 5 }];
 
 export function captureEntries() {
   return {
     PreToolUse: [{ matcher: '^(Edit|Write|MultiEdit|Bash)$', hooks: [{ type: 'command', command: GUARD, timeout: 10 }] }],
     SubagentStop: [{ hooks: hook() }],
     PostToolUse: [{ matcher: '^Agent$', hooks: hook() }],
-    Stop: [{ hooks: hook() }],
+    Stop: [{ hooks: hook() }, { hooks: forwardHook() }],
+    SessionStart: [{ hooks: forwardHook() }],
   };
 }
 
@@ -85,7 +91,7 @@ export function installCapture(root, { mode = 'install' } = {}) {
   const file = settingsFile(root);
   const settings = read(file);
   const status = captureStatus(settings);
-  const missingScripts = ['capture-hook.mjs', 'capture-worker.mjs', 'hook-settings-guard.mjs'].filter((s) => !existsSync(join(root, '_wxAI', 'routing', s)));
+  const missingScripts = ['capture-hook.mjs', 'capture-worker.mjs', 'hook-settings-guard.mjs', 'forward-hook.mjs', 'forward.mjs', 'token-store.mjs'].filter((s) => !existsSync(join(root, '_wxAI', 'routing', s)));
   if (mode === 'check') return { status, changed: false, file, missingScripts };
   if (mode === 'uninstall') {
     if (status === 'missing') return { status, changed: false, file, missingScripts };

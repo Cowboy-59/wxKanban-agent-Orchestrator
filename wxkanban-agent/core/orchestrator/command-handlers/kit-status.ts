@@ -1,3 +1,6 @@
+import { existsSync } from "fs";
+import { join } from "path";
+import { spawnSync } from "child_process";
 import { readRuntimeState, isPidAlive, ServiceName } from "../../runtime/state-file";
 import { readEntitlementToken } from "../../license/entitlement-cache";
 import { verifyEntitlementToken } from "../../license/entitlement-token";
@@ -44,6 +47,48 @@ export function summarizeEntitlement(
   return { state, status, detail: `${status}, valid ${daysLeft} more day(s) offline` };
 }
 
+// [SCOPE 143 / T026] BEGIN — agent-run capture hooks and the forwarder's token in kit:status (FR-018)
+export type RoutingHooksState = "current" | "stale" | "missing" | "absent";
+
+export interface RoutingSummary {
+  /** absent = the project has no _wxAI/routing kit, so nothing is expected. */
+  hooks: RoutingHooksState;
+  /** Whether this machine holds a project token for the forwarder; null when not checked. */
+  tokenStored: boolean | null;
+  detail: string;
+}
+
+/**
+ * Runs `_wxAI/routing/install.mjs --check` and `token-store.mjs --check`, both read-only. Never
+ * throws and never prints a token: the token check reports only whether one is stored.
+ */
+export function summarizeRouting(projectRoot: string): RoutingSummary {
+  const routing = join(projectRoot, "_wxAI", "routing");
+  const install = join(routing, "install.mjs");
+  if (!existsSync(install)) return { hooks: "absent", tokenStored: null, detail: "no routing kit in this project" };
+  let hooks: RoutingHooksState = "missing";
+  try {
+    const r = spawnSync(process.execPath, [install, "--check", "--root", projectRoot], { encoding: "utf-8", windowsHide: true, timeout: 10_000 });
+    const m = /are (current|stale|missing)/.exec(r.stdout ?? "");
+    if (m) hooks = m[1] as RoutingHooksState;
+  } catch {
+    hooks = "missing";
+  }
+  let tokenStored: boolean | null = null;
+  const store = join(routing, "token-store.mjs");
+  if (existsSync(store)) {
+    try {
+      tokenStored = spawnSync(process.execPath, [store, "--check", "--root", projectRoot], { encoding: "utf-8", windowsHide: true, timeout: 10_000 }).status === 0;
+    } catch {
+      tokenStored = false;
+    }
+  }
+  const fix = hooks !== "current" || tokenStored === false ? " — run kit:configure to set them up" : "";
+  const tokenText = tokenStored === null ? "" : tokenStored ? ", project token stored" : ", no project token on this machine";
+  return { hooks, tokenStored, detail: `hooks ${hooks}${tokenText}${fix}` };
+}
+// [SCOPE 143 / T026] END
+
 export interface ServiceStatus {
   port: number | null;
   pid: number | null;
@@ -59,6 +104,7 @@ export interface KitStatusReport {
   services: Record<ServiceName, ServiceStatus>;
   summary: { healthy: number; stale: number; missing: number };
   entitlement?: EntitlementSummary;
+  routing?: RoutingSummary;
 }
 
 export interface KitStatusOptions {
@@ -78,6 +124,7 @@ export interface KitStatusHandlerResult {
 export const EXPECTED_SERVICES: ServiceName[] = ["gateway"];
 
 // [SCOPE 027 / T015] BEGIN — kit-status command handler
+// MODIFIED-BY: [SCOPE 143 / T026] — reports the agent-run routing hooks and token (informational; the exit code is unchanged)
 export async function handleKitStatusCommand(
   options: KitStatusOptions = {},
 ): Promise<KitStatusHandlerResult> {
@@ -107,6 +154,7 @@ export async function handleKitStatusCommand(
     services: {} as Record<ServiceName, ServiceStatus>,
     summary: { healthy: 0, stale: 0, missing: 0 },
     entitlement: summarizeEntitlement(options.projectRoot ?? process.cwd()),
+    routing: summarizeRouting(options.projectRoot ?? process.cwd()),
   };
 
   for (const name of EXPECTED_SERVICES) {
@@ -158,6 +206,7 @@ export async function handleKitStatusCommand(
 // [SCOPE 027 / T015] END
 
 // [SCOPE 027 / T015] BEGIN — kit-status command handler
+// MODIFIED-BY: [SCOPE 143 / T026] — prints the routing line
 export function renderText(report: KitStatusReport): string {
   const lines: string[] = [];
   for (const name of EXPECTED_SERVICES) {
@@ -185,6 +234,9 @@ export function renderText(report: KitStatusReport): string {
   if (report.entitlement) {
     const e = report.entitlement;
     lines.push(`entitlement ${e.state}${e.status ? ` (${e.status})` : ""} — ${e.detail}`);
+  }
+  if (report.routing && report.routing.hooks !== "absent") {
+    lines.push(`agent runs ${report.routing.detail}`);
   }
   return lines.join("\n");
 }
