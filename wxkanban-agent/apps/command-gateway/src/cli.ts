@@ -270,6 +270,8 @@ function runKitConfigureBootstrap(args: string[]): number {
 		mcpUrl: pick('mcp-url', 'mcpUrl'),
 		writeTo: pick('write-to', 'writeTo') === '.env' ? '.env' : '.wxai',
 		projectRoot: pick('project-root', 'projectRoot'),
+		// [SCOPE 143 / T027] --no-session-defaults opts out of the FR-020 installer
+		noSessionDefaults: pick('no-session-defaults', 'noSessionDefaults') === 'true',
 	});
 	// Human-facing CLI output goes to STDOUT via process.stdout.write — this is
 	// program output a customer reads, not a log record. The operational record

@@ -1,6 +1,6 @@
 ---
 name: wxBrainstorm
-model: sonnet
+model: opus
 description: Brainstorm a customer suggestion, feature request, or new idea with a panel of the eleven wxG-O-D agent roles (Lead Architect, Domain Analyst, Legacy Analyst, Database, Backend, Frontend, DevOps, Security, QA, Migration, and Documentation engineers). It seats the panel, then asks what to brainstorm and confirms the topic BEFORE searching anything in the application; only then does it search the code, scopes, specs, help, and earlier brainstorms for what already exists. It discusses the idea one item at a time as plain text at the user's level (--level=amateur|junior|senior), each item closing on the panel's recommendation, and writes nothing until the user approves a summary, which is recorded in docs/brainstorms/. On the user's go it hands the agreed items to /buildscope and /validateScope under their own rules, and can draft a plain-words reply to the customer. Use this skill when asked to brainstorm, talk through, weigh up, or decide on a customer idea, suggestion, or feature request, to work through several customer suggestions, or to run wxBrainstorm. It never writes scopes, specs, or code itself, and never commits or pushes.
 ---
 
@@ -34,6 +34,40 @@ If the "idea" turns out to be a whole new product, say so and suggest `/wxG-O-D`
 /wxBrainstorm --level=amateur
 /wxBrainstorm --resume
 ```
+
+## Relay architecture (SPEC-143 FR-021)
+
+A brainstorm runs on Opus even when the session itself defaults to Sonnet (SPEC-143 FR-020), because
+the panel's reasoning is the point of this skill. A skill's `model:` frontmatter only lasts the rest
+of the current turn — the session reverts to its default on the user's very next reply — so a
+multi-turn brainstorm cannot stay on Opus by frontmatter alone. Stand-alone `/wxBrainstorm` solves
+this by relaying to a resumed Opus subagent instead of running the workflow inline:
+
+1. **Spawn one subagent** (Agent tool, `subagent_type: "general-purpose"`, `model: "opus"` — the
+   tier `_wxAI/routing/tiers.default.json` declares for `wxBrainstorm`, i.e. `heavy` — a stable
+   `name` built from the topic slug, e.g. `wxbrainstorm-<slug>`). Its prompt: run this skill's
+   workflow (the numbered steps below) yourself, end to end, with your own tools, for every search,
+   the agenda, the discussion, the record, and the ledger. Pass it the user's free text, `--level`,
+   and `--resume` exactly as given. Tell it: whenever you need the user's input, say so and stop —
+   never guess an answer on the user's behalf; their reply comes back through `SendMessage`.
+2. **Relay.** Each time the subagent's report is a question or a status, show it to the user
+   verbatim, as the subagent wrote it, and wait. On the user's reply, continue the same subagent —
+   `SendMessage({ to: <its name>, message: <the user's reply> })` — and relay what comes back.
+   Repeat until the subagent reports the topic closed (the record written) or, after step 7, that
+   the hand-off is done.
+3. **If the subagent no longer exists** (for example this session was cleared or compacted
+   mid-brainstorm, so its name is gone), say so and tell the user to run `/wxBrainstorm --resume`,
+   which spawns a fresh Opus subagent that reads the saved record (`references/conduct.md` §
+   Pausing and resuming) instead of trying to continue a handle that no longer exists.
+4. **The main session never itself searches, discusses, or writes a file while relaying** — only
+   the subagent does. This is what keeps the session cheap on Sonnet while the panel still reasons
+   on Opus for however many turns the brainstorm takes.
+5. **Fallback.** When the Agent tool is not available in this session (for example wxBrainstorm was
+   itself invoked inside a subagent that cannot spawn one of its own), skip the relay and run the
+   workflow directly below, in this turn, on the model this skill's frontmatter declares.
+6. **Embedded in wxG-O-D: never relay.** G.O.D.'s own turn already runs on Opus (its own
+   frontmatter), so a second Opus subagent would only add a relay hop for nothing. Run the workflow
+   directly, as `## Embedded in wxG-O-D` below describes.
 
 ## Workflow
 

@@ -31,6 +31,8 @@ export interface KitConfigureArgs {
   mcpUrl?: string;
   writeTo?: ".wxai" | ".env";
   projectRoot?: string;
+  noSessionDefaults?: boolean;
+  noRescueTokens?: boolean;
 }
 
 export interface KitConfigureResult {
@@ -129,6 +131,44 @@ export function setUpAgentRunForwarding(projectRoot: string, projectId: string, 
 }
 // [SCOPE 143 / T026] END
 
+// [SCOPE 143 / T027] BEGIN — kit session defaults on init (FR-020)
+/**
+ * Best effort, never fatal: set CLAUDE_CODE_DISABLE_1M_CONTEXT and model in the owner's
+ * `.claude/settings.json`, but only where FR-020's installer finds both unset (project, project
+ * settings.local.json, or the owner's own `~/.claude/settings.json`). Skipped entirely when the
+ * project has no `_wxAI/kit/` (older kit) or `--no-session-defaults` was passed.
+ */
+export function setUpSessionDefaults(projectRoot: string, skip: boolean): string[] {
+  if (skip) return ["  session defaults: skipped (--no-session-defaults)"];
+  const installer = join(projectRoot, "_wxAI", "kit", "install-session-defaults.mjs");
+  if (!existsSync(installer)) return [];
+  const result = spawnSync(process.execPath, [installer, "--root", projectRoot], { encoding: "utf-8", windowsHide: true, timeout: 15_000 });
+  if (result.status !== 0) {
+    return [`  session defaults: NOT set — ${(result.stderr || result.error?.message || "unknown error").trim()}`];
+  }
+  return (result.stdout || "").trim().split(/\r?\n/).map((l) => `  ${l}`);
+}
+// [SCOPE 143 / T027] END
+
+// [SCOPE 153 / T006] BEGIN — adds the rescue-tokens global installer alongside setUpSessionDefaults
+/**
+ * Runs `_wxAI/kit/install-rescue-tokens.mjs --root <projectRoot>` (best effort, never fatal to
+ * kit:configure). Installs the rescue-tokens skill + its SessionStart hook into the operator's
+ * global `~/.claude/` profile. Skipped entirely when the project has no `_wxAI/kit/` installer
+ * (older kit) or `--no-rescue-tokens` was passed.
+ */
+export function setUpRescueTokens(projectRoot: string, skip: boolean): string[] {
+  if (skip) return ["  rescue-tokens: skipped (--no-rescue-tokens)"];
+  const installer = join(projectRoot, "_wxAI", "kit", "install-rescue-tokens.mjs");
+  if (!existsSync(installer)) return [];
+  const result = spawnSync(process.execPath, [installer, "--root", projectRoot], { encoding: "utf-8", windowsHide: true, timeout: 15_000 });
+  if (result.status !== 0) {
+    return [`  rescue-tokens: NOT set — ${(result.stderr || result.error?.message || "unknown error").trim()}`];
+  }
+  return (result.stdout || "").trim().split(/\r?\n/).map((l) => `  ${l}`);
+}
+// [SCOPE 153 / T006] END
+
 export function handleKitConfigureCommand(args: KitConfigureArgs): KitConfigureResult {
   const mcpUrl = args.mcpUrl ?? "https://mcp.wxperts.com";
   const projectRoot = args.projectRoot ?? process.cwd();
@@ -163,6 +203,11 @@ export function handleKitConfigureCommand(args: KitConfigureArgs): KitConfigureR
     const written = target === ".env" ? writeToEnv(projectRoot, block) : writeToProjectJson(projectRoot, block);
     // [SCOPE 143 / T026] the agent-run forwarder's token and hooks (best effort, never fatal)
     const forwarding = setUpAgentRunForwarding(projectRoot, block.projectId, block.apiToken);
+    // [SCOPE 143 / T027] the kit's session defaults (best effort, never fatal)
+    const sessionDefaults = setUpSessionDefaults(projectRoot, args.noSessionDefaults === true);
+    // [SCOPE 153 / T006] MODIFIED-BY — best-effort, never fatal to kit:configure
+    const rescueTokens = setUpRescueTokens(projectRoot, args.noRescueTokens === true);
+    const extraLines = [...forwarding, ...sessionDefaults, ...rescueTokens];
     return {
       exitCode: 0,
       writtenTo: written,
@@ -171,7 +216,7 @@ export function handleKitConfigureCommand(args: KitConfigureArgs): KitConfigureR
         `  mcpBaseUrl: ${block.mcpBaseUrl}\n` +
         `  projectId:  ${block.projectId}\n` +
         `  apiToken:   ${maskToken(block.apiToken)}` +
-        (forwarding.length ? `\n${forwarding.join("\n")}` : ""),
+        (extraLines.length ? `\n${extraLines.join("\n")}` : ""),
     };
   } catch (err) {
     return {

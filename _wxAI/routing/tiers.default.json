@@ -13,6 +13,7 @@
     "buildscope": "heavy",
     "createSpecs": "heavy",
     "wxG-O-D": "heavy",
-    "implement": "heavy"
+    "implement": "heavy",
+    "wxBrainstorm": "heavy"
   }
 }
