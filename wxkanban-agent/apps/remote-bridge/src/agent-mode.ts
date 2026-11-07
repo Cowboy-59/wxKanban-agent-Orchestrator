@@ -148,6 +148,7 @@ export async function connectProjectAgent(cfg: ProjectAgentConfig, repoRoot: str
 }
 
 // [SCOPE 148 / T012] BEGIN — the sink gate and the per-run MCP token refresh (SPEC-148 FR-001)
+// MODIFIED-BY: [SCOPE 154 / T003] — also surfaces autopilotEnabled (FR-001)
 //
 // A triage trigger needs two things from the app, both derived server-side from the project's
 // own kit token and never from anything this process claims:
@@ -169,13 +170,15 @@ export interface ProjectAgentSettings {
   allowRemote: boolean;
   /** True only when the token's project is the feedback sink (the server decides, FR-001). */
   feedbackSink: boolean;
+  /** Whether the project owner has turned Autopilot on (SPEC-154 FR-001). */
+  autopilotEnabled: boolean;
 }
 
 /**
- * Read the project agent's server-side settings. An older app that predates SPEC-148 T006
- * returns no `feedbackSink` at all; that reads as false, which arms no schedule — the safe
- * direction, and the reason the caller reports "unreachable or not the sink" rather than
- * assuming a missing field means yes.
+ * Read the project agent's server-side settings. An older app that predates SPEC-148 T006 or
+ * SPEC-154 T002 returns no `feedbackSink` / `autopilotEnabled` at all; that reads as false, which
+ * arms no schedule — the safe direction, and the reason the caller reports "unreachable or not
+ * the sink" / "Autopilot is off" rather than assuming a missing field means yes.
  */
 export async function fetchProjectAgentSettings(cfg: ProjectAgentConfig): Promise<ProjectAgentSettings> {
   const res = await fetch(`${cfg.appBaseUrl}/api/project-agent/settings`, {
@@ -183,8 +186,12 @@ export async function fetchProjectAgentSettings(cfg: ProjectAgentConfig): Promis
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`project agent settings refused (${res.status}): ${text.slice(0, 300)}`);
-  const body = JSON.parse(text) as { allowRemote?: unknown; feedbackSink?: unknown };
-  return { allowRemote: body.allowRemote === true, feedbackSink: body.feedbackSink === true };
+  const body = JSON.parse(text) as { allowRemote?: unknown; feedbackSink?: unknown; autopilotEnabled?: unknown };
+  return {
+    allowRemote: body.allowRemote === true,
+    feedbackSink: body.feedbackSink === true,
+    autopilotEnabled: body.autopilotEnabled === true,
+  };
 }
 
 /** A bound MCP token minted for the run about to start. Never logged, never persisted. */

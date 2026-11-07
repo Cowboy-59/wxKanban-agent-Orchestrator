@@ -67,7 +67,7 @@ function make(over: Partial<TriageScheduleOptions> = {}, at: Date = AFTER_SIX): 
     projectId: "ba924193-0335-4080-9fa6-33cd6b81300a",
     post: (t) => void posts.push(t),
     now: () => at,
-    fetchSettings: async () => ({ allowRemote: true, feedbackSink: true }),
+    fetchSettings: async () => ({ allowRemote: true, feedbackSink: true, autopilotEnabled: false }),
     refreshToken: async () => ({ token: "fresh-token", expiresAt: "2026-10-26T08:00:00Z" }),
     run: async (o) => {
       runs.push(o);
@@ -82,7 +82,7 @@ function make(over: Partial<TriageScheduleOptions> = {}, at: Date = AFTER_SIX): 
 
 describe("the sink gate (FR-001)", () => {
   it("arms nothing and answers with the fixed line when the project is not the sink", async () => {
-    const s = make({ fetchSettings: async () => ({ allowRemote: true, feedbackSink: false }) });
+    const s = make({ fetchSettings: async () => ({ allowRemote: true, feedbackSink: false, autopilotEnabled: false }) });
     await s.start();
     expect(s.isArmed).toBe(false);
     expect(runs).toHaveLength(0);
@@ -105,7 +105,7 @@ describe("the sink gate (FR-001)", () => {
   it("an app that predates T006 sends no feedbackSink, which must not read as yes", async () => {
     // The real fetchProjectAgentSettings coerces a missing field to false; prove the schedule
     // honours that rather than treating "not false" as permission.
-    const s = make({ fetchSettings: async () => ({ allowRemote: true, feedbackSink: false }) });
+    const s = make({ fetchSettings: async () => ({ allowRemote: true, feedbackSink: false, autopilotEnabled: false }) });
     await s.start();
     expect(s.isArmed).toBe(false);
   });
@@ -202,7 +202,7 @@ describe("TRIAGE (FR-002)", () => {
   });
 
   it("is answered with the fixed line on a project that never armed", async () => {
-    const s = make({ fetchSettings: async () => ({ allowRemote: true, feedbackSink: false }) });
+    const s = make({ fetchSettings: async () => ({ allowRemote: true, feedbackSink: false, autopilotEnabled: false }) });
     await s.start();
     posts.length = 0;
     await s.trigger();

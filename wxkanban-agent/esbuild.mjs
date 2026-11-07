@@ -71,4 +71,13 @@ await build({
   outExtension: { ".js": ".cjs" },
 });
 
-console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs + dist/remote-bridge.cjs + dist/handoff-remote.cjs");
+// [SCOPE 155 / T002] The masking rules, standalone (no internal deps) so the plain-Node
+// session-feed hook (_wxAI/remote/) can require() it without pulling in a bundler of its own.
+await build({
+  ...common,
+  entryPoints: { redact: "apps/remote-bridge/src/redact.ts" },
+  outdir: "dist",
+  outExtension: { ".js": ".cjs" },
+});
+
+console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs + dist/remote-bridge.cjs + dist/handoff-remote.cjs + dist/redact.cjs");

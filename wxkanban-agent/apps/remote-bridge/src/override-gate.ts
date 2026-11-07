@@ -108,6 +108,22 @@ export function classifyAction(
   return null;
 }
 
+// [SCOPE 154 / T006] BEGIN — reuse for unattended preflight parking (FR-005, SCOPE-132 FR-096)
+//
+// `classifyAction` only looks at a live Bash tool call. Autopilot needs to ask the same
+// question of a unit's own task text BEFORE starting it — not because this adds a third
+// gated action, but because an unattended run has no operator to answer a mid-run grant
+// request (the gate's own 23-hour hold, T035 above). So a unit that would hit `gitpush` or
+// `prodatawrite` is parked untouched instead of ever reaching the gate. Same two patterns,
+// same two classes — this scans arbitrary text instead of a `Bash` tool call's `command`.
+export function scanTextForGatedActions(text: string): GatedAction[] {
+  const hits: GatedAction[] = [];
+  if (GIT_PUSH.test(text)) hits.push("gitpush");
+  if (PROD_WRITE.some((pattern) => pattern.test(text))) hits.push("prodatawrite");
+  return hits;
+}
+// [SCOPE 154 / T006] END
+
 /** Human-readable reason attached to a refusal, so the agent knows why and can say so. */
 export function denialMessage(action: GatedAction): string {
   return action === "gitpush"

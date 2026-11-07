@@ -184,7 +184,7 @@ describe("triage uses the shared holder (FR-016)", () => {
       // Before 06:00, so start() arms without a catch-up run; TRIAGE below is the only run.
       now: () => new Date(2026, 9, 27, 5, 30),
       tokens: h,
-      fetchSettings: async () => ({ allowRemote: true, feedbackSink: true }),
+      fetchSettings: async () => ({ allowRemote: true, feedbackSink: true, autopilotEnabled: false }),
       refreshToken: async () => {
         throw new Error("a run must not mint its own token when a holder is given");
       },

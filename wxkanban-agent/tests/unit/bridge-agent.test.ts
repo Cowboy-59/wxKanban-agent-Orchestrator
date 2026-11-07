@@ -84,6 +84,7 @@ vi.mock("../../apps/remote-bridge/src/agent-mode", () => ({
     records.push(rec);
     return { ok: true, detail: "" };
   },
+  readyLine: (projectName: string) => `[bridge] ready project=${projectName}`,
 }));
 
 import { RemoteBridge } from "../../apps/remote-bridge/src/bridge";

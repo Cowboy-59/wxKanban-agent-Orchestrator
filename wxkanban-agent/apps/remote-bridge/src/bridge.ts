@@ -11,6 +11,7 @@ import { gitPush, gitTarget, runReview } from "./push-gate";
 import { createGateHook, type OverrideRequest } from "./override-gate"; // [SCOPE 134 / T018, T035]
 import { readyLine, recordOverride, refreshMcpToken, type ProjectAgentConfig } from "./agent-mode"; // [SCOPE 134 / T019] [SCOPE 145 / T006] [SCOPE 148 / T012]
 import { TriageSchedule } from "./triage-schedule"; // [SCOPE 148 / T012]
+import { AutopilotSchedule } from "./autopilot-schedule"; // [SCOPE 154 / T003]
 import { McpTokenHolder } from "./mcp-token"; // [SCOPE 148 / T012]
 import { startOutboxDrain } from "./outbox"; // SPEC-142 / T010
 import { decisionReplyFor, handleDecisionReply, nodeRunner } from "./decision-reply"; // [SCOPE 142 / T025]
@@ -39,6 +40,7 @@ function parseYesNo(text: string): boolean | undefined {
 // MODIFIED-BY: [SCOPE 148 / T012] — feedback triage schedule, TRIAGE command, one shared MCP token holder (FR-016)
 // MODIFIED-BY: [SCOPE 149 / T006] — arms the hand-off watcher and one-slot queue in project-agent mode; posts [HANDOFF] when free (FR-006, FR-008)
 // MODIFIED-BY: [SCOPE 149 / T007] — a posted [HANDOFF] starts a context-only turn under the handoff guard; the guard lifts when the turn ends (FR-007)
+// MODIFIED-BY: [SCOPE 154 / T003] — arms the Autopilot startup schedule; the owner's "go" to a posted startup list is captured here (FR-002)
 // MODIFIED-BY: [SCOPE 151 / T004] — connectionState() for the connection record's heartbeat (FR-060)
 // Outbound relay (session -> room) is the handler set passed to BridgeSession; inbound
 // routing (room -> session) is onRoomMessage. Connect announce on first 'connected'
@@ -92,6 +94,9 @@ export class RemoteBridge {
   // [SCOPE 148 / T012] The feedback-triage schedule. Only ever constructed in project-agent
   // mode, and it arms itself only once the server says this project is the sink (FR-001).
   private triage?: TriageSchedule;
+  // [SCOPE 154 / T003] The Autopilot startup schedule. Only ever constructed in project-agent
+  // mode, and it arms itself only once the server says Autopilot is on for this project (FR-001).
+  private autopilot?: AutopilotSchedule;
   // [SCOPE 148 / T012] FR-016: the one bound MCP token holder. The room gate's records and the
   // triage runs both draw from it, so a renewal for one never revokes the other's copy. Only in
   // project-agent mode with a config to renew through; otherwise the gate uses agent.mcpToken.
@@ -169,6 +174,19 @@ export class RemoteBridge {
         void this.triage.start().catch((err) => {
           console.error(`[triage] schedule failed to start: ${(err as Error).message}`);
         });
+        // [SCOPE 154 / T003] Same wiring as triage above: fetch the Autopilot gate, and if on,
+        // post the server devplan's startup list and wait for the owner's "go" (FR-002).
+        this.autopilot = new AutopilotSchedule({
+          config: paCfg,
+          projectId: this.opts.agent.projectId,
+          tokens: this.tokens,
+          post: async (t) => {
+            await this.post(t);
+          },
+        });
+        void this.autopilot.start().catch((err) => {
+          console.error(`[autopilot] schedule failed to start: ${(err as Error).message}`);
+        });
         // [SCOPE 149 / T006] A waiting hand-off is posted once the agent is free (FR-006, FR-008).
         const handoffLogger = this.handoffLog();
         this.handoffQueue = new HandoffQueue({
@@ -195,14 +213,23 @@ export class RemoteBridge {
   }
 
   // [SCOPE 149 / T006] The agent is free only with a live session, no turn, no gate, no triage run.
+  // MODIFIED-BY: [SCOPE 154 / T003] — an Autopilot startup list awaiting "go" is busy too
   private handoffBusy(): boolean {
-    return !this.session || this.turnActive || !!this.pendingPush || !!this.pendingApproval || !!this.triage?.isRunning;
+    return (
+      !this.session ||
+      this.turnActive ||
+      !!this.pendingPush ||
+      !!this.pendingApproval ||
+      !!this.triage?.isRunning ||
+      !!this.autopilot?.isAwaitingGo
+    );
   }
 
   // [SCOPE 151 / T004] What the connection record's heartbeat reports (FR-060): a gated action
   // pending is `waiting`, a turn or a triage run is `working`, anything else is `idle`.
+  // MODIFIED-BY: [SCOPE 154 / T003] — awaiting the owner's "go" on the Autopilot list is `waiting`
   connectionState(): "idle" | "working" | "waiting" {
-    if (this.pendingPush || this.pendingApproval) return "waiting";
+    if (this.pendingPush || this.pendingApproval || this.autopilot?.isAwaitingGo) return "waiting";
     if (this.turnActive || this.triage?.isRunning) return "working";
     return "idle";
   }
@@ -355,6 +382,12 @@ export class RemoteBridge {
     // gate waiting forever on an answer that went somewhere else.
     if (this.pendingApproval && text.toUpperCase() !== "CANCEL REMOTE") {
       this.resolvePendingApproval(text, from);
+      return;
+    }
+    // [SCOPE 154 / T003] While a startup list is awaiting the owner's "go", the next message IS
+    // that decision (FR-002) — the owner's "go" is the run's approval, nothing further is asked.
+    if (this.autopilot?.isAwaitingGo && text.toUpperCase() !== "CANCEL REMOTE") {
+      this.resolvePendingAutopilotGo(text);
       return;
     }
     // [SCOPE 142 / T025] A queue answer (DQ-nn) or a review verdict (KR-nnnn) is recorded here,
@@ -644,6 +677,23 @@ export class RemoteBridge {
       void this.post("push cancelled");
     } else {
       void this.post(`Please reply CONFIRMED (or yes) to push ${p.branch} → ${p.remote}, or NO to cancel.`);
+    }
+  }
+
+  // [SCOPE 154 / T003] The owner's reply to the posted startup list. "go" (lenient yes/no, same
+  // parser as the push confirmation) IS the approval (FR-002) — nothing further is asked before
+  // T004 onward hands the approved scopes to the skip cascade and the per-scope pipeline.
+  private resolvePendingAutopilotGo(text: string): void {
+    const decision = parseYesNo(text);
+    if (decision === true) {
+      const scopes = this.autopilot?.confirmGo() ?? [];
+      process.stdout.write(`[autopilot] go received — ${scopes.length} scope(s) approved\n`);
+      void this.post(`Autopilot: starting on ${scopes.length} scope${scopes.length === 1 ? "" : "s"}.`);
+    } else if (decision === false) {
+      this.autopilot?.confirmGo();
+      void this.post("Autopilot startup cancelled.");
+    } else {
+      void this.post('Reply "go" to start Autopilot on this list, or "no" to cancel.');
     }
   }
 
