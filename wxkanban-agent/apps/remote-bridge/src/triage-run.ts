@@ -4,6 +4,7 @@ import { join } from "path";
 import { pathToFileURL } from "url";
 import { loadAgentSdk, type QueryFn } from "./sdk-loader";
 import { createTriageHook, TRIAGE_DIR, type TriageBlock } from "./triage-hook";
+import { buildChildEnv } from "./child-env"; // [SCOPE 102 / T014]
 
 // [SCOPE 148 / T011] BEGIN — the one-shot triage session runner (SPEC-148 FR-004, FR-007)
 // MODIFIED-BY: [SCOPE 148 / T013] — fingerprint may be a function, taken after the session succeeds
@@ -220,7 +221,8 @@ export async function runTriage(opts: TriageRunOptions): Promise<TriageRunResult
     },
     // Belt and braces: the hook denies these anyway.
     disallowedTools: ["WebFetch", "WebSearch", "Bash(git push:*)"],
-    env: { ...process.env, WXAI_UNATTENDED: "1", WXAI_REMOTE: "1" },
+    // [SCOPE 102 / T014] ANTHROPIC_API_KEY stripped from the child env (FR-013)
+    env: buildChildEnv({ WXAI_UNATTENDED: "1", WXAI_REMOTE: "1" }).env,
     abortController: abort,
     // NO matcher: the allow-list must see every tool, or an unlisted one would pass by default.
     hooks: { PreToolUse: [{ hooks: [hook as unknown as HookCallback] }] },

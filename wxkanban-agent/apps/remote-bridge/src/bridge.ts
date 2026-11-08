@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "fs"; // [SCOPE 154 / T006]
+import { join } from "path"; // [SCOPE 154 / T006]
 import {
   YappchattClient,
   resolveYappchattConfig,
@@ -11,7 +13,32 @@ import { gitPush, gitTarget, runReview } from "./push-gate";
 import { createGateHook, type OverrideRequest } from "./override-gate"; // [SCOPE 134 / T018, T035]
 import { readyLine, recordOverride, refreshMcpToken, type ProjectAgentConfig } from "./agent-mode"; // [SCOPE 134 / T019] [SCOPE 145 / T006] [SCOPE 148 / T012]
 import { TriageSchedule } from "./triage-schedule"; // [SCOPE 148 / T012]
+import { localDate } from "./triage-run"; // [SCOPE 154 / T008]
 import { AutopilotSchedule } from "./autopilot-schedule"; // [SCOPE 154 / T003]
+import { fetchScopeStage } from "./autopilot-startup"; // [SCOPE 154 / T004]
+import { buildHeartbeat, buildFullSummary } from "./autopilot-heartbeat"; // [SCOPE 154 / T008]
+import { isHeartbeatMissed, stepOutage, formatHeartbeatMissed, formatHeartbeatBack } from "./autopilot-outage"; // [SCOPE 154 / T009]
+import {
+  runPipeline,
+  nodeDependentsResolver,
+  nodeLedgerResolver,
+  nodeLedgerWriter,
+  type PipelineUnit,
+  type GateResolver,
+} from "./autopilot-pipeline"; // [SCOPE 154 / T005, T013]
+import { createAutopilotUnitRunner } from "./autopilot-unit-runner"; // [SCOPE 154 / T005b]
+import {
+  loadAutopilotState,
+  saveAutopilotState,
+  recordUnitOutcome,
+  runSkipCascade,
+  parseKeepReply,
+  applyKeepDecision,
+  recordStartupList, // [SCOPE 154 / T003]
+  recordCurrentStep, // [SCOPE 154 / T003]
+  clearCurrentStep, // [SCOPE 154 / T003]
+  type UnitRunRecord,
+} from "./autopilot-skip"; // [SCOPE 154 / T005, T004]
 import { McpTokenHolder } from "./mcp-token"; // [SCOPE 148 / T012]
 import { startOutboxDrain } from "./outbox"; // SPEC-142 / T010
 import { decisionReplyFor, handleDecisionReply, nodeRunner } from "./decision-reply"; // [SCOPE 142 / T025]
@@ -34,6 +61,12 @@ function parseYesNo(text: string): boolean | undefined {
   if (/^(no|n|nope|nah|cancel|abort|stop|don'?t|do not)$/.test(t)) return false;
   return undefined;
 }
+
+// [SCOPE 154 / T008] How often the heartbeat posts, and the local hour the daily full summary is
+// due — same tick-reads-the-clock shape as TRIAGE_HOUR/TICK_MS in triage-schedule.ts, not a
+// setTimeout armed 15 minutes or hours ahead (a suspended laptop would miss that fire time).
+const AUTOPILOT_HEARTBEAT_MS = 15 * 60_000;
+const AUTOPILOT_SUMMARY_HOUR = 18;
 
 // [SCOPE 102 / T005] BEGIN — RemoteBridge: composes the room transport with the session
 // MODIFIED-BY: [SCOPE 145 / T006] — prints the fixed ready line once the "connected" post lands
@@ -85,6 +118,18 @@ export class RemoteBridge {
   // something gated, canUseTool suspends it, and the resolver below is what un-suspends it.
   // It holds a RESOLVER rather than state, because something is already waiting on it.
   private pendingApproval?: { resolve: (ok: boolean) => void; request: OverrideRequest };
+  // [SCOPE 154 / T013] The mirror image of pendingApproval, for a unit session's live gate
+  // question (ctx.resolveGate round trip): the next room message is the owner's free-text
+  // answer, or PARK. Holds a resolver because something is already waiting on it.
+  private pendingAutopilotGate?: {
+    resolve: (answer: { decision: string; from: string } | undefined) => void;
+    scopeNum: string;
+    question: string;
+  };
+  // [SCOPE 154 / T004] A skip cascade's "keep <nums>" / "keep none" question is pending — the
+  // next room message IS the owner's answer (same shape as pendingAutopilotGate above: holds the
+  // scope so resolvePendingSkipCascade can persist the decision against the right record).
+  private pendingSkipCascade?: { scopeNum: string; title: string };
   // [SCOPE 134 / T019] Who answered the last gate prompt, for the audit record. Set by
   // resolvePendingApproval immediately before it resolves, read by onDecision after.
   private lastDecider?: string;
@@ -97,6 +142,29 @@ export class RemoteBridge {
   // [SCOPE 154 / T003] The Autopilot startup schedule. Only ever constructed in project-agent
   // mode, and it arms itself only once the server says Autopilot is on for this project (FR-001).
   private autopilot?: AutopilotSchedule;
+  // [SCOPE 154 / T005] Set while a pipeline run is in flight — guards against a second "go"
+  // starting a concurrent run. Not aborted by shutdown(): per the triage schedule's own precedent
+  // just above, a run already in flight is left to finish or fail on its own rather than killed
+  // mid-unit, which is what would leave a partial, unrecorded result.
+  private autopilotRunAbort?: AbortController;
+  // [SCOPE 154 / T008] BEGIN — the 15-minute heartbeat (FR-007). `paused` is always false here:
+  // nothing anywhere in the codebase tracks a paused run yet (confirmed in T009's design note),
+  // so the heartbeat never reports "paused" until a pause mechanism exists. Lives only for the
+  // duration of a run — started in runAutopilotPipeline, stopped in its `finally`.
+  private heartbeatTimer?: ReturnType<typeof setInterval>;
+  private heartbeatPostedScopes: string[] = [];
+  private lastFullSummaryDate?: string;
+  // [SCOPE 154 / T008] END
+
+  // [SCOPE 154 / T009] BEGIN — pause state and the missed-heartbeat outage check (FR-008).
+  // Pause is owner-issued room control (PAUSE/RESUME, below), tracked only here — there is
+  // nowhere else to put it: not the DB (autopilotrunactive is a run-active flag, not a pause
+  // flag), not AutopilotRunState (that's the unit ledger, not run control). Lives only for the
+  // duration of a run, same as the heartbeat fields it feeds.
+  private autopilotPaused = false;
+  private lastHeartbeatPostOkAt?: Date;
+  private outageAlerting = false;
+  // [SCOPE 154 / T009] END
   // [SCOPE 148 / T012] FR-016: the one bound MCP token holder. The room gate's records and the
   // triage runs both draw from it, so a renewal for one never revokes the other's copy. Only in
   // project-agent mode with a config to renew through; otherwise the gate uses agent.mcpToken.
@@ -184,9 +252,25 @@ export class RemoteBridge {
             await this.post(t);
           },
         });
-        void this.autopilot.start().catch((err) => {
-          console.error(`[autopilot] schedule failed to start: ${(err as Error).message}`);
-        });
+        // [SCOPE 154 / T003] Once the devplan list is posted and the schedule is waiting on the
+        // owner's "go", persist it to the run state so the Cockpit (T014) can show it before the
+        // run itself starts. A `start()` that found nothing to do (no devplan, or an empty list)
+        // leaves `pendingScopes` undefined, and nothing is written.
+        void this.autopilot
+          .start()
+          .then(() => {
+            const scopes = this.autopilot?.pendingScopes;
+            if (scopes && scopes.length > 0) {
+              const next = recordStartupList(
+                loadAutopilotState(this.opts.cwd),
+                scopes.map((s) => ({ num: s.num, title: s.title })),
+              );
+              saveAutopilotState(this.opts.cwd, next);
+            }
+          })
+          .catch((err) => {
+            console.error(`[autopilot] schedule failed to start: ${(err as Error).message}`);
+          });
         // [SCOPE 149 / T006] A waiting hand-off is posted once the agent is free (FR-006, FR-008).
         const handoffLogger = this.handoffLog();
         this.handoffQueue = new HandoffQueue({
@@ -214,12 +298,14 @@ export class RemoteBridge {
 
   // [SCOPE 149 / T006] The agent is free only with a live session, no turn, no gate, no triage run.
   // MODIFIED-BY: [SCOPE 154 / T003] — an Autopilot startup list awaiting "go" is busy too
+  // MODIFIED-BY: [SCOPE 154 / T013] — an Autopilot unit's live gate question awaiting an answer is busy too
   private handoffBusy(): boolean {
     return (
       !this.session ||
       this.turnActive ||
       !!this.pendingPush ||
       !!this.pendingApproval ||
+      !!this.pendingAutopilotGate ||
       !!this.triage?.isRunning ||
       !!this.autopilot?.isAwaitingGo
     );
@@ -228,8 +314,9 @@ export class RemoteBridge {
   // [SCOPE 151 / T004] What the connection record's heartbeat reports (FR-060): a gated action
   // pending is `waiting`, a turn or a triage run is `working`, anything else is `idle`.
   // MODIFIED-BY: [SCOPE 154 / T003] — awaiting the owner's "go" on the Autopilot list is `waiting`
+  // MODIFIED-BY: [SCOPE 154 / T013] — awaiting the owner's answer to a live gate question is `waiting`
   connectionState(): "idle" | "working" | "waiting" {
-    if (this.pendingPush || this.pendingApproval || this.autopilot?.isAwaitingGo) return "waiting";
+    if (this.pendingPush || this.pendingApproval || this.pendingAutopilotGate || this.autopilot?.isAwaitingGo) return "waiting";
     if (this.turnActive || this.triage?.isRunning) return "working";
     return "idle";
   }
@@ -384,9 +471,30 @@ export class RemoteBridge {
       this.resolvePendingApproval(text, from);
       return;
     }
+    // [SCOPE 154 / T013] Same rule for a unit session's live gate question: the next message IS
+    // the owner's answer (or PARK) — relaying it to the session instead would leave the running
+    // unit's turn waiting forever on an answer that went somewhere else.
+    if (this.pendingAutopilotGate && text.toUpperCase() !== "CANCEL REMOTE") {
+      this.resolvePendingAutopilotGate(text, from);
+      return;
+    }
+    // [SCOPE 154 / T004] While a skip cascade's "keep <nums>" / "keep none" question is pending,
+    // the next message IS that answer — checked before the startup list's own "go"/"no" parser
+    // below, since the list is still awaiting go while this question is open.
+    if (this.pendingSkipCascade && text.toUpperCase() !== "CANCEL REMOTE") {
+      this.resolvePendingSkipCascade(text);
+      return;
+    }
     // [SCOPE 154 / T003] While a startup list is awaiting the owner's "go", the next message IS
     // that decision (FR-002) — the owner's "go" is the run's approval, nothing further is asked.
+    // MODIFIED-BY: [SCOPE 154 / T004] — a "skip <num>" reply removes one listed scope and runs
+    // its cascade instead of being parsed as a go/no-go answer.
     if (this.autopilot?.isAwaitingGo && text.toUpperCase() !== "CANCEL REMOTE") {
+      const skipNum = this.trySkipCommand(text);
+      if (skipNum) {
+        void this.handleSkipCommand(skipNum);
+        return;
+      }
       this.resolvePendingAutopilotGo(text);
       return;
     }
@@ -458,8 +566,26 @@ export class RemoteBridge {
         this.turnActive = true;
         this.session?.send("Continue.");
         return true;
+      // MODIFIED-BY: [SCOPE 154 / T008] — while an Autopilot run is active, STATUS returns the
+      // same heartbeat content early (FR-007) instead of the plain connection status line.
       case "STATUS":
-        void this.post(this.statusLine());
+        if (this.autopilotRunAbort) {
+          this.postHeartbeat();
+        } else {
+          void this.post(this.statusLine());
+        }
+        return true;
+      // [SCOPE 154 / T009] PAUSE/RESUME an active Autopilot run (FR-008). Outside a run these
+      // fall through as ordinary text, same as CONFIRMED/NO with no pending push.
+      case "PAUSE":
+        if (!this.autopilotRunAbort) return false;
+        this.autopilotPaused = true;
+        void this.post("Autopilot: paused. Reply \"resume\" to continue.");
+        return true;
+      case "RESUME":
+        if (!this.autopilotRunAbort) return false;
+        this.autopilotPaused = false;
+        void this.post("Autopilot: resumed.");
         return true;
       case "VERBOSE":
         this.verbose = true;
@@ -500,6 +626,67 @@ export class RemoteBridge {
     return `Status — project ${this.opts.projectName} · session ${id} · ${state} · ${verbosity}`;
   }
   // [SCOPE 102 / T007] END
+
+  // [SCOPE 154 / T008] BEGIN — the 15-minute heartbeat and the 18:00 full summary (FR-007).
+  // Built on the run-state file (AutopilotRunState, T004/T007), not a second summarizer — see the
+  // header note in autopilot-heartbeat.ts. The tick reads the run state fresh every time, so a
+  // concurrent edit from the pipeline (recordOutcome's saveAutopilotState) is always picked up.
+  private postHeartbeat(): void {
+    const state = loadAutopilotState(this.opts.cwd);
+    const result = buildHeartbeat({ state, paused: this.autopilotPaused, previouslyPosted: this.heartbeatPostedScopes });
+    this.heartbeatPostedScopes = result.postedScopes;
+    void this.post(result.message).then((ok) => {
+      if (ok) this.lastHeartbeatPostOkAt = new Date(); // [SCOPE 154 / T009]
+    });
+  }
+
+  // [SCOPE 154 / T009] BEGIN — the outage check, run every tick alongside the heartbeat itself
+  // (FR-008). Posts at most one "missed" line per outage and one "back" line on return.
+  private checkOutage(): void {
+    const missed = isHeartbeatMissed(this.autopilotRunAbort !== undefined, this.autopilotPaused, this.lastHeartbeatPostOkAt, new Date());
+    const step = stepOutage(this.outageAlerting, missed);
+    this.outageAlerting = step.alerting;
+    if (step.verdict === "missed") void this.post(formatHeartbeatMissed(this.opts.projectName));
+    else if (step.verdict === "back") void this.post(formatHeartbeatBack(this.opts.projectName));
+  }
+  // [SCOPE 154 / T009] END
+
+  private postFullSummary(): void {
+    const result = buildFullSummary(loadAutopilotState(this.opts.cwd));
+    this.heartbeatPostedScopes = result.postedScopes;
+    void this.post(result.message);
+  }
+
+  /** One clock read every AUTOPILOT_HEARTBEAT_MS: the heartbeat, and the 18:00 summary if due. */
+  private heartbeatTick(): void {
+    this.postHeartbeat();
+    this.checkOutage(); // [SCOPE 154 / T009]
+    const now = new Date();
+    const today = localDate(now);
+    if (now.getHours() === AUTOPILOT_SUMMARY_HOUR && this.lastFullSummaryDate !== today) {
+      this.lastFullSummaryDate = today;
+      this.postFullSummary();
+    }
+  }
+
+  /** Called at the start of a run. Resets what counts as "already posted" for this run only. */
+  private startHeartbeat(): void {
+    this.heartbeatPostedScopes = [];
+    this.lastFullSummaryDate = undefined;
+    // MODIFIED-BY: [SCOPE 154 / T009] — reset pause and outage state for the new run; a run just
+    // started counts as having just posted, so an immediate 20-minute-silence false alarm can't fire.
+    this.autopilotPaused = false;
+    this.outageAlerting = false;
+    this.lastHeartbeatPostOkAt = new Date();
+    this.heartbeatTimer = setInterval(() => this.heartbeatTick(), AUTOPILOT_HEARTBEAT_MS);
+    this.heartbeatTimer.unref?.();
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = undefined;
+  }
+  // [SCOPE 154 / T008] END
 
   // [SCOPE 102 / T008] BEGIN — review-gated push (operator-initiated: PUSH → review → CONFIRMED)
   private async runPushGate(): Promise<void> {
@@ -634,6 +821,58 @@ export class RemoteBridge {
     return this.opts.agent ? "The project agent" : "The agent";
   }
 
+  // [SCOPE 154 / T013] BEGIN — the Autopilot unit's live gate round trip (ctx.resolveGate's
+  // fallback, used when neither the ledger nor the scope's own text answers a question).
+  // Direct template: the pendingApproval quartet just above. The key difference: the resolved
+  // value is a free-text decision plus the replying human's name (never the supervisor — see
+  // resolvePendingAutopilotGate — since a live-answered gate is persisted to the ledger, and
+  // the ledger's own validation rejects "kain"/the agent as an approver).
+  /** Surface a unit's unanswerable gate question to the room and resolve with the owner's answer. */
+  private requestAutopilotGate(scopeNum: string, question: string): Promise<{ decision: string; from: string } | undefined> {
+    if (this.pendingAutopilotGate) {
+      void this.post("Another Autopilot question is already pending — parking this one.");
+      return Promise.resolve(undefined);
+    }
+    return new Promise((resolve) => {
+      this.pendingAutopilotGate = { resolve, scopeNum, question };
+      void this.post(
+        [
+          `Autopilot — SCOPE-${scopeNum} needs input:`,
+          ``,
+          `  "${question}"`,
+          ``,
+          `Reply with the answer, or PARK to leave it for the owner later.`,
+        ].join("\n"),
+      );
+    });
+  }
+
+  private resolvePendingAutopilotGate(text: string, from?: string): void {
+    const p = this.pendingAutopilotGate;
+    if (!p) return;
+    this.pendingAutopilotGate = undefined;
+    if (text.trim().toUpperCase() === "PARK") {
+      void this.post("Parked — left for the owner.");
+      p.resolve(undefined);
+      return;
+    }
+    void this.post("Got it — recording that answer.");
+    // Never falls back to this.opts.supervisor: that is "KAIN" in project-agent mode, and the
+    // ledger's own validation (_wxAI/askgate/ledger.mjs's AGENT_APPROVERS) rejects the agent as
+    // an approver of its own gate.
+    p.resolve({ decision: text.trim(), from: from ?? "Operator" });
+  }
+
+  /** Refuse (park) anything still waiting. Called on teardown and on losing the room. */
+  private abandonPendingAutopilotGate(reason: string): void {
+    const p = this.pendingAutopilotGate;
+    if (!p) return;
+    this.pendingAutopilotGate = undefined;
+    void reason;
+    p.resolve(undefined);
+  }
+  // [SCOPE 154 / T013] END
+
   // [SCOPE 134 / T019] File the decision. Only a grant names a grantor — a refusal
   // (including abandon-on-teardown) has no approving human, and the MCP tool rejects a
   // grant without one, which is the constitution's "never self-approved" made concrete.
@@ -689,6 +928,7 @@ export class RemoteBridge {
       const scopes = this.autopilot?.confirmGo() ?? [];
       process.stdout.write(`[autopilot] go received — ${scopes.length} scope(s) approved\n`);
       void this.post(`Autopilot: starting on ${scopes.length} scope${scopes.length === 1 ? "" : "s"}.`);
+      if (scopes.length > 0) void this.runAutopilotPipeline(scopes);
     } else if (decision === false) {
       this.autopilot?.confirmGo();
       void this.post("Autopilot startup cancelled.");
@@ -696,6 +936,180 @@ export class RemoteBridge {
       void this.post('Reply "go" to start Autopilot on this list, or "no" to cancel.');
     }
   }
+
+  // [SCOPE 154 / T004] BEGIN — skip cascade room wiring (FR-003). "skip <num>" only applies while
+  // a startup list is awaiting "go" (checked by the caller in onRoomMessage); matches a bare
+  // scope number, same loose shape as the devplan's own "SCOPE-NNN" rows.
+  private trySkipCommand(text: string): string | undefined {
+    const m = /^skip\s+(\d+)\s*$/i.exec(text.trim());
+    return m ? m[1] : undefined;
+  }
+
+  private async handleSkipCommand(scopeNum: string): Promise<void> {
+    const scope = this.autopilot?.skip(scopeNum);
+    if (!scope) {
+      void this.post(`SCOPE-${scopeNum} is not on the pending startup list.`);
+      return;
+    }
+    const agent = this.opts.agent;
+    const stageOf =
+      agent && this.tokens
+        ? async (num: string) => {
+            try {
+              return await this.tokens!.withToken((t) => fetchScopeStage({ mcpUrl: agent.mcpUrl, mcpToken: t, projectId: agent.projectId }, num));
+            } catch {
+              return undefined;
+            }
+          }
+        : undefined;
+    const { message } = await runSkipCascade({ root: this.opts.cwd, scopeNum, title: scope.title, stageOf });
+    this.pendingSkipCascade = { scopeNum, title: scope.title };
+    void this.post(message);
+  }
+
+  /** The owner's reply to a skip cascade post — "keep <nums>" or "keep none" (FR-003). */
+  private resolvePendingSkipCascade(text: string): void {
+    const p = this.pendingSkipCascade;
+    if (!p) return;
+    const keep = parseKeepReply(text);
+    if (keep === undefined) {
+      void this.post('Reply "keep <scope numbers>" for the ones safe to keep, or "keep none" to skip them all too.');
+      return;
+    }
+    this.pendingSkipCascade = undefined;
+    const state = applyKeepDecision(loadAutopilotState(this.opts.cwd), p.scopeNum, keep);
+    saveAutopilotState(this.opts.cwd, state);
+    void this.post(keep.length > 0 ? `Keeping SCOPE-${keep.join(", SCOPE-")}.` : "Skipping all dependent scopes too.");
+  }
+  // [SCOPE 154 / T004] END
+
+  // [SCOPE 154 / T006] BEGIN — reads a scope's own specs/<NNN>-*/spec.md text off disk so the
+  // production-park gate (detectsGatedAction in autopilot-pipeline.ts) has text to inspect. No
+  // MCP tool exposes a scope's FR/body text (confirmed: list_open_items's specs[] collection and
+  // cockpit_summary's CockpitScopeDto both carry identity fields only, never
+  // projectspecifications.content) — the bridge already runs inside the project's own checkout,
+  // so this reads the file directly instead. Returns undefined on any miss (no matching folder,
+  // no spec.md, unreadable) rather than throwing — a missing scope text degrades the gate check,
+  // it must never abort the run.
+  private readScopeText(num: string): string | undefined {
+    try {
+      const specsDir = join(this.opts.cwd, "specs");
+      const match = readdirSync(specsDir, { withFileTypes: true }).find(
+        (entry) => entry.isDirectory() && entry.name.startsWith(`${num}-`),
+      );
+      if (!match) return undefined;
+      return readFileSync(join(specsDir, match.name, "spec.md"), "utf8");
+    } catch {
+      return undefined;
+    }
+  }
+  // [SCOPE 154 / T006] END
+
+  // [SCOPE 154 / T005] BEGIN — actually runs the approved scopes (FR-004). Previously, "go" only
+  // posted a count and returned — confirmGo() consumed the schedule but nothing downstream ever
+  // called runPipeline (autopilot-pipeline.ts). Wired here: one fresh unattended session per scope
+  // (createAutopilotUnitRunner, autopilot-unit-runner.ts), run sequentially in the background so it
+  // never blocks chat handling, with each outcome persisted to the existing run-state file and a
+  // final summary posted to the room.
+  // MODIFIED-BY: [SCOPE 154 / T006] — populate each unit's `text` from readScopeText() so the
+  // pipeline's production-park gate check has the scope's own FR/acceptance text to inspect.
+  private async runAutopilotPipeline(scopes: { num: string; title: string; stage: string }[]): Promise<void> {
+    if (this.autopilotRunAbort) {
+      void this.post("Autopilot: a run is already in progress — ignoring this go.");
+      return;
+    }
+    const agent = this.opts.agent;
+    if (!agent) {
+      // Autopilot only ever arms in project-agent mode (see AutopilotSchedule construction),
+      // which always carries `agent` — this is defensive, not expected to fire.
+      void this.post("Autopilot: no agent connection — cannot start the pipeline.");
+      return;
+    }
+    const abort = new AbortController();
+    this.autopilotRunAbort = abort;
+    this.startHeartbeat(); // [SCOPE 154 / T008]
+    const units: PipelineUnit[] = scopes.map((s) => ({ num: s.num, title: s.title, text: this.readScopeText(s.num) }));
+    const state = loadAutopilotState(this.opts.cwd);
+    process.stdout.write(`[autopilot] pipeline starting — ${units.length} unit(s)\n`);
+    try {
+      const rawRunUnit = createAutopilotUnitRunner({
+        repoRoot: this.opts.cwd,
+        mcpUrl: agent.mcpUrl,
+        mcpToken: agent.mcpToken,
+        signal: abort.signal,
+      });
+      // [SCOPE 154 / T009] Pause blocks here, between units — never mid-unit, so a paused run
+      // never leaves a unit half-worked. runPipeline itself (autopilot-pipeline.ts) is shared
+      // with the non-Autopilot pipeline-agent command, so pause is layered on in this wrapper
+      // rather than inside it.
+      const runUnit: typeof rawRunUnit = async (unit, opts) => {
+        while (this.autopilotPaused && !abort.signal.aborted) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        return rawRunUnit(unit, opts);
+      };
+      // [SCOPE 154 / T013] Ledger first (cheapest, no room round trip); only when that misses
+      // does a unit's question reach a human, and only a live answer is persisted back.
+      const ledgerResolver = nodeLedgerResolver(this.opts.cwd);
+      const ledgerWriter = nodeLedgerWriter(this.opts.cwd);
+      const gateResolver: GateResolver = async (scopeNum, question) => {
+        const fromLedger = await ledgerResolver(scopeNum, question);
+        if (fromLedger) return fromLedger;
+        const live = await this.requestAutopilotGate(scopeNum, question);
+        if (!live) return undefined;
+        try {
+          return await ledgerWriter(scopeNum, question, live.decision, live.from);
+        } catch (err) {
+          process.stdout.write(`[autopilot] gate answer could not be persisted to the ledger: ${(err as Error).message}\n`);
+          return { decision: live.decision, ledgerId: "" };
+        }
+      };
+      await runPipeline({
+        units,
+        runUnit,
+        gateResolver,
+        dependentsOf: nodeDependentsResolver(this.opts.cwd),
+        // [SCOPE 154 / T003] Marks the unit about to run as the run's "current step" (FR-002/FR-014)
+        // before runUnit is called, so the Cockpit never shows a stale currentScope mid-run.
+        onUnitStart: (unit) => {
+          const next = recordCurrentStep(state, unit.num, "running");
+          state.currentScope = next.currentScope;
+          state.currentStep = next.currentStep;
+          state.stepStartedAt = next.stepStartedAt;
+          saveAutopilotState(this.opts.cwd, state);
+        },
+        recordOutcome: (record: UnitRunRecord) => {
+          const next = recordUnitOutcome(state, record);
+          state.units = next.units;
+          saveAutopilotState(this.opts.cwd, state);
+          process.stdout.write(`[autopilot] ${record.scope} → ${record.status}\n`);
+        },
+        post: (msg) => {
+          void this.post(msg);
+        },
+      });
+      const done = (state.units ?? []).filter((u) => u.status === "done").length;
+      const failed = (state.units ?? []).filter((u) => u.status === "failed").length;
+      const parked = (state.units ?? []).filter((u) => u.status === "parked").length;
+      void this.post(`Autopilot: run finished — ${done} done, ${failed} failed, ${parked} parked.`);
+      process.stdout.write(`[autopilot] pipeline finished — ${done} done, ${failed} failed, ${parked} parked\n`);
+      this.postFullSummary(); // [SCOPE 154 / T008] FR-007: a full summary when the list finishes
+    } catch (err) {
+      void this.post(`Autopilot: run stopped with an error — ${(err as Error).message}`);
+      process.stdout.write(`[autopilot] pipeline error: ${(err as Error).message}\n`);
+    } finally {
+      this.autopilotRunAbort = undefined;
+      this.stopHeartbeat(); // [SCOPE 154 / T008]
+      // [SCOPE 154 / T003] A finished (or errored-out) run never leaves a stale currentScope/
+      // currentStep/stepStartedAt behind for the Cockpit to show.
+      const cleared = clearCurrentStep(state);
+      state.currentScope = cleared.currentScope;
+      state.currentStep = cleared.currentStep;
+      state.stepStartedAt = cleared.stepStartedAt;
+      saveAutopilotState(this.opts.cwd, state);
+    }
+  }
+  // [SCOPE 154 / T005] END
 
   private async executePush(remote: string, branch: string): Promise<void> {
     console.log(`[push] executing: git push ${remote} ${branch}`);
@@ -715,6 +1129,7 @@ export class RemoteBridge {
     // unresolved promise while the room goes away must end as a refusal, not as a session
     // that quietly proceeds once nobody is watching.
     this.abandonPendingApproval("bridge shutting down");
+    this.abandonPendingAutopilotGate("bridge shutting down"); // [SCOPE 154 / T013]
     this.stopOutboxDrain?.();
     // [SCOPE 148 / T012] Disarm the tick. A run already in flight is its own session and is
     // left to finish or fail on its own: killing it mid-sweep is what leaves a partial report.

@@ -48,6 +48,19 @@ async function callMcpTool(
   return JSON.parse(text);
 }
 
+// [SCOPE 154 / T004] The skip cascade (autopilot-skip.ts) classifies each dependent as
+// "skipped" or "partly worked" via the same project.scope_stage call this module already makes
+// per startup-list scope — exported so bridge.ts can pass it in as runSkipCascade's `stageOf`.
+export async function fetchScopeStage(src: AutopilotMcpSource, scopeNum: string, fetchImpl: typeof fetch = fetch): Promise<string | undefined> {
+  const report = (await callMcpTool(
+    src,
+    "project.scope_stage",
+    { projectId: src.projectId, specNumber: scopeNum },
+    fetchImpl,
+  )) as { found?: boolean; scope?: { stage?: string } };
+  return report.found && report.scope ? report.scope.stage : undefined;
+}
+
 interface DevplanDocument {
   title?: unknown;
   bodyMarkdown?: unknown;

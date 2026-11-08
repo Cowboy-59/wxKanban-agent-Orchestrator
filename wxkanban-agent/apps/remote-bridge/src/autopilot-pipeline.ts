@@ -6,6 +6,7 @@ import { nodeScopeImpactRunner, type ScopeImpactDependent, type UnitRunRecord } 
 // [SCOPE 154 / T005] BEGIN — unattended validateScope→createSpecs→implement pipeline (FR-004)
 // MODIFIED-BY: [SCOPE 154 / T006] — preflight park for a unit whose own text names a gated action
 // MODIFIED-BY: [SCOPE 154 / T007] — failed-unit posting, dependents marked waiting, run-state recording
+// MODIFIED-BY: [SCOPE 154 / T013] — nodeLedgerWriter: persists a live-answered gate back to the ledger
 //
 
 // FR-004 asks for a fresh session and a dedicated worktree per scope, reusing G.O.D.'s
@@ -57,6 +58,10 @@ interface LedgerModule {
   isAnswerEligible: (entry: LedgerEntry, all: LedgerEntry[]) => boolean;
 }
 
+interface LedgerWriterModule {
+  appendEntry: (root: string, entry: Record<string, unknown>, approvedBy: string) => { id: string };
+}
+
 /** A gate the scope text or decisions/ledger.yaml already answers (FR-004 acceptance). */
 export type GateResolver = (scopeNum: string, question: string) => Promise<GateResolution | undefined>;
 
@@ -78,6 +83,30 @@ export function nodeLedgerResolver(root: string): GateResolver {
     );
     if (!match) return undefined;
     return { decision: match.decision as string, rationale: match.rationale, ledgerId: match.id as string };
+  };
+}
+
+/** Persists a live-answered gate (FR-013 round trip) so a later identical question resolves from
+ * the ledger alone. `approvedBy` must be the human who answered — the ledger's own validation
+ * (`_wxAI/askgate/ledger.mjs`'s `AGENT_APPROVERS`) rejects "kain"/the agent as an approver. */
+export type LedgerWriter = (scopeNum: string, question: string, decision: string, approvedBy: string) => Promise<GateResolution>;
+
+export function nodeLedgerWriter(root: string): LedgerWriter {
+  return async (scopeNum, question, decision, approvedBy) => {
+    const mod = (await import(pathToFileURL(join(root, "_wxAI", "askgate", "ledger.mjs")).href)) as LedgerWriterModule;
+    const entry = mod.appendEntry(
+      root,
+      {
+        scope: `SCOPE-${scopeNum}`,
+        question,
+        decision,
+        kind: "Agreed",
+        evidence: "confirmed",
+        source: "Autopilot live gate round trip (SCOPE-154 T005c/T013)",
+      },
+      approvedBy,
+    );
+    return { decision, ledgerId: entry.id };
   };
 }
 
@@ -156,6 +185,13 @@ export interface PipelineOptions {
   dependentsOf?: DependentsResolver;
   /** FR-006: persists every unit's done/failed/parked line. Defaults to no-ops (callers that don't need a run state). */
   recordOutcome?: (record: UnitRunRecord) => void | Promise<void>;
+  /**
+   * [SCOPE 154 / T003] Called with the unit about to run, before the gated-action guard check and
+   * before `runUnit`, so a caller tracking "where things stand right now" (bridge.ts's Autopilot
+   * run state, read by the Cockpit) can mark it current even for a unit that ends up parked.
+   * Optional and unused by the plain `pipeline-agent` command this module is also shared with.
+   */
+  onUnitStart?: (unit: PipelineUnit) => void | Promise<void>;
 }
 
 /**
@@ -169,6 +205,7 @@ export async function runPipeline(opts: PipelineOptions): Promise<UnitOutcome[]>
   const recordOutcome = opts.recordOutcome ?? (() => {});
 
   for (const unit of opts.units) {
+    await opts.onUnitStart?.(unit); // [SCOPE 154 / T003]
     const guarded = unit.text ? detectsGatedAction({ num: unit.num, title: unit.title, text: unit.text }) : undefined;
     if (guarded) {
       const outcome: UnitOutcome = { scope: unit, status: "parked", parkedGates: [] };

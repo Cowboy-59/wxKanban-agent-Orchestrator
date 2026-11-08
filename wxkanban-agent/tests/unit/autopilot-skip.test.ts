@@ -1,15 +1,24 @@
 /**
  * [SCOPE 154 / T004] Skip cascade via scope-impact.mjs (FR-003).
  */
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   applyKeepDecision,
   classifyDependents,
+  clearCurrentStep,
   formatSkipCascade,
+  loadAutopilotState,
   parseKeepReply,
   pendingPartialSkips,
+  recordCurrentStep,
   recordSkipCascade,
+  recordStartupList,
+  recordUnitOutcome,
   runSkipCascade,
+  saveAutopilotState,
   type AutopilotRunState,
   type ScopeImpactDependent,
   type ScopeImpactResult,
@@ -121,6 +130,121 @@ describe("run-state persistence", () => {
   it("a fully-skipped record is never considered pending-partial", () => {
     const state = recordSkipCascade(EMPTY_STATE, "010", "Billing", [{ scope: "011", title: "Invoices", status: "skipped" }]);
     expect(pendingPartialSkips(state)).toEqual([]);
+  });
+});
+
+describe("recordSkipCascade / applyKeepDecision preserve the rest of the state (SCOPE 154 / T003)", () => {
+  it("recordSkipCascade does not drop units, startupList, or the current-step fields", () => {
+    const withExtras: AutopilotRunState = {
+      mode: "autopilot",
+      skips: [],
+      units: [{ scope: "001", title: "Auth", status: "done" }],
+      startupList: [{ scope: "001", title: "Auth", status: "waiting" }],
+      currentScope: "001",
+      currentStep: "running",
+      stepStartedAt: "2026-11-08T00:00:00.000Z",
+    };
+    const state = recordSkipCascade(withExtras, "010", "Billing", []);
+    expect(state.units).toEqual(withExtras.units);
+    expect(state.startupList).toEqual(withExtras.startupList);
+    expect(state.currentScope).toBe("001");
+    expect(state.currentStep).toBe("running");
+    expect(state.stepStartedAt).toBe("2026-11-08T00:00:00.000Z");
+  });
+
+  it("applyKeepDecision does not drop units or the startup list", () => {
+    const withExtras: AutopilotRunState = {
+      mode: "autopilot",
+      skips: [{ scope: "010", title: "Billing", status: "partly-worked", dependents: [] }],
+      units: [{ scope: "001", title: "Auth", status: "done" }],
+      startupList: [{ scope: "001", title: "Auth", status: "waiting" }],
+    };
+    const state = applyKeepDecision(withExtras, "010", ["011"]);
+    expect(state.units).toEqual(withExtras.units);
+    expect(state.startupList).toEqual(withExtras.startupList);
+    expect(state.skips[0].keptDependents).toEqual(["011"]);
+  });
+});
+
+describe("startup list and current-step helpers (SCOPE 154 / T003)", () => {
+  it("recordStartupList sets every scope to waiting, in the given order", () => {
+    const state = recordStartupList(EMPTY_STATE, [
+      { num: "010", title: "Billing" },
+      { num: "011", title: "Invoices" },
+    ]);
+    expect(state.startupList).toEqual([
+      { scope: "010", title: "Billing", status: "waiting" },
+      { scope: "011", title: "Invoices", status: "waiting" },
+    ]);
+  });
+
+  it("recordStartupList preserves skips/units already on the state", () => {
+    const withUnits = recordUnitOutcome(EMPTY_STATE, { scope: "001", title: "Auth", status: "done" });
+    const state = recordStartupList(withUnits, [{ num: "010", title: "Billing" }]);
+    expect(state.units).toEqual(withUnits.units);
+  });
+
+  it("recordCurrentStep sets currentScope/currentStep/stepStartedAt", () => {
+    const state = recordCurrentStep(EMPTY_STATE, "010", "running", "2026-11-08T12:00:00.000Z");
+    expect(state.currentScope).toBe("010");
+    expect(state.currentStep).toBe("running");
+    expect(state.stepStartedAt).toBe("2026-11-08T12:00:00.000Z");
+  });
+
+  it("recordCurrentStep defaults stepStartedAt to now when omitted", () => {
+    const before = Date.now();
+    const state = recordCurrentStep(EMPTY_STATE, "010", "running");
+    expect(new Date(state.stepStartedAt as string).getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it("clearCurrentStep removes all three current-step fields", () => {
+    const running = recordCurrentStep(EMPTY_STATE, "010", "running");
+    const cleared = clearCurrentStep(running);
+    expect(cleared.currentScope).toBeUndefined();
+    expect(cleared.currentStep).toBeUndefined();
+    expect(cleared.stepStartedAt).toBeUndefined();
+  });
+
+  it("clearCurrentStep preserves skips/units/startupList", () => {
+    const state = recordStartupList(EMPTY_STATE, [{ num: "010", title: "Billing" }]);
+    const running = recordCurrentStep(state, "010", "running");
+    const cleared = clearCurrentStep(running);
+    expect(cleared.startupList).toEqual(state.startupList);
+  });
+});
+
+describe("loadAutopilotState / saveAutopilotState round-trip the new fields (SCOPE 154 / T003)", () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), "autopilot-skip-test-"));
+    mkdirSync(join(root, "docs"), { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("round-trips startupList/currentScope/currentStep/stepStartedAt through a save+load", () => {
+    const state: AutopilotRunState = {
+      mode: "autopilot",
+      skips: [],
+      startupList: [{ scope: "010", title: "Billing", status: "waiting" }],
+      currentScope: "010",
+      currentStep: "running",
+      stepStartedAt: "2026-11-08T00:00:00.000Z",
+    };
+    saveAutopilotState(root, state);
+    const loaded = loadAutopilotState(root);
+    expect(loaded.startupList).toEqual(state.startupList);
+    expect(loaded.currentScope).toBe("010");
+    expect(loaded.currentStep).toBe("running");
+    expect(loaded.stepStartedAt).toBe("2026-11-08T00:00:00.000Z");
+  });
+
+  it("a missing file loads as empty state with no new fields set", () => {
+    const loaded = loadAutopilotState(root);
+    expect(loaded).toEqual({ mode: "autopilot", skips: [] });
   });
 });
 

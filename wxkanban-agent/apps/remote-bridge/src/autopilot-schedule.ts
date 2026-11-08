@@ -120,5 +120,16 @@ export class AutopilotSchedule {
     this.awaiting = undefined;
     return scopes;
   }
+
+  // [SCOPE 154 / T004] The owner skipped one listed scope before "go" (FR-003) — removes it from
+  // the pending list and returns it so the caller can run the skip cascade. undefined when no
+  // list is pending, or the number names no listed scope.
+  skip(scopeNum: string): StartupScope | undefined {
+    if (!this.awaiting) return undefined;
+    const idx = this.awaiting.findIndex((s) => s.num === scopeNum);
+    if (idx < 0) return undefined;
+    const [scope] = this.awaiting.splice(idx, 1);
+    return scope;
+  }
 }
 // [SCOPE 154 / T003] END

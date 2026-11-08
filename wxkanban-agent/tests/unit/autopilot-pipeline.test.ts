@@ -170,6 +170,59 @@ describe("runPipeline (FR-004)", () => {
       { scope: "011", title: "Invoices", status: "parked" },
     ]);
   });
+
+  // [SCOPE 154 / T003] onUnitStart is the hook bridge.ts uses to persist currentScope/currentStep
+  // into the Autopilot run state before each unit runs.
+  describe("onUnitStart (SCOPE 154 / T003)", () => {
+    it("is called with each unit, in order, before runUnit", async () => {
+      const started: string[] = [];
+      const ran: string[] = [];
+      const runUnit: RunUnitFn = async (unit) => {
+        ran.push(unit.num);
+        return { ok: true };
+      };
+      await runPipeline({
+        units: UNITS,
+        runUnit,
+        onUnitStart: (unit) => void started.push(unit.num),
+      });
+      expect(started).toEqual(["010", "011"]);
+      expect(ran).toEqual(["010", "011"]);
+    });
+
+    it("is called even for a unit that parks via the preflight guard (FR-005)", async () => {
+      const seeded: PipelineUnit = { num: "030", title: "Backfill", text: "Run `drizzle-kit push` against the live database." };
+      const started: string[] = [];
+      const runUnit: RunUnitFn = async () => ({ ok: true });
+      await runPipeline({ units: [seeded], runUnit, onUnitStart: (unit) => void started.push(unit.num) });
+      expect(started).toEqual(["030"]);
+    });
+
+    it("an async onUnitStart is awaited before the unit is checked/run", async () => {
+      const order: string[] = [];
+      const runUnit: RunUnitFn = async (unit) => {
+        order.push(`run:${unit.num}`);
+        return { ok: true };
+      };
+      await runPipeline({
+        units: [UNITS[0]],
+        runUnit,
+        onUnitStart: async (unit) => {
+          await new Promise((resolve) => setTimeout(resolve, 1));
+          order.push(`start:${unit.num}`);
+        },
+      });
+      expect(order).toEqual(["start:010", "run:010"]);
+    });
+
+    it("omitting onUnitStart changes nothing (backward-compatible for pipeline-agent)", async () => {
+      const outcomes = await runPipeline({ units: UNITS, runUnit: async () => ({ ok: true }) });
+      expect(outcomes).toEqual([
+        { scope: UNITS[0], status: "done" },
+        { scope: UNITS[1], status: "done" },
+      ]);
+    });
+  });
 });
 
 describe("formatUnitFailed", () => {
