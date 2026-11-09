@@ -13,11 +13,14 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildAgreementEvent, mcpConnection, mcpSender, projectIdFor, recordAgreement } from './lib/agreement.mjs';
+import { isRelayResolved, markRelayResolved } from './lib/chat-relay.mjs';
 
 // [SCOPE 137 / T011] BEGIN — Record Agree or Undo for a hand edit (FR-010, FR-013)
+// MODIFIED-BY: [SCOPE 137 / T022] — a hash already answered (from the agree panel or chat, Amendment C) is a no-op, not a second log entry
 export async function acknowledge({ root, report, answer, hash, actor, send = null }) {
   if (!['agree', 'undo'].includes(answer)) return { ok: false, error: 'answer must be agree or undo' };
   if (!hash) return { ok: false, error: 'a content hash is required' };
+  if (isRelayResolved(root, hash)) return { ok: true, sent: false, queued: false, duplicate: true };
   const projectId = projectIdFor(root);
   if (!projectId) return { ok: true, sent: false, queued: false, skipped: 'no wxKanban project id configured' };
   const event = buildAgreementEvent({
@@ -32,6 +35,7 @@ export async function acknowledge({ root, report, answer, hash, actor, send = nu
   });
   if (report.classification?.dataLoss?.length) event.metadata.dataLoss = report.classification.dataLoss;
   const result = await recordAgreement(root, event, send ?? mcpSender(mcpConnection(root)));
+  markRelayResolved(root, hash);
   return { ok: true, sent: result.sent, queued: result.queued, rejected: Boolean(result.rejected) };
 }
 

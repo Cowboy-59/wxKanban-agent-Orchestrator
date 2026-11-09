@@ -33,6 +33,7 @@ import { buildAgreementEvent, changeHash, mcpCall, mcpConnection, mcpSender, pro
 import { consumeApproval, savePending } from './lib/approvals.mjs';
 import { logCrossingLine, unattendedState } from './lib/unattended.mjs';
 import { refreshOwnerImpactMode } from './lib/owner-mode.mjs';
+import { drainChatRelay, queueChatRelay, renderChatRelay } from './lib/chat-relay.mjs';
 
 // [SCOPE 137 / T009] BEGIN — The proposed change: which file, its content before and after, which lines (FR-008)
 export const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
@@ -180,6 +181,7 @@ const inform = (text) => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', a
 // MODIFIED-BY: [SCOPE 137 / T010] — unattended from the environment or a session-bound marker; data-loss stops are logged for the checkpoint
 // MODIFIED-BY: [SCOPE 137 / T018] — Bash commands go to decideBashCall (Amendment A, FR-008a)
 // MODIFIED-BY: [SCOPE 137 / T019] — refreshes the owner-set impactMode before the report (FR-007a)
+// MODIFIED-BY: [SCOPE 137 / T022] — logCrossing also queues the crossing for the chat relay (Amendment C, FR-010a)
 /**
  * Decide one PreToolUse call. Returns the JSON to print, or null for "no opinion".
  * `deps` lets tests replace the network calls.
@@ -348,6 +350,9 @@ async function addSignoffs(root, report, deps) {
 
 async function logCrossing(root, report, hash, deps, state) {
   logCrossingLine(root, { kind: 'crossing', files: report.changedFiles, hash, reasons: report.classification.reasons.map((r) => r.detail), affected: report.summary.affected, by: state.by });
+  // [SCOPE 137 / T022] Amendment C (FR-010a): the same crossing also reaches chat, informational
+  // only — it is queued here and drained by the NEXT hook call, never waited on (FR-009's "0 waits").
+  queueChatRelay(root, { source: 'unattended', files: report.changedFiles, hash, report });
   const projectId = projectIdFor(root);
   if (!projectId) return;
   const event = buildAgreementEvent({
@@ -370,6 +375,25 @@ function writeReport(root, report) {
 // [SCOPE 137 / T009] END
 
 // [SCOPE 137 / T009] BEGIN — Hook entry point: stdin JSON in, decision JSON out (FR-008)
+// MODIFIED-BY: [SCOPE 137 / T022] — also drains the chat relay queue on every call, Bash/edit or not (Amendment C, FR-010a)
+
+/**
+ * Fold anything queued for the chat relay into what the hook was already going to say — the
+ * same deny/notify Claude already relays into chat for an AI edit, so a self-opened agree panel
+ * or an unattended crossing reaches chat the identical way, with no new transport. When the
+ * hook otherwise has no opinion, the relay content alone becomes an informational context.
+ */
+function withChatRelay(out, relayText) {
+  if (!relayText) return out;
+  if (out?.hookSpecificOutput?.permissionDecision === 'deny') {
+    return { hookSpecificOutput: { ...out.hookSpecificOutput, permissionDecisionReason: `${out.hookSpecificOutput.permissionDecisionReason}\n\n${relayText}` } };
+  }
+  if (out?.hookSpecificOutput?.additionalContext) {
+    return { hookSpecificOutput: { ...out.hookSpecificOutput, additionalContext: `${out.hookSpecificOutput.additionalContext}\n\n${relayText}` } };
+  }
+  return inform(relayText);
+}
+
 async function main() {
   let raw = '';
   for await (const chunk of process.stdin) raw += chunk;
@@ -380,13 +404,16 @@ async function main() {
     return; // not a hook call; no opinion
   }
   const root = resolve(process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd());
+  const relay = drainChatRelay(root);
+  const relayText = relay.length ? renderChatRelay(relay) : null;
   try {
-    const out = await decideToolCall(input, { root });
+    const out = withChatRelay(await decideToolCall(input, { root }), relayText);
     if (out) process.stdout.write(JSON.stringify(out));
   } catch (e) {
     // The impact check failed. Possible data loss was already checked above it, so the
     // edit continues through the normal flow — and Claude is told the check did not run.
-    process.stdout.write(JSON.stringify(inform(`Change Impact: the impact check could not run (${e instanceof Error ? e.message : e}); this edit was not checked.`)));
+    const out = withChatRelay(inform(`Change Impact: the impact check could not run (${e instanceof Error ? e.message : e}); this edit was not checked.`), relayText);
+    process.stdout.write(JSON.stringify(out));
   }
 }
 
