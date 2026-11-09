@@ -52,6 +52,11 @@ export interface AutopilotUnitRunnerOptions {
   signal?: AbortSignal;
   /** [SCOPE 154 / T007] Overrides AUTOPILOT_UNIT_TIMEOUT_MS — test seam only; production uses the default. */
   timeoutMs?: number;
+  /**
+   * [SCOPE 154 / T015] Sees every message the unit session yields, before the runner's own handling
+   * (FR-017 `go debug`). A throw here is swallowed — the debug feed can never break a unit.
+   */
+  onMessage?: (msg: SDKMessage, unit: PipelineUnit) => void;
 }
 
 /** The maximum number of asks a single unit may make before it is forced to park (T013). */
@@ -236,6 +241,12 @@ export function createAutopilotUnitRunner(opts: AutopilotUnitRunnerOptions): Run
       const query = opts.query ?? (await loadAgentSdk()).query;
       const handle = query({ prompt: queue, options });
       for await (const msg of handle as AsyncIterable<SDKMessage>) {
+        // MODIFIED-BY: [SCOPE 154 / T015] — every message offered to opts.onMessage first (go debug, FR-017)
+        try {
+          opts.onMessage?.(msg, unit);
+        } catch {
+          /* the debug feed never breaks a unit */
+        }
         if (msg.type !== "result") continue;
         const subtype = (msg as Extract<SDKMessage, { type: "result" }>).subtype;
 

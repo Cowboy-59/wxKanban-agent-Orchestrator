@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { existsSync, readFileSync } from "fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { hostname } from "os"; // [SCOPE 151 / T004]
 import { basename, join } from "path";
 import { RemoteBridge } from "./bridge";
@@ -17,6 +17,8 @@ import {
   type WorktreeLock,
 } from "./agent-mode"; // [SCOPE 134] [SCOPE 145 / T006]
 import { AgentAlreadyConnectedError, ConnectionRecord } from "./connection-record"; // [SCOPE 151 / T004]
+import { buildChildEnv } from "./child-env"; // [SCOPE 154 / T015]
+import { redactSecrets } from "./handoff-writer"; // [SCOPE 154 / T015]
 
 // [SCOPE 102 / T004] BEGIN — remote-bridge entry point (the Project Agent)
 // MODIFIED-BY: [SCOPE 145 / T006] — fixed refusal lines; stop on SIGBREAK and stdin close; 5 s exit bound
@@ -24,6 +26,7 @@ import { AgentAlreadyConnectedError, ConnectionRecord } from "./connection-recor
 // MODIFIED-BY: [SCOPE 150 / T004] — no seed or resume hooks (FR-012)
 // MODIFIED-BY: [SCOPE 150 / T006] — one-time notice for retired room keys in .env (FR-014)
 // MODIFIED-BY: [SCOPE 151 / T004] — opens, heartbeats and closes the connection record KAIN reads; another live machine refuses the start (FR-059 – FR-061)
+// MODIFIED-BY: [SCOPE 154 / T015] — a crash is logged to .wxai/project-agent-crash.log and posted to the room; startup names the billing path
 // The bridge runs only as the project's Project Agent: started by the Cockpit
 // (bin/project-agent.mjs) or `npm run remote`, both with --project-agent. The room, its token
 // and the read identity are fetched with the project's kit token and handed to the bridge in
@@ -181,6 +184,33 @@ async function main(): Promise<void> {
     projectAgentConfig: paCfg,
   });
   record?.startHeartbeat(() => bridge.connectionState()); // [SCOPE 151 / T004] FR-060
+
+  // [SCOPE 154 / T015] A crash used to end the agent without a word anywhere: the room just went
+  // quiet. Now the stack goes to .wxai/project-agent-crash.log and one masked line to the room.
+  let crashing = false;
+  const onCrash = (kind: string, err: unknown) => {
+    if (crashing) return;
+    crashing = true;
+    const e = err instanceof Error ? err : new Error(String(err));
+    try {
+      mkdirSync(join(REPO_ROOT, ".wxai"), { recursive: true });
+      appendFileSync(
+        join(REPO_ROOT, ".wxai", "project-agent-crash.log"),
+        `${new Date().toISOString()} ${kind}: ${redactSecrets(e.stack ?? e.message).text}\n\n`,
+      );
+    } catch {
+      // nowhere left to write it
+    }
+    process.stderr.write(`[bridge] ${kind}: ${e.message}\n`);
+    const line = redactSecrets(`Project Agent crashed — ${e.message.slice(0, 200)}. Details in .wxai/project-agent-crash.log.`).text;
+    void bridge.reportCrash(line).finally(() => {
+      lock?.release();
+      process.exit(1);
+    });
+  };
+  process.on("uncaughtException", (err) => onCrash("uncaughtException", err));
+  process.on("unhandledRejection", (reason) => onCrash("unhandledRejection", reason));
+  process.stdout.write(`[bridge] billing path: ${buildChildEnv({}).billingPath}\n`); // [SCOPE 154 / T015]
 
   let shuttingDown = false;
   const shutdown = (signal: string) => {

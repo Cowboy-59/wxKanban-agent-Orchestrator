@@ -67,6 +67,13 @@ screen, and nothing reads it as a decision. It is the one file updated while a b
   anything the user didn't ask for.
 - **Every item carries the panel's take and the chair's recommendation** (`panel.md` § How the panel
   speaks). At amateur level, use the amateur pattern.
+- **Propose the complete version** (`panel.md` § Propose the complete version, SPEC-156 FR-014). Each
+  item shows the panel's must-have and optional lists, then the chair's recommendation. The panel
+  decides the details itself and the owner can change any of it.
+- **Each item's closing question** is either "Agree with this proposal?" or one real choice (money,
+  security, client data, or anything irreversible). Never ask the owner to design the details. For
+  "a scheduler for jobs", the panel proposes the schedule types (must-have: common ones; optional:
+  rarer ones) and asks "Agree with this proposal?", not "Which schedule types?".
 - **Relist before asking "which next?".** Every time, show the full agenda again with each item's
   status: **Agreed** · **Changed** · **Added** · **Declined** · **Suggestion** (not yet discussed) ·
   **Parked → <where>**.

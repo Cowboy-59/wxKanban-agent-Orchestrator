@@ -138,6 +138,7 @@ export function formatStartupList(scopes: StartupScope[]): string {
     ...scopes.map((s, i) => `${i + 1}. SCOPE-${s.num} — ${s.title} (${s.stage})`),
     "",
     'Reply "go" to start working this list. Nothing starts without it.',
+    'Reply "go debug" instead to also see every step each scope\'s session takes; "verbose" / "concise" switch that on or off mid-run.', // [SCOPE 154 / T015] FR-017
   ];
   return lines.join("\n");
 }

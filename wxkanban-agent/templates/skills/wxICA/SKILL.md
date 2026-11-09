@@ -84,3 +84,24 @@ Side effects happen inline as decisions crystallize:
 - **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there.
 - **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing — skip ephemeral reasons ("not worth it right now") and self-evident ones. See [ADR-FORMAT.md](../grill-with-docs/ADR-FORMAT.md).
 - **Want to explore alternative interfaces for the deepened module?** See [INTERFACE-DESIGN.md](INTERFACE-DESIGN.md).
+
+## Collect-only mode (`--collect-only`, SPEC-156)
+
+`--collect-only` lets wxICA run unattended inside a subagent (for example from a brainstorm analyze sitting). **Without `--collect-only` everything above is unchanged and fully interactive.**
+
+With `--collect-only`:
+
+- Run **step 0 (drift audit), step 1 (explore) and step 2 (candidates)** only. **Never enter step 3.** Do not ask the user any question (skip the "Which of these would you like to explore?" prompt), do not edit any file, and write nothing except the findings file.
+- Write the step 0 drift items and the step 2 candidates as findings in the shape of `specs/156-brainstorm-analyze-mode/contracts/analyze-findings.md` §1, with `"analyzer": "analyzecode"`, `"checked": true`, `"notCheckedReason": null`. Each finding has:
+  - `rule` — short kebab-case id, `drift-<kind>` for drift items, `candidate-<kind>` for candidates (for example `drift-dangling-reference`, `candidate-shallow-module`).
+  - `path` — repo-relative, forward slashes.
+  - `line` — line number (display only).
+  - `anchor` — the enclosing symbol (function, class or module name).
+  - `snippet` — the short offending code.
+  - `message` — one line saying what is wrong or what would change.
+  - `list` — drift that breaks behavior is `must-fix`; something missing is `gap`; an improvement candidate is `optional`.
+  - `confidence` — one of Confirmed, Likely, Assumed, Unknown, Conflicting.
+- Output path: the `--out <file>` argument if given, otherwise `docs/brainstorms/analyze/findings/analyzecode.json`.
+- Never put credential values, personal data or database row values in `snippet` or `message`.
+- If something prevents the pass, still write the file, with `"checked": false`, a `"notCheckedReason"` string and an empty `findings` list. Do not ask.
+- End with one line: the findings file path and the finding count.

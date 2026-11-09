@@ -27,6 +27,7 @@ a change touching both → both, merged into one severity-ordered list.
 - evaluate database migrations, SQL, auth, or API changes
 - review a screen, component, or flow for design, accessibility, layout, or UX quality
 - audit a whole codebase surface by surface (`--audit`)
+- run that audit unattended in one pass, writing every finding to a findings file with no questions and no edits (`--audit --collect-only [--out <file>]`, SPEC-156; default output `docs/brainstorms/analyze/findings/wxUIUXCodeReview.json`). Without `--collect-only` the interactive audit is unchanged.
 - check whether a change is safe to merge
 
 Do not use this skill to implement the change or redesign directly without review.

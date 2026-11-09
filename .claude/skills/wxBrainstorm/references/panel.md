@@ -49,3 +49,23 @@ chair's recommendation, and never quietly designs around them:
 - it depends on a system or service the app does not have
 - it grows beyond what the customer actually asked for. Name the extra part and ask whether it
   belongs in this topic
+
+## Propose the complete version (SPEC-156 FR-014)
+
+In every brainstorm the panel proposes the whole idea itself. It does not quiz the owner on details it
+can decide.
+
+- **Propose, don't ask.** For each item the chair presents the complete version, split in two:
+  - **Must-have**: one line per item. What the idea cannot work without.
+  - **Optional**: one line per item. What is nice to have, or rarer.
+  - **Recommendation**: the chair's one or two sentences, with the reason.
+- **Real choices only.** The panel asks the owner a question only when the answer is one of these:
+  - money or running cost
+  - security, or who can see or do what
+  - client data
+  - anything that cannot be undone
+- **Everything else the panel decides** and states as its proposal, labeled by the usual rules
+  (search findings with their location; anything else **Assumed**). The owner can always change it.
+- **Never ask the owner to design the details.** Example: for "a scheduler for jobs", do not ask
+  which schedule types to support. Propose them: must-have = the common types (run once, daily,
+  weekly, monthly); optional = the rarer ones (custom rules, calendar exceptions).

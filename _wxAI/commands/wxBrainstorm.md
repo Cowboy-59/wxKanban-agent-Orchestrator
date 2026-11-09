@@ -40,10 +40,12 @@ This command runs the **`wxBrainstorm` skill**. Invoke the skill, then follow it
 ## Usage
 
 ```bash
-/wxBrainstorm                                             # asks what to brainstorm
 /wxBrainstorm customers keep asking to export the board to Excel
 /wxBrainstorm --level=amateur                             # explains every idea in plain terms
-/wxBrainstorm --resume                                    # continue an open brainstorm
+/wxBrainstorm --resume                                    # continue an open brainstorm or analyze sitting (analyzers are not re-run)
+/wxBrainstorm --analyze [--dir <app folder>]              # review one built app in one sitting: feature groups, approved analyzer plan (30-minute limit each), item-by-item review; saves a report and data file in docs/brainstorms/analyze/ of that app. A missing folder stops with one error line. Asks once about an optional read-only database check (default no; names and counts only)
+/wxBrainstorm --analyze --conversion                      # same, and adds wxConversionParity for a conversion
+/wxBrainstorm --analyze --cross-app --dir <app>,<app>     # run in wxKanban only: reads each app's saved data file, never writes into them; a gap in 2+ apps becomes one converter scope proposal
 ```
 
 ## Boundaries

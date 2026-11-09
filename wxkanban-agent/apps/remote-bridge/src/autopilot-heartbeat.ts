@@ -1,8 +1,10 @@
 import { redactSecrets } from "./handoff-writer";
 import { formatUnitFailed } from "./autopilot-pipeline";
 import type { AutopilotRunState, UnitRunRecord } from "./autopilot-skip";
+import { formatQuestionHeartbeatLine, type AutopilotQuestion } from "./autopilot-question";
 
 // [SCOPE 154 / T008] BEGIN — 15-minute heartbeat from the run state (FR-007, SCOPE-132 FR-098)
+// MODIFIED-BY: [SCOPE 154 / T015] — quiet heartbeat names the running unit + elapsed; repeats a waiting question (FR-015, FR-016)
 //
 // FR-007 says to reuse "Amendment G piece A's masked rolling-summary mechanism ... no second
 // summarizer is built." Amendment G piece A (SCOPE-132 FR-076/FR-077 — a per-turn session-feed
@@ -42,21 +44,51 @@ export interface HeartbeatOptions {
   paused: boolean;
   /** Unit scopes already covered by an earlier post — new since then get full detail. */
   previouslyPosted: string[];
+  /** [SCOPE 154 / T015] A unit's question waiting on the owner — every heartbeat repeats it. */
+  waitingQuestion?: AutopilotQuestion;
+  /** [SCOPE 154 / T015] Clock for the elapsed time; defaults to now. */
+  now?: Date;
+}
+
+/** [SCOPE 154 / T015] "1h 05m" / "12m" / "under a minute" — the elapsed part of the running-unit line. */
+export function formatElapsed(ms: number): string {
+  const minutes = Math.floor(Math.max(0, ms) / 60_000);
+  if (minutes < 1) return "under a minute";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
+}
+
+/** [SCOPE 154 / T015] The unit running right now, from the run state — undefined when none is. */
+export function describeRunningUnit(state: AutopilotRunState, now: Date = new Date()): string | undefined {
+  const scope = state.currentScope;
+  if (!scope) return undefined;
+  const title = state.startupList?.find((i) => i.scope === scope)?.title;
+  const started = state.stepStartedAt ? Date.parse(state.stepStartedAt) : NaN;
+  const elapsed = Number.isNaN(started) ? "" : ` (${formatElapsed(now.getTime() - started)} so far)`;
+  return `SCOPE-${scope}${title ? ` — ${title}` : ""}${elapsed}`;
 }
 
 /** The 15-minute post, and STATUS on demand (same content, called early). */
 export function buildHeartbeat(opts: HeartbeatOptions): HeartbeatResult {
+  // [SCOPE 154 / T015] A waiting question rides on every heartbeat, paused or not.
+  const waiting = opts.waitingQuestion ? [redactSecrets(formatQuestionHeartbeatLine(opts.waitingQuestion)).text] : [];
   if (opts.paused) {
-    return { message: "Autopilot heartbeat: paused.", kind: "paused", postedScopes: opts.previouslyPosted };
+    return { message: ["Autopilot heartbeat: paused.", ...waiting].join("\n"), kind: "paused", postedScopes: opts.previouslyPosted };
   }
   const units = opts.state.units ?? [];
   const seen = new Set(opts.previouslyPosted);
   const changed = units.filter((u) => !seen.has(u.scope));
+  const running = describeRunningUnit(opts.state, opts.now); // [SCOPE 154 / T015]
+  const runningLine = running ? [redactSecrets(`Working on ${running}.`).text] : [];
   if (changed.length === 0) {
-    return { message: "Autopilot heartbeat: nothing changed since the last post.", kind: "nothing-changed", postedScopes: opts.previouslyPosted };
+    const head = running
+      ? `Autopilot heartbeat: still working on ${redactSecrets(running).text}. Nothing else changed since the last post.`
+      : "Autopilot heartbeat: nothing changed since the last post.";
+    return { message: [head, ...waiting].join("\n"), kind: "nothing-changed", postedScopes: opts.previouslyPosted };
   }
   const lines = maskLines(changed.map(formatUnitLine));
-  const message = ["Autopilot heartbeat:", ...lines].join("\n");
+  const message = ["Autopilot heartbeat:", ...lines, ...runningLine, ...waiting].join("\n");
   return { message, kind: "full", postedScopes: [...opts.previouslyPosted, ...changed.map((u) => u.scope)] };
 }
 

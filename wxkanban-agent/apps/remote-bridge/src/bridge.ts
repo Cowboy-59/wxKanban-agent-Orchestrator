@@ -27,6 +27,20 @@ import {
   type GateResolver,
 } from "./autopilot-pipeline"; // [SCOPE 154 / T005, T013]
 import { createAutopilotUnitRunner } from "./autopilot-unit-runner"; // [SCOPE 154 / T005b]
+import { describeUnitMessage } from "./autopilot-debug-feed"; // [SCOPE 154 / T015]
+import {
+  AUTOPILOT_QUESTION_LAST_CALL_MS,
+  AUTOPILOT_QUESTION_PARK_MS,
+  formatQuestionAsked,
+  formatQuestionAutoParked,
+  formatQuestionBroughtBack,
+  formatQuestionLastCall,
+  formatQuestionReminder,
+  isQuestionPassThrough,
+  toAutopilotQuestion,
+  type AutopilotQuestion,
+  type PendingAutopilotQuestion,
+} from "./autopilot-question"; // [SCOPE 154 / T015]
 import {
   loadAutopilotState,
   saveAutopilotState,
@@ -121,11 +135,19 @@ export class RemoteBridge {
   // [SCOPE 154 / T013] The mirror image of pendingApproval, for a unit session's live gate
   // question (ctx.resolveGate round trip): the next room message is the owner's free-text
   // answer, or PARK. Holds a resolver because something is already waiting on it.
-  private pendingAutopilotGate?: {
-    resolve: (answer: { decision: string; from: string } | undefined) => void;
-    scopeNum: string;
-    question: string;
-  };
+  // MODIFIED-BY: [SCOPE 154 / T015] — carries askedAt + broughtBack (PendingAutopilotQuestion) for the timers and STATUS
+  private pendingAutopilotGate?: PendingAutopilotQuestion;
+  // [SCOPE 154 / T015] FR-015: the waiting question's last-call and auto-park timers; questions that
+  // parked unanswered (kept for this bridge's life, oldest first, for STATUS to bring back); and the
+  // active run's own unit list (runPipeline's for-of picks up a pushed unit), current unit and
+  // outcomes, so an answer to a parked question can queue its unit once more.
+  private autopilotQuestionTimers: ReturnType<typeof setTimeout>[] = [];
+  private readonly parkedAutopilotQuestions: AutopilotQuestion[] = [];
+  private autopilotRunUnits?: PipelineUnit[];
+  private autopilotRunCurrent?: string;
+  private readonly autopilotRunOutcomes = new Map<string, string>();
+  private readonly autopilotRequeued = new Set<string>();
+  private readonly autopilotRequeueWhenParked = new Set<string>();
   // [SCOPE 154 / T004] A skip cascade's "keep <nums>" / "keep none" question is pending — the
   // next room message IS the owner's answer (same shape as pendingAutopilotGate above: holds the
   // scope so resolvePendingSkipCascade can persist the decision against the right record).
@@ -474,7 +496,8 @@ export class RemoteBridge {
     // [SCOPE 154 / T013] Same rule for a unit session's live gate question: the next message IS
     // the owner's answer (or PARK) — relaying it to the session instead would leave the running
     // unit's turn waiting forever on an answer that went somewhere else.
-    if (this.pendingAutopilotGate && text.toUpperCase() !== "CANCEL REMOTE") {
+    // MODIFIED-BY: [SCOPE 154 / T015] — control words (STATUS, PAUSE, ...) pass through; they are never an answer (FR-015)
+    if (this.pendingAutopilotGate && text.toUpperCase() !== "CANCEL REMOTE" && !isQuestionPassThrough(text)) {
       this.resolvePendingAutopilotGate(text, from);
       return;
     }
@@ -568,12 +591,17 @@ export class RemoteBridge {
         return true;
       // MODIFIED-BY: [SCOPE 154 / T008] — while an Autopilot run is active, STATUS returns the
       // same heartbeat content early (FR-007) instead of the plain connection status line.
+      // MODIFIED-BY: [SCOPE 154 / T015] — STATUS re-posts a waiting question, or brings back the oldest
+      // parked one when none waits (FR-015). The run's heartbeat already carries a waiting question.
       case "STATUS":
-        if (this.autopilotRunAbort) {
-          this.postHeartbeat();
-        } else {
-          void this.post(this.statusLine());
+        if (this.pendingAutopilotGate) {
+          if (this.autopilotRunAbort) this.postHeartbeat();
+          else void this.post(formatQuestionReminder(this.pendingAutopilotGate));
+          return true;
         }
+        if (this.autopilotRunAbort) this.postHeartbeat();
+        if (this.bringBackParkedQuestion()) return true;
+        if (!this.autopilotRunAbort) void this.post(this.statusLine());
         return true;
       // [SCOPE 154 / T009] PAUSE/RESUME an active Autopilot run (FR-008). Outside a run these
       // fall through as ordinary text, same as CONFIRMED/NO with no pending push.
@@ -633,7 +661,13 @@ export class RemoteBridge {
   // concurrent edit from the pipeline (recordOutcome's saveAutopilotState) is always picked up.
   private postHeartbeat(): void {
     const state = loadAutopilotState(this.opts.cwd);
-    const result = buildHeartbeat({ state, paused: this.autopilotPaused, previouslyPosted: this.heartbeatPostedScopes });
+    // MODIFIED-BY: [SCOPE 154 / T015] — the heartbeat repeats a waiting question (FR-015)
+    const result = buildHeartbeat({
+      state,
+      paused: this.autopilotPaused,
+      previouslyPosted: this.heartbeatPostedScopes,
+      waitingQuestion: this.pendingAutopilotGate ? toAutopilotQuestion(this.pendingAutopilotGate) : undefined,
+    });
     this.heartbeatPostedScopes = result.postedScopes;
     void this.post(result.message).then((ok) => {
       if (ok) this.lastHeartbeatPostOkAt = new Date(); // [SCOPE 154 / T009]
@@ -827,23 +861,22 @@ export class RemoteBridge {
   // value is a free-text decision plus the replying human's name (never the supervisor — see
   // resolvePendingAutopilotGate — since a live-answered gate is persisted to the ledger, and
   // the ledger's own validation rejects "kain"/the agent as an approver).
+  // MODIFIED-BY: [SCOPE 154 / T015] — a question is re-posted at 10 min and auto-parks at 15 min;
+  // a second question is kept for `status` instead of dropped (FR-015)
   /** Surface a unit's unanswerable gate question to the room and resolve with the owner's answer. */
   private requestAutopilotGate(scopeNum: string, question: string): Promise<{ decision: string; from: string } | undefined> {
     if (this.pendingAutopilotGate) {
-      void this.post("Another Autopilot question is already pending — parking this one.");
+      this.parkedAutopilotQuestions.push({ scopeNum, question, askedAt: new Date() });
+      void this.post(
+        `Another Autopilot question is already waiting — SCOPE-${scopeNum}'s is parked for now. Reply "status" later to bring it back.`,
+      );
       return Promise.resolve(undefined);
     }
     return new Promise((resolve) => {
-      this.pendingAutopilotGate = { resolve, scopeNum, question };
-      void this.post(
-        [
-          `Autopilot — SCOPE-${scopeNum} needs input:`,
-          ``,
-          `  "${question}"`,
-          ``,
-          `Reply with the answer, or PARK to leave it for the owner later.`,
-        ].join("\n"),
-      );
+      const gate: PendingAutopilotQuestion = { resolve, scopeNum, question, askedAt: new Date() };
+      this.pendingAutopilotGate = gate;
+      this.armAutopilotQuestionTimers(gate);
+      void this.post(formatQuestionAsked(gate));
     });
   }
 
@@ -851,6 +884,7 @@ export class RemoteBridge {
     const p = this.pendingAutopilotGate;
     if (!p) return;
     this.pendingAutopilotGate = undefined;
+    this.clearAutopilotQuestionTimers(); // [SCOPE 154 / T015]
     if (text.trim().toUpperCase() === "PARK") {
       void this.post("Parked — left for the owner.");
       p.resolve(undefined);
@@ -868,10 +902,107 @@ export class RemoteBridge {
     const p = this.pendingAutopilotGate;
     if (!p) return;
     this.pendingAutopilotGate = undefined;
+    this.clearAutopilotQuestionTimers(); // [SCOPE 154 / T015]
     void reason;
     p.resolve(undefined);
   }
   // [SCOPE 154 / T013] END
+
+  // [SCOPE 154 / T015] BEGIN — a waiting question never hangs the run (FR-015)
+  // Two posts (the ask, then a last call at 10 min), auto-park at 15 min, and `status` brings a
+  // parked question back. An answer to a brought-back question goes to decisions/ledger.yaml and,
+  // when its scope already ended parked in this run, queues that scope once more at the end.
+  private armAutopilotQuestionTimers(gate: PendingAutopilotQuestion): void {
+    this.clearAutopilotQuestionTimers();
+    const lastCall = setTimeout(() => {
+      if (this.pendingAutopilotGate === gate) void this.post(formatQuestionLastCall(gate));
+    }, AUTOPILOT_QUESTION_LAST_CALL_MS);
+    const park = setTimeout(() => this.autoParkAutopilotQuestion(gate), AUTOPILOT_QUESTION_PARK_MS);
+    lastCall.unref?.();
+    park.unref?.();
+    this.autopilotQuestionTimers = [lastCall, park];
+  }
+
+  private clearAutopilotQuestionTimers(): void {
+    for (const t of this.autopilotQuestionTimers) clearTimeout(t);
+    this.autopilotQuestionTimers = [];
+  }
+
+  private autoParkAutopilotQuestion(gate: PendingAutopilotQuestion): void {
+    if (this.pendingAutopilotGate !== gate) return;
+    this.pendingAutopilotGate = undefined;
+    this.clearAutopilotQuestionTimers();
+    void this.post(formatQuestionAutoParked(gate));
+    // A brought-back question re-parks through its own resolver; a live one is kept here.
+    if (!gate.broughtBack) this.parkedAutopilotQuestions.push(toAutopilotQuestion(gate));
+    gate.resolve(undefined);
+  }
+
+  /** Re-open the oldest parked question. False when none is parked. */
+  private bringBackParkedQuestion(): boolean {
+    const q = this.parkedAutopilotQuestions.shift();
+    if (!q) return false;
+    const gate: PendingAutopilotQuestion = {
+      ...q,
+      broughtBack: true,
+      resolve: (answer) => {
+        if (answer) void this.recordBroughtBackAnswer(q, answer);
+        else this.parkedAutopilotQuestions.push(q);
+      },
+    };
+    this.pendingAutopilotGate = gate;
+    this.armAutopilotQuestionTimers(gate);
+    void this.post(formatQuestionBroughtBack(q));
+    return true;
+  }
+
+  private async recordBroughtBackAnswer(q: AutopilotQuestion, answer: { decision: string; from: string }): Promise<void> {
+    try {
+      await nodeLedgerWriter(this.opts.cwd)(q.scopeNum, q.question, answer.decision, answer.from);
+    } catch (err) {
+      void this.post(
+        `⚠ Could not record SCOPE-${q.scopeNum}'s answer in decisions/ledger.yaml — ${(err as Error).message.slice(0, 160)}`,
+      );
+      return;
+    }
+    void this.post(this.requeueAnsweredUnit(q.scopeNum));
+  }
+
+  /** What happens to the answered scope now, as the room line that says so. */
+  private requeueAnsweredUnit(scopeNum: string): string {
+    const head = "Recorded in decisions/ledger.yaml.";
+    if (!this.autopilotRunUnits) return `${head} The next run of SCOPE-${scopeNum} will use it.`;
+    if (this.autopilotRequeued.has(scopeNum)) return `${head} SCOPE-${scopeNum} is already queued to run once more.`;
+    if (this.autopilotRunOutcomes.get(scopeNum) === "parked" && this.queueUnitOnceMore(scopeNum)) {
+      return `${head} SCOPE-${scopeNum} runs once more at the end of this run, with your answer.`;
+    }
+    if (this.autopilotRunCurrent === scopeNum) {
+      this.autopilotRequeueWhenParked.add(scopeNum);
+      return `${head} SCOPE-${scopeNum} is still running; if it ends parked, it runs once more at the end of this run.`;
+    }
+    return `${head} SCOPE-${scopeNum} will use it when it runs.`;
+  }
+
+  /** Append the scope to the running list — once per run. */
+  private queueUnitOnceMore(scopeNum: string): boolean {
+    const units = this.autopilotRunUnits;
+    if (!units || this.autopilotRequeued.has(scopeNum)) return false;
+    const unit = units.find((u) => u.num === scopeNum);
+    if (!unit) return false;
+    this.autopilotRequeued.add(scopeNum);
+    units.push(unit);
+    return true;
+  }
+
+  /** Last word to the room before the process exits on a crash (main.ts). Never throws, never waits past 3s. */
+  async reportCrash(text: string): Promise<void> {
+    try {
+      await Promise.race([this.post(text), new Promise((resolve) => setTimeout(resolve, 3000).unref?.())]);
+    } catch {
+      // the crash log already has it
+    }
+  }
+  // [SCOPE 154 / T015] END
 
   // [SCOPE 134 / T019] File the decision. Only a grant names a grantor — a refusal
   // (including abandon-on-teardown) has no approving human, and the MCP tool rejects a
@@ -922,12 +1053,16 @@ export class RemoteBridge {
   // [SCOPE 154 / T003] The owner's reply to the posted startup list. "go" (lenient yes/no, same
   // parser as the push confirmation) IS the approval (FR-002) — nothing further is asked before
   // T004 onward hands the approved scopes to the skip cascade and the per-scope pipeline.
+  // MODIFIED-BY: [SCOPE 154 / T015] — "go debug" starts the run with the step feed on (FR-017)
   private resolvePendingAutopilotGo(text: string): void {
-    const decision = parseYesNo(text);
+    const debug = /^go\s+debug[.!]*$/i.test(text.trim());
+    const decision = debug ? true : parseYesNo(text);
     if (decision === true) {
       const scopes = this.autopilot?.confirmGo() ?? [];
-      process.stdout.write(`[autopilot] go received — ${scopes.length} scope(s) approved\n`);
-      void this.post(`Autopilot: starting on ${scopes.length} scope${scopes.length === 1 ? "" : "s"}.`);
+      process.stdout.write(`[autopilot] go received — ${scopes.length} scope(s) approved${debug ? " (debug feed on)" : ""}\n`);
+      if (debug) this.verbose = true;
+      const feed = debug ? ` Debug feed on — every step each scope's session takes will post here; "concise" turns it off.` : "";
+      void this.post(`Autopilot: starting on ${scopes.length} scope${scopes.length === 1 ? "" : "s"}.${feed}`);
       if (scopes.length > 0) void this.runAutopilotPipeline(scopes);
     } else if (decision === false) {
       this.autopilot?.confirmGo();
@@ -1013,6 +1148,8 @@ export class RemoteBridge {
   // final summary posted to the room.
   // MODIFIED-BY: [SCOPE 154 / T006] — populate each unit's `text` from readScopeText() so the
   // pipeline's production-park gate check has the scope's own FR/acceptance text to inspect.
+  // MODIFIED-BY: [SCOPE 154 / T015] — "working on" post per unit, debug step feed, park lines
+  // filled, and an answered parked scope re-queued once (FR-015, FR-016, FR-017)
   private async runAutopilotPipeline(scopes: { num: string; title: string; stage: string }[]): Promise<void> {
     if (this.autopilotRunAbort) {
       void this.post("Autopilot: a run is already in progress — ignoring this go.");
@@ -1030,6 +1167,11 @@ export class RemoteBridge {
     this.startHeartbeat(); // [SCOPE 154 / T008]
     const units: PipelineUnit[] = scopes.map((s) => ({ num: s.num, title: s.title, text: this.readScopeText(s.num) }));
     const state = loadAutopilotState(this.opts.cwd);
+    // [SCOPE 154 / T015] What a brought-back answer needs to re-queue its scope in this run.
+    this.autopilotRunUnits = units;
+    this.autopilotRunOutcomes.clear();
+    this.autopilotRequeued.clear();
+    this.autopilotRequeueWhenParked.clear();
     process.stdout.write(`[autopilot] pipeline starting — ${units.length} unit(s)\n`);
     try {
       const rawRunUnit = createAutopilotUnitRunner({
@@ -1037,6 +1179,11 @@ export class RemoteBridge {
         mcpUrl: agent.mcpUrl,
         mcpToken: agent.mcpToken,
         signal: abort.signal,
+        // [SCOPE 154 / T015] FR-017: with "go debug" / verbose on, every step of the unit's session posts.
+        onMessage: (msg) => {
+          if (!this.verbose) return;
+          for (const line of describeUnitMessage(msg)) void this.post(line);
+        },
       });
       // [SCOPE 154 / T009] Pause blocks here, between units — never mid-unit, so a paused run
       // never leaves a unit half-worked. runPipeline itself (autopilot-pipeline.ts) is shared
@@ -1069,6 +1216,7 @@ export class RemoteBridge {
         runUnit,
         gateResolver,
         dependentsOf: nodeDependentsResolver(this.opts.cwd),
+        projectName: this.opts.projectName, // [SCOPE 154 / T015] FR-016: park lines name the project
         // [SCOPE 154 / T003] Marks the unit about to run as the run's "current step" (FR-002/FR-014)
         // before runUnit is called, so the Cockpit never shows a stale currentScope mid-run.
         onUnitStart: (unit) => {
@@ -1077,12 +1225,24 @@ export class RemoteBridge {
           state.currentStep = next.currentStep;
           state.stepStartedAt = next.stepStartedAt;
           saveAutopilotState(this.opts.cwd, state);
+          // [SCOPE 154 / T015] FR-016: the room always knows which scope is being worked.
+          this.autopilotRunCurrent = unit.num;
+          void this.post(`Autopilot: working on SCOPE-${unit.num} — ${unit.title}.`);
         },
         recordOutcome: (record: UnitRunRecord) => {
           const next = recordUnitOutcome(state, record);
           state.units = next.units;
           saveAutopilotState(this.opts.cwd, state);
           process.stdout.write(`[autopilot] ${record.scope} → ${record.status}\n`);
+          // [SCOPE 154 / T015] FR-015: an answer that arrived while this scope ran re-queues it once.
+          this.autopilotRunOutcomes.set(record.scope, record.status);
+          if (
+            record.status === "parked" &&
+            this.autopilotRequeueWhenParked.delete(record.scope) &&
+            this.queueUnitOnceMore(record.scope)
+          ) {
+            void this.post(`Autopilot: SCOPE-${record.scope} runs once more at the end of this run, with your answer.`);
+          }
         },
         post: (msg) => {
           void this.post(msg);
@@ -1099,6 +1259,8 @@ export class RemoteBridge {
       process.stdout.write(`[autopilot] pipeline error: ${(err as Error).message}\n`);
     } finally {
       this.autopilotRunAbort = undefined;
+      this.autopilotRunUnits = undefined; // [SCOPE 154 / T015]
+      this.autopilotRunCurrent = undefined; // [SCOPE 154 / T015]
       this.stopHeartbeat(); // [SCOPE 154 / T008]
       // [SCOPE 154 / T003] A finished (or errored-out) run never leaves a stale currentScope/
       // currentStep/stepStartedAt behind for the Cockpit to show.

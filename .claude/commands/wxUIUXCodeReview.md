@@ -9,6 +9,13 @@ blackboxai: true
 
 # wxUIUXCodeReview
 
+## Usage
+
+```bash
+/wxUIUXCodeReview --audit                                   # review a whole codebase one surface at a time
+/wxUIUXCodeReview --audit --collect-only [--out <file>]     # unattended single pass; writes a findings file (default docs/brainstorms/analyze/findings/wxUIUXCodeReview.json); no questions, no edits
+```
+
 > The full methodology for this command is delivered by wxKanban at runtime.
 >
 > Call the MCP tool `project.get_command_prompt` with `{ "command": "wxuiuxcodereview" }`, then follow the

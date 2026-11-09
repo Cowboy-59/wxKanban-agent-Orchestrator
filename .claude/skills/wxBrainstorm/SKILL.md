@@ -21,18 +21,31 @@ If the "idea" turns out to be a whole new product, say so and suggest `/wxG-O-D`
   panel must stop and flag rather than guess.
 - `references/conduct.md`: levels and the amateur pattern, the scratch pad, the discussion rules,
   closing, the record format, the shared learnings file, and pause and resume.
+- `references/analyze.md`: read in full only for an analyze sitting (`--analyze`, SPEC-156): feature
+  groups, the analyzer plan, the merged findings, the one-at-a-time review, re-runs, the opt-in
+  database check, and the cross-app pass. Its merges, decisions and closes go through the helper
+  `scripts/analyze-findings.mjs` (plain Node, no dependencies).
 
 ## Arguments
 
 - free text: the idea or suggestion. It is still confirmed at step 2 before anything is searched.
 - `--level=amateur|junior|senior` (also `--amateur`, `--junior`, `--senior`)
-- `--resume`: continue an open brainstorm (`references/conduct.md` § Pausing and resuming)
+- `--resume`: continue an open brainstorm (`references/conduct.md` § Pausing and resuming), or an
+  open analyze sitting (`references/analyze.md` § 8)
+- `--analyze`: analyze an app that is already built, instead of a new idea (`references/analyze.md`)
+- `--dir <folder>`: with `--analyze`, the app to analyze. Default: the current repo
+- `--conversion`: with `--analyze`, the app is a conversion, so wxConversionParity runs too
+- `--cross-app --dir <folder>,<folder>[,...]`: with `--analyze`, in the wxKanban repo only: find the
+  same rule broken in two or more analyzed apps and propose converter scopes
 
 ```text
 /wxBrainstorm
 /wxBrainstorm customers keep asking to export the board to Excel
 /wxBrainstorm --level=amateur
 /wxBrainstorm --resume
+/wxBrainstorm --analyze
+/wxBrainstorm --analyze --dir D:\apps\billing --conversion
+/wxBrainstorm --analyze --cross-app --dir D:\apps\billing,D:\apps\stock
 ```
 
 ## Relay architecture (SPEC-143 FR-021)
@@ -70,6 +83,13 @@ this by relaying to a resumed Opus subagent instead of running the workflow inli
    directly, as `## Embedded in wxG-O-D` below describes.
 
 ## Workflow
+
+**Analyze sittings (`--analyze`, SPEC-156).** With `--analyze`, the topic is the built app, not an
+idea, so steps 2 to 7 below are replaced: read `references/analyze.md` in full and follow it from its
+§ 1. Step 1 (seat the panel) and the relay above still apply, and the subagent's prompt passes
+`--analyze`, `--dir`, `--conversion` and `--cross-app` exactly as given. If `--dir` names a folder
+that does not exist, stop with one plain line, for example
+`No folder at D:\apps\billing. Nothing was run.`, before anything else runs.
 
 ### 1. Seat the panel
 
@@ -259,6 +279,9 @@ Then:
 - **Writes only** `docs/brainstorms/` (the scratch pad and the records), the user's
   `~/.wxai/god-learnings.md`, and `decisions/ledger.yaml` through `_wxAI/askgate/ledger.mjs` alone.
   Nothing is written until a summary is approved, except the scratch pad, which only mirrors the chat.
+  An analyze sitting also writes `docs/brainstorms/analyze/` in the analyzed app's repo (its data
+  file, report and analyzer findings files), from the moment the findings are merged, so a pause or a
+  crash loses nothing. It never edits the analyzed app's code, schema or data.
 - **Never writes scopes, specs, tasks, or code.** `/buildscope`, `/validateScope`, and `/createSpecs`
   run only on the user's go, under their own rules.
 - **Never commits, pushes, or deploys.**

@@ -34,6 +34,7 @@ decisions as evidence**.
 ```bash
 /wxConversionParity            # resume or start the parity audit over the built conversion
 /wxConversionParity --restart  # discard saved progress and rebuild the element queue
+/wxConversionParity --collect-only [--out <file>]  # unattended single pass; writes a findings file (default docs/brainstorms/analyze/findings/wxConversionParity.json); no questions, no edits
 ```
 
 Works for any conversion family: `/wxConversion` (WinDev/WebDev), `/vbConversion` (VB6),
@@ -60,6 +61,10 @@ Works for any conversion family: `/wxConversion` (WinDev/WebDev), `/vbConversion
 > admissions in the generated artifacts, which values were inferred from observed data rather than the
 > declared model, and which assumptions (duration units, time zone, decimal precision) were never
 > declared. A parity audit against incomplete source material produces confident nonsense.
+>
+> If `--collect-only` is present, follow the "Collect-only mode" section of the returned instructions
+> (one pass over every element, zero questions, zero edits, findings file only, `--out <file>` optional).
+> Without it, behave exactly as below.
 >
 > Work **one element at a time** and offer `[Yes]` to continue / `[Save]` to stop after each, persisting
 > to `specs/Project-Scope/.parity-progress.json`. Never present a partial audit as complete. Cite

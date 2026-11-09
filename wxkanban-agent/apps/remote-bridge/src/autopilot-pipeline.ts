@@ -7,6 +7,7 @@ import { nodeScopeImpactRunner, type ScopeImpactDependent, type UnitRunRecord } 
 // MODIFIED-BY: [SCOPE 154 / T006] — preflight park for a unit whose own text names a gated action
 // MODIFIED-BY: [SCOPE 154 / T007] — failed-unit posting, dependents marked waiting, run-state recording
 // MODIFIED-BY: [SCOPE 154 / T013] — nodeLedgerWriter: persists a live-answered gate back to the ledger
+// MODIFIED-BY: [SCOPE 154 / T015] — park lines filled from the unit and projectName (FR-016)
 //
 
 // FR-004 asks for a fresh session and a dedicated worktree per scope, reusing G.O.D.'s
@@ -192,6 +193,18 @@ export interface PipelineOptions {
    * Optional and unused by the plain `pipeline-agent` command this module is also shared with.
    */
   onUnitStart?: (unit: PipelineUnit) => void | Promise<void>;
+  /** [SCOPE 154 / T015] Fills a parked gate's empty project field, so the park line never reads "undefined". */
+  projectName?: string;
+}
+
+/** [SCOPE 154 / T015] A unit session's parked gate can arrive with project/scope/blocks unset; fill them from what the run knows. */
+export function fillParkedGate(g: Partial<ParkedGate>, unit: PipelineUnit, projectName: string | undefined): ParkedGate {
+  return {
+    project: g.project || projectName || "this project",
+    scope: g.scope || `SCOPE-${unit.num}`,
+    question: g.question || "(no question text)",
+    blocks: g.blocks || `SCOPE-${unit.num} (${unit.title})`,
+  };
 }
 
 /**
@@ -220,8 +233,9 @@ export async function runPipeline(opts: PipelineOptions): Promise<UnitOutcome[]>
       if (result.ok) {
         outcome = { scope: unit, status: "done" };
       } else if (result.parkedGates?.length) {
-        outcome = { scope: unit, status: "parked", parkedGates: result.parkedGates };
-        for (const g of result.parkedGates) await opts.post?.(formatParkedGate(g));
+        const filled = result.parkedGates.map((g) => fillParkedGate(g, unit, opts.projectName)); // [SCOPE 154 / T015]
+        outcome = { scope: unit, status: "parked", parkedGates: filled };
+        for (const g of filled) await opts.post?.(formatParkedGate(g));
       } else {
         const waiting = await dependentsOf(unit.num);
         outcome = { scope: unit, status: "failed", error: result.error, waitingDependents: waiting };

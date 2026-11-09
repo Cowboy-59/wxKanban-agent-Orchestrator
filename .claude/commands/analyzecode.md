@@ -33,6 +33,7 @@ Use this when:
 /analyzecode --deepen-only         # skip drift audit, go straight to deepening
 /analyzecode --scope <path>        # restrict exploration to a subtree (e.g. src/server/services)
 /analyzecode --since <git-ref>     # tailor the drift audit's "recent diff" to a ref (default: last commit)
+/analyzecode --collect-only [--out <file>]  # unattended: steps 0-2 only; writes a findings file (default docs/brainstorms/analyze/findings/analyzecode.json); no questions, no edits
 ```
 
 ## Arguments
@@ -41,6 +42,8 @@ Use this when:
 - `--deepen-only` — Skip step 0. Useful when you've already cleaned drift and want to focus on architecture.
 - `--scope <path>` — Limit deepening exploration to a subdirectory. The drift audit still scans repo-wide because dangling references can be anywhere.
 - `--since <git-ref>` — Drift audit treats this ref as "before"; deletes/renames since this ref feed Check 1. Default: `HEAD~1`.
+- `--collect-only` — (SPEC-156) Unattended mode for use inside a subagent. Passed through to the wxICA skill: follow its "Collect-only mode" section in `.claude/wxICA/SKILL.md`. Runs steps 0, 1 and 2 only, never enters step 3 (no questions, no edits), and writes the findings (contract `specs/156-brainstorm-analyze-mode/contracts/analyze-findings.md` §1, `"analyzer": "analyzecode"`) to `--out`. Without `--collect-only` the interactive behavior is unchanged.
+- `--out <file>` — Only with `--collect-only`. Findings file path. Default: `docs/brainstorms/analyze/findings/analyzecode.json`.
 
 ## Behavior
 
