@@ -17,23 +17,40 @@
 //   - model = the model that served the most output tokens in the run, read from message.model only
 //     (never from anything the model says about itself). Tokens of all models in a run are summed
 //     into the one record (a run with two models is rare; the dominant one is named).
-//   - ACTIVE / WAITING RULE: take the timestamps of the run's transcript lines in order. Each gap
-//     between two consecutive lines of at most 2 minutes counts as active time; a longer gap counts
-//     as waiting time. So activeseconds + waitingseconds equals wall time (last minus first line)
-//     to the second. Values are integer seconds (C1 amendment B).
+//   - ACTIVE / WAITING RULE (SPEC-143 T036, FR-025, Amendment C): take the timestamps of the run's
+//     transcript lines in order. A gap counts as waiting only when it follows an assistant line that
+//     called the AskUserQuestion tool — the model is blocked on a person's answer (a question, or an
+//     approval gate, which in this CLI is also asked through AskUserQuestion). Every other gap counts
+//     as active, however long — a long-running tool call or subagent is still the agent working, not
+//     waiting. So activeseconds + waitingseconds equals wall time (last minus first line) to the
+//     second. Values are integer seconds. (Superseded the at-most-2-minutes rule from Amendment B,
+//     which wrongly counted a long tool call as waiting.)
 //   - Idempotent: the id is a UUID derived from session id + agent id (or turn index), and an id
 //     already in the log is never written again.
 //   - No prompt text, code or file contents are stored: only ids, a command name, numbers, times.
-//   - difficulty and taskid stay null here; G.O.D. fills them later through the tier resolver.
+//   - difficulty stays null here; G.O.D. fills it later through the tier resolver.
+//   - taskid (SPEC-143 T037, FR-026): read from the active-task side channel by session id —
+//     the /implement (and G.O.D.) slash command sets it just before launching a subagent for a
+//     known task and clears it when that task finishes; a session with no active task gets null.
 //   - Never uses Claude Code telemetry (it carries the user's email and org ids).
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
+import { getActiveTask } from './active-task.mjs';
 
 export const LOG_REL = join('decisions', 'agentrun-log.jsonl');
-export const ACTIVE_GAP_MS = 2 * 60 * 1000;
+/** The only tool whose pending reply counts as waiting on a person (FR-025, Amendment C). */
+export const WAITING_TOOL = 'AskUserQuestion';
 const LABEL = /^[A-Za-z0-9._:/@-]{1,100}$/;
+
+// [SCOPE 143 / T036] BEGIN — a line is "asking a person" when it called the waiting tool (FR-025)
+function asksPerson(line) {
+  if (line?.type !== 'assistant') return false;
+  const content = line.message?.content;
+  return Array.isArray(content) && content.some((b) => b?.type === 'tool_use' && b.name === WAITING_TOOL);
+}
+// [SCOPE 143 / T036] END
 
 /** Deterministic UUID (version 8 layout) from a string key. */
 export function deterministicId(key) {
@@ -59,7 +76,7 @@ export function summarize(lines) {
   const stamps = [];
   for (const r of lines) {
     const t = r?.timestamp ? Date.parse(r.timestamp) : NaN;
-    if (!Number.isNaN(t)) stamps.push(t);
+    if (!Number.isNaN(t)) stamps.push({ t, asksPerson: asksPerson(r) });
     if (r?.type !== 'assistant' || !r.message?.usage || r.message.model === '<synthetic>') continue;
     byMsg.set(r.message.id ?? r.uuid, { model: r.message.model, u: r.message.usage });
   }
@@ -72,14 +89,17 @@ export function summarize(lines) {
     m.cacheRead += u.cache_read_input_tokens ?? 0;
     m.cacheWrite += u.cache_creation_input_tokens ?? 0;
   }
+  // [SCOPE 143 / T036] BEGIN — a gap is waiting only when it follows a question to a person (FR-025)
   let active = 0;
   let waiting = 0;
   for (let i = 1; i < stamps.length; i++) {
-    const gap = Math.max(0, stamps[i] - stamps[i - 1]);
-    if (gap <= ACTIVE_GAP_MS) active += gap; else waiting += gap;
+    const gap = Math.max(0, stamps[i].t - stamps[i - 1].t);
+    if (stamps[i - 1].asksPerson) waiting += gap; else active += gap;
   }
-  const start = stamps.length ? Math.min(...stamps) : null;
-  const end = stamps.length ? Math.max(...stamps) : null;
+  // [SCOPE 143 / T036] END
+  const times = stamps.map((s) => s.t);
+  const start = times.length ? Math.min(...times) : null;
+  const end = times.length ? Math.max(...times) : null;
   return { models, start, end, activems: active, waitingms: waiting };
 }
 
@@ -94,7 +114,7 @@ function toRecord(sum, extra) {
     id: extra.id,
     projectid: extra.projectid ?? null,
     aispecsessionid: null,
-    taskid: null,
+    taskid: extra.taskid ?? null,
     command: extra.command ?? null,
     kind: extra.kind,
     difficulty: null,
@@ -114,11 +134,11 @@ function toRecord(sum, extra) {
   };
 }
 
-export function buildSubagentRecord({ sessionId, agentId, agentType, transcriptPath, projectid }) {
+export function buildSubagentRecord({ sessionId, agentId, agentType, transcriptPath, projectid, taskid }) {
   if (!transcriptPath || !existsSync(transcriptPath)) return null;
   const command = typeof agentType === 'string' && LABEL.test(agentType) ? agentType : null;
   return toRecord(summarize(parseLines(transcriptPath)), {
-    id: deterministicId(`${sessionId}|subagent|${agentId}`), kind: 'subagent', command, projectid,
+    id: deterministicId(`${sessionId}|subagent|${agentId}`), kind: 'subagent', command, projectid, taskid,
   });
 }
 
@@ -137,7 +157,7 @@ function turnStart(r) {
 }
 
 /** One record per main-session turn (a turn starts at a real user prompt). */
-export function buildSessionRecords({ sessionId, transcriptPath, projectid }) {
+export function buildSessionRecords({ sessionId, transcriptPath, projectid, taskid }) {
   if (!transcriptPath || !existsSync(transcriptPath)) return [];
   const turns = [];
   for (const r of parseLines(transcriptPath)) {
@@ -149,7 +169,7 @@ export function buildSessionRecords({ sessionId, transcriptPath, projectid }) {
   const out = [];
   turns.forEach((t, i) => {
     const rec = toRecord(summarize(t.lines), {
-      id: deterministicId(`${sessionId}|turn|${i}`), kind: t.command ? 'command' : 'session', command: t.command, projectid,
+      id: deterministicId(`${sessionId}|turn|${i}`), kind: t.command ? 'command' : 'session', command: t.command, projectid, taskid,
     });
     if (rec) out.push(rec);
   });
@@ -168,19 +188,37 @@ export function readProjectId(root) {
 
 function sleepMs(ms) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); }
 
+// [SCOPE 143 / T039] BEGIN — pid-liveness lock so two writers never run fn() at once (FR-028)
+//
+// The prior lock gave up waiting after 8s and proceeded WITHOUT the lock, and treated any holder
+// older than 10s as "stale" and force-removed it — both let a second writer start fn() while the
+// first was still inside it, which is exactly the interleaved/lost-line failure FR-028 forbids.
+// Fix: a lock is only ever reclaimed once its owning pid is verifiably dead (process.kill(pid, 0)
+// throws ESRCH), never on a fixed timer. A holder that is merely slow keeps the lock no matter how
+// long it runs. There is no give-up path: a waiter blocks until it owns the lock.
+function isLockStale(lock) {
+  let pid;
+  try { pid = Number(readFileSync(join(lock, 'pid'), 'utf8')); } catch { return false; } // mid-creation; not stale
+  if (!pid) return false;
+  try { process.kill(pid, 0); return false; } catch { return true; } // ESRCH: owner is dead
+}
+
 function withLock(root, fn) {
   const lock = join(root, 'decisions', '.agentrun-log.lock');
   mkdirSync(dirname(lock), { recursive: true });
-  const until = Date.now() + 8000;
   for (;;) {
-    try { mkdirSync(lock); break; } catch {
-      try { if (Date.now() - statSync(lock).mtimeMs > 10000) rmSync(lock, { recursive: true, force: true }); } catch { /* gone */ }
-      if (Date.now() > until) break; // give up waiting; the id check below still protects most races
+    try {
+      mkdirSync(lock);
+      writeFileSync(join(lock, 'pid'), String(process.pid), 'utf8');
+      break;
+    } catch {
+      if (isLockStale(lock)) { try { rmSync(lock, { recursive: true, force: true }); } catch { /* raced with the real owner finishing */ } continue; }
       sleepMs(50);
     }
   }
   try { return fn(); } finally { rmSync(lock, { recursive: true, force: true }); }
 }
+// [SCOPE 143 / T039] END
 
 /** Append records whose id is not yet in the log. Returns the records actually written. */
 export function appendRecords(root, records) {
@@ -205,20 +243,21 @@ export function appendRecords(root, records) {
 export function capture(p) {
   const root = p.root;
   const projectid = readProjectId(root);
+  const taskid = getActiveTask(root, p.sessionId); // SPEC-143 T037, FR-026
   const event = p.event;
   let records = [];
   if (event === 'SubagentStop') {
-    const r = buildSubagentRecord({ sessionId: p.sessionId, agentId: p.agentId, agentType: p.agentType, transcriptPath: p.agentTranscriptPath, projectid });
+    const r = buildSubagentRecord({ sessionId: p.sessionId, agentId: p.agentId, agentType: p.agentType, transcriptPath: p.agentTranscriptPath, projectid, taskid });
     if (r) records = [r];
   } else if (event === 'PostToolUse') {
     // Backstop for a missed SubagentStop: derive the sidecar transcript path. Completed agents only.
     if (p.status === 'completed' && p.agentId && p.transcriptPath && p.sessionId) {
       const path = join(dirname(p.transcriptPath), p.sessionId, 'subagents', `agent-${p.agentId}.jsonl`);
-      const r = buildSubagentRecord({ sessionId: p.sessionId, agentId: p.agentId, agentType: p.agentType, transcriptPath: path, projectid });
+      const r = buildSubagentRecord({ sessionId: p.sessionId, agentId: p.agentId, agentType: p.agentType, transcriptPath: path, projectid, taskid });
       if (r) records = [r];
     }
   } else if (event === 'Stop') {
-    records = buildSessionRecords({ sessionId: p.sessionId, transcriptPath: p.transcriptPath, projectid });
+    records = buildSessionRecords({ sessionId: p.sessionId, transcriptPath: p.transcriptPath, projectid, taskid });
   }
   return appendRecords(root, records);
 }

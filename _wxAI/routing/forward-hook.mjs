@@ -2,13 +2,14 @@
 // [SCOPE 143 / T025] BEGIN — Stop / SessionStart hook entry that forwards agent runs, detached (FR-003)
 // Forward hook entry (SPEC-143 T025, FR-003). Registered for Stop (session end) and SessionStart
 // (catch-up for anything a dead network left behind). Reads and discards the hook JSON, starts
-// forward.mjs DETACHED and exits at once, so the session never waits on the network. Never prints,
-// always exits 0. On Stop the forward waits a few seconds first, so the capture worker started by the
-// same Stop event has written its record. Plain Node ESM, no dependencies.
+// forward.mjs DETACHED and exits at once, so the session never waits on the network. Exits 0.
+// On Stop the forward waits a few seconds first, so the capture worker started by the same Stop
+// event has written its record. Plain Node ESM, no dependencies.
 
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveTarget, readPendingStats } from './forward.mjs';
 
 const STOP_DELAY_MS = 5000;
 
@@ -21,6 +22,16 @@ process.stdin.on('end', () => {
     const event = input.hook_event_name;
     if (event && !['Stop', 'SessionStart'].includes(event)) return;
     const root = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
+    // [SCOPE 143 / T035] BEGIN — a missing token is reported, never silent (FR-024). Only the fact
+    // that nothing is configured and how many records are waiting; never a token value.
+    try {
+      const { source } = resolveTarget(root);
+      if (!source) {
+        const { pending } = readPendingStats(root);
+        process.stdout.write(`No agent-run token is stored for this project; ${pending} record(s) waiting to send. Run kit:configure to send them.\n`);
+      }
+    } catch { /* this visibility line must never break a session */ }
+    // [SCOPE 143 / T035] END
     const script = join(dirname(fileURLToPath(import.meta.url)), 'forward.mjs');
     const args = [script, '--root', root, ...(event === 'Stop' ? ['--delay', String(STOP_DELAY_MS)] : [])];
     // Detached and unref'd: on Windows a non-detached child dies with the hook's process job.

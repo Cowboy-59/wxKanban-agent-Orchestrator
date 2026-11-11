@@ -94,6 +94,10 @@ before, and say so in one line.
   serves.
 - [ ] For each task:
   - Call `project.update_task_status` to mark `in_progress`
+  - **Set the active task (SPEC-143 / T037, FR-026)** before launching anything for it:
+    `node _wxAI/routing/active-task.mjs --set <Tnnn> --session <this session's id>`. This is how a
+    subagent's agent-run record ends up carrying `taskid` — the capture hooks have no other way to
+    learn it.
   - Execute implementation logic — in a subagent on the resolved model for an `easy` or `moderate`
     task, in the main session for a `heavy` one
   - Task subagents run one at a time. With `--cap=<n>` above 1, up to n tasks marked `[P]` that
@@ -105,6 +109,9 @@ before, and say so in one line.
     which logs the escalation; a task that reaches `heavy` continues in the main session
   - On completion, mark as `done`
   - Capture any blockers as `blocked`
+  - **Clear the active task** once the task is `done` or `blocked`:
+    `node _wxAI/routing/active-task.mjs --clear --session <this session's id>` — so a later,
+    unrelated task (or idle time) is never misattributed to this one
 
 ### Phase 3: Generate Report
 - [ ] Calculate completion percentage

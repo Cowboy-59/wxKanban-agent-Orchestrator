@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { mkdtempSync, rmSync, existsSync, mkdirSync, writeFileSync } from "fs";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, rmSync, existsSync, mkdirSync, writeFileSync, readFileSync } from "fs";
 import { tmpdir } from "os";
 import { join, dirname } from "path";
 import {
   handleKitStatusCommand,
   renderText,
   formatUptime,
+  summarizeRouting,
   EXPECTED_SERVICES,
 } from "../../core/orchestrator/command-handlers/kit-status";
 import {
@@ -101,6 +102,57 @@ describe("kit:status — JSON output", () => {
     expect(parsed.summary.missing).toBe(EXPECTED_SERVICES.length);
   });
 });
+
+// [SCOPE 143 / T035] BEGIN — kit:status reports the missing token and the waiting count (FR-024)
+describe("summarizeRouting — missing-token visibility (T035, FR-024)", () => {
+  const repoRoot = join(__dirname, "..", "..", "..");
+  let projectRoot: string;
+  let home: string;
+  let savedHome: string | undefined;
+  let savedUrl: string | undefined;
+  let savedToken: string | undefined;
+
+  beforeEach(() => {
+    projectRoot = mkdtempSync(join(tmpdir(), "kit-status-routing-"));
+    const routing = join(projectRoot, "_wxAI", "routing");
+    mkdirSync(routing, { recursive: true });
+    for (const f of ["install.mjs", "token-store.mjs", "forward.mjs", "log.mjs"]) {
+      writeFileSync(join(routing, f), readFileSync(join(repoRoot, "_wxAI", "routing", f)));
+    }
+    mkdirSync(join(projectRoot, "decisions"), { recursive: true });
+    writeFileSync(
+      join(projectRoot, "decisions", "agentrun-log.jsonl"),
+      ["a", "b", "c"].map((id) => JSON.stringify({ id, projectid: "0192f0a8-1111-7000-8000-000000000001", model: "claude-haiku-5-5" })).join("\n") + "\n",
+    );
+    home = mkdtempSync(join(tmpdir(), "kit-status-home-"));
+    savedHome = process.env.WXAI_HOME;
+    savedUrl = process.env.WXAI_AGENTRUNS_URL;
+    savedToken = process.env.WXAI_AGENTRUNS_TOKEN;
+    process.env.WXAI_HOME = home;
+    delete process.env.WXAI_AGENTRUNS_URL;
+    delete process.env.WXAI_AGENTRUNS_TOKEN;
+  });
+
+  afterEach(() => {
+    if (savedHome === undefined) delete process.env.WXAI_HOME;
+    else process.env.WXAI_HOME = savedHome;
+    if (savedUrl === undefined) delete process.env.WXAI_AGENTRUNS_URL;
+    else process.env.WXAI_AGENTRUNS_URL = savedUrl;
+    if (savedToken === undefined) delete process.env.WXAI_AGENTRUNS_TOKEN;
+    else process.env.WXAI_AGENTRUNS_TOKEN = savedToken;
+    rmSync(projectRoot, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  it("reports no token stored and the count of records waiting to send, with no token value anywhere", () => {
+    const routing = summarizeRouting(projectRoot);
+    expect(routing.tokenStored).toBe(false);
+    expect(routing.waitingCount).toBe(3);
+    expect(routing.detail).toContain(", no project token on this machine (3 record(s) waiting to send)");
+    expect(routing.detail).not.toMatch(/Bearer|ey[A-Za-z0-9_-]{10,}/);
+  });
+});
+// [SCOPE 143 / T035] END
 
 describe("renderText", () => {
   it("prints alive line with parent status + uptime", () => {

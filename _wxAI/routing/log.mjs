@@ -5,7 +5,8 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 export const ROUTING_LOG_REL = join('decisions', 'routing-log.jsonl');
-export const EVENTS = ['model-choice', 'escalation', 'refusal', 'comparison', 'proposal', 'approval', 'override'];
+// [SCOPE 143 / T034] agentrun-rejected: the agent-runs server permanently refused a captured run (4xx), FR-023
+export const EVENTS = ['model-choice', 'escalation', 'refusal', 'comparison', 'proposal', 'approval', 'override', 'agentrun-rejected'];
 
 export function logEvent(root, event, now = () => new Date().toISOString()) {
   if (!event || !EVENTS.includes(event.event)) {

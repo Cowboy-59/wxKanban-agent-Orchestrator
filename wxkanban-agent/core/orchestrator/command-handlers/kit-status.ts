@@ -55,17 +55,24 @@ export interface RoutingSummary {
   hooks: RoutingHooksState;
   /** Whether this machine holds a project token for the forwarder; null when not checked. */
   tokenStored: boolean | null;
+  /** Records held back from forwarding (no task, no projectid, no stored token project); null when not checked (SCOPE 143 / T033, FR-022). */
+  heldCount: number | null;
+  /** Records the server permanently refused (4xx); only the T038 re-send script retries these; null when not checked (SCOPE 143 / T034, FR-023). */
+  rejectedCount: number | null;
+  /** Records waiting to send (unforwarded, unrejected); null when not checked. Surfaced alongside a missing token (SCOPE 143 / T035, FR-024). */
+  waitingCount: number | null;
   detail: string;
 }
 
 /**
- * Runs `_wxAI/routing/install.mjs --check` and `token-store.mjs --check`, both read-only. Never
- * throws and never prints a token: the token check reports only whether one is stored.
+ * Runs `_wxAI/routing/install.mjs --check`, `token-store.mjs --check`, and `forward.mjs --stats`,
+ * all read-only. Never throws and never prints a token: the token check reports only whether one
+ * is stored.
  */
 export function summarizeRouting(projectRoot: string): RoutingSummary {
   const routing = join(projectRoot, "_wxAI", "routing");
   const install = join(routing, "install.mjs");
-  if (!existsSync(install)) return { hooks: "absent", tokenStored: null, detail: "no routing kit in this project" };
+  if (!existsSync(install)) return { hooks: "absent", tokenStored: null, heldCount: null, rejectedCount: null, waitingCount: null, detail: "no routing kit in this project" };
   let hooks: RoutingHooksState = "missing";
   try {
     const r = spawnSync(process.execPath, [install, "--check", "--root", projectRoot], { encoding: "utf-8", windowsHide: true, timeout: 10_000 });
@@ -83,9 +90,41 @@ export function summarizeRouting(projectRoot: string): RoutingSummary {
       tokenStored = false;
     }
   }
+  // [SCOPE 143 / T033] BEGIN — surface held-record count from forward.mjs --stats (FR-022)
+  let heldCount: number | null = null;
+  // [SCOPE 143 / T034] BEGIN — surface the cumulative permanently-rejected count (FR-023)
+  let rejectedCount: number | null = null;
+  // [SCOPE 143 / T034] END
+  // [SCOPE 143 / T035] BEGIN — surface records waiting to send, for the missing-token message (FR-024)
+  let waitingCount: number | null = null;
+  // [SCOPE 143 / T035] END
+  const forwarder = join(routing, "forward.mjs");
+  if (existsSync(forwarder)) {
+    try {
+      const r = spawnSync(process.execPath, [forwarder, "--stats", "--root", projectRoot], { encoding: "utf-8", windowsHide: true, timeout: 10_000 });
+      const parsed = r.status === 0 ? JSON.parse(r.stdout ?? "") : null;
+      if (parsed && typeof parsed.held === "number") heldCount = parsed.held;
+      if (parsed && typeof parsed.rejected === "number") rejectedCount = parsed.rejected;
+      if (parsed && typeof parsed.pending === "number") waitingCount = parsed.pending;
+    } catch {
+      heldCount = null;
+      rejectedCount = null;
+      waitingCount = null;
+    }
+  }
+  // [SCOPE 143 / T033] END
   const fix = hooks !== "current" || tokenStored === false ? " — run kit:configure to set them up" : "";
-  const tokenText = tokenStored === null ? "" : tokenStored ? ", project token stored" : ", no project token on this machine";
-  return { hooks, tokenStored, detail: `hooks ${hooks}${tokenText}${fix}` };
+  // [SCOPE 143 / T035] BEGIN — a missing token names itself and the waiting count, never silent (FR-024)
+  const tokenText =
+    tokenStored === null
+      ? ""
+      : tokenStored
+        ? ", project token stored"
+        : `, no project token on this machine (${waitingCount ?? 0} record(s) waiting to send)`;
+  // [SCOPE 143 / T035] END
+  const heldText = heldCount ? `, ${heldCount} held (no task/project)` : "";
+  const rejectedText = rejectedCount ? `, ${rejectedCount} rejected (needs re-send)` : "";
+  return { hooks, tokenStored, heldCount, rejectedCount, waitingCount, detail: `hooks ${hooks}${tokenText}${heldText}${rejectedText}${fix}` };
 }
 // [SCOPE 143 / T026] END
 

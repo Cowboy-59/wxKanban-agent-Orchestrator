@@ -382,8 +382,13 @@ def _field_diagnostic(field, table, code, reason):
     return clean(payload)
 
 
-def validate_source_tables(tables, links=()):
-    """Pure pre-emission gate. Structured source recognition never approves mappings."""
+def validate_source_tables(tables, links=(), dialect=None):
+    """Pure pre-emission gate. Structured source recognition never approves mappings.
+
+    `dialect` lets a recognised Array/JSON/UUID field pass once it has an approved NATIVE target
+    (currently PostgreSQL only - see native_target_type) even with no --type-map override; without
+    a dialect (or on a dialect with no native target) it still requires one, exactly as before.
+    """
     diagnostics = []
     for table, fields in tables:
         names = {}
@@ -399,7 +404,8 @@ def validate_source_tables(tables, links=()):
                 code = "TYPE_DECLARATION_INCOMPLETE"
             elif kind == "unknown":
                 code = "SOURCE_TYPE_UNKNOWN"
-            elif kind in ("array", "json", "uuid") and field.get("mapping_status") != "operator":
+            elif kind in ("array", "json", "uuid") and field.get("mapping_status") != "operator" \
+                    and native_target_type(field, dialect) is None:
                 code = "TARGET_MAPPING_UNRESOLVED"
             if code:
                 diagnostics.append(_field_diagnostic(field, table, code, "Source retained; no approved target mapping"))
@@ -1361,10 +1367,72 @@ def render_unmatched_report(unmatched):
     return "\n".join(out) + "\n"
 
 
+# Native PostgreSQL rendering for Array/JSON/UUID source types — the owner-approved direction in
+# Bugs/Adrian/TYPE-MAPPING-SPECIFICATION.md (ShopMaster Phoenix Stage 3, 282 fields, all 40 tables).
+# Before this, array/json/uuid had NO entry in TYPEMAP, so col_type() refused every one of them
+# until the operator passed --type-map to pick a SCALAR fallback — there was no way to keep the
+# structure at all. PostgreSQL is the only dialect with an approved native target; other dialects
+# keep requiring an explicit --type-map scalar fallback, same as before this fix.
+#
+# Element kind -> base PostgreSQL scalar, before the trailing "[]". Integers are handled separately
+# below because the signed/unsigned WIDTH decides INTEGER vs BIGINT (same rule as derive_byte_type).
+# Currency/Decimal both render as unconstrained NUMERIC - never the scalar NUMERIC(18,4)/(24,6)
+# defaults, which the spec explicitly forbids leaking into array fields with no source precision
+# evidence.
+_ARRAY_ELEMENT_PG = {
+    "boolean": "BOOLEAN", "decimal": "NUMERIC", "currency": "NUMERIC",
+    "date": "DATE", "time": "TIME",
+}
+
+
+def _array_element_pg_type(element, fallback_width):
+    """Base PostgreSQL scalar for one array element descriptor (recognize_source_type's 'element'),
+    or None if the element shape is not one this kit can render yet."""
+    if not element:
+        return None
+    kind = element.get("kind")
+    if kind == "integer":
+        widths = _UNSIGNED_WIDTHS if element.get("unsigned") else _SIGNED_WIDTHS
+        for width, key in widths:
+            if element["bytes"] <= width:
+                return "BIGINT" if key in ("int8", "uint4") else "INTEGER"
+        return "BIGINT"
+    if kind == "string":
+        return "VARCHAR({})".format(element.get("width") or fallback_width or 255)
+    return _ARRAY_ELEMENT_PG.get(kind)
+
+
+def native_target_type(f, dialect):
+    """Native PostgreSQL rendering for a recognised Array/JSON/UUID source type, or None when this
+    dialect/shape has no approved native target (the caller then falls back to the existing
+    TYPEMAP/--type-map error, exactly as before this fix)."""
+    if dialect != "postgres" or f["key"] not in ("array", "uuid", "json"):
+        return None
+    descriptor = f["source_type"]
+    if descriptor.get("kind") == "uuid":
+        return "UUID"
+    if descriptor.get("kind") == "json":
+        return "JSON"  # native json, never jsonb - see TYPE-MAPPING-SPECIFICATION.md "JSON and UUID"
+    if descriptor.get("kind") == "array":
+        base = _array_element_pg_type(descriptor.get("element"), f.get("size"))
+        return f"{base}[]" if base else None
+    return None
+
+
 def col_type(f, dialect):
     tm = TYPEMAP[dialect]
     if f["key"] == "composite":
         return None  # composite key pseudo-item: not a real column
+    if f["key"] in ("array", "uuid", "json"):
+        native = native_target_type(f, dialect)
+        if native:
+            return native
+        sys.exit(
+            f"schema-to-sql: {f['hfsql']} has no native {dialect} target.\n"
+            f"  Field: {f['name']}\n"
+            f"  PostgreSQL has an approved native target for this source type (array/json/uuid); "
+            f"for {dialect}, pass --type-map \"<label>=<key>\" to choose a scalar fallback."
+        )
     if f["key"] not in tm:
         # This used to fall back to VARCHAR(255). A recognised HFSQL type that is missing from one
         # dialect's map would then emit a plausible column of the WRONG type — a number or a date
@@ -1953,7 +2021,7 @@ def main():
     link_diagnostics = []
     if renamed:
         links = apply_renames_to_links(links, renamed, diagnostics=link_diagnostics)
-    blockers = validate_source_tables(tables, links) + link_diagnostics
+    blockers = validate_source_tables(tables, links, dialect=args.dialect) + link_diagnostics
     if blockers:
         return report_unmapped(blockers, args.out)
     _, fk_review = plan_foreign_keys(tables, links)
