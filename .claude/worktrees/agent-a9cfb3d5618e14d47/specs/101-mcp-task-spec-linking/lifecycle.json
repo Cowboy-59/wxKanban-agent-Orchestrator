@@ -1,0 +1,76 @@
+{
+  "specNumber": "101",
+  "specId": "eb918170-1b58-41b8-8b06-0514db7de830",
+  "featureName": "MCP Task Spec Linking",
+  "scope": "SCOPE-101",
+  "status": "implementing",
+  "phase": "implementation",
+  "currentPhase": "implementation",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 12,
+    "tasksCompleted": 6,
+    "percentage": 50
+  },
+  "timeline": {
+    "created": "2026-08-04T23:12:09.981Z",
+    "phaseStarted": "2026-08-04T23:12:09.981Z",
+    "lastReconciled": "2026-08-04T23:12:09.981Z"
+  },
+  "phases": [
+    {
+      "name": "design",
+      "status": "complete",
+      "startedAt": "2026-07-18T00:00:00.000Z",
+      "completedAt": "2026-08-04T00:00:00.000Z",
+      "note": "SCOPE-101 authored 2026-07-18; Amendment A approved section by section 2026-08-04, pulling report Issues 3 and 4 in-scope."
+    },
+    {
+      "name": "implementation",
+      "status": "in_progress",
+      "startedAt": "2026-07-18T00:00:00.000Z",
+      "completedAt": null,
+      "note": "T001-T006 shipped and verified live before this spec row existed. T007-T012 (Amendment A) not started."
+    },
+    { "name": "qa", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "human_testing", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "beta", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "released", "status": "pending", "startedAt": null, "completedAt": null }
+  ],
+  "tasks": {
+    "done": ["T001", "T002", "T003", "T004", "T005", "T006"],
+    "open": ["T007", "T008", "T009", "T010", "T011", "T012"]
+  },
+  "deploymentSurfaces": {
+    "hostedMcp": {
+      "tasks": ["T001", "T002", "T003", "T004", "T005", "T006", "T008"],
+      "reachesProductionVia": "push to main (auto-deploys app + MCP)"
+    },
+    "kitSource": {
+      "tasks": ["T007", "T009", "T010", "T011", "T012"],
+      "reachesConsumersVia": "sync-to-orchestrator --release",
+      "note": "A consumer on an older kit keeps the duplicating dbpush until they upgrade — the half that protects users has the slower delivery path."
+    }
+  },
+  "compliance": {
+    "frameworks": ["SOC2"],
+    "controls": ["CC8.1"],
+    "note": "CC8.1 requires every production change to trace to a tracked item recording what changed, why, and who approved it. A sync tool that silently duplicates makes the tracked item cease to be a record of the change."
+  },
+  "verificationBaseline": {
+    "capturedAt": "2026-08-04",
+    "dbpushScopedDryRun": "created 1 / updated 0 / tasks created 11 against existing spec 112 holding 10 tasks",
+    "dbpushProjectDryRun": "85 created / 0 updated / 811 tasks (2026-07-30)",
+    "listOpenItemsSpecIdentity": "0 of 100 task rows"
+  },
+  "openQuestions": [
+    "Should the created>0 && updated==0 guard become FR-013, or does the root-cause fix make it redundant?",
+    "Is the document title separator defect (T011) real? Never observed — its code path never executed.",
+    "Should cockpit_summary gain paging later, given it returns only incomplete tasks?"
+  ],
+  "notes": [
+    "SCOPE-101 had no spec row until 2026-08-04 — a 160-document scan covering its 2026-07-18 creation found neither a Scope 101 nor a Spec 101 row. This spec closes that gap and gives the hand-authored [SCOPE 101 / T001..T006] fences DB rows to resolve against.",
+    "Created via project.create_specs with preflight score 100 (0 blocking issues, 0 warnings), verified locally against shared/preflight before the call.",
+    "dbpush was NOT used and must not be — it is the defect this spec fixes."
+  ]
+}

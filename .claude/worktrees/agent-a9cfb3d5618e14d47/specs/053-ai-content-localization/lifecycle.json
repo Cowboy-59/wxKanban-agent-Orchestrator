@@ -1,0 +1,8 @@
+{
+  "specNumber": "053",
+  "featureName": "AI Content Localization & Cross-Language Review",
+  "phase": "design",
+  "priority": "high",
+  "progress": { "tasksTotal": 8, "tasksCompleted": 0, "percentage": 0 },
+  "timeline": { "created": "2026-06-13T00:00:00.000Z", "phaseStarted": "2026-06-13T00:00:00.000Z" }
+}

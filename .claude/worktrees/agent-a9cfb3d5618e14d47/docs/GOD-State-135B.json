@@ -1,0 +1,50 @@
+{
+  "mode": "new-project",
+  "note": "Existing-project amendment run (second, after SPEC-148): G.O.D. drives SCOPE-135 Amendment B / SPEC-135 T016 only. No --create, so every gate goes to Andy and G.O.D. runs no git unless Andy says commit. Kept in its own file so docs/GOD-State.json (the SPEC-148 run) is not overwritten. G.O.D. has no amendment mode yet (feedback e04c7ed1).",
+  "customer": "wxKanban",
+  "level": "senior",
+  "buildFor": "internal",
+  "limit": 1,
+  "phase": "implement",
+  "position": {
+    "planPhase": 1,
+    "unit": "SPEC-135",
+    "gate": "T016 not started. Step 2 done 2026-10-28: FR-017..FR-022 copied into specs/135-.../spec.md from the scope doc (additions only); FR-017 extended in BOTH the scope doc and spec.md to cover dataRequirements, apiRoutes, frontendComponents, keyEntities (Andy approved 'yes' 2026-10-28)."
+  },
+  "nextAction": "Implement T016 (heavy, >5 files; session model, no subagent fan-out needed). (1) mcp-server/src/utils/scope-merge.ts: add functionalRequirements, userScenarios, dataRequirements, apiRoutes, frontendComponents, keyEntities to ScopeEditFields and to hasEdit (line ~37-53, ~289). (2) mcp-server/src/utils/project-kit.ts ~1573-1585: pass the six fields to mergeScopeEdit; the reply at ~1702 'unchanged - no fields were supplied' must name any supplied field it did not apply. (3) add edits:[{op,target,content}] (add|replace|remove; FR-003, US2, FR-003/AC2) to BuildScopeInputSchema (utils/schemas.ts ~1306-1317) and BOTH advertised schemas in server.ts (~5818; server.ts has another session's UNCOMMITTED edits - git diff it first, change only the buildscope schema). (4) item parser reuses the FR/US heading rules of shared/preflight/src/completeness.ts. (5) tests in mcp-server tests; mcp-server build + suites. Fence label [SCOPE 135 / T016]. Change Impact approvals are Andy's. T017-T021 are separate tasks.",
+  "stageAdvanced": false,
+  "stoppedAt": null,
+  "scopes": [
+    {
+      "key": "SCOPE-135-B",
+      "title": "buildscope Carries the Author's Real Requirements - Amendment B: surgical edits",
+      "planPhase": 1,
+      "dependsOn": [],
+      "scopeNumber": "135",
+      "scopeFile": "specs/Project-Scope/135-buildscope-carries-real-requirements.md",
+      "requirementsReal": true,
+      "specs": ["135"],
+      "implement": "pending",
+      "tasksDone": ["T001","T002","T003","T004","T005","T006","T007","T008","T009","T010","T011","T012","T013","T014"],
+      "tasksOpen": ["T015","T016","T017","T018","T019","T020","T021"],
+      "testPlan": null,
+      "helper": null
+    }
+  ],
+  "designDecisions": [
+    "Step 2 used a hand copy, not project.create_specs: create_specs regenerates spec.md/tasks.md/plan.md from its generators and would overwrite the hand-written T001-T021 task detail and statuses.",
+    "Root cause confirmed in code 2026-10-28: project-kit.ts 1573-1585 passes only nine fields to mergeScopeEdit, so an edit supplying only the six requirement/technical inputs returns 'unchanged - no fields were supplied'. The scope doc claimed the four technical sections stay whole-section replace 'through the existing merge'; the merge never receives them. FR-017 now covers them.",
+    "T021 (release) ships with the write-safety batch after SCOPE-124 Amendment C; nothing is pushed or deployed by this run."
+  ],
+  "preexistingChanges": [
+    "mcp-server/src/server.ts",
+    "scripts/sync-to-orchestrator.mjs",
+    "specs/Project-Scope/135-buildscope-carries-real-requirements.md (Amendment B draft, uncommitted)",
+    "specs/135-buildscope-carries-real-requirements/tasks.md (Amendment B tasks, uncommitted)",
+    "specs/124-*, specs/Project-Scope/124-*, 019-*, 132-*, CONTEXT.md, decisions/ledger.yaml"
+  ],
+  "gateLog": [
+    { "at": "2026-10-28", "gate": "spec amendment + build order", "answer": "Andy: '1 yes, and 2 and 3 yes'", "source": "chat" }
+  ],
+  "repairs": []
+}

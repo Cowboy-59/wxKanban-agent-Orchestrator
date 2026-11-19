@@ -1,0 +1,233 @@
+#!/bin/sh
+# wxKanban Pre-Push Hook — auto-bump versions on push to main
+#
+# Three independent version floors are enforced for pushes to `main`:
+#
+#   1. APP     — src/client/version.ts `APP_VERSION`. Bumped on EVERY push to
+#                main whose pending range did not already touch version.ts.
+#   2. KIT     — wxkanban-agent/package.json `version` (orchestrator == kit:
+#                one package, one version). Bumped only when the pending range
+#                touched KIT content (the kit source or the consumer-facing
+#                commands/skills) but did NOT already bump that package.json.
+#                Guarantees adding/changing a command/skill moves the kit
+#                version, so customers get a visible signal something changed.
+#                Also re-stamps .wxkanban-project.json kitVersion.
+#   3. COCKPIT — vscode-extension/package.json `version`. Bumped only when the
+#                pending range touched vscode-extension/ but did NOT already
+#                bump that package.json.
+#
+# When anything is bumped, the hook commits the bump(s) and aborts the push
+# with a "re-run git push" message; the new commit is included on the re-run.
+#
+# Override: bump the relevant version file yourself + commit before pushing
+# (e.g. for a minor/major instead of patch). The hook sees your bump in the
+# pending range and skips that floor.
+#
+#   - Non-main pushes and deletes (sha = all-zeros): no-op.
+
+APP_VERSION_FILE="src/client/version.ts"
+KIT_PKG_FILE="wxkanban-agent/package.json"
+# KIT content = anything customers receive as "the kit": what sync-to-orchestrator
+# mirrors (wxkanban-agent/, ALL of _wxAI/, shared/) plus the .claude commands and
+# skills it ships. (Orchestrator == Kit: one package, one version.) Until 2026-10-17
+# this listed only _wxAI/commands/ and _wxAI/skills/, so a change to _wxAI/impact/
+# shipped under the version already published; a spare bump costs nothing.
+KIT_PATH_RE='^(wxkanban-agent/|_wxAI/|shared/|\.claude/commands/|\.claude/skills/)'
+COCKPIT_PKG_FILE="vscode-extension/package.json"
+COCKPIT_PATH_RE='^vscode-extension/'
+# HELP staleness — advisory only, never a gate. User-facing UI is the screens the
+# end-user help photographs and describes; the help SOURCES are what the two
+# renderers read (src/shared/help/ for the in-app page, docs-workspace/sections/
+# for the manual). Touching the first without the second is what makes help drift.
+UI_PATH_RE='^src/client/(pages|components)/'
+HELP_PATH_RE='^(src/shared/help/|docs-workspace/sections/)'
+HELP_STALE_MARKER=".wxai/help-stale.json"
+ZERO="0000000000000000000000000000000000000000"
+
+bump_patch() {
+  # echo "MAJOR.MINOR.(PATCH+1)" for the X.Y.Z passed in
+  _maj=$(echo "$1" | cut -d. -f1)
+  _min=$(echo "$1" | cut -d. -f2)
+  _pat=$(echo "$1" | cut -d. -f3)
+  echo "$_maj.$_min.$((_pat + 1))"
+}
+
+sed_inplace() {
+  # sed_inplace <expr> <file>
+  if [ "$(uname)" = "Darwin" ]; then
+    sed -i '' "$1" "$2"
+  else
+    sed -i "$1" "$2"
+  fi
+}
+
+while read local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main) ;;
+    *) continue ;;
+  esac
+
+  [ "$local_sha" = "$ZERO" ] && continue
+
+  if [ "$remote_sha" = "$ZERO" ]; then
+    files=$(git diff-tree --no-commit-id --name-only -r "$local_sha")
+  else
+    if [ "$(git rev-list --count "$remote_sha..$local_sha" 2>/dev/null)" = "0" ]; then
+      continue
+    fi
+    files=$(git diff --name-only "$remote_sha" "$local_sha")
+  fi
+
+  bumped=""
+
+  # ---- KIT floor: only when kit content changed and pkg not already bumped ----
+  if echo "$files" | grep -qE "$KIT_PATH_RE"; then
+    if ! echo "$files" | grep -qx "$KIT_PKG_FILE"; then
+      KIT_CUR=$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' "$KIT_PKG_FILE" | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+      if [ -z "$KIT_CUR" ]; then
+        echo "pre-push: cannot parse version from $KIT_PKG_FILE — aborting push" >&2
+        exit 1
+      fi
+      KIT_NEW=$(bump_patch "$KIT_CUR")
+      sed_inplace "s/\"version\": \"$KIT_CUR\"/\"version\": \"$KIT_NEW\"/" "$KIT_PKG_FILE"
+      git add "$KIT_PKG_FILE"
+      # Stamp the installed-version marker (.wxkanban-project.json kitVersion +
+      # kitReleaseSha) from the new package.json so the displayed version can
+      # never lag the source. Best-effort; never blocks the push on its own.
+      if command -v node >/dev/null 2>&1 && [ -f scripts/sync-kit-version.mjs ]; then
+        node scripts/sync-kit-version.mjs >/dev/null 2>&1 || true
+        git add .wxkanban-project.json 2>/dev/null || true
+      fi
+      bumped="${bumped}  KIT  $KIT_CUR -> $KIT_NEW  ($KIT_PKG_FILE)\n"
+    fi
+  fi
+
+  # ---- COCKPIT floor: only when vscode-extension changed and pkg not bumped --
+  if echo "$files" | grep -qE "$COCKPIT_PATH_RE"; then
+    if ! echo "$files" | grep -qx "$COCKPIT_PKG_FILE"; then
+      COCKPIT_CUR=$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' "$COCKPIT_PKG_FILE" | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+      if [ -z "$COCKPIT_CUR" ]; then
+        echo "pre-push: cannot parse version from $COCKPIT_PKG_FILE — aborting push" >&2
+        exit 1
+      fi
+      COCKPIT_NEW=$(bump_patch "$COCKPIT_CUR")
+      sed_inplace "s/\"version\": \"$COCKPIT_CUR\"/\"version\": \"$COCKPIT_NEW\"/" "$COCKPIT_PKG_FILE"
+      git add "$COCKPIT_PKG_FILE"
+      bumped="${bumped}  COCKPIT  $COCKPIT_CUR -> $COCKPIT_NEW  ($COCKPIT_PKG_FILE)\n"
+    fi
+  fi
+
+  # ---- APP floor: every push to main unless version.ts already bumped --------
+  if ! echo "$files" | grep -qx "$APP_VERSION_FILE"; then
+    APP_CUR=$(grep -oE "APP_VERSION = '[0-9]+\.[0-9]+\.[0-9]+'" "$APP_VERSION_FILE" | head -1 | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")
+    if [ -z "$APP_CUR" ]; then
+      echo "pre-push: cannot parse APP_VERSION from $APP_VERSION_FILE — aborting push" >&2
+      exit 1
+    fi
+    APP_NEW=$(bump_patch "$APP_CUR")
+    sed_inplace "s/APP_VERSION = '$APP_CUR'/APP_VERSION = '$APP_NEW'/" "$APP_VERSION_FILE"
+    git add "$APP_VERSION_FILE"
+    bumped="${bumped}  APP  $APP_CUR -> $APP_NEW  ($APP_VERSION_FILE)\n"
+  fi
+
+  # ---- HELP staleness: warn, never block ------------------------------------
+  # Runs only when nothing was bumped — i.e. on the push that actually goes out,
+  # so the notice appears once rather than on the bump-abort and again on the
+  # re-run. Advisory by design: a docs gate that blocks pushes gets bypassed with
+  # --no-verify within a week, and then it protects nothing.
+  if [ -z "$bumped" ]; then
+    ui_touched=$(echo "$files" | grep -E "$UI_PATH_RE" | grep -v '\.test\.' | grep -v '\.stories\.')
+    if [ -n "$ui_touched" ] && ! echo "$files" | grep -qE "$HELP_PATH_RE"; then
+      mkdir -p .wxai 2>/dev/null || true
+      {
+        echo "{"
+        echo "  \"markedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
+        echo "  \"since\": \"$(echo "$remote_sha" | cut -c1-8)\","
+        echo "  \"head\": \"$(echo "$local_sha" | cut -c1-8)\","
+        echo "  \"reason\": \"UI changed without a matching help update\","
+        echo "  \"clearWith\": \"/wxRefreshHelp\","
+        echo "  \"paths\": ["
+        echo "$ui_touched" | sed 's/.*/    "&",/' | sed '$ s/,$//'
+        echo "  ]"
+        echo "}"
+      } > "$HELP_STALE_MARKER" 2>/dev/null || true
+
+      _shown=$(echo "$ui_touched" | head -6)
+      _count=$(echo "$ui_touched" | grep -c .)
+      _more=""
+      [ "$_count" -gt 6 ] && _more="  … and $((_count - 6)) more"
+
+      cat >&2 <<EOF
+
+╔════════════════════════════════════════════════════════════════╗
+║  pre-push: help may be stale
+╚════════════════════════════════════════════════════════════════╝
+
+  $_count user-facing file(s) changed, no help source touched:
+
+$(echo "$_shown" | sed 's/^/    /')
+$_more
+
+  The in-app Help reads src/shared/help/; the manual reads
+  docs-workspace/sections/ plus screenshots of the live app.
+  Neither updates itself.
+
+  Run:  /wxRefreshHelp
+
+  Marked in $HELP_STALE_MARKER (local, gitignored) — that command
+  clears it. This is advisory; the push continues.
+
+EOF
+    fi
+
+    # [SCOPE 138 / T011] TEACHING bundle — advisory, never a gate (FR-010: the release
+    # checklist regenerates it). "Learn wxKanban with your AI" serves docs/teaching-skills/;
+    # when user-facing screens change, the lessons they teach may no longer match.
+    if [ -n "$ui_touched" ] && [ -f "docs/teaching-skills/.lessons.json" ]; then
+      _teach_ver=$(node -e "try{process.stdout.write(String(JSON.parse(require('fs').readFileSync('docs/teaching-skills/.lessons.json','utf8')).appVersion||'?'))}catch(e){process.stdout.write('?')}" 2>/dev/null)
+      cat >&2 <<EOF
+
+╔════════════════════════════════════════════════════════════════╗
+║  pre-push: teaching lessons may be stale
+╚════════════════════════════════════════════════════════════════╝
+
+  User-facing screens changed. The "Learn wxKanban with your AI"
+  lessons were generated for app version $_teach_ver.
+
+  Run:  node .claude/skills/wxHelpGenerate/scripts/teach.mjs stale
+  then /wxHelpGenerate --teach --stale for the lessons it flags.
+
+  This is advisory; the push continues.
+
+EOF
+    fi
+  fi
+
+  [ -z "$bumped" ] && continue
+
+  COMMIT_MSG="chore(version): auto-bump on push to main
+
+$(printf "%b" "$bumped")
+Auto-bumped by .husky/pre-push. Re-run \`git push\` to include this commit.
+For a minor/major bump, amend this commit before re-pushing."
+  git commit -m "$COMMIT_MSG"
+
+  cat >&2 <<EOF
+
+╔════════════════════════════════════════════════════════════════╗
+║  pre-push: version(s) auto-bumped
+╚════════════════════════════════════════════════════════════════╝
+
+$(printf "%b" "$bumped")
+A commit was created with the bump(s). Re-run:
+
+  git push
+
+to include it. For a minor/major bump instead of patch, edit the version
+file, then:  git commit --amend --no-edit
+
+EOF
+  exit 1
+done
+
+exit 0

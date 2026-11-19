@@ -1,0 +1,40 @@
+{
+  "wxkanban_rules_version": "0.10.11",
+  "last_synced": "2026-04-04T12:56:27.515Z",
+  "is_origin": true,
+  "description": "This is the wxKanban SOURCE project. This file defines the authoritative version of governance rules. Consumer projects sync FROM this version. When rules are updated here, increment wxkanban_rules_version and consumer projects will auto-update on next project open or AI session start.",
+  "files_managed": [
+    "specs/Project-Scope/015-AiInteraction.md",
+    "_wxAI/rules/constitution.md",
+    "_wxAI/rules/projectrules.md",
+    "_wxAI/rules/development-guidelines.md",
+    "_wxAI/rules/git.md",
+    "_wxAI/rules/bashtools.md",
+    "_wxAI/commands/wxAI-pipeline.md",
+    "_wxAI/commands/wxAI-implement-gate.md",
+    "_wxAI/commands/wxAI-pipeline-mandatory-database.md",
+    "_wxAI/commands/ENFORCEMENT_SUMMARY.md",
+    "AGENTS.md",
+    "coding-standards.md"
+  ],
+  "version_history": [
+    {
+      "version": "1.0.0",
+      "date": "2025-01-28",
+      "changes": [
+        "Initial release of AI governance framework",
+        "Scope-First enforcement rule established",
+        "Document protection and immutability rules added",
+        "Project startup auto-update check defined",
+        "Multi-AI provider compatibility rules added",
+        "TODO file linking requirements added",
+        "Training mode for untrained developers added",
+        "Anti-sycophancy rules added",
+        "Audit logging requirements added"
+      ]
+    }
+  ],
+  "minimum_consumer_version": "1.0.0",
+  "sync_source": "wxKanban",
+  "auto_update": false
+}

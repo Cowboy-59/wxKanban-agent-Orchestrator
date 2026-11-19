@@ -1,0 +1,15 @@
+{
+  "specNumber": "110",
+  "featureName": "Feedback Queue Hygiene",
+  "phase": "implementation",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 15,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-07-24T00:00:00.000Z",
+    "phaseStarted": "2026-07-24T00:00:00.000Z"
+  }
+}

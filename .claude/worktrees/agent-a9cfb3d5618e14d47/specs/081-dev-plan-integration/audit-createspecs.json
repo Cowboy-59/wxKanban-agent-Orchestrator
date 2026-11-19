@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-06-30T11:05:25.470Z",
+  "command": "createspecs",
+  "input": {
+    "specNumber": "081",
+    "featureName": "Dev Plan Integration",
+    "phase": "design"
+  },
+  "result": {
+    "specNumber": "081",
+    "featureName": "Dev Plan Integration",
+    "specDir": "specs\\081-dev-plan-integration",
+    "filesCreated": [
+      "specs\\081-dev-plan-integration\\spec.md",
+      "specs\\081-dev-plan-integration\\plan.md",
+      "specs\\081-dev-plan-integration\\tasks.md",
+      "specs\\081-dev-plan-integration\\tests.md",
+      "specs\\081-dev-plan-integration\\lifecycle.json",
+      "specs\\081-dev-plan-integration\\quickstart.md",
+      "specs\\081-dev-plan-integration\\checklists\\requirements.md"
+    ],
+    "tasksCreated": 14,
+    "testsGenerated": true,
+    "lifecycleGenerated": true
+  },
+  "user": "andy@wxperts.com"
+}

@@ -1,0 +1,548 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "wxKanban Invitation API",
+    "description": "Team member invitations, bulk operations, and acceptance",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/invitations/send": {
+      "post": {
+        "summary": "Send team member invitation(s)",
+        "description": "Send single or bulk invitations to email addresses (up to 50 per request). Emails sent asynchronously via job queue.",
+        "operationId": "sendInvitations",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["recipients"],
+                "properties": {
+                  "recipients": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "required": ["email", "role"],
+                      "properties": {
+                        "email": {
+                          "type": "string",
+                          "format": "email",
+                          "description": "Email address to invite"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": ["ADMIN", "MANAGER", "DEVELOPER"],
+                          "description": "Role to assign if accepted"
+                        }
+                      }
+                    },
+                    "description": "List of team members to invite"
+                  },
+                  "customMessage": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "nullable": true,
+                    "description": "Optional personalized message to include in all invitation emails"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Invitations queued successfully (emails sent asynchronously)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invitations queued. Emails will be sent shortly."
+                    },
+                    "batchId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "description": "Batch ID for tracking progress"
+                    },
+                    "invitations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "invitationId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email"
+                          },
+                          "role": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["PENDING"]
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "Invitation expires in 7 days"
+                          }
+                        }
+                      }
+                    },
+                    "queued": {
+                      "type": "integer",
+                      "example": 50,
+                      "description": "Number of invitations queued for sending"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (invalid email, role, or count)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "details": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/send-bulk": {
+      "post": {
+        "summary": "Send bulk invitations from CSV file",
+        "description": "Upload CSV file with email addresses and roles. Format: email,role (one per line)",
+        "operationId": "sendBulkInvitations",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["csvFile"],
+                "properties": {
+                  "csvFile": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV file with headers 'email' and 'role'. Max 50 rows."
+                  },
+                  "customMessage": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "Optional personalized message for all invitations"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Bulk invitations queued successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "batchId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "description": "Track bulk operation progress with this ID"
+                    },
+                    "queued": {
+                      "type": "integer",
+                      "example": 45,
+                      "description": "Number of valid invitations queued"
+                    },
+                    "invalid": {
+                      "type": "integer",
+                      "example": 5,
+                      "description": "Number of rows skipped due to validation errors"
+                    },
+                    "invalidRows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rowNumber": {
+                            "type": "integer"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "description": "Details of invalid rows"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/status/{batchId}": {
+      "get": {
+        "summary": "Get bulk invitation batch status",
+        "description": "Track progress of bulk email sending (via Socket.IO for real-time, HTTP endpoint for polling)",
+        "operationId": "getBatchStatus",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "batchId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["IN_PROGRESS", "COMPLETED", "PARTIAL_FAILURE"],
+                      "description": "Overall batch status"
+                    },
+                    "progress": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "example": 50
+                        },
+                        "sent": {
+                          "type": "integer",
+                          "example": 47,
+                          "description": "Successfully sent"
+                        },
+                        "failed": {
+                          "type": "integer",
+                          "example": 3,
+                          "description": "Failed (in dead-letter queue)"
+                        },
+                        "percentComplete": {
+                          "type": "number",
+                          "example": 94.0
+                        }
+                      }
+                    },
+                    "failedEmails": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "email": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "retryable": {
+                            "type": "boolean"
+                          }
+                        }
+                      },
+                      "description": "Emails that failed (can be retried if retryable=true)"
+                    },
+                    "completedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true,
+                      "description": "When batch completed sending (null if in progress)"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/accept/{invitationToken}": {
+      "post": {
+        "summary": "Accept invitation and create user account",
+        "description": "Called when user clicks invitation link in email. Creates user account with invited email and role.",
+        "operationId": "acceptInvitation",
+        "parameters": [
+          {
+            "name": "invitationToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Invitation token from email link"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["password", "firstName"],
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128,
+                    "description": "New account password (uppercase, lowercase, number, special char required)"
+                  },
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invitation accepted, user account created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Welcome! Your account has been created. You can now log in."
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": ["ADMIN", "MANAGER", "DEVELOPER"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["ACTIVE"]
+                        }
+                      }
+                    },
+                    "nextStep": {
+                      "type": "string",
+                      "example": "You can now log in and access your team's workspace"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid password or validation error"
+          },
+          "410": {
+            "description": "Invitation expired, revoked, or already accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": ["EXPIRED", "REVOKED", "ALREADY_ACCEPTED"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations": {
+      "get": {
+        "summary": "List all invitations for company",
+        "description": "Get list of pending and accepted invitations",
+        "operationId": "listInvitations",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["PENDING", "ACCEPTED", "EXPIRED", "REVOKED"],
+              "description": "Filter by status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of invitations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "invitationId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "email": {
+                        "type": "string",
+                        "format": "email"
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": ["ADMIN", "MANAGER", "DEVELOPER"]
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "invitedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "acceptedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/{invitationId}/revoke": {
+      "post": {
+        "summary": "Revoke pending invitation",
+        "description": "Cancel an invitation before it's accepted",
+        "operationId": "revokeInvitation",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invitation revoked"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

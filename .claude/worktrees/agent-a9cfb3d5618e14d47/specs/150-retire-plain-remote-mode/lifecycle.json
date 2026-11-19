@@ -1,0 +1,15 @@
+{
+  "specNumber": "150",
+  "featureName": "Retire Plain Remote Mode",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 9,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-28T00:35:15.674Z",
+    "phaseStarted": "2026-10-28T00:35:15.674Z"
+  }
+}

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Notion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#0075de;
+    --primary-active:#005bab;
+    --cta-bg:#0075de;
+    --on-primary:#ffffff;
+    --dark:#000000;
+    --canvas:#ffffff;
+    --canvas-soft:#f6f5f4;
+    --surface:#ffffff;
+    --surface-alt:#f1f1ef;
+    --surface-blue:#e6f3fe;
+    --ink:#1a1a1a;
+    --ink-secondary:#615d59;
+    --ink-muted:#757575;
+    --ink-faint:#a39e98;
+    --ink-placeholder:#a39e98;
+    --hairline:#e6e6e6;
+    --hairline-soft:#f1f0ee;
+    --r-xs:4px;--r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;--r-xxl:24px;--r-full:9999px;
+    --e1:0 0.175px 1.04px rgba(0,0,0,0.01), 0 0.8px 2.9px rgba(0,0,0,0.02), 0 2px 7.85px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04);
+    --e2:0 0.667px 3.5px rgba(0,0,0,0.008), 0 2.93px 7.25px rgba(0,0,0,0.016), 0 7.2px 14.46px rgba(0,0,0,0.02), 0 13.87px 28.35px rgba(0,0,0,0.024), 0 23.33px 52px rgba(0,0,0,0.03), 0 36px 89px rgba(0,0,0,0.04);
+    --font:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --display-size:84px;
+    --display-weight:600;
+    --section-size:34px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:10px;}
+  h1.display{font-size:var(--display-size);font-weight:var(--display-weight);line-height:1.04;letter-spacing:-2.6px;}
+  h2.sec{font-size:var(--section-size);font-weight:700;line-height:1.1;letter-spacing:-.9px;margin-bottom:14px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;}
+  .hero{padding:80px 0 64px;}
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-size:14px;font-weight:600;border:none;cursor:pointer;border-radius:var(--r-sm);padding:14px 24px;line-height:1.29;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--ink);padding:13px 23px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:11px 18px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:600;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:600;}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px 16px;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--primary);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:1/1;border-radius:var(--r-md);background:linear-gradient(135deg,var(--surface-alt),var(--hairline));position:relative;overflow:hidden;}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:var(--r-full);font-size:12px;font-weight:600;padding:5px 10px;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+  .listing .l-title{font-weight:600;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:15px;margin-top:2px;}
+  .listing .l-price{margin-top:6px;font-size:15px;}
+  .listing .l-price b{font-weight:600;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--primary);}
+  .plan .price{font-size:48px;font-weight:700;margin:14px 0 4px;line-height:1;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:var(--r-full);}
+  .s-ok{background:var(--surface-blue);color:var(--primary-active);}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-lg);padding:36px;box-shadow:var(--e1);}
+  .auth h3{font-size:28px;font-weight:700;margin:4px 0 24px;letter-spacing:-.5px;}
+  .auth label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:var(--r-sm);background:#fff;padding:13px;font-size:14px;font-weight:600;cursor:pointer;}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:48px;letter-spacing:-1.5px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Notion</h1>
+  <p class="lede" style="margin-top:28px;">A warm, near-monochrome workspace aesthetic — paper-white surfaces over a soft oatmeal canvas, near-black warm ink, and a single confident blue carrying every CTA and link, with a playful saturated accent set kept strictly inside the product illustrations.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Get Notion free</button>
+    <button class="btn btn-secondary">Request a demo</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <p class="lede">A warm greyscale doing nearly all the work, spiked by one decisive action blue. The saturated accents below are an <b>illustration</b> palette — they never appear as interface chrome.</p>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">NotionInter — a custom cut of Inter — shown here via Google Fonts <b>Inter</b>, the nearest faithful substitute. Hierarchy is built through size and tight negative tracking; weight stays within 400 / 500 / 700.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Get Notion free</button><div class="desc">Solid action blue (#0075de), white text, 8px radius — the single highest-emphasis control.</div></div>
+    <div class="ccard"><div class="lbl">button-dark</div><button class="btn btn-dark">Download app</button><div class="desc">Pure-black fill for secondary emphasis and app-download moments on light sections.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">Request a demo</button><div class="desc">Outlined variant — a 1px ink border on white, or a light-blue tinted fill with blue text.</div></div>
+    <div class="ccard"><div class="lbl">button-pill</div><button class="btn btn-pill">What's new</button><div class="desc">Full-radius chip used for "what's new" tags, filters, and toggles.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Templates</a><a href="#">Pricing</a><div class="desc">Inline links inherit ink and underline; action links switch to the brand blue.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Cards rest flat on a hairline border and lift with a soft, multi-layer shadow on hover. Radius is 12px, with a media tile filling the top.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Search templates…"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Add a comment…"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">A 4px base unit expands through a 4 · 8 · 12 · 16 · 24 · 32 · 48 scale that maps cleanly onto the type rhythm.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">8px is the default for buttons and inputs. The system tops out at 16px plus true pills — nothing bubbly.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The resting state for almost every card.</div>
+    <div class="e l1">Level 1 — a four-layer soft shadow (1–4% black) topping out at 4px / 18px blur. Used on hover.</div>
+    <div class="e l2">Level 2 — a six-layer diffuse shadow fanning out to 36px / 89px for popovers and modals.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Single column; hero display drops to ~48px; nav collapses to a menu.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Four-column card rows fold to two; gutters tighten.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Full multi-column grid returns within the ~1200px column.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Centred column with wide outer margins; display type at full scale.</td></tr>
+  </table>
+  <p class="note">The layout trusts whitespace and faint top-rules — not heavy bands — to separate sections, keeping the premium, document-first feel at every width.</p>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Pricing Tiers</h2>
+  <p class="lede">Pattern demonstration with representative Notion-style tiers — the featured plan inverts to the pure-black surface.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Free</span></div><div class="price">$0<span>/seat / mo</span></div><div class="blurb">For individuals organizing every corner of work and life.</div><ul><li>Unlimited pages for one person</li><li>7-day page history</li><li>Basic page analytics</li><li>Notion AI trial included</li></ul><button class="btn btn-block-dark">Get started</button></div>
+    <div class="plan feat"><div class="tier"><span>Plus</span><span class="pop">● Most popular</span></div><div class="price">$12<span>/seat / mo</span></div><div class="blurb">For small teams that need to plan and collaborate together.</div><ul><li>Unlimited blocks for teams</li><li>Unlimited file uploads</li><li>30-day page history</li><li>Custom automations</li></ul><button class="btn btn-block-dark">Get Notion free</button></div>
+    <div class="plan"><div class="tier"><span>Business</span></div><div class="price">$24<span>/seat / mo</span></div><div class="blurb">For companies running their whole operation in one place.</div><ul><li>SAML single sign-on</li><li>Private team spaces</li><li>90-day page history</li><li>Advanced page analytics</li></ul><button class="btn btn-block-dark">Request a demo</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Data Table</h2>
+  <p class="lede">A Notion-database-style view — status carried by full-radius pills tinted from the palette rather than loud colour.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>ID</th><th>Task</th><th>Owner</th><th>Status</th><th>When</th></tr>
+      <tr><td>NOT-418</td><td>Draft Q3 launch brief</td><td>A. Rivera</td><td><span class="status s-ok">Done</span></td><td>2h ago</td></tr>
+      <tr><td>NOT-417</td><td>Refresh template gallery</td><td>M. Chen</td><td><span class="status s-pend">In progress</span></td><td>5h ago</td></tr>
+      <tr><td>NOT-415</td><td>Wiki information architecture</td><td>S. Patel</td><td><span class="status s-ok">Done</span></td><td>Yesterday</td></tr>
+      <tr><td>NOT-412</td><td>AI agent onboarding flow</td><td>J. Wells</td><td><span class="status s-pend">In progress</span></td><td>2d ago</td></tr>
+      <tr><td>NOT-409</td><td>Pricing page copy review</td><td>L. Osei</td><td><span class="status s-pend">In review</span></td><td>3d ago</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Auth Forms</h2>
+  <p class="lede">Quiet, centred cards with a single blue primary action and an SSO fallback below a hairline divider.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@company.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Google</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Try Notion free</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@company.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Google</button></div>
+  </div>
+</div></section>
+
+<script>
+const colors = [
+  ["primary","#0075de","CTAs, links, action"],
+  ["primary-active","#005bab","Pressed · on light-blue"],
+  ["dark","#000000","Inverted bands & dark buttons"],
+  ["canvas","#ffffff","Page background / cards"],
+  ["canvas-soft","#f6f5f4","Warm oatmeal section tint"],
+  ["surface-alt","#f1f1ef","Sunken / hover fill"],
+  ["surface-blue","#e6f3fe","Info band · 2° button"],
+  ["ink","#1a1a1a","Body text"],
+  ["ink-secondary","#615d59","Warm secondary text"],
+  ["ink-muted","#757575","Tertiary / metadata"],
+  ["ink-faint","#a39e98","Captions / placeholder"],
+  ["hairline","#e6e6e6","Borders & dividers"],
+  ["accent-amber","#ffb110","Illustration only"],
+  ["accent-coral","#f64932","Illustration only"],
+  ["accent-purple","#ad6ded","Illustration only"],
+  ["accent-teal","#2a9d99","Illustration only"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","96px / 600 / 1.04 · -4.6px","The AI workspace","font-size:60px;font-weight:600;letter-spacing:-2.8px;line-height:1.04;color:var(--ink)"],
+  ["display-2","54px / 700 / 1.04 · -1.9px","Ship together","font-size:46px;font-weight:700;letter-spacing:-1.6px;line-height:1.05;color:var(--ink)"],
+  ["heading-1","40px / 400 / 1.1 · -1px","Built for teams and agents","font-size:38px;font-weight:400;letter-spacing:-1px;line-height:1.1;color:var(--ink)"],
+  ["heading-2","24px / 500 / 1.2 · -0.4px","One workspace, every team","font-size:24px;font-weight:500;letter-spacing:-0.4px;color:var(--ink)"],
+  ["heading-3","22px / 700 / 1.27 · -0.25px","Docs, wikis, and projects","font-size:22px;font-weight:700;letter-spacing:-0.25px;color:var(--ink)"],
+  ["title","20px / 500 / 1.3 · -0.2px","Connected and flexible","font-size:20px;font-weight:500;letter-spacing:-0.2px;color:var(--ink)"],
+  ["body-lg","20px / 400 / 1.5","Write, plan, and organize it all in one place.","font-size:20px;font-weight:400;color:var(--ink-secondary)"],
+  ["body-md","16px / 400 / 1.5","The workhorse reading size — used for nearly all paragraph copy across the marketing site, at a comfortable 1.5 line-height.","font-size:16px;font-weight:400;color:var(--ink-secondary)"],
+  ["body-sm","14px / 400 / 1.43","Supporting copy, footnotes, and dense UI labels.","font-size:14px;font-weight:400;color:var(--ink-secondary)"],
+  ["button","16px / 500","Get Notion free","font-size:16px;font-weight:500;color:var(--ink)"],
+  ["caption","12px / 500 / 1.3","Metadata & tag text","font-size:12px;font-weight:500;color:var(--ink-muted)"],
+  ["eyebrow","12px / 500 · 0.4px · UPPER","NEW IN NOTION","font-size:12px;font-weight:500;letter-spacing:0.4px;text-transform:uppercase;color:var(--ink-secondary)"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",8],["xs","8px",16],["sm","12px",24],["md","16px",32],["lg","24px",48],["xl","32px",64],["xxl","48px",96]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs","4px","4"],["sm","8px","8"],["md","12px","12"],["lg","16px","16"],["full","9999px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["Product roadmap","Template · Engineering","Plan sprints end to end","→","Popular"],
+  ["Company wiki","Template · Knowledge","One home for everything","→",""],
+  ["Meeting notes","Template · Teams","Capture every decision","→","New"],
+  ["CRM &amp; deals","Template · Sales","Track the whole pipeline","→",""]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

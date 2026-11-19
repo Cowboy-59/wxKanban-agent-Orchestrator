@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Vercel</title>
+<!--
+  SHOWCASE — Design System Extractor
+  Source: https://vercel.com/ (homepage "Agentic Infrastructure"), dark theme.
+  Tokens read live from getComputedStyle + the site's own Geist Design System
+  CSS variables (--ds-*, --geist-*). Geist is Vercel's own open-source typeface
+  (available on Google Fonts), so it is rendered authentically, not substituted.
+  The template ships light-theme-first; CSS below is adapted for Vercel's dark,
+  monochrome system.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#0072f5;            /* brand "Vercel blue" · --ds-blue-700 */
+    --primary-active:#0761d1;     /* --geist-success-dark */
+    --blue-link:#52a8ff;          /* link + focus on dark · --ds-blue-900 */
+    --cta-bg:#ededed;             /* inverted primary CTA surface · --ds-gray-1000 */
+    --on-primary:#0a0a0a;
+    --inverted:#ededed;
+    --canvas:#0a0a0a;             /* --ds-background-100 */
+    --canvas-soft:#000000;        /* --ds-background-200 */
+    --surface:#0a0a0a;            /* cards sit on canvas, drawn by a ring */
+    --surface-alt:#1a1a1a;        /* --ds-gray-100 — chips / sunken fill */
+    --ink:#ededed;                /* --ds-gray-1000 */
+    --ink-secondary:#a1a1a1;      /* --ds-gray-900 */
+    --ink-muted:#8f8f8f;          /* --ds-gray-700 */
+    --ink-faint:#7d7d7d;          /* --ds-gray-800 */
+    --ink-placeholder:#7d7d7d;
+    --hairline:#2e2e2e;           /* --ds-gray-400 — 1px rings */
+    --hairline-soft:#1f1f1f;      /* --ds-gray-200 — faint dividers */
+    --success:#45a557;            /* --ds-green-700 */
+    --warning:#f5a623;            /* --geist-warning */
+    --error:#e5484d;              /* --ds-red-700 */
+    --r-xs:2px;--r-sm:4px;--r-md:6px;--r-lg:8px;--r-xl:12px;--r-xxl:24px;--r-full:9999px;
+    --e1:0 0 0 1px #ffffff25, 0 1px 2px rgba(0,0,0,0.5);
+    --e2:0px 2px 2px rgba(0,0,0,0.32), 0px 8px 16px -4px rgba(0,0,0,0.4);
+    --font:'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    --mono:'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    --display-size:64px;
+    --display-weight:500;
+    --section-size:30px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-family:var(--mono);font-size:12px;font-weight:400;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-muted);margin-bottom:12px;}
+  h1.display{font-size:var(--display-size);font-weight:var(--display-weight);line-height:1.0;letter-spacing:-.05em;}
+  h2.sec{font-size:var(--section-size);font-weight:500;line-height:1.2;letter-spacing:-.02em;margin-bottom:14px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;}
+  .hero{padding:96px 0 64px;}
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-size:14px;font-weight:500;border:none;cursor:pointer;border-radius:var(--r-md);padding:11px 18px;line-height:1.29;font-family:var(--font);}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-accent{background:var(--primary);color:#fff;}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--hairline);padding:10px 17px;box-shadow:0 0 0 1px var(--hairline);}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:10px 18px;box-shadow:inset 0 0 0 1px var(--hairline);}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:14px;}
+  .swatch .hex{font-size:12px;color:var(--ink-secondary);margin:3px 0;font-family:var(--mono);}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:210px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);font-family:var(--mono);}
+  .row .spec b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:3px;font-family:var(--font);}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:12px;color:var(--ink-secondary);margin-bottom:16px;font-weight:500;font-family:var(--mono);}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--blue-link);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:500;}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-md);padding:11px 14px;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--surface-alt);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  input.field:focus,textarea.field:focus{outline:none;border-color:var(--blue-link);box-shadow:0 0 0 1px var(--blue-link);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--primary);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;font-family:var(--mono);}
+  .sp .t b{display:block;color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink-secondary);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);background:var(--surface-alt);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;font-family:var(--mono);}
+  .rad .t b{display:block;color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;font-family:var(--mono);}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:16/10;border-radius:var(--r-lg);background:linear-gradient(135deg,var(--surface-alt),#000);position:relative;overflow:hidden;border:1px solid var(--hairline);}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:var(--inverted);color:#0a0a0a;border-radius:var(--r-full);font-size:11px;font-weight:600;padding:4px 10px;}
+  .listing .l-title{font-weight:600;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;}
+  .listing .l-title span:last-child{color:var(--ink-faint);font-weight:400;font-family:var(--mono);font-size:12px;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:14px;margin-top:2px;}
+  .listing .l-price{margin-top:8px;font-size:13px;color:var(--blue-link);font-family:var(--mono);}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--inverted);color:#0a0a0a;border-color:var(--inverted);}
+  .plan .tier{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;font-family:var(--mono);}
+  .plan.feat .tier{color:#52525b;}
+  .plan .pop{color:var(--primary);}
+  .plan .price{font-size:46px;font-weight:600;margin:14px 0 4px;line-height:1;letter-spacing:-.02em;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);letter-spacing:normal;}
+  .plan.feat .price span{color:#52525b;}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:#3f3f46;}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(0,0,0,.15);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(0,0,0,.10);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block{background:var(--inverted);color:#0a0a0a;}
+  .plan.feat .btn-block{background:#0a0a0a;color:#ededed;}
+  .dt-wrap{border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;font-family:var(--mono);}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  table.dt td:first-child{font-family:var(--mono);color:var(--ink-secondary);}
+  .status{font-size:11px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:var(--r-full);}
+  .s-ok{background:rgba(69,165,87,.14);color:#5dc873;}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);font-family:var(--mono);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--inverted);color:#0a0a0a;border-color:var(--inverted);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:36px;box-shadow:var(--e1);background:var(--surface);}
+  .auth h3{font-size:28px;font-weight:600;margin:4px 0 24px;letter-spacing:-.02em;}
+  .auth label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;font-family:var(--mono);}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;font-family:var(--mono);}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--hairline);border-radius:var(--r-md);background:transparent;color:var(--ink);padding:11px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font);}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:48px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Vercel</h1>
+  <p class="lede" style="margin-top:28px;">A near-black, almost monochrome system carried by a single near-white ink, structured with 1px hairlines instead of shadows, and accented by one electric blue — set in Vercel's own Geist typeface with Geist Mono for technical eyebrows.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Deploy Now</button>
+    <button class="btn btn-secondary">Talk to Sales</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Set in <b style="color:var(--ink)">Geist</b> — Vercel's own open-source grotesque — with <b style="color:var(--ink)">Geist Mono</b> for eyebrows and labels. Hierarchy is built through size and tight negative tracking far more than weight; the display tiers run a punishing −0.06em.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button · primary</div><button class="btn btn-primary">Deploy Now</button><div class="desc">The signature inverted CTA — near-white surface, near-black text. Maximum contrast, used sparingly.</div></div>
+    <div class="ccard"><div class="lbl">button · accent</div><button class="btn btn-accent">Start Building</button><div class="desc">The lone saturated action — Vercel blue (#0072f5), reserved for high-intent or informational CTAs.</div></div>
+    <div class="ccard"><div class="lbl">button · secondary</div><button class="btn btn-secondary">View Docs</button><div class="desc">Dark surface with a 1px hairline ring — the default for secondary actions.</div></div>
+    <div class="ccard"><div class="lbl">button · pill</div><button class="btn btn-pill">Ask AI</button><div class="desc">Fully-rounded utility control for chips, filters, and assistive actions.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Documentation</a><a href="#">Templates</a><div class="desc">Inline links use the dark-mode blue (#52a8ff) with an underline.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Cards rarely take a fill — they sit on the canvas and are drawn by a single 1px ring, lifting to a brighter white-alpha ring only on hover.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Search projects…"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Add a deployment note…"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">Built on a 4px base unit (<span style="font-family:var(--mono)">--geist-space</span>); 24px is the default column and section gutter.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">A small, tight radius family — 6px is the workhorse default; the full pill handles CTAs, tags, and avatars.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The resting state of every card and button (ring at #2e2e2e).</div>
+    <div class="e l1">Level 1 — a brightened white-alpha ring on hover, plus a faint drop shadow.</div>
+    <div class="e l2">Level 2 — true float: menus, popovers, and modals (--ds-shadow-medium).</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Single column; fluid clamp() type scales the 64px display down; CTAs go full-width.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Two-column grids; primary nav condenses to a menu.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Three- and four-column grids; content held within the 1400px max width.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Full 1400px canvas with 24px margins; hero gives one object the centre.</td></tr>
+  </table>
+  <p class="note"><b>Token-first responsiveness.</b> Type and spacing interpolate continuously via clamp()-based <span style="font-family:var(--mono)">--text-fluid-*</span> and <span style="font-family:var(--mono)">--spacing-fluid-*</span> variables, so sizes glide between breakpoints rather than snapping — there are very few hard layout jumps.</p>
+</div></section>
+
+<!-- Pricing / Data Table / Auth: Vercel ships all three; content below is brand-accurate, rendered in the extracted tokens. -->
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:46px;">Pricing Tiers</h2>
+  <p class="lede">Vercel's real plan structure, rendered in the system's own tokens — the featured tier flips to the inverted white surface.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Hobby</span></div><div class="price">$0<span>/mo</span></div><div class="blurb">For personal projects and experimentation.</div><ul><li>100 GB bandwidth</li><li>Automatic CI/CD</li><li>Preview deployments</li><li>Community support</li></ul><button class="btn btn-block">Start Deploying</button></div>
+    <div class="plan feat"><div class="tier"><span>Pro</span><span class="pop">● Most popular</span></div><div class="price">$20<span>/mo</span></div><div class="blurb">For professional developers and teams shipping to production.</div><ul><li>1 TB bandwidth</li><li>Edge Functions &amp; Middleware</li><li>Team collaboration</li><li>Advanced analytics</li><li>Email support</li></ul><button class="btn btn-block">Get Started</button></div>
+    <div class="plan"><div class="tier"><span>Enterprise</span></div><div class="price">Custom</div><div class="blurb">For organizations with security and scale requirements.</div><ul><li>Custom bandwidth</li><li>SAML SSO &amp; SCIM</li><li>99.99% uptime SLA</li><li>Dedicated support</li><li>Audit logs</li></ul><button class="btn btn-block">Contact Sales</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:46px;">Data Table</h2>
+  <p class="lede">A deployments list — dense rows, hairline dividers, monospace IDs, and pill status chips.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>ID</th><th>Project</th><th>Environment</th><th>Status</th><th>When</th></tr>
+      <tr><td>dpl_9f2a4c</td><td>acme-store</td><td>Production</td><td><span class="status s-ok">Ready</span></td><td>2m ago</td></tr>
+      <tr><td>dpl_7b1e88</td><td>docs-site</td><td>Production</td><td><span class="status s-ok">Ready</span></td><td>14m ago</td></tr>
+      <tr><td>dpl_2c9d10</td><td>api-edge</td><td>Preview</td><td><span class="status s-pend">Building</span></td><td>just now</td></tr>
+      <tr><td>dpl_55a3f7</td><td>marketing</td><td>Preview</td><td><span class="status s-ok">Ready</span></td><td>1h ago</td></tr>
+      <tr><td>dpl_0e84bb</td><td>dashboard</td><td>Production</td><td><span class="status s-pend">Queued</span></td><td>3h ago</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:46px;">Auth Forms</h2>
+  <p class="lede">Sign-in surfaces use the same ringed cards, monospace labels, and the inverted primary button.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@company.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with GitHub</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Create your account</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@company.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with GitHub</button></div>
+  </div>
+</div></section>
+
+<script>
+// Tokens extracted live from vercel.com (dark theme). Format: ["name","#hex","role"(, bg)]
+const colors = [
+  ["canvas","#0a0a0a","Page background · --ds-background-100"],
+  ["canvas-deep","#000000","Deep bands, footer · --ds-background-200"],
+  ["surface-alt","#1a1a1a","Sunken fill, chips · --ds-gray-100"],
+  ["hairline","#2e2e2e","1px rings & borders · --ds-gray-400"],
+  ["ink","#ededed","Headings & body · --ds-gray-1000"],
+  ["ink-secondary","#a1a1a1","Supporting copy · --ds-gray-900"],
+  ["ink-muted","#8f8f8f","Eyebrows, meta · --ds-gray-700"],
+  ["inverted CTA","#ededed","Primary button surface"],
+  ["primary (blue)","#0072f5","Links, brand accent · --ds-blue-700"],
+  ["link / focus","#52a8ff","Link & focus on dark · --ds-blue-900"],
+  ["success","#45a557","Positive · --ds-green-700"],
+  ["warning","#f5a623","Caution · --geist-warning"],
+  ["error","#e5484d","Destructive · --ds-red-700"],
+  ["develop","#007cf0 → #00dfd8","Brand gradient (blue→cyan)","linear-gradient(135deg,#007cf0,#00dfd8)"],
+  ["preview","#7928ca → #ff0080","Brand gradient (purple→pink)","linear-gradient(135deg,#7928ca,#ff0080)"],
+  ["ship","#ff4d4d → #f9cb28","Brand gradient (red→amber)","linear-gradient(135deg,#ff4d4d,#f9cb28)"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","64 / 500 / 1.0 · -0.06em","Ship at the speed of thought","font-size:58px;font-weight:500;letter-spacing:-0.06em;line-height:1.0;color:var(--ink)"],
+  ["display-2","56 / 450 / 1.0 · -0.06em","Frameworks, superpowered","font-size:44px;font-weight:450;letter-spacing:-0.055em;line-height:1.0;color:var(--ink)"],
+  ["heading-1","30 / 500 / 1.2","Deploy in seconds, scale to zero","font-size:30px;font-weight:500;letter-spacing:-0.02em;color:var(--ink)"],
+  ["heading-2","24 / 500 / 1.33","Production-grade infrastructure","font-size:24px;font-weight:500;letter-spacing:-0.01em;color:var(--ink)"],
+  ["heading-3","20 / 500 / 1.4","Built for the edge","font-size:20px;font-weight:500;color:var(--ink)"],
+  ["title","22 / 400 / 1.3","The native Next.js platform","font-size:22px;font-weight:400;letter-spacing:-0.01em;color:var(--ink)"],
+  ["body-lg","16 / 400 / 1.5","The dominant body tier — calm, readable, and used for most prose and lede copy across the site.","font-size:16px;font-weight:400;color:var(--ink-secondary)"],
+  ["body-md","14 / 400 / 1.43","The workhorse of dense UI surfaces: navigation, table cells, captions, and controls.","font-size:14px;font-weight:400;color:var(--ink-secondary)"],
+  ["button","14 / 500 / 1.43","Deploy Now","font-size:14px;font-weight:500;color:var(--ink)"],
+  ["caption","12 / 400 / 1.33","Updated 2 minutes ago","font-size:12px;font-weight:400;color:var(--ink-faint)"],
+  ["eyebrow · mono","12 / 400 / 0.6px","FOR CODING AGENTS","font-family:var(--mono);font-size:12px;font-weight:400;letter-spacing:0.6px;text-transform:uppercase;color:var(--ink-muted)"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",8],["xs","8px",16],["sm","12px",24],["md","16px",32],["lg","24px",48],["xl","32px",64],["xxl","48px",96]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs","2px","2"],["sm","4px","4"],["md","6px","6"],["lg","8px","8"],["xl","12px","12"],["xxl","24px","24"],["full","9999px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["acme-store","Next.js · Production","vercel.app ↗","2m ago","Ready"],
+  ["docs-site","Nextra · Production","vercel.app ↗","14m ago","Ready"],
+  ["api-edge","Edge Functions · Preview","vercel.app ↗","just now","Building"],
+  ["marketing","Astro · Preview","vercel.app ↗","1h ago","Ready"]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

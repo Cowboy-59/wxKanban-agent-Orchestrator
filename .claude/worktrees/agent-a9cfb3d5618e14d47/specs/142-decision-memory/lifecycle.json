@@ -1,0 +1,15 @@
+{
+  "specNumber": "142",
+  "featureName": "Decision Memory",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 22,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-23T01:07:02.497Z",
+    "phaseStarted": "2026-10-23T01:07:02.497Z"
+  }
+}

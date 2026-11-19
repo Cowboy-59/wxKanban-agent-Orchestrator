@@ -1,0 +1,15 @@
+{
+  "specNumber": "043",
+  "featureName": "User Feedback",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 8,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-05-31T11:08:23.268Z",
+    "phaseStarted": "2026-05-31T11:08:23.268Z"
+  }
+}

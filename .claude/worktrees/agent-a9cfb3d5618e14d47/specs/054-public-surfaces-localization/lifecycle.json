@@ -1,0 +1,8 @@
+{
+  "specNumber": "054",
+  "featureName": "Public Surfaces Localization",
+  "phase": "design",
+  "priority": "medium",
+  "progress": { "tasksTotal": 4, "tasksCompleted": 0, "percentage": 0 },
+  "timeline": { "created": "2026-06-13T00:00:00.000Z", "phaseStarted": "2026-06-13T00:00:00.000Z" }
+}

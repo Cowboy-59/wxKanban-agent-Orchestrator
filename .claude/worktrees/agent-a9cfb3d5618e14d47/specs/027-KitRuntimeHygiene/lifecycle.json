@@ -1,0 +1,17 @@
+{
+  "specNumber": "027",
+  "featureName": "Kit Runtime Hygiene - Port Autoselect & Parent-Process Cleanup",
+  "phase": "released",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 33,
+    "tasksCompleted": 33,
+    "percentage": 100
+  },
+  "timeline": {
+    "created": "2026-05-13T00:00:00.000Z",
+    "phaseStarted": "2026-05-13T00:00:00.000Z",
+    "released": "2026-05-13T14:51:00.000Z"
+  },
+  "notes": "All 33 tasks done. Shipped as wxkanban-agent v0.3.0. Zero regressions across 210 kit tests. Spec 026 dogfood: every new module fenced under [SCOPE 027 / T<nnn>], auditfences --strict clean on the wxKanban tree."
+}

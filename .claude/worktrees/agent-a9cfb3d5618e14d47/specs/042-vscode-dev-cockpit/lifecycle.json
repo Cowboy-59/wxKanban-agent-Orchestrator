@@ -1,0 +1,17 @@
+{
+  "specNumber": "042",
+  "featureName": "VS Code Dev Cockpit",
+  "phase": "implementation",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 34,
+    "tasksCompleted": 34,
+    "percentage": 100
+  },
+  "timeline": {
+    "created": "2026-05-28T00:00:00.000Z",
+    "phaseStarted": "2026-05-28T00:00:00.000Z",
+    "implementationCompleted": "2026-05-28T00:00:00.000Z"
+  },
+  "notes": "Generated via createSpecs 042 in-conversation on 2026-05-28 (CLI bootstrap broken per feedback_orchestrator_cli_broken memory). 34 tasks across 7 phases. Read-only VS Code sidebar showing the current project's remaining work per scope; MCP-first transport chosen over the app REST API for client security. Critical path: T001 (decide read shape) -> T002/T003 (MCP read + scope-leak fix) unlock the extension data layer; Phase 2 scaffold runs in parallel. Only backend change is the single-project MCP cockpit read + scoping fix (Phase 1). Bug queue + AI-fix handoff deferred to the next scope (reserved UI slot). projectId ba924193-0335-4080-9fa6-33cd6b81300a. NOT yet pushed to DB: specs/projectlifecycle.md update + projectdocuments upsert + task rows are the follow-on dbpush step, gated on Andy."
+}

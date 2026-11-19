@@ -1,0 +1,17 @@
+# Terraform state — never commit.
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Local provider cache + lock + plan files.
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+
+# Real values (copy of tfvars.example with secrets filled in).
+terraform.tfvars
+*.auto.tfvars
+
+# Crash logs.
+crash.log
+crash.*.log

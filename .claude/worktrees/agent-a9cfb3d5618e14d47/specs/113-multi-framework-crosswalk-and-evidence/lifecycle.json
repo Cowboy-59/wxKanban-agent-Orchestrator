@@ -1,0 +1,104 @@
+{
+  "specNumber": "113",
+  "featureName": "Multi-Framework Crosswalk and Evidence",
+  "scope": "SCOPE-113",
+  "status": "implementing",
+  "phase": "implementation",
+  "currentPhase": "implementation",
+  "priority": "high",
+  "dependsOn": ["112"],
+  "progress": {
+    "tasksTotal": 11,
+    "tasksCompleted": 0,
+    "tasksPartial": 4,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-07-27T00:00:00.000Z",
+    "phaseStarted": "2026-07-28T00:00:00.000Z",
+    "lastReconciled": "2026-08-04T00:00:00.000Z"
+  },
+  "phases": [
+    {
+      "name": "design",
+      "status": "complete",
+      "startedAt": "2026-07-27T00:00:00.000Z",
+      "completedAt": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "name": "implementation",
+      "status": "in_progress",
+      "startedAt": "2026-07-28T00:00:00.000Z",
+      "completedAt": null,
+      "note": "Catalog work (T006, T007, T008) landed ahead of the crosswalk it was specified to depend on. Nothing is fully complete, because every one of those tasks also requires mappings that do not exist."
+    },
+    { "name": "qa", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "human_testing", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "beta", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "released", "status": "pending", "startedAt": null, "completedAt": null }
+  ],
+  "tasks": {
+    "done": [],
+    "partial": ["T006", "T007", "T008", "T010"],
+    "open": ["T001", "T002", "T003", "T004", "T005", "T009", "T011"]
+  },
+  "partialTasks": [
+    {
+      "id": "T006",
+      "title": "Seed the NIST SSDF control catalog with mappings",
+      "delivered": "0014_spec113_nistssdf_catalog.sql — 42 practices PO.1.1 through RV.3.4, 5 machine-checked, applied to production.",
+      "outstanding": "The 'with mappings' half. Rows use the single complianceaudittasks.framework column; compliancecontrolmappings does not exist, so the crosswalk-efficiency figure this task was ordered first to establish is still unmeasured."
+    },
+    {
+      "id": "T007",
+      "title": "Seed the ISO 27001 development control catalog with mappings",
+      "delivered": "0015_spec113_iso27001_catalog.sql — A.5.3, A.8.4, A.8.15, A.8.16, A.8.24, A.8.25 through A.8.34 (15 of 93 Annex A), 6 machine-checked, applied. Out-of-tool remainder enumerated in the rules document.",
+      "outstanding": "Mappings, as T006."
+    },
+    {
+      "id": "T008",
+      "title": "Backfill HIPAA and GDPR checks into the crosswalk",
+      "delivered": "0017 (HIPAA, 48 controls / 9 machine-checked) and 0018 (GDPR, 37 / 5), both applied, every row carrying a regulatory citation.",
+      "outstanding": "'Into the crosswalk' — neither participates in a mapping, because there is none."
+    },
+    {
+      "id": "T010",
+      "title": "Disclose coverage boundary across all surfaces",
+      "delivered": "The SDLC-slice boundary is stated in both new rules documents and in AuditConfigPanel.",
+      "outstanding": "Not every export and settings surface carries it, and per-framework coverage is nowhere quantified in the UI — FR-012 asks for figures of the form 'ISO 27001: 15 of 93 Annex A controls'."
+    }
+  ],
+  "blockers": [
+    "T001 and T002 are the spine. Until compliancecontrolmappings exists and AuditEngineService resolves through it, a shared check is still evaluated once per framework row — correct, but the 'one check, N frameworks' property the spec is named for is absent.",
+    "T003, T004, T005 and T009 mean there is no evidence export at all: no evidenced/gap/not-applicable resolution, no immutable not-applicable record with justification and named approver, no PDF bundle, no UI. This is the artifact a compliance buyer actually purchases.",
+    "T011 is unbuilt, so a framework-enabled project can ship a scope with no Compliance Requirements section and still validate clean."
+  ],
+  "shippedArtifacts": {
+    "migrations": [
+      "0014_spec113_nistssdf_catalog.sql",
+      "0015_spec113_iso27001_catalog.sql",
+      "0017_spec113_hipaa_catalog.sql",
+      "0018_spec113_gdpr_catalog.sql"
+    ],
+    "catalogs": {
+      "NISTSSDF": { "controls": 42, "machineChecked": 5 },
+      "ISO27001": { "controls": 15, "ofAnnexA": 93, "machineChecked": 6 },
+      "HIPAA": { "controls": 48, "machineChecked": 9 },
+      "GDPR": { "controls": 37, "machineChecked": 5 }
+    },
+    "notBuilt": [
+      "compliancecontrolmappings",
+      "compliancecontrolexclusions",
+      "GET /api/audit/evidence/:projectid",
+      "POST /api/audit/exclusions",
+      "evidence export UI",
+      "validateScope compliance awareness"
+    ]
+  },
+  "notes": [
+    "Reconciled 2026-08-04. The prior file read phase 'design', 0 of 11 complete. The count was right and the phase was not — four migrations are applied to production, so implementation has plainly started.",
+    "tasksCompleted stays 0 deliberately. Four tasks delivered real, applied artifacts but none satisfies its own acceptance criteria, every one for the same reason: it also required mappings. Recording them as done would assert a crosswalk that does not exist — the exact failure mode FR-012 exists to prevent.",
+    "tasks.md still shows all 11 as todo and has not been updated; the partial states are recorded here only.",
+    "One GDPR check is designed to fail: Art. 5(1)(c) probes for pseudonymisation or anonymisation and nothing in this tree does either. It reports 'absent', which is a finding, not a defect."
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "specNumber": "139",
+  "specId": "0ea16073-d745-4ed9-9fee-fb29375dc2e4",
+  "featureName": "Onboarding Videos",
+  "projectId": "ba924193-0335-4080-9fa6-33cd6b81300a",
+  "currentPhase": "design",
+  "status": "planned",
+  "priority": "medium",
+  "createdAt": "2026-10-17T10:59:32.625Z",
+  "progress": {
+    "totalTasks": 14,
+    "completed": 0,
+    "inProgress": 0,
+    "blocked": 0,
+    "todo": 14,
+    "percentComplete": 0
+  },
+  "phases": [
+    {
+      "name": "scoping",
+      "status": "complete"
+    },
+    {
+      "name": "design",
+      "status": "in_progress"
+    },
+    {
+      "name": "implementation",
+      "status": "pending"
+    },
+    {
+      "name": "qa",
+      "status": "pending"
+    },
+    {
+      "name": "human_testing",
+      "status": "pending"
+    },
+    {
+      "name": "beta",
+      "status": "pending"
+    },
+    {
+      "name": "released",
+      "status": "pending"
+    }
+  ]
+}

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>wxKanban — Cross from WINDEV to AI-built software you own</title>
+<meta name="description" content="The guided bridge from a proprietary platform to AI-built, full-stack development on open foundations you own. Built by converting a real WINDEV app. Create your free account." />
+
+<!-- ============================================================
+     Signup form posts to our own API (API Gateway -> Lambda -> marketing table):
+       https://m5m1kx31kf.execute-api.us-east-1.amazonaws.com/apply
+     Payload carries list:"launch-notify" + wantsHandsOn so the marketing
+     table can segment list-only vs hands-on-cohort leads. The list VALUE is
+     kept as-is deliberately — downstream segmentation depends on it — even
+     though the form is now the secondary CTA (How-To videos), with account
+     signup at https://wxkanban.com/registration as the primary.
+     "How-To videos" CTA is a mailto interim until the YouTube channel /
+     email list exist — swap that href then.
+     Update + redeploy: pwsh marketing/site/deploy/redeploy.ps1
+     ============================================================ -->
+
+<!-- Open Graph (link previews on Facebook / LinkedIn) -->
+<meta property="og:title" content="From WINDEV to AI — software you actually own" />
+<meta property="og:description" content="A guided bridge off proprietary lock-in to AI-built full-stack development. Built by converting a real WINDEV app. Free to start." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://windev.wxperts.com/" />
+<meta property="og:image" content="https://windev.wxperts.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="From WINDEV to AI — software you actually own" />
+<meta name="twitter:description" content="Built by converting a real WINDEV app. wxKanban is the proof. Free to start." />
+<meta name="twitter:image" content="https://windev.wxperts.com/og-image.png" />
+
+<style>
+  :root {
+    --ink: #14171c;
+    --body: #2b313b;
+    --muted: #5b6472;
+    --line: #e3e6eb;
+    --bg: #ffffff;
+    --soft: #f6f7f9;
+    --navy: #0f1722;
+    --accent: #c8761b;        /* warm amber — the "Cowboy" note */
+    --accent-dk: #a45f12;
+    --maxw: 760px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--body);
+    background: var(--bg);
+    line-height: 1.6;
+    font-size: 18px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 22px; }
+  h1, h2, h3 { color: var(--ink); line-height: 1.2; }
+  p { margin: 0 0 16px; }
+  a { color: var(--accent-dk); }
+  em { color: var(--ink); font-style: italic; }
+  strong { color: var(--ink); }
+
+  /* ---- Hero ---- */
+  .hero {
+    background: radial-gradient(120% 140% at 50% -20%, #1b2840 0%, var(--navy) 60%);
+    color: #eef1f6;
+    padding: 88px 0 72px;
+    text-align: center;
+  }
+  .hero h1 { color: #fff; font-size: 2.5rem; margin: 0 0 18px; letter-spacing: -0.5px; }
+  .hero .lede { font-size: 1.18rem; color: #c3cad6; max-width: 620px; margin: 0 auto 26px; }
+  .badge {
+    display: inline-block; margin: 6px 0 28px;
+    background: rgba(200,118,27,0.14); color: #f0b878;
+    border: 1px solid rgba(200,118,27,0.4);
+    padding: 8px 16px; border-radius: 999px; font-size: 0.92rem;
+  }
+
+  .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; align-items: center; }
+  .btn {
+    display: inline-block; text-decoration: none; font-weight: 650;
+    padding: 15px 28px; border-radius: 10px; font-size: 1.02rem;
+    transition: transform .08s ease, box-shadow .2s ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 6px 22px rgba(200,118,27,0.35); }
+  .btn-primary:hover { background: var(--accent-dk); }
+  .btn-ghost { color: #cdd5e2; text-decoration: underline; padding: 12px 8px; font-size: 0.98rem; }
+  .hero .sub-note { margin-top: 14px; color: #93a0b3; font-size: 0.92rem; }
+
+  /* ---- Sections ---- */
+  section { padding: 56px 0; border-bottom: 1px solid var(--line); }
+  .eyebrow { text-transform: uppercase; letter-spacing: 1.5px; font-size: 0.78rem; font-weight: 700; color: var(--accent-dk); margin: 0 0 12px; }
+  h2 { font-size: 1.7rem; margin: 0 0 18px; }
+  .ache li { margin-bottom: 12px; }
+  .ache strong { display: inline; }
+
+  /* ---- Steps ---- */
+  .steps { list-style: none; counter-reset: step; padding: 0; margin: 24px 0 0; }
+  .steps li { counter-increment: step; position: relative; padding: 0 0 22px 56px; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 0;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--navy); color: #fff; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  }
+  .steps li:not(:last-child)::after {
+    content: ""; position: absolute; left: 17px; top: 36px; bottom: 0; width: 2px; background: var(--line);
+  }
+
+  /* ---- Feature grid (what you land in) ---- */
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 26px; }
+  .feature {
+    background: var(--soft); border: 1px solid var(--line);
+    border-radius: 12px; padding: 20px 22px;
+  }
+  .feature h3 { font-size: 1.05rem; margin: 0 0 6px; }
+  .feature p { margin: 0; font-size: 0.97rem; color: var(--body); }
+  .feature .ic { font-size: 1.2rem; display: block; margin-bottom: 8px; }
+  @media (max-width: 560px) { .features { grid-template-columns: 1fr; } }
+
+  /* ---- Callout / proof ---- */
+  .callout {
+    background: var(--soft); border: 1px solid var(--line);
+    border-left: 4px solid var(--accent); border-radius: 10px;
+    padding: 26px 28px; margin-top: 8px;
+  }
+
+  /* ---- Hands-on (secondary) card ---- */
+  .beta { background: var(--navy); color: #e7ecf4; border-bottom: none; }
+  .beta h2 { color: #fff; }
+  .beta .eyebrow { color: #f0b878; }
+  .beta p { color: #c3cad6; }
+  .beta strong { color: #fff; }
+  .beta .scar { font-size: 1.05rem; color: #f0b878; font-weight: 600; margin: 18px 0 24px; }
+
+  /* ---- Founder ---- */
+  .founder { background: var(--soft); }
+  .letter p { color: var(--body); }
+  .letter .sign { font-weight: 700; color: var(--ink); margin-top: 22px; }
+  .avatar-portrait {
+    width: 140px; height: 140px; border-radius: 50%; object-fit: cover;
+    float: right; margin: 4px 0 14px 26px; border: 4px solid var(--accent);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  }
+  @media (max-width: 560px) {
+    .avatar-portrait { float: none; display: block; margin: 0 0 16px; }
+  }
+
+  /* ---- Final CTA + footer ---- */
+  .final { text-align: center; }
+  .final h2 { font-size: 1.9rem; }
+  footer { padding: 36px 0 60px; text-align: center; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); }
+  footer a { color: var(--muted); }
+  footer .foot-links { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin: 0 0 14px; }
+  footer .foot-links a { text-decoration: none; }
+  footer .foot-links a:hover { color: var(--ink); text-decoration: underline; }
+
+  .center { text-align: center; }
+  .mt { margin-top: 22px; }
+
+  /* ---- Signup form ---- */
+  .beta-form { text-align: left; max-width: 540px; margin: 28px auto 0; }
+  .beta-form .fg { margin-bottom: 14px; }
+  .beta-form .fg2 { display: flex; gap: 14px; }
+  .beta-form .fg2 .fg { flex: 1; }
+  .beta-form label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 5px; }
+  .beta-form input, .beta-form select, .beta-form textarea {
+    width: 100%; box-sizing: border-box; font: inherit; font-size: 0.98rem;
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--ink);
+  }
+  .beta-form input:focus, .beta-form select:focus, .beta-form textarea:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,118,27,0.15);
+  }
+  .beta-form textarea { resize: vertical; }
+  .beta-form .req { color: var(--accent-dk); }
+  .beta-form .check { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 6px; }
+  .beta-form .check input { width: auto; margin-top: 4px; flex: 0 0 auto; }
+  .beta-form .check label { font-size: 0.95rem; color: var(--body); margin: 0; }
+  .beta-form button[type=submit] { margin-top: 12px; width: 100%; border: none; cursor: pointer; }
+  .beta-form button[type=submit]:disabled { opacity: 0.6; cursor: default; }
+  .form-status { margin-top: 16px; font-size: 0.97rem; min-height: 1.2em; }
+  .form-status.ok { color: #1c7c3a; font-weight: 600; }
+  .form-status.err { color: #b3261e; }
+
+  @media (max-width: 560px) {
+    .hero h1 { font-size: 2rem; }
+    body { font-size: 17px; }
+    section { padding: 44px 0; }
+    .beta-form .fg2 { flex-direction: column; gap: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap">
+    <h1>Your whole business runs on someone else's platform.<br />What happens the day they pull the plug?</h1>
+    <p class="lede">If your applications live on a proprietary system, your livelihood — and every app your clients depend on — survives only as long as that vendor does. AI is rewriting how software gets built, and staying put has never been riskier.</p>
+    <div class="badge">🐎 Built by converting a real WINDEV application to AI. wxKanban is the proof.</div>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://wxkanban.com/registration">Create your free account →</a>
+      <a class="btn btn-ghost" href="#handson">Want your own app crossed over? See the hands-on cohort →</a>
+    </div>
+    <p class="sub-note">wxKanban is live. Create your account and start building on ground you own.</p>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= THE ACHE ================= -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The problem</p>
+    <h2>You're not a beginner. But the ground is shifting.</h2>
+    <p>You've shipped real software for years. But right now:</p>
+    <ul class="ache">
+      <li><strong>AI is moving fast,</strong> and it feels like the industry is leaving you behind.</li>
+      <li><strong>The rules already changed.</strong> Perpetual licenses became a subscription — and now your source code itself is something you rent. Miss a payment and you can lose access to the very applications you and your clients depend on. That's not a risk anymore — that's the terms.</li>
+      <li><strong>You know you need to move to AI development.</strong> You just don't have a safe way across that doesn't mean abandoning everything you've built.</li>
+    </ul>
+    <p class="mt">You shouldn't have to bet your career on one vendor's survival.</p>
+  </div>
+</section>
+
+<!-- ================= THE TURN ================= -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The truth nobody's telling you</p>
+    <h2>You're not starting over.</h2>
+    <p>The hard part of building software was never the syntax — it was the <em>judgment</em>. Knowing how to take an application from messy reality to a clean, tested, shipped result. That skill — the <strong>lifecycle</strong> — is exactly what AI-assisted development still demands, and exactly what newcomers lack.</p>
+    <p>You already have it. wxKanban hands you the new tools and walks you across.</p>
+  </div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">How the crossing works</p>
+    <h2>A bridge, not a leap.</h2>
+    <p>This isn't hand-waving. It's the exact, proven path we used on wxKanban itself:</p>
+    <ol class="steps">
+      <li><strong>Your data comes with you.</strong> We take your proprietary database (HFSQL), generate it to standard SQL, and migrate it cleanly into PostgreSQL, MS SQL, or MySQL — your data exported, transformed, and loaded into a database you own.</li>
+      <li><strong>Your logic becomes readable.</strong> Your global procedures and window/screen files are converted into clear Markdown — the form AI works with best — so every piece of your application can be analyzed and rebuilt.</li>
+      <li><strong>Your screens are captured.</strong> Screenshots preserve the exact look of every data screen, so the new application looks and behaves like the one your users already know.</li>
+      <li><strong>AI rebuilds it as modern full-stack.</strong> With your data, logic, and screens prepared, AI does the heavy lifting — and <em>you</em> keep the judgment, the control, and the ownership.</li>
+    </ol>
+    <p class="mt">No leap of faith. No starting from zero. A guided, step-by-step crossing from proprietary lock-in to software you own.</p>
+  </div>
+</section>
+
+<!-- ================= WHAT YOU LAND IN ================= -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">What you land in</p>
+    <h2>Not just a way across — a place to build, and a business to run.</h2>
+    <p>The other side of the bridge isn't an empty stack. It's a working product, built the way professionals build, on foundations you control:</p>
+    <div class="features">
+      <div class="feature">
+        <span class="ic">🗄️</span>
+        <h3>A database you own</h3>
+        <p>Your data lands in PostgreSQL, MS SQL, or MySQL — open, standard, and yours. No proprietary file format, no vendor between you and your own information.</p>
+      </div>
+      <div class="feature">
+        <span class="ic">🧭</span>
+        <h3>A guided 6-phase lifecycle</h3>
+        <p>Design → Implementation → QA → Human Testing → Beta → Release. You always know the next step, and nothing ships without specs, tests, and sign-off.</p>
+      </div>
+      <div class="feature">
+        <span class="ic">🤖</span>
+        <h3>AI writes it — you stay in control</h3>
+        <p>AI does the heavy lifting, but every line is fenced to the spec that authored it. You see exactly what AI touched, and you accept or reject it.</p>
+      </div>
+      <div class="feature">
+        <span class="ic">🛑</span>
+        <h3>No runaway AI</h3>
+        <p>Scope-first means nothing gets built without an approved spec in your database. The tool trains the discipline that keeps AI development from going sideways.</p>
+      </div>
+      <div class="feature">
+        <span class="ic">📋</span>
+        <h3>A real consultancy app</h3>
+        <p>A Kanban board, billable time tracking, and one-click PDF invoicing — so you can run your actual business on the very software you just built.</p>
+      </div>
+      <div class="feature">
+        <span class="ic">🔓</span>
+        <h3>No lock-in, anywhere</h3>
+        <p>Own your auth. Swap AI providers — Gemini, OpenAI, Mistral — whenever you like. Never be held hostage to a single vendor again.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PROOF ================= -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The proof is the product</p>
+    <h2>wxKanban isn't a theory about converting off a proprietary platform. It <em>is</em> one.</h2>
+    <div class="callout">
+      <p>This product was a WINDEV application. We converted it — data, procedures, screens, and all — into a modern, AI-built full-stack app on open foundations, using the exact method above. The tool in your hands is the living result of the crossing we're offering to make with you.</p>
+      <p style="margin-bottom:0;"><strong>If wxKanban could make it across, so can your software. So can you.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= WHY YOU ================= -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Why it works for you</p>
+    <h2>Built for the experienced developer — and the beginner.</h2>
+    <p>Generic AI tools assume you're either a Silicon Valley native or a bootcamp grad memorizing syntax. Neither teaches the thing that actually matters: the <em>judgment</em> to take software from messy reality to shipped, on foundations you own.</p>
+    <p>wxKanban does. If you're an experienced developer, it turns the instincts you spent years earning into your biggest advantage in the AI era. If you're just starting out, the same guided lifecycle hands you that judgment from day one — so you learn to build like a professional, not just to prompt.</p>
+    <p class="mt"><strong>Build on ground you own. Never be held hostage to one vendor again.</strong></p>
+  </div>
+</section>
+
+<!-- ================= HANDS-ON COHORT (secondary thread) ================= -->
+<section id="handson" class="beta">
+  <div class="wrap">
+    <p class="eyebrow">Want to go first?</p>
+    <h2>A small hands-on cohort — convert your actual app, with me in the room.</h2>
+    <p>Most people create an account and start on their own. But if you'd rather not go alone, I'm working directly with a small group of developers to convert their own WINDEV application — step by step, the same way wxKanban was converted. Together we walk every stage, sharpen the process, and make sure you can reliably take your app all the way to modern full-stack development.</p>
+    <p class="scar">Your actual application, crossed over with you in the room.</p>
+    <a class="btn btn-primary" href="#notify">Tell me about the hands-on cohort →</a>
+  </div>
+</section>
+
+<!-- ================= HOW-TO ================= -->
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Learn it in the open</p>
+    <h2>A new video every few days.</h2>
+    <p>We're publishing an ongoing How-To series — walking through every stage of the conversion and the wxKanban lifecycle, step by step. You'll see exactly how a proprietary app crosses over to AI-built full-stack, <em>before</em> you commit to anything.</p>
+    <p>New videos drop throughout the month. Get on the list and we'll send each one the moment it's live.</p>
+    <div class="cta-row mt" style="justify-content:flex-start;">
+      <a class="btn btn-primary" href="https://wxkanban.com/registration">Create your free account →</a>
+      <a class="btn btn-ghost" href="#notify">Just send me the videos →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOUNDER ================= -->
+<section class="founder">
+  <div class="wrap letter">
+    <img class="avatar-portrait" src="avatar-360.png" alt="Andy &quot;Cowboy&quot; Stapleton" width="140" height="140" />
+    <p class="eyebrow">From the founder</p>
+    <h2>wxKanban started life as a WINDEV application.</h2>
+    <p>Everything you're looking at <em>was</em> a proprietary-platform app, and we converted it into a modern, AI-built application on open foundations. We didn't draw a bridge on a map and ask you to walk it — we walked it first, and wxKanban is what came out the other side.</p>
+    <p>Some of you already know me. I've gone by <strong>"Cowboy"</strong> in this industry for over 40 years, across every platform shift from mainframe to web to cloud — and I've made every one of those crossings. The developers who thrived were never the ones with the most syntax memorized. They were the ones who understood <em>how software actually gets built</em>, and carried that judgment from one platform to the next. You already have that. It's the hard part, and you've done it.</p>
+    <p>I've watched this exact thing happen twice before — two different development environments that skilled people built their careers on, then found themselves trapped by. I spent years learning my way out, and helping others do the same. That's why I won't stand by and watch it happen to you: locked to a platform that could change its terms — or close its doors — and take your livelihood, and your clients' apps, down with it. You've worked too hard to bet your career on someone else's survival.</p>
+    <p><strong>AI has finally changed that.</strong></p>
+    <p>So I built wxKanban for exactly that developer: a safe, guided way across, on ground you own, without throwing away a single year of skill. It's live now — create an account and start building. And if you'd like to make the crossing <em>with</em> me, hands-on, there's a box for that on the form below.</p>
+    <p>If that's you — let's talk.</p>
+    <p class="sign">— Andy "Cowboy" Stapleton, founder, wxperts</p>
+  </div>
+</section>
+
+<!-- ================= NOTIFY (form anchor) ================= -->
+<section id="notify" class="final">
+  <div class="wrap">
+    <p class="eyebrow">Get started</p>
+    <h2>Build on ground you own.<br />Create your account and make the crossing.</h2>
+    <div class="cta-row mt" style="justify-content:flex-start;">
+      <a class="btn btn-primary" href="https://wxkanban.com/registration">Create your free account →</a>
+    </div>
+
+    <p class="mt" style="color:var(--muted);">Not ready yet? Leave your details instead and I'll send the How-To videos as they go live — and tick the box if you want your own application crossed over with me. About 30 seconds.</p>
+
+    <form id="betaForm" class="beta-form" novalidate>
+      <div class="fg"><label for="f-name">Your name <span class="req">*</span></label><input id="f-name" name="name" type="text" required /></div>
+      <div class="fg2">
+        <div class="fg"><label for="f-email">Email <span class="req">*</span></label><input id="f-email" name="email" type="email" required /></div>
+        <div class="fg"><label for="f-cell">Cell / mobile <span style="color:var(--muted);font-weight:400;">(optional)</span></label><input id="f-cell" name="cell" type="tel" autocomplete="tel" /></div>
+      </div>
+      <div class="fg2">
+        <div class="fg"><label for="f-platform">What do you build on today?</label>
+          <select id="f-platform" name="platform"><option value="">—</option><option>WINDEV</option><option>WEBDEV</option><option>WINDEV Mobile</option><option>Another proprietary platform</option><option>Something else</option></select></div>
+        <div class="fg"><label for="f-language">Primary language</label>
+          <select id="f-language" name="language"><option value="">—</option><option>English</option><option>French</option><option>Italian</option><option>Spanish</option><option>Portuguese</option><option>German</option><option>Other</option></select></div>
+      </div>
+      <div class="check">
+        <input id="f-handson" name="wantsHandsOn" type="checkbox" value="yes" />
+        <label for="f-handson">I'd like to go first — tell me about the hands-on cohort, where we convert my actual app together.</label>
+      </div>
+      <button type="submit" class="btn btn-primary" id="betaSubmit">Send me the How-To videos</button>
+      <p id="betaStatus" class="form-status" role="status" aria-live="polite"></p>
+    </form>
+
+    <p class="mt" style="color:var(--muted);font-size:0.95rem;">Questions first? <a href="mailto:admin@wxperts.com">Reach out to wxperts</a> — we actually answer.</p>
+  </div>
+</section>
+
+<script>
+(function () {
+  var ENDPOINT = "https://m5m1kx31kf.execute-api.us-east-1.amazonaws.com/apply";
+  var form = document.getElementById("betaForm");
+  if (!form) return;
+  var btn = document.getElementById("betaSubmit");
+  var statusEl = document.getElementById("betaStatus");
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    statusEl.className = "form-status";
+    statusEl.textContent = "";
+
+    var fd = new FormData(form), data = {};
+    fd.forEach(function (v, k) { data[k] = v; });
+    // Segment the marketing table: everyone here is the launch-notify list;
+    // wantsHandsOn flags the hands-on-cohort leads.
+    data.list = "launch-notify";
+    data.wantsHandsOn = form.querySelector("#f-handson").checked ? "yes" : "no";
+
+    if (!data.name || !data.email) {
+      statusEl.className = "form-status err";
+      statusEl.textContent = "Your name and email are required.";
+      return;
+    }
+    btn.disabled = true; btn.textContent = "Sending…";
+
+    fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    })
+      .then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.error || "submission failed");
+        form.reset();
+        statusEl.className = "form-status ok";
+        statusEl.textContent = "You're on the list — thank you. I'll send the How-To videos as they go live. Watch your inbox.";
+        btn.textContent = "You're on the list ✓";
+      })
+      .catch(function (err) {
+        statusEl.className = "form-status err";
+        statusEl.textContent = "Something went wrong — please email admin@wxperts.com directly. (" + err.message + ")";
+        btn.disabled = false; btn.textContent = "Send me the How-To videos";
+      });
+  });
+})();
+</script>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav class="foot-links" aria-label="Footer">
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="mailto:admin@wxperts.com">Contact</a>
+      <!-- [SCOPE 100 / T012] Founder bio lives in the app (DB-backed, self-localizing);
+           static site can't read the DB, so this is an absolute cross-domain link. -->
+      <a href="https://wxkanban.wxperts.com/bio">Bio</a>
+      <!-- Blog hidden for now — re-enable when the channel is live:
+      <a href="/blog/">Blog</a> -->
+    </nav>
+    <p>wxKanban — by wxPerts LLC · Cross from WINDEV to AI-built software you own.<br />
+    <a href="mailto:admin@wxperts.com">admin@wxperts.com</a></p>
+  </div>
+</footer>
+
+<!-- Launch countdown removed — wxKanban is live; the hero now leads with account signup. -->
+
+<!-- Owned analytics beacon (no cookies, no third party) -->
+<script>
+(function () {
+  try {
+    var qs = new URLSearchParams(location.search);
+    var payload = {
+      path: location.pathname,
+      referrer: document.referrer || "",
+      lang: navigator.language || "",
+      screen: (screen.width || 0) + "x" + (screen.height || 0),
+      // Campaign attribution from tagged email links (?c=campaign&u=recipientId).
+      campaign: qs.get("c") || "",
+      uid: qs.get("u") || ""
+    };
+    fetch("https://m5m1kx31kf.execute-api.us-east-1.amazonaws.com/pageview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).catch(function () {});
+  } catch (e) {}
+})();
+</script>
+
+</body>
+</html>

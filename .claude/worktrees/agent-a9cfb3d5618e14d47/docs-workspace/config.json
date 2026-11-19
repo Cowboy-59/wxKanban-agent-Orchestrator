@@ -1,0 +1,183 @@
+{
+  "product_name": "wxKanban",
+  "audience": "Customers (Customer edition) and wxperts operators (Internal edition)",
+  "base_url": "",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "theme": {
+    "accent": "#2563eb",
+    "font": "system"
+  },
+  "section_order": [
+    "login",
+    "dashboard",
+    "projects",
+    "project-detail",
+    "tasks",
+    "testing-qa",
+    "testing-user",
+    "work-hub",
+    "team",
+    "integrations",
+    "invoices",
+    "reports",
+    "stack-profiles",
+    "theme-profiles",
+    "faq",
+    "help",
+    "settings"
+  ],
+  "parts": [
+    {
+      "id": "getting-started",
+      "title": "Part 1 — Getting Started",
+      "intro": "Install the tools, link your project, and run your first scope.",
+      "groups": [
+        {
+          "title": "",
+          "sections": [
+            "getting-started"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "the-process",
+      "title": "Part 2 — The Process",
+      "intro": "How a scope travels from an idea to a release: each stage, what you do, what the AI does, and what moves it on.",
+      "groups": [
+        {
+          "title": "",
+          "sections": [
+            "process-overview",
+            "process-scopes-specs",
+            "process-design",
+            "process-decision-memory",
+            "process-implementation",
+            "process-qa",
+            "process-human-testing",
+            "process-beta",
+            "process-release",
+            "process-conversions",
+            "process-when-things-go-wrong",
+            "process-who-does-what"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "web-app",
+      "title": "Part 3 — The Web App",
+      "intro": "Every screen in the wxKanban web app, grouped by who uses it.",
+      "groups": [
+        {
+          "title": "3A. Everyone",
+          "sections": [
+            "login",
+            "dashboard",
+            "projects",
+            "project-detail",
+            "tasks",
+            "testing-qa",
+            "testing-user",
+            "work-hub",
+            "faq",
+            "help",
+            "settings"
+          ]
+        },
+        {
+          "title": "3B. Consultants",
+          "sections": []
+        },
+        {
+          "title": "3C. Company admins",
+          "sections": [
+            "team",
+            "team-chat",
+            "kain-signin",
+            "integrations",
+            "invoices",
+            "reports",
+            "stack-profiles",
+            "theme-profiles"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dev-cockpit",
+      "title": "Part 4 — The Dev Cockpit",
+      "intro": "The wxKanban sidebar in VS Code: what each part shows and what to do about it.",
+      "groups": [
+        {
+          "title": "",
+          "sections": [
+            "cockpit-install",
+            "cockpit-at-a-glance",
+            "cockpit-system-health",
+            "cockpit-scopes",
+            "cockpit-dev-plan",
+            "cockpit-git",
+            "cockpit-kit-updates",
+            "cockpit-change-impact",
+            "cockpit-feedback",
+            "cockpit-help"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "command-reference",
+      "title": "Part 5 — Command Reference",
+      "intro": "Every command in the kit: what it does, when to use it, what it runs for you, and what runs it. Generated from the commands themselves.",
+      "groups": [
+        {
+          "title": "Indexes",
+          "sections": [
+            "commands-by-stage",
+            "commands-by-where",
+            "commands-a-z"
+          ]
+        },
+        {
+          "title": "",
+          "sections": [
+            "@reference"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "appendix",
+      "title": "Appendix",
+      "intro": "Words, fixes and where to get help.",
+      "groups": [
+        {
+          "title": "",
+          "sections": [
+            "glossary",
+            "troubleshooting",
+            "get-help"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal pages",
+      "intro": "Internal edition only.",
+      "groups": [
+        {
+          "title": "",
+          "sections": [
+            "known-drift",
+            "not-in-this-manual"
+          ]
+        }
+      ]
+    }
+  ]
+}

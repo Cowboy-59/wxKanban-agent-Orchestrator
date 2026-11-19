@@ -1,0 +1,27 @@
+{
+  "specNumber": "106",
+  "title": "Borrow-a-Look Business Template",
+  "scope": "SCOPE-106",
+  "implements": "SCOPE-106",
+  "dependsOn": ["SCOPE-062"],
+  "currentPhase": "design",
+  "status": "planned",
+  "priority": "high",
+  "created": "2026-07-20",
+  "phases": [
+    { "phase": "design", "status": "in_progress", "startedAt": "2026-07-20" },
+    { "phase": "implementation", "status": "pending" },
+    { "phase": "qa", "status": "pending" },
+    { "phase": "human_testing", "status": "pending" },
+    { "phase": "beta", "status": "pending" },
+    { "phase": "released", "status": "pending" }
+  ],
+  "tasks": {
+    "total": 18,
+    "todo": 18,
+    "in_progress": 0,
+    "done": 0
+  },
+  "functionalRequirements": 8,
+  "successMetrics": 5
+}

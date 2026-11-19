@@ -1,0 +1,16 @@
+{
+  "specNumber": "098",
+  "featureName": "Delete Scope on Project Detail",
+  "phase": "design",
+  "priority": "medium",
+  "progress": {
+    "tasksTotal": 6,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-07-14T00:02:13.464Z",
+    "phaseStarted": "2026-07-14T00:02:13.464Z"
+  },
+  "specId": "0fc853be-2519-43ce-8867-5b3addcc8236"
+}

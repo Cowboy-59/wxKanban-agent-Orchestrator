@@ -1,0 +1,1629 @@
+# Decision ledger (SPEC-142). Append-only: written only by `node _wxAI/askgate/ledger.mjs append`. Never edit by hand.
+- id: D-0001
+  scope: "2026-10-23-agent-model-routing"
+  question: "The need"
+  decision: "Agents and G.O.D. choose cheaper models whenever a task allows, even while the plan has room, to save the window and cost; measure first before fixing the tier table."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#1"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0002
+  scope: "2026-10-23-agent-model-routing"
+  question: "The Claude subscription"
+  decision: "The owner's Claude subscription stays on the official client and is never routed through a proxy."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#2"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0003
+  scope: "2026-10-23-agent-model-routing"
+  question: "Two problems or one"
+  decision: "This topic covers the developer's coding agents and the G.O.D. flow. The product's own AI calls stay with SCOPE-099."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#3"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0004
+  scope: "2026-10-23-agent-model-routing"
+  question: "Two levers"
+  decision: "Lever 1: cheaper Claude tiers on the official plan. Lever 2: other providers through OmniRoute, only where a project allows."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#4"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0005
+  scope: "2026-10-23-agent-model-routing"
+  question: "Reuse"
+  decision: "OmniRoute (MIT, separate local service) is the router; the existing AI session, time-entry and invoice path (SCOPE-020/037) carries billing; the Topic 1 run report carries proposals; SCOPE-099 unchanged."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#5"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0006
+  scope: "2026-10-23-agent-model-routing"
+  question: "free-claude-code"
+  decision: "Not used; OmniRoute covers it under a more permissive license and adds quota awareness."
+  rationale: ""
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#6"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0007
+  scope: "2026-10-23-agent-model-routing"
+  question: "Routing the subscription through a proxy"
+  decision: "Declined: no stealth or impersonation of the official client."
+  rationale: ""
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#7"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0008
+  scope: "2026-10-23-agent-model-routing"
+  question: "Provider policy"
+  decision: "Non-Anthropic providers are off by default; each project opts in and lists which kinds of work may leave Anthropic; learning can never widen it."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#8"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0009
+  scope: "2026-10-23-agent-model-routing"
+  question: "Metering"
+  decision: "Every agent run is captured automatically: task, difficulty, model, provider, input/output/cache tokens, active and waiting minutes, parallel agents included."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#9"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0010
+  scope: "2026-10-23-agent-model-routing"
+  question: "Billing"
+  decision: "Clients are billed on active agent time (waiting excluded). Tokens, model and provider are for analysis only and never appear on an invoice."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#10"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0011
+  scope: "2026-10-23-agent-model-routing"
+  question: "Consultants subscription"
+  decision: "All AI-agent time is trapped into the existing AI session, time-entry and invoice path."
+  rationale: ""
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#11"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0012
+  scope: "2026-10-23-agent-model-routing"
+  question: "Comparison mode"
+  decision: "Two routes on the same task in separate worktrees, sampled across easy, moderate and heavy tasks, reviewed by a third model, reported as cost per finished task; comparison time is never billed."
+  rationale: ""
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#12"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0013
+  scope: "2026-10-23-agent-model-routing"
+  question: "Where comparisons run"
+  decision: "Comparison testing runs on the owner's internal systems, not on client projects."
+  rationale: ""
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#13"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0014
+  scope: "2026-10-23-agent-model-routing"
+  question: "Learning"
+  decision: "G.O.D. learns from runs and comparisons to keep cost down. Initially it only proposes tier changes, with the comparison data, for owner approval (panel had recommended automatic changes within limits: at least 5 comparisons, cheaper, quality no worse, inside policy)."
+  rationale: ""
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#14"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0015
+  scope: "2026-10-23-agent-model-routing"
+  question: "First version"
+  decision: "Run capture, a measured day, tier table with one-tier escalation after two failed test cycles, comparison mode, billing columns after the measured day, and OmniRoute with stealth, quota sharing, MITM and compression off."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#15"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0016
+  scope: "2026-10-23-agent-model-routing"
+  question: "Risks"
+  decision: "R1 subagent hooks unproven (spike first); R2 quality drop (escalation, cross-model review); R3 small samples (5 per class, owner approval); R4 client code to an unapproved provider (policy off by default); R5 OmniRoute terms-risk features off; R6 OmniRoute surface (localhost, scoped tokens, its MCP not registered); R7 billing columns applied before declared; R8 comparisons cost double (sampling, never billed); R9 invoices show time and tier only."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#16"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0017
+  scope: "2026-10-23-agent-model-routing"
+  question: "Order"
+  decision: "R1 spike and run capture before the major project starts; SCOPE-136 Amendment B alongside; then tier table, OmniRoute and policy, comparison mode, G.O.D. proposals, billing columns."
+  rationale: ""
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#17"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0018
+  scope: "SCOPE-143"
+  question: "Should the main session's commands run on a cheaper model than the owner's session model?"
+  decision: "Yes. Each kit command declares its own tier for its own turn (for example dbpush on Haiku, buildscope and implement on Opus); the owner's /model choice is never changed silently. A spike first proves the command-file model setting works for slash commands; otherwise the command hands its work to a subagent on the declared tier."
+  rationale: "The owner observed the main session stays on Opus 5.5 for every command, including simple ones."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-23-agent-model-routing.md#18"
+  approved_by: "owner"
+  date: 2026-10-23
+  supersedes: null
+- id: D-0019
+  scope: "SCOPE-124"
+  question: "What bar must every kit write meet?"
+  decision: "Every kit write must be repeatable (the same files twice change nothing), contained (it touches only what it names) and loud (anything unexpected stops before writing)."
+  rationale: "The Oct 19 incident broke all three at once."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#1"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0020
+  scope: "SCOPE-124"
+  question: "Who do the kit write defects affect, and who is told when they ship?"
+  decision: "Every kit user, worst for multi-developer teams and unattended AI sessions; fixes must hold when Claude is typing. Every company with an open report on these defects gets a note when it ships."
+  rationale: "48 reports from 14 companies since June; 22 open from 7."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#2"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0021
+  scope: "SCOPE-124"
+  question: "Which scopes carry the kit write-safety fixes?"
+  decision: "No new scope: SCOPE-124 Amendment C (number takeover, document identity, delete document, recurrence; reopen FR-005 and FR-008), a SCOPE-135 amendment (buildscope edit), SCOPE-019 (CLI --help and unknown options)."
+  rationale: "Each fix goes in the scope that already owns the code."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#3"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0022
+  scope: "SCOPE-124"
+  question: "Should the write-safety work ship as a smaller first version?"
+  decision: "No phased first version: everything in 5a-5f ships."
+  rationale: "Owner: nothing can wait."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#4"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0023
+  scope: "SCOPE-019"
+  question: "What happens when a kit command is given --help or an unknown option?"
+  decision: "--help or -h anywhere prints that command's help and never runs it (gateway, every command). An unknown option on a write command is refused before any network call, naming the valid options."
+  rationale: "dbpush --help ran a real push twice (customer 10-19, wxKanban 10-25)."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#5"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0024
+  scope: "SCOPE-124"
+  question: "How are specs numbered, and can a push take over another scope's number?"
+  decision: "Every spec is numbered from its scope, <scope>-0001, -0002..., even when there is only one. Scope numbers are allocated by the hub. A push never writes over a number another scope owns (refuse, naming the owner and next free number). The hub spec id is the identity underneath. Renames are explicit. New scopes only."
+  rationale: "create_specs renamed a web-created scope 035; numbers chosen from local folders collide."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#6"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0025
+  scope: "SCOPE-124"
+  question: "What identifies a spec/plan/tests document, and what happens to existing duplicates?"
+  decision: "Identity is (spec id, kind), kind from the file name, never the heading; titles are display-only. Unique index on (project, spec, kind). Existing duplicates are found automatically; the kit asks the project user whether to run a cleanup, shows the keep/retire list, and fixes all in one pass after confirmation."
+  rationale: "Title matching created the duplicates; SCOPE-124 open question 2 answered: unique index."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#7"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0026
+  scope: "SCOPE-124"
+  question: "Can documents be deleted, and how?"
+  decision: "Yes, as retire: soft (who, when, why), hidden, restorable by an admin, audited. One service behind MCP project.delete_document (admin, dry run first), a web-app Retire action and the cleanup. The user is shown what each retire affects (scope/spec, linked tasks, last copy of its kind, matches local file) and verifies before confirming. SCOPE-124 T015 reversed."
+  rationale: "Open request since 2026-07-26; duplicates could not be removed."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#8"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0027
+  scope: "SCOPE-135"
+  question: "How should /buildscope --edit change an existing scope?"
+  decision: "Edit carries requirements and user scenarios; edits are per named item with everything else byte-identical (checked); a before/after diff is shown and nothing is written until confirmed; refuses when the stored copy is newer than the local file; each amendment is auto-recorded (date, reason, replaced text)."
+  rationale: "Adding one line required re-sending all requirements; edit mode ignored them."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#9"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0028
+  scope: "SCOPE-124"
+  question: "When may a kit-defect report be marked resolved?"
+  decision: "Only after a live probe of the deployed hub reproduces the customer's original steps and passes. Every fix ships a real-path regression test shown to fail without the fix; one contract suite for the three properties over all write tools in CI and nightly; a recurrence reopens the original report; CI is restored first."
+  rationale: "At least three resolve-then-recur cycles since July."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#10"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0029
+  scope: "SCOPE-124"
+  question: "When and in what order does the kit write-safety batch ship?"
+  decision: "Now, top priority, one batch. Build order: CI restored, document-kind column (owner applies), number and identity guards, retire and cleanup, surgical buildscope edits, new spec numbering, contract suite. Clients before the server."
+  rationale: "Dependencies inside one batch."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#11"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0030
+  scope: "SCOPE-124"
+  question: "Undo, version history and pull-down of web-created scopes?"
+  decision: "Open: the owner answers (group 1 topic, push-only model)."
+  rationale: "Parked as a separate topic."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#12"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0031
+  scope: "SCOPE-124"
+  question: "Should dbpush default to a dry run?"
+  decision: "Open: the owner answers (group 3 topic, the customer runbook)."
+  rationale: "Breaks existing CI jobs; belongs with the runbook topic."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#13"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0032
+  scope: "security"
+  question: "DELETE /api/audit/documents/:id deletes platform-wide compliance documents with only a login?"
+  decision: "Open: the owner answers (its own urgent security topic, ahead of this batch)."
+  rationale: "Found during the brainstorm; untested live."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-25-kit-write-safety.md#14"
+  approved_by: "owner"
+  date: 2026-10-25
+  supersedes: null
+- id: D-0033
+  scope: "SCOPE-132"
+  question: "What need does a project-agent feedback-triage job serve?"
+  decision: "The feedback queue becomes release-ready batches: every report from My Feedback and Incoming lands in exactly one group, and nobody has to run the triage by hand."
+  rationale: "The triage agent exists but only runs when someone starts it; batch-by-area needs reports grouped."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#1"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0034
+  scope: "SCOPE-132"
+  question: "Who gets the feedback-triage job?"
+  decision: "Only a company that owns a feedback sink; today the wxKanban project agent. wxperts is the first user and test bed. Customer project agents do not get it."
+  rationale: "Incoming is only served to the sink owner, and only the sink owner can fix the reported code."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#2"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0035
+  scope: "SCOPE-132"
+  question: "Reuse or build new for project-agent feedback triage?"
+  decision: "Reuse feedback-triage, moved into the repo .claude/agents/ (this repo only, not shipped in the kit); reuse the server per-report triage as input; build only the trigger and the output."
+  rationale: "Grouping and triage logic already exists; the personal-folder copy exists on one machine only."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#3"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0036
+  scope: "SCOPE-132"
+  question: "Where does the triage report go?"
+  decision: "docs/triage/BUG-Triage-YYYY-MM-DD.md (-2, -3 for same-day reruns); docs/triage/ is gitignored, local only; no submitter names or emails."
+  rationale: "Owner wants the reports kept out of git."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#4"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0037
+  scope: "SCOPE-132"
+  question: "What does version 1 of the triage job produce?"
+  decision: "Reports only: no fixes and no code changes. Producing fixes is phase 2."
+  rationale: "Owner will brainstorm the real reports before designing a fix skill."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#5"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0038
+  scope: "SCOPE-132"
+  question: "How are unattended triage runs protected from untrusted report text?"
+  decision: "A PreToolUse allow-list hook: Read/Grep/Glob (never .env, keys, certs); read-only Bash (git log/show/diff, rg); Write only in docs/triage/; only the two exact feedback writes. Report text is data. The room gets a summary only, never customer text."
+  rationale: "The project agent runs in bypass mode where only a PreToolUse hook holds; written instructions are not a control."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#6"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0039
+  scope: "SCOPE-132"
+  question: "Which customer-visible writes may the triage job make?"
+  decision: "Two fixed server-worded messages: new to triaged once for bug reports in a real group (\"...triaged it for correction. The fix will be in an upcoming release.\"); resolved-in-a-previous-release with fixed text per product (kit: check version with wxkanban-agent --version; Cockpit: Extensions view; hosted: fix is live) only when the report version is older than the fix release. Exact-match hook; unclear product sends nothing; a version that already had the fix is a recurrence, flagged."
+  rationale: "Owner wants customers acknowledged. Narrows D-0028 for reports that predate the fix only; D-0028 holds everywhere else."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#7"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0040
+  scope: "SCOPE-132"
+  question: "May the triage job mark needs-info or declined, or send its own text?"
+  decision: "No: no needs-info, no decline, no agent-written text to a customer."
+  rationale: "Those are customer-facing judgments for a human."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#8"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0041
+  scope: "SCOPE-132"
+  question: "What happens to shipped-fixed reports that do not qualify for the resolved message?"
+  decision: "feedback-triage report-only mode lists them as \"ready to resolve\" with commit and version evidence; nothing is called."
+  rationale: "Keeps D-0028 live-probe rule for the rest."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#9"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0042
+  scope: "SCOPE-132"
+  question: "What starts the triage job?"
+  decision: "Daily at 06:00 inside the project agent, catch-up on start when today report is missing, plus a TRIAGE room command. Each run is a separate one-shot session behind the hook; one at a time."
+  rationale: "Removes the manual start; the report file doubles as the ran-today record."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#10"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0043
+  scope: "SCOPE-132"
+  question: "Where are triage groups kept?"
+  decision: "In the report file only, no database writes; each group shows a group key (oldest report feedback ID) and every member feedback ID."
+  rationale: "No schema change until phase 2 shows a need; stable keys let groups be followed day to day."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#11"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0044
+  scope: "SCOPE-132"
+  question: "Which model runs the triage job?"
+  decision: "Opus (SPEC-143 heavy: touches production data customers see); each run logs its model choice to decisions/routing-log.jsonl."
+  rationale: "The verdict behind a resolved message is the judgment D-0028 guards."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#12"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0045
+  scope: "SCOPE-132"
+  question: "Does the daily triage run when nothing changed?"
+  decision: "No: a no-AI check of counts and latest update per status against the last report skips the 06:00 run and posts \"Triage: no change since <date>\"; TRIAGE always runs."
+  rationale: "Cuts most daily cost without a cheaper model."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#13"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0046
+  scope: "SCOPE-132"
+  question: "How does the triage job avoid the list_my_feedback read cap?"
+  decision: "feedback-triage stops passing maxItems (server default 500), reads one status at a time, and warns when a status returns exactly 500."
+  rationale: "Passing maxItems caps at 100; omitting it returns up to 500."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#14"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0047
+  scope: "SCOPE-132"
+  question: "Add offset paging to list_my_feedback now?"
+  decision: "No; only if a status ever reaches 500."
+  rationale: "Not needed at current volume."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#15"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0048
+  scope: "SCOPE-132"
+  question: "Can gitignored triage reports leak into a kit release?"
+  decision: "Add a check that docs/triage/ never ends up in a kit release."
+  rationale: "The release sync copies from disk, not git; gitignored files have shipped before."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#16"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0049
+  scope: "SCOPE-132"
+  question: "When and where is the project-agent triage job built?"
+  decision: "Next after the kit write-safety batch, as its own small batch; scoped as SCOPE-132 Amendment C including the SCOPE-043 wording change, subject to the buildscope reuse check."
+  rationale: "Write-safety is top priority; serial batches keep live-test evidence clean."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#17"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0050
+  scope: "SCOPE-132"
+  question: "How should the triage job produce and carry out fixes?"
+  decision: "Open: the owner answers in phase 2 (a wxBrainstorm over real triage reports, then a skill that manages and executes fixes; also the per-report trigger, DB group storage, a cheaper sweep model)."
+  rationale: "Needs real reports first."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#18"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0051
+  scope: "SCOPE-043"
+  question: "Should customers triage feedback about their own apps?"
+  decision: "Open: the owner answers (a separate topic, SCOPE-043 Layer 2/3)."
+  rationale: "A different product from vendor-side triage."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-26-project-agent-feedback-triage.md#19"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0052
+  scope: "SCOPE-132"
+  question: "How is 'the report predates the fix' proven when a report records no version for the product (D-0028 narrowing)?"
+  decision: "Compare the report's recorded version for that product with fixedInVersion; with none recorded, compare the filing date with the fixing release's publish date (GitHub release, Marketplace or deploy). Product unclear, or no version and filed after publication: Ready to resolve, nothing sent. The server refuses a resolve whose recorded version is at or above fixedInVersion (recurrence_suspected). Cockpit reports record kitversion from now on. D-0028's live-probe rule holds everywhere else."
+  rationale: "Cockpit-filed reports carry no kit version, so a version-only rule would resolve almost nothing; a report filed before the fix was published cannot have been running it."
+  kind: Agreed
+  evidence: confirmed
+  source: "specs/Project-Scope/132-kain-autonomous-driver.md#FR-052"
+  approved_by: "owner"
+  date: 2026-10-26
+  supersedes: null
+- id: D-0053
+  scope: "SCOPE-019"
+  question: "What is the need behind making the kit global?"
+  decision: "A kit release is applied once per machine; every repo on it is current with no per-repo action and no AI session. Done = 5 repos, 1 action, 0 tokens per repo; a 6th repo needs only its project binding."
+  rationale: "The owner runs 4-5 repos and every upgrade costs tokens and time per repo. Where the tokens go today is not yet measured."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#1"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0054
+  scope: "SCOPE-019"
+  question: "Who is the global kit for, and what comes first?"
+  decision: "Everyone, customers included. First version = Claude Code users with the Cockpit; Cursor stays per-repo for now; existing per-repo installs keep working beside a global one."
+  rationale: "Other tools' user-level support is unverified, so it is not promised."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#2"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0055
+  scope: "SCOPE-019"
+  question: "How is the kit made global: plugin, revived sync-global, or the existing installer retargeted?"
+  decision: "Retarget the existing installer (upgrade-kit and the Cockpit) to user level: skills and commands into ~/.claude, runtime in a version-stamped machine-wide folder, per-repo binding. Command names stay unchanged."
+  rationale: "Reuses the most existing code and keeps /implement, /buildscope and the rest named as they are."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#3"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0056
+  scope: "SCOPE-019"
+  question: "What is the smallest useful version?"
+  decision: "Step 0: live spike in a throwaway repo plus the secret-path build gate (stop condition: return to the plugin option). Step 1: installer, launcher, hook rewrite, Connect this project, migrate with undo, 3-OS CI, cheap version parts, run on the owner's repos. Step 2: customers."
+  rationale: "Meets the need on the owner's repos first; the owner's repos are legacy installs so migrate cannot wait."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#4"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0057
+  scope: "SCOPE-019"
+  question: "Which parts of the kit stay per repo?"
+  decision: "Code and rules global; identity, secrets and data per repo; the repo records the kit version it expects. Hook wiring moves to user level and self-gates on .wxkanban-project.json. .claude/settings*.json and .husky/ stay per repo. The global folder is built only from the release artifact."
+  rationale: "The kit already preserves the repo-owned files; a global folder read by every repo must never take anything from one repo."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#5"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0058
+  scope: "SCOPE-019"
+  question: "What happens when a repo and the global kit disagree on version?"
+  decision: "Latest by default; the global folder keeps one previous version; a repo may pin with a new kitPin field; each repo stamps its data format and the kit refuses newer data; data migrations are lazy, per repo, with a backup."
+  rationale: "The real skew risk is repo data formats, not code; keeping the previous version gives a rollback."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#6"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0059
+  scope: "SCOPE-019"
+  question: "How do hooks and scripts find a kit that is no longer inside the repo?"
+  decision: "A Node launcher reads the repo's .wxkanban-project.json, picks the pinned or current kit, runs the script with cwd unchanged and exits quietly with no binding. The installer stamps its absolute path into the ~190 call sites; PATH is optional. The SessionStart hook runs from the built bundle. A stable current alias serves read-only docs."
+  rationale: "Scripts already find the project from the working directory; only the call sites assume the repo location. A Dock-launched VS Code on macOS has a thin PATH."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#7"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0060
+  scope: "SCOPE-019"
+  question: "How do existing per-repo installs move to the global kit, and how is it undone?"
+  decision: "Launcher lookup = kit inside the repo, then pin, then current. A migrate command: dry run by default; moves files identical to the release into .wxai/kit-backup/<timestamp>/, never deletes; keeps differing files; never runs git; refuses to remove git-tracked kit files unless the user confirms the team has the global kit; undo restores everything."
+  rationale: "A shared repo breaks for teammates if kit files are deleted and committed; customer-edited kit files must not be destroyed."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#8"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0061
+  scope: "SCOPE-019"
+  question: "How are secrets and project binding kept safe in a global kit?"
+  decision: "Identity only from the repo (no default, no cached project id); no secrets in the global folder or user settings; the release build fails on any secret-bearing path; the global folder is read-only while running; only identity-free state is machine-wide; the entitlement stays per repo."
+  rationale: "A user-level token would let every repo act as one project; a leaked file in a global folder reaches every repo."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#9"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0062
+  scope: "SCOPE-019"
+  question: "What is the Cockpit install and update flow, and what happens to the help?"
+  decision: "Install once per machine; Connect this project per project; one check per machine, one-click install of the new version beside the old, lock file, reload notice; updates stay notify-and-confirm; legacy repos get a move-this-project row; installCommands and impact.installHook retired in global mode; help in six languages written with the build; retire the /sync-global page."
+  rationale: "Four per-workspace actions collapse into two; the workspace unpack that overwrote a .gitignore goes away."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#10"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0063
+  scope: "SCOPE-019"
+  question: "What order does the global kit go in?"
+  decision: "Now: fix the .wxai/.entitlement release leak and add the secret-path gate, run the Step 0 spike, measure the token baseline. Next: Step 1 after the kit write-safety batch and SPEC-148 close and CI runs again. Later: Step 2."
+  rationale: "Step 1 changes the same installer code as the write-safety batch; its CI matrix needs CI running; the leak is a real defect today."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#11"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0064
+  scope: "SCOPE-019"
+  question: "What new requirements came out of the discussion?"
+  decision: "The release secret-path build gate, the kitPin field, the migrate command, a 3-OS CI matrix, and the token-baseline measurement."
+  rationale: "Each follows from a risk raised on the panel."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#12"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0065
+  scope: "SCOPE-019"
+  question: "How did the request change from what was first asked?"
+  decision: "Make the kit global became: code and rules global; identity, secrets and data per repo; one launcher."
+  rationale: "The owner needs certain parts specific to each repo."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#13"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0066
+  scope: "SCOPE-019"
+  question: "Which field pins a repo to a kit version?"
+  decision: "A new kitPin field. The earlier proposals (.wxkanban-version, then kitVersion) are replaced."
+  rationale: ".wxkanban-version is the old rules marker; kitVersion is already set in every repo to its installed version and would pin migrated repos to an old, unretained version."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#14"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0067
+  scope: "SCOPE-019"
+  question: "How is the launcher found by hooks and commands?"
+  decision: "By an absolute path stamped by the installer; PATH is optional. Replaces the earlier launcher-on-PATH proposal."
+  rationale: "A Dock-launched VS Code on macOS has a thin PATH, and a zip release loses the exec bit."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#15"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0068
+  scope: "SCOPE-019"
+  question: "Is .claude/settings.json ever touched?"
+  decision: "migrate is the one exception to never touching it: it may remove only hook entries it can prove are the kit's own, with a diff shown and a backup."
+  rationale: "A migrated repo's hook entries would otherwise point at files that were moved out."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#16"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0069
+  scope: "SCOPE-019"
+  question: "Should the kit be packaged as a Claude Code plugin?"
+  decision: "Declined."
+  rationale: "Plugin skills are namespaced, so every command would become /wxkanban:... and every doc, rule and habit would change."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#17"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0070
+  scope: "SCOPE-019"
+  question: "Should the sync-global command be revived?"
+  decision: "Declined."
+  rationale: "It was a manual two-way copy; its script and its _wxAI-global folder are both gone."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#18"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0071
+  scope: "SCOPE-019"
+  question: "Should the repo link to the global kit with a symlink or an environment variable?"
+  decision: "Declined in favor of the launcher."
+  rationale: "Symlinks need rights on Windows and pinning needs per-repo values; the launcher is more robust on Windows, macOS and Linux."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#19"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0072
+  scope: "SCOPE-019"
+  question: "Should kit updates apply silently?"
+  decision: "Declined for now: updates stay notify-and-confirm."
+  rationale: "SCOPE-083 chose notify-and-confirm on purpose; changing it is a separate decision."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#20"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0073
+  scope: "SCOPE-019"
+  question: "Should Blackbox AI support be dropped from the kit altogether?"
+  decision: "Open: the owner answers (a separate topic, touching SCOPE-019 and its dependants)."
+  rationale: "Not part of making the kit global."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-27-global-kit.md#21"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0074
+  scope: "SCOPE-019"
+  question: "Should the kit install without the Cockpit, and for other AI tools?"
+  decision: "Open: the owner answers (later)."
+  rationale: "The first version is Claude Code users with the Cockpit; other tools' user-level support is unverified."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-27-global-kit.md#22"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0075
+  scope: "SCOPE-019"
+  question: "When is the lazy data-migration machinery built?"
+  decision: "Open: the owner answers (until the first release that changes a data format)."
+  rationale: "The data-format stamp and the refuse-newer check ship in Step 1; the migrator has nothing to migrate yet."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-27-global-kit.md#23"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0076
+  scope: "SCOPE-019"
+  question: "Should rules and reference docs be global or kept in each repo?"
+  decision: "Open: the owner answers. Recorded as global with the version pin; not explicitly confirmed."
+  rationale: "Global gives one copy; in-repo makes the exact rules visible in audits and reviews."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-27-global-kit.md#24"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0077
+  scope: "SCOPE-019"
+  question: "How long do legacy per-repo installs stay supported?"
+  decision: "Open: the owner answers. No end date for now."
+  rationale: "The launcher lookup order makes legacy support nearly free; an end date can wait until customers ask."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-27-global-kit.md#25"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0078
+  scope: "SCOPE-019"
+  question: "Step 0 spike: when a repo and the user level both have a command of the same name, which one runs?"
+  decision: "The user-level copy wins. This corrects the earlier lookup order for commands: a global command shadows a legacy repo's command files, a repo pin cannot select an older repo-side command file (it can only act at the launcher, which the global command text must call), and migration of commands is cleanup rather than a behavior risk."
+  rationale: "Live run of claude -p in a folder with both copies: the user copy ran; with the user copy hidden the repo copy ran. Claude Code 2.1.98, Windows, one run per case."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#26"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0079
+  scope: "SCOPE-019"
+  question: "Step 0 spike: do user-level and repo-level hooks both run?"
+  decision: "Both run, once each, at the same moment; neither replaces the other. Migrate must therefore remove the repo hook entries it can prove are the kit's own, or every hook runs twice in a migrated repo."
+  rationale: "Live run with a user SessionStart hook and a repo SessionStart hook logging to one file: two entries, one each, same millisecond."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#27"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0080
+  scope: "SCOPE-019"
+  question: "Step 0 spike: what held?"
+  decision: "User-level commands load in a repo that has none of its own. A hook calling the launcher by absolute path ran from a non-interactive session on Windows and exited quietly in a folder with no project binding. Skills at user level were already known to load."
+  rationale: "Three throwaway folders, Claude Code 2.1.98, Windows, Haiku model; the user settings file was restored byte-for-byte and the machine-wide data folder was unchanged."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-global-kit.md#28"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0081
+  scope: "SCOPE-019"
+  question: "Step 0 spike: what was not tested?"
+  decision: "Open: macOS and Linux were not tried, including the Dock-launched VS Code on macOS with a thin PATH; a user hook and a repo hook that conflict on the same event were not tried; Claude Code versions other than 2.1.98 were not tried."
+  rationale: "The check needs a real Mac and more than one CLI version."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-27-global-kit.md#29"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0082
+  scope: "SCOPE-102"
+  question: "What is the need behind the GO REMOTE change?"
+  decision: "GO REMOTE becomes a status handoff into this repo's own room. One KAIN serves one room and each repo has its own room, so no cross-repo design is needed."
+  rationale: "The operator leaves a repo mid-work and the other side has no context."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#1"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0083
+  scope: "SCOPE-102"
+  question: "When does the handoff happen?"
+  decision: "Only when the operator says GO REMOTE."
+  rationale: "An automatic handoff would fire on every /clear and crashed session."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#2"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0084
+  scope: "SCOPE-102"
+  question: "How does the summary reach the other side?"
+  decision: "The session posts it straight to the repo's room; whoever listens (KAIN, the project agent or a human in YappChatt) reads it."
+  rationale: "The sender should not depend on who is listening."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#3"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0085
+  scope: "SCOPE-102"
+  question: "What is the smallest useful GO REMOTE?"
+  decision: "Check the room, write a fixed-template summary of about 2,000 characters, post it starting with [HANDOFF], report back, and launch no bridge. Build the template and rule text, a small post script, and a [HANDOFF] guard in the bridge."
+  rationale: "Reuses the room, the command parser and the Allow-remote gate."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#4"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0086
+  scope: "SCOPE-102"
+  question: "What risks are accepted and how are they handled?"
+  decision: "Stop with a plain message when Allow remote is off or there is no company room, with no fallback. Redaction check before posting. The bridge treats [HANDOFF] as context only. The kit never edits .env and gives a one-time notice that the keys are no longer read."
+  rationale: "The bridge runs in bypass permissions, and remote must stay a company decision."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#5"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0087
+  scope: "SCOPE-102"
+  question: "What is the priority and shape?"
+  decision: "Now, as one scope: the handoff (A) first, then removal of the plain mode (B). Order: spike, spec, A, B, kit release."
+  rationale: "Daily pain point; A ships value even if B waits."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#6"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0088
+  scope: "SCOPE-102"
+  question: "Can the session post to the room with credentials it already has?"
+  decision: "Run a spike to confirm before the spec is written."
+  rationale: "It was unknown, and it decides how the post script gets its credential."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#7"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0089
+  scope: "SCOPE-102"
+  question: "Which docs change with the new GO REMOTE?"
+  decision: "CLAUDE.md, remote.md, /remote, the guides, the changelog and a SPEC-145 note, in the same release."
+  rationale: "All describe the old behavior."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#8"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0090
+  scope: "SCOPE-102"
+  question: "Keep or remove the plain .env bridge mode?"
+  decision: "Remove the plain bridge mode and the YAPPCHATT_* room keys entirely. The chair had recommended keeping the code and unlinking it."
+  rationale: "One remote path, and no bypass of the company Allow-remote switch."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#9"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0091
+  scope: "SCOPE-102"
+  question: "Carry the summary by a local file drop?"
+  decision: "Declined: the session posts to the room directly."
+  rationale: "KAIN may not be listening, and the sender should not depend on a local agent."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#10"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0092
+  scope: "SCOPE-102"
+  question: "Keep the .env fallback for projects with no company room?"
+  decision: "Declined: remove it."
+  rationale: "It bypasses the company's Allow-remote switch."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#11"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0093
+  scope: "SCOPE-102"
+  question: "Should the handoff happen automatically at session end?"
+  decision: "Open: the owner answers."
+  rationale: "Parked as a separate topic until the summary format has proven itself."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#12"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0094
+  scope: "SCOPE-102"
+  question: "Should one view span several repos' rooms?"
+  decision: "Open: the owner answers."
+  rationale: "Parked as a separate topic; the built design is one room per repo."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#13"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0095
+  scope: "SCOPE-102"
+  question: "Should the Cockpit show the last handoff?"
+  decision: "Open: the owner answers."
+  rationale: "A later enhancement outside the smallest version."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#14"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: null
+- id: D-0096
+  scope: "SCOPE-149"
+  question: "How does the handoff summary reach the Project Agent's room, and who is the recipient?"
+  decision: "The session writes the summary to .wxai/handoff/ and the Project Agent posts it as [HANDOFF] under its own identity. The recipient is the Project Agent, not KAIN or Jarvis. The command is HANDOFF REMOTE; GO REMOTE is retired with no redirect; an unposted handoff expires after 4 hours with a removal note in the room."
+  rationale: "The room credential belongs to the Project Agent process, and a session posting on its own could look like the agent speaking."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-10-27-go-remote-handoff.md#15"
+  approved_by: "owner"
+  date: 2026-10-27
+  supersedes: D-0091
+- id: D-0097
+  scope: "SCOPE-132"
+  question: "How should K.A.I.N. reach a repo's Project Agent without HANDOFF REMOTE?"
+  decision: "A two-way direct line: K.A.I.N. reads the agent's state and directs it, and does not use the room. HANDOFF REMOTE stays, YappChatt only."
+  rationale: "A handoff is a one-time snapshot and the room has been missing things; the owner chose two-way over the suggested read-only line."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#1"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0098
+  scope: "SCOPE-132"
+  question: "Who uses the direct line, and can several K.A.I.N.s direct one agent?"
+  decision: "The operator now; later anyone in the existing K.A.I.N. reach table. Many read, one directs: an explicit hold, released on stop, lapsing after 3 minutes; every direction audited with person and device; the Agent Access panel shows the director."
+  rationale: "Two people steering one headless session at once is the problem the single-agent rule already solves."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#2"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0099
+  scope: "SCOPE-132"
+  question: "Where does the K.A.I.N.-agent meeting point live?"
+  decision: "An agent mailbox on the wxKanban app: both sides long-poll over HTTPS with existing credentials through the existing reach, Allow-remote and audit rules; a small mailbox table; a transport-neutral message format."
+  rationale: "Works on App Runner today and reuses one access rule; a WebSocket can replace long-polling later."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#3"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0100
+  scope: "SCOPE-132"
+  question: "What is the smallest useful version of the direct line?"
+  decision: "Piece A (read): per-turn masked kit hook to .wxai/session-feed.jsonl, agent keeps a rolling summary and last entry, carried on the connection-record heartbeat, K.A.I.N. reads via one MCP tool. Then piece B (direct): mailbox, directing hold, gates, audit and panel. Not first: WebSocket, raw transcript, history, Cockpit live view."
+  rationale: "Piece A alone answers 'where are we?' and is mostly reuse."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#4"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0101
+  scope: "SCOPE-132"
+  question: "How is the SCOPE-132 FR-032 'direction in the room' rule changed?"
+  decision: "SCOPE-132 Amendment G: FR-032 narrowed (room for people and HANDOFF REMOTE; K.A.I.N. directs via the mailbox) with a superseded note; new FRs for pieces A and B; kain-contract.md updated in the same release; K.A.I.N.'s connect no longer creates or requires a room."
+  rationale: "Builds on Amendments D and F; K.A.I.N. is pre-release, so the contract can change freely."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#5"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0102
+  scope: "SCOPE-132"
+  question: "What session content may leave the machine for K.A.I.N.?"
+  decision: "Only the rolling summary (max 1,500 characters), last entry (max 500) and open-blocker titles, masked twice; feed file gitignored; overwrite-only on the connection record, no history; on by default when Allow remote is on, with a local per-repo off switch; Cockpit shows sharing status; K.A.I.N. reads audited."
+  rationale: "Masking catches secret shapes but not plain-word customer data, so the less that leaves the better."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#6"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0103
+  scope: "SCOPE-132"
+  question: "Does the direct line depend on App Runner WebSocket support?"
+  decision: "No: long-polls held about 50 seconds inside the App Runner request limit; WebSocket support is a later fact, not a blocker."
+  rationale: "The mailbox design removes the dependency."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#7"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0104
+  scope: "SCOPE-132"
+  question: "How do the agent and K.A.I.N. prove who they are on the mailbox?"
+  decision: "The agent uses its existing project kit token and must hold the project's open connection record; K.A.I.N.'s person and device are stamped by the server from the device token, with reach and the hold checked on every post."
+  rationale: "Server-stamped identity replaces the room's spoofable text tag."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#8"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0105
+  scope: "SCOPE-132"
+  question: "How is regression of the existing agent features prevented?"
+  decision: "The per-turn hook runs under 200 ms, always exits cleanly, does nothing when WXAI_REMOTE=1, keeps a 200-line feed and ships via the kit hook sync; the mailbox poll loop is isolated from the room, triage, handoff and outbox; HANDOFF REMOTE unchanged."
+  rationale: "The hook runs on every turn, and the agent's own session must not feed itself."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#9"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0106
+  scope: "SCOPE-132"
+  question: "How do the override, push and approver gates apply on the direct line?"
+  decision: "Room and mailbox messages share one inbound path; a gate answer on the mailbox needs the directing hold and Room Approver; a waiting gate is shown on both channels, first valid answer wins, audited with channel, person and device."
+  rationale: "A separate handler would let a gate drift and become a way around it."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#10"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0107
+  scope: "SCOPE-132"
+  question: "How does the mailbox avoid the YappChatt client's silent failures?"
+  decision: "Every poll is a heartbeat with last-seen on both sides (live, stale, gone); 401 leads to token renewal or re-sign-in; messages sequenced, acknowledged and redelivered, 24-hour expiry with an expired-unread count; directions delivered more than 10 minutes late need reconfirming."
+  rationale: "Lessons from the reconnect defect, so the new line cannot go deaf unnoticed."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#11"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0108
+  scope: "SCOPE-132"
+  question: "When is the direct line built?"
+  decision: "Now, in order: the YappChatt reconnect fix, SCOPE-132 Amendment G via /buildscope then G.O.D., piece A release, piece B release with the K.A.I.N.-side client."
+  rationale: "The room must be reliable first since HANDOFF REMOTE stays on it."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#12"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0109
+  scope: "SCOPE-132"
+  question: "Host a WebSocket /bridge on the wxKanban app?"
+  decision: "Declined."
+  rationale: "App Runner WebSocket support is unknown and two instances may never meet."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#13"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0110
+  scope: "SCOPE-132"
+  question: "Run a separate relay service for K.A.I.N. and the agent?"
+  decision: "Declined."
+  rationale: "A new service to run that would duplicate reach, Allow-remote and audit."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#14"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0111
+  scope: "SCOPE-132"
+  question: "Feed the agent from the raw session transcript or the .remember files?"
+  decision: "Declined: a masked per-turn kit hook is the source."
+  rationale: "The transcript holds too much to leave the machine and .remember is a third-party plugin."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#15"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0112
+  scope: "SCOPE-102"
+  question: "Fix the YappChatt client so a dropped room connection is detected and recovered?"
+  decision: "Open: the owner answers."
+  rationale: "Parked as a separate fix, done first: heartbeat ack ignored, session never renewed, 5-minute replay gap, status never shown."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#16"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0113
+  scope: "SCOPE-132"
+  question: "Should the agent run mailbox-only when the company has no YappChatt account?"
+  decision: "Open: the owner answers."
+  rationale: "Parked as a separate topic; it changes how the agent starts for every customer."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-11-03-kain-direct-agent-line.md#17"
+  approved_by: "owner"
+  date: 2026-11-03
+  supersedes: null
+- id: D-0114
+  scope: "SCOPE-132"
+  question: "What is the need behind the Project Agent working the dev plan by itself?"
+  decision: "Move each project forward without the owner starting each unit; answer from recorded decisions; stop only for something new. Learn means the decision ledger, not watching sessions."
+  rationale: "Six apps in four months; the owner cannot drive each one by hand."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#1"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0115
+  scope: "SCOPE-132"
+  question: "Who may use the dev-plan autopilot, and how is it turned on?"
+  decision: "The owner first, then every customer. A per-project switch, off by default, server-enforced and audited, requires Allow remote and is changed by the same people as Allow remote. One new column beside allowremote, applied by hand."
+  rationale: "Each customer must be able to turn it off themselves; default off."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#2"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0116
+  scope: "SCOPE-132"
+  question: "Reuse or build new for the dev-plan autopilot?"
+  decision: "Reuse the dev plan state, G.O.D.'s drive, god-loop moved into the kit, the askgate decision queue, K.A.I.N. answer-and-review and run capture. Build the switch, startup list and skips, self-start, timed posts and time hookup."
+  rationale: "Reuse what we can, build what is needed."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#3"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0117
+  scope: "SCOPE-132"
+  question: "What is the smallest useful version of the dev-plan autopilot?"
+  decision: "Post the outstanding scopes in build order, take skips, then run validateScope, createSpecs and implement per scope in a fresh session. Not in v1: other machines, a cross-project coordinator, session watching."
+  rationale: "All the tools exist; the agent compiles them as needed."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#4"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0118
+  scope: "SCOPE-132"
+  question: "Who answers each command's gates during an unattended dev-plan run?"
+  decision: "The owner's go on the startup list is the approval. Gates are answered only from the scope text and the ledger; anything else is parked as one line (project, scope, question, what it blocks). Unbuilt scopes stay with the owner."
+  rationale: "Ask K.A.I.N. or the room for help with a short, terse message."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#5"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0119
+  scope: "SCOPE-132"
+  question: "May the agent write and commit code in the tree without the owner present?"
+  decision: "Yes: one worktree per scope, one local commit per unit, never a push. No dev plan, no start. Never runs against production; parks the unit if its tests point there."
+  rationale: "The agent may do it as long as the dev plan is there; issues are relayed and work continues."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#6"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0120
+  scope: "SCOPE-132"
+  question: "Which plan is the source of what is outstanding?"
+  decision: "The server devplan, after a per-scope scope_stage check. G.O.D.'s roadmap adds phase gates only where it exists."
+  rationale: "The devplan is the source of truth."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#7"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0121
+  scope: "SCOPE-132"
+  question: "When a unit fails or stops during the run, park it or halt?"
+  decision: "Park it and go on, with one short line to K.A.I.N. or the room. Dependents wait. Each unit ends with an explicit done or failed line."
+  rationale: "Keep going; notify short and concise."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#8"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0122
+  scope: "SCOPE-132"
+  question: "How does the agent report status during the run?"
+  decision: "Always post every 15 minutes from the state file, masked, to the room and K.A.I.N.: full detail when there is news, a short nothing-changed heartbeat otherwise, paused when paused. STATUS on demand. Full summary when the list finishes and at 18:00 if still running."
+  rationale: "Changed from skipping unchanged posts: a heartbeat tells the owner the agent is alive when remote."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#9"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0123
+  scope: "SCOPE-132"
+  question: "How are context and cost controlled over a long run?"
+  decision: "No cost rules of its own; defer to rescue-tokens, the SPEC-143 routing tiers, the SCOPE-093 advisor and a fresh session per unit."
+  rationale: "Changed from panel-invented cost controls: the existing cost machinery already does this."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#10"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0124
+  scope: "SCOPE-132"
+  question: "Fit and priority of the dev-plan autopilot?"
+  decision: "High priority; to buildscope, whose reuse check decides amendment vs new scope. Build after the SPEC-149 bridge handoff guard fix, SCOPE-102 FR-013 (API key stripped from the child session, specified but not built) and SCOPE-132 Amendment G piece A."
+  rationale: "Fastest route to the delivery goal; the three fixes keep unattended runs safe and on the subscription."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#11"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0125
+  scope: "SCOPE-132"
+  question: "How is the agent's time kept for time and billing?"
+  decision: "As SPEC-005 FR-007 Resource time through the existing run capture and daily pull, each run tagged with its scope and task. No attribution to a person."
+  rationale: "Agents as Resources already exists in Time and Billing."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#12"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0126
+  scope: "SCOPE-132"
+  question: "Which subscription plans get the dev-plan autopilot?"
+  decision: "Every plan, no plan gate. Time booking works only where the company has Time and Billing. One help catalog entry."
+  rationale: "Every customer gets it (item 2); a plan limit adds no safety."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#13"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0127
+  scope: "SCOPE-132"
+  question: "What happens to dependent scopes when the owner skips a scope?"
+  decision: "The skip lists dependent scopes from the existing scope-impact check; each is skipped or partly worked with the safe tasks listed to confirm. A partial scope stays partial; skipped parts stay on every summary until released; choices kept in the run state."
+  rationale: "A scope can be partly worked even if part of it was skipped."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#14"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0128
+  scope: "SCOPE-132"
+  question: "Alert the owner when a 15-minute post is missed?"
+  decision: "Yes. The server raises it from the existing connection record (not live during a run, or no post for 20 minutes): one line to the room and K.A.I.N. per outage, one back line on return, only during an active unpaused run."
+  rationale: "A down agent cannot report itself; the server already tracks liveness."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#15"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0129
+  scope: "SPEC-005"
+  question: "Which plan does Time and Billing require: SMALL_BUSINESS (server route) or CONSULTANT (help catalog)?"
+  decision: "Open: the owner answers."
+  rationale: "Parked as a separate fix outside the autopilot idea; three plan lists disagree."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-11-07-project-agent-autopilot-devplan.md#16"
+  approved_by: "owner"
+  date: 2026-11-07
+  supersedes: null
+- id: D-0130
+  scope: "agent-coordination"
+  question: "What is the need behind agent teamwork on a collision?"
+  decision: "Coordination, not prevention: one agent per piece of work at a time, visible to every agent, handed to a ready agent with an announcement and no owner step; safety is the floor."
+  rationale: "Done when two agents given the same work: one works it, the other reports the holder and moves on, nothing lost or committed twice."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#1"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0131
+  scope: "build-process"
+  question: "Who decides a task is done once a scope is signed off?"
+  decision: "The Software Manager (Project Agent), not the programmer subagent; its done check includes every new piece having a caller outside the tests."
+  rationale: "SPEC-154 was reported done while several pieces had no caller in production; the owner runs the work as CTO, design committee, manager and programmers."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#2"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0132
+  scope: "build-process"
+  question: "How are a scope's tasks cut?"
+  decision: "By user story (existing rule, enforced); each story opens with a walking-skeleton task from the real entrance to the result, its end-to-end test written failing at spec time; each scope ends with a connect-and-prove-it task that cannot be skipped or marked done by hand."
+  rationale: "Cutting one task per requirement left no task owning the connections, and that knowledge was lost when the session was cleared."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#3"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0133
+  scope: "feature-list"
+  question: "Should there be a feature list above scopes?"
+  decision: "Yes: request, features, scopes, stories, tasks. The committee presents must-have and optional features per request and the CTO reviews item by item; each feature records entrances, delivering scopes, end-to-end tests and a test-set status; repo file read at session start, mirrored to the DB; buildscope names each scope's feature; existing scopes grouped once."
+  rationale: "Owner idea: scopes that belong together are not grouped, and nothing shows whether a change breaks or enhances a feature. Kept open to adjust after first real use."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#4"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0134
+  scope: "SCOPE-137"
+  question: "How should Change Impact approval stops work during an approved build?"
+  decision: "Approved-plan mode: a signed-off scope covers the features, scopes and files it names; edits inside it by the manager or any programmer are logged, go ahead, and are shown at the closing task. Data loss, login and accounts, secrets, money, schema, and crossings into an unnamed feature always stop; what stops reaches chat (finish T022). Expires when the scope closes."
+  rationale: "Approvals bound to exact edits caused repeated stops and blocked every gated edit delegated to a subagent."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#5"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0135
+  scope: "agent-coordination"
+  question: "How do programmer subagents avoid conflicting in one tree?"
+  decision: "One manager per working tree; a claims board in the repo (task, files, holder); a programmer needing a held file takes the next free task; only the manager commits, reassigns and announces handovers. Second version: worktree per scope merged one at a time, and scope check-out fixed (race, stale on quiet heartbeat, one-person companies)."
+  rationale: "Fits the manager-and-programmers operating model and keeps the existing one-agent-per-tree lock."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#6"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0136
+  scope: "wxBrainstorm"
+  question: "Should brainstorm have an analyze switch for existing apps and conversions?"
+  decision: "Yes: /wxBrainstorm --analyze (optional --dir, --conversion) runs the existing analyzers on one app, each in its own subagent; the panel presents must fix, gaps and optional improvements grouped by feature; the CTO reviews item by item; findings saved so a re-run shows what changed; one app per sitting, then a cross-app pass that fixes a repeated gap once in the converter."
+  rationale: "Owner idea; first use is 14 customer conversions, so it is built first. The first app is the trial run."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#7"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0137
+  scope: "build-process"
+  question: "In what order are the build-process changes built?"
+  decision: "(1) analyze switch, (2) done and task cutting, (3) approved-plan mode and the chat relay, (4) Ask Gate on, (5) feature list, (6) manager as coordinator, first then second version."
+  rationale: "The analyze switch is needed first for the conversions; finishing SPEC-155 is the first real test of step 2."
+  kind: Agreed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#8"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0138
+  scope: "ask-gate"
+  question: "Should the Ask Gate run in this project?"
+  decision: "Yes: turn it on so approved lists and logged assumptions answer build-time questions; only real choices stop."
+  rationale: "It is built but not installed here, and many build-time stops were questions the scope should already have answered."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#9"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0139
+  scope: "wxBrainstorm"
+  question: "How should the brainstorm panel work with the owner?"
+  decision: "The panel brings the ideas and a complete proposal (must-have and optional); the owner reacts, changes or vetoes; it asks only real choices (money, security, client data, irreversible), never open questions with obvious answers."
+  rationale: "Owner direction: the panel has resources the owner lacks, and the owner already knows the obvious answers."
+  kind: Added
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#10"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0140
+  scope: "agent-coordination"
+  question: "How is work handed between agents?"
+  decision: "Through the manager, not agent-to-agent claiming; the topic widened from collisions to the whole build process."
+  rationale: "Changed from the original request after the operating model was agreed."
+  kind: Changed
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#11"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0141
+  scope: "agent-coordination"
+  question: "May a programmer subagent take work over by itself?"
+  decision: "Declined: only the manager reassigns."
+  rationale: "Keeps one point of control over who holds what."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#12"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0142
+  scope: "agent-coordination"
+  question: "May programmer subagents commit?"
+  decision: "Declined: only the manager commits."
+  rationale: "Prevents clobbered commits in one working tree."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#13"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0143
+  scope: "wxBrainstorm"
+  question: "Should the panel ask the owner open questions the team can answer?"
+  decision: "Declined: the committee proposes the complete version for review instead."
+  rationale: "Owner direction: no questions with obvious answers."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#14"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0144
+  scope: "SCOPE-137"
+  question: "Should the hard stops be weakened to cut approval waits?"
+  decision: "Declined: data loss, login and accounts, secrets, money and schema always stop."
+  rationale: "Safety is the floor; approved-plan mode removes the routine stops instead."
+  kind: Declined
+  evidence: confirmed
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#15"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0145
+  scope: "agent-coordination"
+  question: "Should there be a coordinator across projects?"
+  decision: "Open: the owner answers."
+  rationale: "Deferred, as in the 2026-11-07 brainstorm."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#16"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0146
+  scope: "build-process"
+  question: "Which tool cut SPEC-154's tasks one per requirement?"
+  decision: "Open: the owner answers."
+  rationale: "Checked when build step 2 (done and task cutting) is built."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#17"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0147
+  scope: "autopilot"
+  question: "Correct the SPEC-154 task table that disagrees with itself (T003, T007, T009)?"
+  decision: "Open: the owner answers."
+  rationale: "Corrected when SPEC-155 is finished."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#18"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null
+- id: D-0148
+  scope: "SCOPE-136"
+  question: "Why does the impact tool show no specs for SCOPE-136 though the folder exists?"
+  decision: "Open: the owner answers."
+  rationale: "Checked when build step 6 (manager as coordinator) is built."
+  kind: Parked
+  evidence: unknown
+  source: "docs/brainstorms/2026-11-08-build-process-smoothing.md#19"
+  approved_by: "owner"
+  date: 2026-11-08
+  supersedes: null

@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0",
+  "projectId": "test-project-123",
+  "adapters": {
+    "claude": {
+      "enabled": true,
+      "settingsPath": ".claude/settings.json",
+      "mcpServer": "./tools/wxkanban-mcp.mjs"
+    },
+    "blackboxai": {
+      "enabled": true,
+      "settingsPath": "_wxAI-global/settings.json",
+      "commandsDir": "_wxAI/commands"
+    },
+    "cursor": {
+      "enabled": true,
+      "settingsPath": ".cursor/settings.json"
+    },
+    "copilot": {
+      "enabled": true,
+      "settingsPath": ".github/copilot-settings.json"
+    }
+  }
+}

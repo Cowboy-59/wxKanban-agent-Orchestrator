@@ -1,0 +1,58 @@
+{
+  "mode": "new-project",
+  "note": "Existing-project scope run: G.O.D. drives /createSpecs, contracts and /implement for SCOPE-156 (Brainstorm Analyze Mode) only. No --create, so every gate goes to Andy and G.O.D. runs no git. Previous run (SCOPE-132-C / SPEC-148, T015-T016 still open) saved as docs/GOD-State-132C.json.",
+  "customer": "wxKanban",
+  "level": "senior",
+  "buildFor": "internal",
+  "limit": 1,
+  "phase": "contracts",
+  "position": {
+    "planPhase": 1,
+    "unit": "SCOPE-156",
+    "gate": "CP4 passed: SPEC-156 created (21 tasks in wxKanban, stage Implementation), files in specs/156-brainstorm-analyze-mode/. Next: contracts, awaiting Andy go"
+  },
+  "nextAction": "On Andy go: contracts step for SPEC-156 (no API routes, no schema: contract = analyze data-file JSON shape + findings-helper CLI in/out), then /implement in plan release order starting T008 -> T019.",
+  "stageAdvanced": false,
+  "stoppedAt": null,
+  "scopes": [
+    {
+      "key": "SCOPE-156",
+      "title": "Brainstorm Analyze Mode",
+      "planPhase": 1,
+      "dependsOn": [],
+      "scopeNumber": "156",
+      "scopeFile": "specs/Project-Scope/156-brainstorm-analyze-mode.md",
+      "validation": {
+        "isValid": true,
+        "score": 93,
+        "at": "2026-11-08",
+        "warnings": [
+          "No separate 'Out of Scope' heading (requirement itself passed)"
+        ]
+      },
+      "requirementsReal": true,
+      "specs": [
+        "156"
+      ],
+      "screen": "none",
+      "implement": "not started",
+      "tasksDone": [],
+      "tasksOpen": [],
+      "testPlan": null,
+      "helper": null
+    }
+  ],
+  "designDecisions": [
+    "Source: docs/brainstorms/2026-11-08-build-process-smoothing.md rows 7 and 10 (ledger D-0130 to D-0148).",
+    "Gaps 1-6 approved by Andy 2026-11-08: analyze never plans or estimates; feature groups proposed first until the feature list ships; collect-only modes for wxUIUXCodeReview --audit and wxConversionParity, analyzecode steps 0-2 only; findings in the analyzed app's docs/brainstorms/analyze/ (report + data file) with new/fixed/still open/previously declined on re-run; cross-app pass runs in wxKanban, 2+ apps = one converter scope; every analyzer routed with difficulty.mjs/tiers.mjs.",
+    "Client data, choice (b): wxDBAnalyze opt-in per sitting, read-only guard, table/column names and counts only, never row values, kept in the app's repo.",
+    "Apps are named in converter scopes by a short label Andy sets at the first sitting, never the customer's name.",
+    "Done means wired (success criterion 7): a kit consumer repo runs /wxBrainstorm --analyze from the real entrance to a saved report; the task list alone does not close the scope.",
+    "First real use: the first of the 14 customer conversions, as the trial run."
+  ],
+  "openItems": [
+    "SPEC-148 T015-T016 remain open from the previous run (docs/GOD-State-132C.json).",
+    "Validation warning: optional separate 'Out of Scope' heading in the SCOPE-156 file."
+  ],
+  "updatedAt": "2026-11-09T02:26:04.860Z"
+}

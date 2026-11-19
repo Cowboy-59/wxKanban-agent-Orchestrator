@@ -1,0 +1,15 @@
+{
+  "specNumber": "149",
+  "featureName": "Handoff Remote",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 9,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-28T00:30:55.789Z",
+    "phaseStarted": "2026-10-28T00:30:55.789Z"
+  }
+}

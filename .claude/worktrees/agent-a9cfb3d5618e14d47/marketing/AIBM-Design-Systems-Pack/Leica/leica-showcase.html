@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Leica Camera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#e20612;
+    --primary-active:#b3040f;
+    --cta-bg:#222222;            /* Leica's real primary CTA is the dark rectangle */
+    --on-primary:#ffffff;
+    --dark:#222222;
+    --canvas:#ffffff;
+    --canvas-soft:#f5f5f5;
+    --surface:#ffffff;
+    --surface-alt:#e7e7e7;
+    --ink:#222222;
+    --ink-secondary:#6c6c6c;
+    --ink-faint:#b5b4b4;
+    --ink-placeholder:#9a9999;
+    --hairline:#d1d1d1;
+    --hairline-soft:#e7e7e7;
+    --r-xs:1px;--r-sm:4px;--r-md:8px;--r-lg:24px;--r-xl:24px;--r-xxl:24px;--r-full:9999px;
+    --e1:4px 4px 8px 0 rgba(34,34,34,0.2);
+    --e2:0 8px 24px rgba(34,34,34,0.12);
+    --font:'Outfit', sans-serif;
+    --display-size:68px;
+    --display-weight:400;
+    --section-size:40px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:10px;}
+  h1.display{font-size:var(--display-size);font-weight:var(--display-weight);line-height:1.2;letter-spacing:0;}
+  h2.sec{font-size:var(--section-size);font-weight:400;line-height:1.2;letter-spacing:0;margin-bottom:14px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;font-weight:300;}
+  .hero{padding:80px 0 64px;}
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-size:16px;font-weight:600;border:none;cursor:pointer;border-radius:var(--r-sm);padding:14px 24px;line-height:1.4;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--ink);padding:13px 23px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:11px 18px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:600;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:600;}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px 16px;font-family:var(--font);font-size:16px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--primary);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:1/1;border-radius:var(--r-lg);background:linear-gradient(135deg,var(--surface-alt),var(--hairline));position:relative;overflow:hidden;}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:var(--r-full);font-size:12px;font-weight:600;padding:5px 10px;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+  .listing .l-title{font-weight:600;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:15px;margin-top:2px;font-weight:300;}
+  .listing .l-price{margin-top:6px;font-size:15px;}
+  .listing .l-price b{font-weight:600;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--primary);}
+  .plan .price{font-size:48px;font-weight:400;margin:14px 0 4px;line-height:1;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;font-weight:300;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:var(--r-full);}
+  .s-ok{background:var(--surface-alt);color:var(--primary);}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-lg);padding:36px;box-shadow:var(--e1);}
+  .auth h3{font-size:28px;font-weight:400;margin:4px 0 24px;}
+  .auth label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:var(--r-sm);background:#fff;padding:13px;font-size:14px;font-weight:600;cursor:pointer;}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:48px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Leica Camera</h1>
+  <p class="lede" style="margin-top:28px;">A near-monochrome system of warm-black ink on white and pale-grey bands, set in one geometric sans at light and regular weights — hierarchy from size, never boldness — with Leica's signature red held in reserve for the brand mark.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Discover More</button>
+    <button class="btn btn-secondary">Find a Store</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">One typeface — Outfit — carries the entire site. Weight stays light (300) to regular (400) even at 68px; hierarchy is built from size and whitespace, not bold. Letter-spacing is left at normal throughout.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Discover More</button><div class="desc">The real Leica CTA: a solid dark rectangle, white label, near-square corners. Colour stays out of the way.</div></div>
+    <div class="ccard"><div class="lbl">button-dark</div><button class="btn btn-dark">Buy Now</button><div class="desc">Same dark fill used for primary actions on light and inverted bands alike — one button system.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">Find a Store</button><div class="desc">Outlined ghost on white — 1px ink border, no fill, for the lower-priority action beside a CTA.</div></div>
+    <div class="ccard"><div class="lbl">button-pill</div><button class="btn btn-pill">All Cameras</button><div class="desc">Soft grey pill for filters and category chips, fully rounded.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Photography</a><a href="#">Stories</a><div class="desc">Inline links are ink-coloured and underlined — never the brand red.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Product and editorial tiles sit flat on the page with 24px-rounded media, bordered only by a hairline. They lift with a soft directional shadow on hover.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Search the Leica world"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Tell us about your photography"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">An 8px base with a 4px half-step, stepping 8 / 12 / 16 / 24 / 32 / 48 for component padding and section rhythm.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">Geometry stays sharp. Inputs are effectively square (1px); controls round modestly; only large media cards round to 24px, and pills go fully round.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The resting state for nearly every surface; the page reads flat and paper-like.</div>
+    <div class="e l1">Level 1 — a soft directional lift (4px 4px 8px rgba(34,34,34,0.2)) used when a media tile is hovered.</div>
+    <div class="e l2">Level 2 — a deeper centred shadow for overlays and popovers; extrapolated from the system.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Tiles stack toward one column; hero type drops to ~48px; nav folds into a menu trigger.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Four-column product/blog grids collapse to two; gutters tighten.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Full multi-column grids return; container approaches max width.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Centred 1200px container with 40px gutters; full-bleed hero imagery.</td></tr>
+  </table>
+  <p class="note"><b>Layout logic:</b> full-bleed hero with white overlaid type, then alternating white and #f5f5f5 content bands separated by tone rather than hard rules.</p>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:40px;">Product Tiers</h2>
+  <p class="lede">Sample pattern — Leica doesn't publish pricing plans, so these demonstrate the card/pricing component using brand-appropriate content.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Compact</span></div><div class="price">$1,495<span>body only</span></div><div class="blurb">The everyday Leica — pocketable, fixed-lens, full-frame character.</div><ul><li>Fixed 28mm Summicron</li><li>24MP full-frame sensor</li><li>Leica Looks profiles</li><li>2-year warranty</li></ul><button class="btn btn-block-dark">Configure</button></div>
+    <div class="plan feat"><div class="tier"><span>M Rangefinder</span><span class="pop">● Most iconic</span></div><div class="price">$5,295<span>body only</span></div><div class="blurb">The camera that defined Leica — manual, mechanical, timeless.</div><ul><li>Optical rangefinder</li><li>60MP full-frame sensor</li><li>Sapphire-glass display</li><li>Lifetime craftsmanship service</li></ul><button class="btn btn-block-dark">Configure</button></div>
+    <div class="plan"><div class="tier"><span>SL System</span></div><div class="price">$6,995<span>body only</span></div><div class="blurb">Professional mirrorless — autofocus, video, L-Mount versatility.</div><ul><li>Phase-detect AF</li><li>8K video capture</li><li>Weather-sealed body</li><li>Priority pro support</li></ul><button class="btn btn-block-dark">Configure</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:40px;">Data Table</h2>
+  <p class="lede">Sample pattern — a registered-products view showing the table, status pill, and pager components.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>Serial</th><th>Model</th><th>Lens</th><th>Status</th><th>When</th></tr>
+      <tr><td>5012-447</td><td>Leica M11</td><td>Summilux 35mm</td><td><span class="status s-ok">Registered</span></td><td>Apr 2026</td></tr>
+      <tr><td>5012-389</td><td>Leica Q3</td><td>Summilux 28mm</td><td><span class="status s-ok">Registered</span></td><td>Mar 2026</td></tr>
+      <tr><td>5012-201</td><td>Leica SL3</td><td>Vario-Elmarit</td><td><span class="status s-pend">In service</span></td><td>Feb 2026</td></tr>
+      <tr><td>4998-776</td><td>Leica M6</td><td>Summicron 50mm</td><td><span class="status s-ok">Registered</span></td><td>Jan 2026</td></tr>
+      <tr><td>4998-540</td><td>Leica D-Lux 8</td><td>Vario-Summilux</td><td><span class="status s-pend">In service</span></td><td>Dec 2025</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:40px;">Account Forms</h2>
+  <p class="lede">Sample pattern — the Leica Account sign-in and registration using the form and button components.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Your Leica Account</h3>
+      <label>Email</label><input class="field" placeholder="you@example.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Apple</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Join the Leica World</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@example.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Apple</button></div>
+  </div>
+</div></section>
+
+<script>
+const colors = [
+  ["primary","#e20612","Leica red — the iconic dot & brand mark"],
+  ["dark / cta","#222222","Primary CTA button & inverted bands"],
+  ["ink","#222222","Headings & body text (warm near-black)"],
+  ["ink-secondary","#6c6c6c","Secondary & supporting copy"],
+  ["ink-muted","#9a9999","Input rules, low-emphasis labels"],
+  ["ink-faint","#b5b4b4","Placeholders / faint captions"],
+  ["hairline","#d1d1d1","1px borders & dividers"],
+  ["canvas","#ffffff","Page background"],
+  ["canvas-soft","#f5f5f5","Off-white section bands"],
+  ["surface-alt","#e7e7e7","Sunken fills / chips"],
+  ["on-primary","#ffffff","Text on dark CTAs"],
+  ["cta gradient","linear","Hero image scrim overlay","linear-gradient(0deg, rgba(0,0,0,0.16), rgba(0,0,0,0.16)), radial-gradient(85% 100% at 50% 100%, #222 0, rgba(34,34,34,0) 100%)"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","68px / 400 / 1.2","Leica SL3","font-size:68px;font-weight:400;line-height:1.2"],
+  ["display-2","48px / 400 / 1.2","Welcome to the World of Leica","font-size:48px;font-weight:400;line-height:1.2"],
+  ["heading-1","40px / 400 / 1.2","Product Highlights","font-size:40px;font-weight:400;line-height:1.2"],
+  ["heading-2","24px / 400 / 1.33","The Leica Blog","font-size:24px;font-weight:400;line-height:1.33"],
+  ["heading-3","20px / 600 / 1.4","Camera Portfolio","font-size:20px;font-weight:600;line-height:1.4"],
+  ["title","20px / 400 / 1.4","Sport Optics","font-size:20px;font-weight:400;line-height:1.4"],
+  ["body-lg","18px / 400 / 1.5","The workhorse paragraph tier — the most common text on the page.","font-size:18px;font-weight:400;line-height:1.5"],
+  ["body-lg · light","18px / 300 / 1.5","Light weight reads as quiet, editorial body copy.","font-size:18px;font-weight:300;line-height:1.5"],
+  ["body-md","16px / 400 / 1.5","Supporting copy and navigation labels.","font-size:16px;font-weight:400;line-height:1.5"],
+  ["body-sm","14px / 400 / 1.5","Captions and fine print.","font-size:14px;font-weight:400;line-height:1.5"],
+  ["button","16px / 600 / 1.4","Discover More","font-size:16px;font-weight:600;line-height:1.4"],
+  ["eyebrow","12px / 600 / uppercase","Product Highlights","font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary)"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",10],["xs","8px",18],["sm","12px",28],["md","16px",38],["lg","24px",56],["xl","32px",74],["xxl","48px",110]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs","1px","□"],["sm","4px","4"],["md","8px","8"],["lg","24px","24"],["full","9999px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["Leica M11","Rangefinder · 60MP","From <b>$8,995</b>","","New"],
+  ["Leica Q3","Compact · 28mm fixed","From <b>$5,995</b>",""],
+  ["Leica SL3","Mirrorless · L-Mount","From <b>$6,995</b>","","Pro"],
+  ["Leica D-Lux 8","Everyday compact","From <b>$1,595</b>",""]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

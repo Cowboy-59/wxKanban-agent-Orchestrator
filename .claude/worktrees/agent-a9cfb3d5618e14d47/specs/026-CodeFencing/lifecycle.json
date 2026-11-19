@@ -1,0 +1,18 @@
+{
+  "specNumber": "026",
+  "featureName": "Code Fencing - Spec/Task Traceability Markers",
+  "phase": "released",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 42,
+    "tasksCompleted": 41,
+    "tasksNotApplicable": 1,
+    "percentage": 100
+  },
+  "timeline": {
+    "created": "2026-05-13T00:00:00.000Z",
+    "phaseStarted": "2026-05-13T00:00:00.000Z",
+    "released": "2026-05-13T12:13:00.000Z"
+  },
+  "notes": "T024 (runqa fence integration) marked N/A per spec — runqa command has no scaffold-writing implementation in the kit at v0.2.0; deferred to a follow-on scope when that surface lands."
+}

@@ -1,0 +1,27 @@
+{
+  "specNumber": "086",
+  "featureName": "Kit Cockpit Delivery",
+  "scope": "SCOPE-086",
+  "specId": "a07bcf8d-2aba-4caa-b0eb-08dd81775061",
+  "projectId": "ba924193-0335-4080-9fa6-33cd6b81300a",
+  "phase": "implementation",
+  "priority": "high",
+  "status": "implementing",
+  "createdAt": "2026-07-05T15:39:11.521Z",
+  "progress": {
+    "totalTasks": 8,
+    "done": 8,
+    "todo": 0,
+    "percentComplete": 100
+  },
+  "tasks": [
+    { "id": "8ae3a4d9-6e14-4709-9345-0068412d3048", "title": "Marketplace-first self-update in ensureCockpitUpToDate", "fr": "FR-004", "priority": "high", "status": "done" },
+    { "id": "d925dee2-3402-486b-a3ba-f219931685e9", "title": "Marketplace-first fresh install in install-cockpit-extension.mjs", "fr": "FR-004", "priority": "high", "status": "done" },
+    { "id": "cd33f486-4ccd-4668-814a-a9d39fe8ae27", "title": "WXKANBAN_COCKPIT_SOURCE escape hatch", "fr": "FR-004", "priority": "medium", "status": "done" },
+    { "id": "59084712-7f18-485d-9722-29d6e44c487f", "title": "Unit tests: gallery-first, fallback, no-downgrade", "fr": "FR-004", "priority": "high", "status": "done" },
+    { "id": "0426c575-b7c7-4636-93b1-834274470fd1", "title": "Post-release published-asset SHA verification", "fr": "FR-001", "priority": "high", "status": "done" },
+    { "id": "ae22ca8b-3917-4822-913f-fdae5dd87060", "title": "Visible no-code/no-vsix install fallback message", "fr": "FR-002", "priority": "medium", "status": "done" },
+    { "id": "cbab1a7d-7315-4cff-8f5f-3ee98a819be9", "title": "Documented/automated KitProxyService cache-bust", "fr": "FR-003", "priority": "medium", "status": "done" },
+    { "id": "1934c494-ca91-4ee4-9304-64a044537790", "title": "Docs + two-allowlist sync + verification", "fr": "cross", "priority": "medium", "status": "done" }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "original_generator_sha256": "f38b62bf52bacce2f9fddbbc22786cb26bf8f32c58415b3c4f3386184b6873b9",
+  "installed_generator_sha256": "f38b62bf52bacce2f9fddbbc22786cb26bf8f32c58415b3c4f3386184b6873b9",
+  "patched_generator_sha256": "be9b2720bb09d2c12a9126a82adb55af1cd5e51e119d161d930371b71974df45",
+  "patch_sha256": "e3b8070af07600a1f99dae54c81e67c2028d8e50ee1b17282f772f2b0bebbbf7",
+  "changed_functions": [
+    "match_type",
+    "parse_table",
+    "recover_truncated_names",
+    "apply_renames_to_links",
+    "report_unmapped",
+    "main"
+  ],
+  "added_functions": [
+    "_SourceLine",
+    "_element_type",
+    "recognize_source_type",
+    "_field_diagnostic",
+    "validate_source_tables"
+  ],
+  "protected_files_checked": 3511,
+  "protected_changes": [],
+  "original_copy_hash_failures": [],
+  "baseline": {
+    "pass": 93,
+    "fail": 19,
+    "excluded": 16
+  },
+  "patched": {
+    "pass": 112,
+    "fail": 0,
+    "excluded": 16
+  },
+  "corpus_acceptance": {
+    "table_count": true,
+    "server_count": true,
+    "arrays": true,
+    "json": true,
+    "uuid": true,
+    "independent_structured_rows": true,
+    "independent_adjacent_rows": true,
+    "source_names_and_nonoverlapping_order": true,
+    "distinct_row_ids": true,
+    "relationship_tuples": true,
+    "no_unexplained_legacy_change": true,
+    "no_unknown_types": true,
+    "no_unexplained_boundaries": true,
+    "mappings_remain_blocking": true,
+    "no_emission_attempts": true
+  },
+  "controlled_failure": {
+    "exit_code": 3,
+    "diagnostic_occurrences": 392,
+    "complete_serialized_inventory": true,
+    "ddl_or_er_emitted": false,
+    "mode": "Direct parser/validation/report functions; no added CLI mode"
+  },
+  "remaining_blockers": {
+    "TARGET_MAPPING_UNRESOLVED": 284,
+    "CANONICAL_NAME_COLLISION": 63,
+    "CANONICAL_NAME_UNRESOLVED": 45
+  },
+  "derived_evidence_secret_scan": {
+    "before.json": 0,
+    "copied-files.json": 0,
+    "source-oracle.json": 0,
+    "evidence/corpus-result.json": 0,
+    "evidence/controlled-failure/_unmapped-types.json": 0
+  },
+  "no_installation": true,
+  "no_database_or_sql_operation": true,
+  "no_commit_or_push": true
+}

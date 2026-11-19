@@ -1,0 +1,15 @@
+{
+  "specNumber": "057",
+  "featureName": "Company-Wide Stack Profiles",
+  "phase": "implementation",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 6,
+    "tasksCompleted": 6,
+    "percentage": 100
+  },
+  "timeline": {
+    "created": "2026-06-13T00:00:00.000Z",
+    "phaseStarted": "2026-06-13T00:00:00.000Z"
+  }
+}

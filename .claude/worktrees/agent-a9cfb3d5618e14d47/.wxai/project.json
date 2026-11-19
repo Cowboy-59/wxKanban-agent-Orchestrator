@@ -1,0 +1,11 @@
+{
+  "kit": {
+    "mcpBaseUrl": "https://mcp.wxperts.com"
+  },
+  "lifecycleStage": "Implementation",
+  "advancedAt": "2026-05-28",
+  "advancedFrom": "Implementation",
+  "advancedFor": "spec 042 — VS Code Dev Cockpit",
+  "activeScope": "042",
+  "notes": "Active scope rotated from 027 to 042 on 2026-05-28 to begin VS Code Dev Cockpit implementation. Stage stays Implementation. Phase 1 (MCP read coverage + scope-leak fix) underway: new project.cockpit_summary tool (scoped) + migrate project.list_open_items to the scoped-query helper."
+}

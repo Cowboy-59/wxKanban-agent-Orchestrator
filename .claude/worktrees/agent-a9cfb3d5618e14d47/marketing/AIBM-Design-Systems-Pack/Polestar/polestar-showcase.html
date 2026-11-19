@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Polestar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#000000;
+    --primary-active:#1a1a1a;
+    --cta-bg:#000000;
+    --on-primary:#ffffff;
+    --dark:#000000;
+    --canvas:#ffffff;
+    --canvas-soft:#f4f4f4;
+    --surface:#ffffff;
+    --surface-alt:#f0f0f0;
+    --ink:#000000;
+    --ink-secondary:#666666;
+    --ink-faint:#8c8c8c;
+    --ink-placeholder:#8c8c8c;
+    --hairline:#d8d8d8;
+    --hairline-soft:#ececec;
+    --accent-amber:#f06e00;
+    --r-xs:2px;--r-sm:3px;--r-md:8px;--r-lg:12px;--r-xl:17px;--r-xxl:32px;--r-full:9999px;
+    --e1:0 2px 4px rgba(0,0,0,0), 0 7px 14px rgba(50,50,93,0.10);
+    --e2:0 0 18px rgba(0,0,0,0.20);
+    --font:"Inter","Polestar Unica","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --display-size:100px;
+    --display-weight:400;
+    --section-size:30px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:11px;font-weight:400;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:10px;}
+  h1.display{font-size:var(--display-size);font-weight:var(--display-weight);line-height:1.0;letter-spacing:-3px;}
+  h2.sec{font-size:var(--section-size);font-weight:400;line-height:1.07;letter-spacing:-1.2px;margin-bottom:14px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;}
+  .hero{padding:96px 0 64px;}
+  .cta-row{display:flex;gap:14px;margin-top:36px;flex-wrap:wrap;}
+  .btn{font-size:16px;font-weight:400;border:none;cursor:pointer;border-radius:0;padding:16px 24px;line-height:1.25;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--ink);padding:15px 23px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:13px 20px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:600;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:400;}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:0;padding:14px 16px;font-family:var(--font);font-size:16px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--ink);border-radius:0;width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:4/3;border-radius:0;background:linear-gradient(135deg,var(--surface-alt),var(--hairline));position:relative;overflow:hidden;}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:var(--ink);color:#fff;border-radius:0;font-size:11px;font-weight:400;letter-spacing:.3px;text-transform:uppercase;padding:6px 10px;}
+  .listing .l-title{font-weight:400;font-size:18px;letter-spacing:-.4px;margin-top:14px;display:flex;justify-content:space-between;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:14px;margin-top:4px;}
+  .listing .l-price{margin-top:8px;font-size:14px;}
+  .listing .l-price b{font-weight:600;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:0;padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-size:11px;font-weight:400;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--accent-amber);}
+  .plan .price{font-size:48px;font-weight:400;letter-spacing:-1.5px;margin:14px 0 4px;line-height:1;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);letter-spacing:0;}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:0;background:var(--ink);flex:none;}
+  .plan.feat li::before{background:#fff;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:0;overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:400;letter-spacing:.3px;padding:4px 10px;border-radius:0;text-transform:uppercase;}
+  .s-ok{background:var(--ink);color:#fff;}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:0;display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline);border-radius:0;padding:36px;box-shadow:none;}
+  .auth h3{font-size:30px;font-weight:400;letter-spacing:-1.2px;margin:4px 0 24px;}
+  .auth label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:0;background:#fff;padding:15px;font-size:16px;font-weight:400;cursor:pointer;}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:56px;letter-spacing:-2px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Polestar</h1>
+  <p class="lede" style="margin-top:28px;">A near-monochrome Swedish system: pure black on white, hierarchy built from scale and air rather than weight, square-cornered black buttons, hairline dividers, and a single magnetic amber accent.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Order online</button>
+    <button class="btn btn-secondary">Book a test drive</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Set in Polestar Unica (a bespoke neo-grotesque), shown here in Inter as the nearest Google substitute. Almost everything is weight 400 — hierarchy comes from size and negative tracking, not boldness.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Order online</button><div class="desc">Solid black fill, white text, hard 0px corners, 16×24 padding. The default high-emphasis action.</div></div>
+    <div class="ccard"><div class="lbl">button-dark</div><button class="btn btn-dark">Configure</button><div class="desc">Identical black fill used on light bands for primary confirmation.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">Book a test drive</button><div class="desc">Transparent fill with a 1px black outline — the medium-emphasis pair to the black button.</div></div>
+    <div class="ccard"><div class="lbl">button-pill</div><button class="btn btn-pill">Filter</button><div class="desc">Rare rounded utility chip on a light grey fill for filters and toggles.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Learn more</a><a href="#">Specifications</a><div class="desc">Underlined black text links carry most low-emphasis navigation.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Product tiles are media-led: a large square-cornered image, an uppercase eyebrow badge, a calm 18px model name, and price in the neutral ramp. No shadow at rest — depth arrives only on hover.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Enter your email"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Tell us how we can help"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">An 8px base unit. Buttons pad to 16×24; sections breathe at 32–48px, giving the layout its roomy, measured rhythm.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">Corners are essentially square. The dominant component shape is a hard 0px; small radii appear only on media tiles and a few rounded controls.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The default. Surfaces are separated by rules, not shadow.</div>
+    <div class="e l1">Level 1 — faint 7–14px ambient lift, used only on hovered media cards.</div>
+    <div class="e l2">Level 2 — soft 18px glow reserved for a floating or focused element.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Single column; display type steps down to ~56px; nav condenses to a minimal menu.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Two-column product grids; full-bleed hero bands retained.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Three to four-column rows return; container widens.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Max-width container centred; oversized display type at full scale.</td></tr>
+  </table>
+  <p class="note"><b>Throughout:</b> the monochrome, hairline-separated, shadow-free character holds at every breakpoint — only the column count and display scale change.</p>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;letter-spacing:-1.5px;">Trim &amp; Pricing</h2>
+  <p class="lede">Polestar's monochrome system applied to a configurator-style pricing pattern. The featured tier inverts to the black band; the amber accent marks the recommended choice.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Long range Single motor</span></div><div class="price">$66,200<span>/ est.</span></div><div class="blurb">Efficiency-focused rear-wheel drive with the longest range.</div><ul><li>Up to 320 mi range</li><li>299 hp</li><li>0–60 in 6.9s</li><li>19" wheels</li></ul><button class="btn btn-block-dark">Configure</button></div>
+    <div class="plan feat"><div class="tier"><span>Long range Dual motor</span><span class="pop">● Recommended</span></div><div class="price">$72,400<span>/ est.</span></div><div class="blurb">All-wheel drive performance with adaptive chassis.</div><ul><li>Up to 300 mi range</li><li>421 hp</li><li>0–60 in 4.3s</li><li>20" wheels</li></ul><button class="btn btn-block-dark">Configure</button></div>
+    <div class="plan"><div class="tier"><span>Performance Pack</span></div><div class="price">$78,900<span>/ est.</span></div><div class="blurb">Öhlins dampers, Brembo brakes, and Swedish gold details.</div><ul><li>Up to 270 mi range</li><li>449 hp</li><li>0–60 in 3.9s</li><li>21" forged wheels</li></ul><button class="btn btn-block-dark">Configure</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;letter-spacing:-1.5px;">Order Status</h2>
+  <p class="lede">A data-table pattern in the Polestar idiom: uppercase micro-labels, hairline row rules, square status chips, no zebra striping.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>Order</th><th>Model</th><th>Configuration</th><th>Status</th><th>Updated</th></tr>
+      <tr><td>PS-40271</td><td>Polestar 4</td><td>Long range Dual motor</td><td><span class="status s-ok">Confirmed</span></td><td>2 days ago</td></tr>
+      <tr><td>PS-40268</td><td>Polestar 3</td><td>Performance Pack</td><td><span class="status s-pend">In production</span></td><td>5 days ago</td></tr>
+      <tr><td>PS-40255</td><td>Polestar 2</td><td>Long range Single motor</td><td><span class="status s-ok">Delivered</span></td><td>1 week ago</td></tr>
+      <tr><td>PS-40240</td><td>Polestar 4</td><td>Long range Single motor</td><td><span class="status s-pend">Awaiting build</span></td><td>2 weeks ago</td></tr>
+      <tr><td>PS-40233</td><td>Polestar 3</td><td>Long range Dual motor</td><td><span class="status s-ok">In transit</span></td><td>3 weeks ago</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;letter-spacing:-1.5px;">Account</h2>
+  <p class="lede">Auth screens in the same restrained system — square fields, a 1px hairline card, black primary button, and an outlined SSO ghost button.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@example.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Polestar ID</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Join Polestar</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@example.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Polestar ID</button></div>
+  </div>
+</div></section>
+
+<script>
+const colors = [
+  ["ink / primary","#000000","Body text, headings, CTA fill"],
+  ["on-primary","#ffffff","Text on black, page canvas"],
+  ["canvas-soft","#f4f4f4","Off-white section band"],
+  ["surface-alt","#f0f0f0","Sunken chip / fill"],
+  ["ink-secondary","#666666","Black 60% — secondary copy"],
+  ["ink-muted","#555555","Tertiary labels"],
+  ["ink-faint","#8c8c8c","Captions / placeholder"],
+  ["hairline","#d8d8d8","1px borders & dividers"],
+  ["surface-dark","#3a3c3f","Near-black panel tint"],
+  ["accent-amber","#f06e00","Signature highlight (sparingly)"],
+  ["accent-green","#32ae88","Decorative accent (rare)"],
+  ["accent-blue","#3860be","System link accent (rare)"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","100px / 400 / 1.0 / -3px","Pure progressive","font-size:88px;font-weight:400;letter-spacing:-3px;line-height:1;"],
+  ["display-2","48px / 400 / 1.05 / -1.5px","Reimagine the road","font-size:48px;font-weight:400;letter-spacing:-1.5px;line-height:1.05;"],
+  ["heading-1","30px / 400 / 1.07 / -1.2px","Polestar 4","font-size:30px;font-weight:400;letter-spacing:-1.2px;line-height:1.07;"],
+  ["heading-2","29px / 400 / 1.1 / -1px","Summer of Clarity","font-size:29px;font-weight:400;letter-spacing:-1px;line-height:1.1;"],
+  ["title","24px / 600 / 1.2 / -0.4px","Specifications","font-size:24px;font-weight:600;letter-spacing:-0.4px;line-height:1.2;"],
+  ["body-md","16px / 400 / 1.5","The workhorse paragraph tier — generous 16px on a calm 1.5 leading carries nearly all running copy.","font-size:16px;font-weight:400;line-height:1.5;color:var(--ink-secondary);"],
+  ["body-sm","13.6px / 400 / 1.5","Smaller supporting copy and footnotes.","font-size:13.6px;font-weight:400;line-height:1.5;color:var(--ink-secondary);"],
+  ["button","16px / 400","Order online","font-size:16px;font-weight:400;"],
+  ["caption","12px / 400 / 1.4","Legal, disclaimers and meta","font-size:12px;font-weight:400;line-height:1.4;color:var(--ink-faint);"],
+  ["eyebrow","10.7px / 400 / uppercase","ALL-ELECTRIC","font-size:10.7px;font-weight:400;letter-spacing:0.4px;text-transform:uppercase;color:var(--ink-secondary);"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",8],["xs","8px",16],["sm","12px",24],["md","16px",32],["lg","24px",48],["xl","32px",64],["xxl","48px",96]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["sharp","0px","□"],["xs","2px","2"],["sm","3px","3"],["md","8px","8"],["lg","12px","12"],["xl","17px","17"],["full","9999px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["Polestar 2","Long range Dual motor","<b>From $51,300</b>","","ALL-ELECTRIC"],
+  ["Polestar 3","Performance Pack","<b>From $73,400</b>","","SUV"],
+  ["Polestar 4","Long range Single motor","<b>From $54,900</b>","","NEW"],
+  ["Polestar 5","Grand tourer","<b>Coming 2026</b>","","CONCEPT"]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

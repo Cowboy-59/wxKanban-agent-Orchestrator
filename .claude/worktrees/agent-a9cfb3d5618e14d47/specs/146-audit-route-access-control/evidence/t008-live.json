@@ -1,0 +1,918 @@
+{
+  "base": "http://127.0.0.1:5199",
+  "mode": "run-wxkanban local server on deployed commit 99ccb3e8 (app 1.5.351), production database; deployed app separately verified: bundle 1.5.351 + 22/22 anonymous 401",
+  "startedAt": "2026-10-25T19:23:08.000Z",
+  "logins": {
+    "anonymous": null,
+    "TEAM_MEMBER": "andy@impulseRetailing.com (TEAM_MANAGER)",
+    "ADMIN": "admin@wxperts.com (ADMIN)",
+    "SYSADMIN": "admin@wxkanban.com (SYSADMIN)"
+  },
+  "libraryBefore": {
+    "frameworkdocs": 6,
+    "soc2": 119,
+    "hitrust": 304,
+    "total": 565,
+    "alldocs": 11
+  },
+  "deployProbe": {
+    "request": "GET /documents?documenttype=db_analysis as TEAM_MEMBER",
+    "status": 200,
+    "rows": 0
+  },
+  "matrix": [
+    {
+      "route": "GET /config",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /config",
+      "role": "TEAM_MEMBER",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /config",
+      "role": "ADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /config",
+      "role": "SYSADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "PUT /config",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "PUT /config",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "ADMIN"
+    },
+    {
+      "route": "PUT /config",
+      "role": "ADMIN",
+      "skipped": "legacy company-wide write"
+    },
+    {
+      "route": "PUT /config",
+      "role": "SYSADMIN",
+      "skipped": "SYSADMIN write not approved for production"
+    },
+    {
+      "route": "GET /documents",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents",
+      "role": "TEAM_MEMBER",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents",
+      "role": "ADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents",
+      "role": "SYSADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /documents",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /documents",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /documents",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /documents",
+      "role": "SYSADMIN",
+      "skipped": "SYSADMIN write not approved for production"
+    },
+    {
+      "route": "GET /documents/search?q=access",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents/search?q=access",
+      "role": "TEAM_MEMBER",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents/search?q=access",
+      "role": "ADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents/search?q=access",
+      "role": "SYSADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /documents/00000000-0000-7000-8000-000000000000/extract",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /documents/00000000-0000-7000-8000-000000000000/extract",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /documents/00000000-0000-7000-8000-000000000000/extract",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /documents/00000000-0000-7000-8000-000000000000/extract",
+      "role": "SYSADMIN",
+      "status": 404,
+      "expect": [
+        200,
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents/00000000-0000-7000-8000-000000000000",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents/00000000-0000-7000-8000-000000000000",
+      "role": "TEAM_MEMBER",
+      "status": 404,
+      "expect": [
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents/00000000-0000-7000-8000-000000000000",
+      "role": "ADMIN",
+      "status": 404,
+      "expect": [
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /documents/00000000-0000-7000-8000-000000000000",
+      "role": "SYSADMIN",
+      "status": 404,
+      "expect": [
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "DELETE /documents/00000000-0000-7000-8000-000000000000",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "DELETE /documents/00000000-0000-7000-8000-000000000000",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "DELETE /documents/00000000-0000-7000-8000-000000000000",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "DELETE /documents/00000000-0000-7000-8000-000000000000",
+      "role": "SYSADMIN",
+      "status": 404,
+      "expect": [
+        200,
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks",
+      "role": "TEAM_MEMBER",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks",
+      "role": "ADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks",
+      "role": "SYSADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks/relevant?projectId=8ea1bc51-d23e-4e0b-986c-0cd7199f3ceb",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks/relevant?projectId=8ea1bc51-d23e-4e0b-986c-0cd7199f3ceb",
+      "role": "TEAM_MEMBER",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks/relevant?projectId=8ea1bc51-d23e-4e0b-986c-0cd7199f3ceb",
+      "role": "ADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks/relevant?projectId=8ea1bc51-d23e-4e0b-986c-0cd7199f3ceb",
+      "role": "SYSADMIN",
+      "status": 200,
+      "expect": [
+        200
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks/00000000-0000-7000-8000-000000000000",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks/00000000-0000-7000-8000-000000000000",
+      "role": "TEAM_MEMBER",
+      "status": 404,
+      "expect": [
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks/00000000-0000-7000-8000-000000000000",
+      "role": "ADMIN",
+      "status": 404,
+      "expect": [
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /tasks/00000000-0000-7000-8000-000000000000",
+      "role": "SYSADMIN",
+      "status": 404,
+      "expect": [
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /execute",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /execute",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /execute",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /execute",
+      "role": "SYSADMIN",
+      "skipped": "SYSADMIN write not approved for production"
+    },
+    {
+      "route": "GET /executions",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /executions",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /executions",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /executions",
+      "role": "SYSADMIN",
+      "status": 200,
+      "expect": [
+        200,
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /executions/00000000-0000-7000-8000-000000000000",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /executions/00000000-0000-7000-8000-000000000000",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /executions/00000000-0000-7000-8000-000000000000",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /executions/00000000-0000-7000-8000-000000000000",
+      "role": "SYSADMIN",
+      "status": 404,
+      "expect": [
+        200,
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /executions/00000000-0000-7000-8000-000000000000/results",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /executions/00000000-0000-7000-8000-000000000000/results",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /executions/00000000-0000-7000-8000-000000000000/results",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /executions/00000000-0000-7000-8000-000000000000/results",
+      "role": "SYSADMIN",
+      "status": 200,
+      "expect": [
+        200,
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /executions/00000000-0000-7000-8000-000000000000/cancel",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /executions/00000000-0000-7000-8000-000000000000/cancel",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /executions/00000000-0000-7000-8000-000000000000/cancel",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /executions/00000000-0000-7000-8000-000000000000/cancel",
+      "role": "SYSADMIN",
+      "skipped": "SYSADMIN write not approved for production"
+    },
+    {
+      "route": "POST /reports",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /reports",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /reports",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /reports",
+      "role": "SYSADMIN",
+      "skipped": "SYSADMIN write not approved for production"
+    },
+    {
+      "route": "GET /reports",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /reports",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /reports",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /reports",
+      "role": "SYSADMIN",
+      "status": 200,
+      "expect": [
+        200,
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /reports/00000000-0000-7000-8000-000000000000",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /reports/00000000-0000-7000-8000-000000000000",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /reports/00000000-0000-7000-8000-000000000000",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /reports/00000000-0000-7000-8000-000000000000",
+      "role": "SYSADMIN",
+      "status": 404,
+      "expect": [
+        200,
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /reports/00000000-0000-7000-8000-000000000000/download",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /reports/00000000-0000-7000-8000-000000000000/download",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /reports/00000000-0000-7000-8000-000000000000/download",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /reports/00000000-0000-7000-8000-000000000000/download",
+      "role": "SYSADMIN",
+      "status": 404,
+      "expect": [
+        200,
+        404
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /reports/00000000-0000-7000-8000-000000000000/approve",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "POST /reports/00000000-0000-7000-8000-000000000000/approve",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /reports/00000000-0000-7000-8000-000000000000/approve",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "POST /reports/00000000-0000-7000-8000-000000000000/approve",
+      "role": "SYSADMIN",
+      "skipped": "SYSADMIN write not approved for production"
+    },
+    {
+      "route": "GET /trends",
+      "role": "anonymous",
+      "status": 401,
+      "expect": [
+        401
+      ],
+      "ok": true
+    },
+    {
+      "route": "GET /trends",
+      "role": "TEAM_MEMBER",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /trends",
+      "role": "ADMIN",
+      "status": 403,
+      "expect": [
+        403
+      ],
+      "ok": true,
+      "roleRequired": "SYSADMIN"
+    },
+    {
+      "route": "GET /trends",
+      "role": "SYSADMIN",
+      "status": 200,
+      "expect": [
+        200,
+        404
+      ],
+      "ok": true
+    }
+  ],
+  "matrixFailures": 0,
+  "sysadminDenials": 28,
+  "fr009": {
+    "target": "4a45b593-6690-420c-9ac5-4c64fe79492f",
+    "putStatus": 404,
+    "getStatus": 404,
+    "relevantStatus": 404,
+    "sysadminGet": 200,
+    "ownerGet": 200,
+    "bodyEqualsUnknownProject": true,
+    "configUnchanged": true
+  },
+  "throwaway": {
+    "upload": 201,
+    "docId": "01a17484-5bb9-74ec-ab7a-66b259e58f2f",
+    "extract1": {
+      "status": 200,
+      "json": {
+        "success": true,
+        "data": {
+          "documentId": "01a17484-5bb9-74ec-ab7a-66b259e58f2f",
+          "tasksRemoved": 0,
+          "tasksExtracted": 3
+        }
+      }
+    },
+    "extract2": {
+      "status": 200,
+      "json": {
+        "success": true,
+        "data": {
+          "documentId": "01a17484-5bb9-74ec-ab7a-66b259e58f2f",
+          "tasksRemoved": 3,
+          "tasksExtracted": 3
+        }
+      }
+    },
+    "memberGetThrowaway": 200,
+    "delete": 200,
+    "residue": {
+      "tasks": 0,
+      "docs": 0
+    }
+  },
+  "auditRows": [
+    {
+      "action": "audit_document_deleted",
+      "n": 1
+    },
+    {
+      "action": "audit_document_tasks_replaced",
+      "n": 2
+    },
+    {
+      "action": "audit_document_uploaded",
+      "n": 1
+    }
+  ],
+  "libraryAfter": {
+    "frameworkdocs": 6,
+    "soc2": 119,
+    "hitrust": 304,
+    "total": 565,
+    "alldocs": 11
+  },
+  "libraryUnchanged": true,
+  "finishedAt": "2026-10-25T19:23:14.945Z",
+  "deployedApp": {
+    "commit": "99ccb3e8",
+    "appVersion": "1.5.351",
+    "appRunner": {
+      "app": "SUCCEEDED",
+      "mcp": "SUCCEEDED"
+    },
+    "liveBundle": "assets/index-pHV_68tc.js contains 1.5.351 and the /admin/audit notice",
+    "anonymousProbes": {
+      "routes": 22,
+      "non401": 0
+    },
+    "whyNotRoleMatrixHere": "production JWT secret differs from the local env; minted tokens are rejected (401 Invalid or expired token). Owner chose the local server on the deployed commit for the role matrix."
+  },
+  "denialLogLines": {
+    "source": "dist/run-wxkanban/serve.log",
+    "count": 28,
+    "matchesSysadminDenials": true
+  },
+  "mcpComplianceContext": {
+    "deployedMcp": true,
+    "soc2ControlCount": 119,
+    "matchesDb": true
+  }
+}

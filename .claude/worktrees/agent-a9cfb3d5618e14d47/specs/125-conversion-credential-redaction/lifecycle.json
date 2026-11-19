@@ -1,0 +1,65 @@
+{
+  "specNumber": "125",
+  "featureName": "Conversion Credential Redaction",
+  "specId": "b9b6771b-2176-400f-8cd1-45a5ca8f7674",
+  "projectId": "ba924193-0335-4080-9fa6-33cd6b81300a",
+  "umbrellaScope": "SCOPE-125",
+  "status": "implementing",
+  "currentPhase": "implementation",
+  "priority": "high",
+  "createdAt": "2026-08-10",
+  "updatedAt": "2026-08-10",
+  "source": {
+    "feedbackRef": "f99e80aa-4afc-4d78-9541-ca0bf310fd7b",
+    "severity": "high",
+    "originProjectId": "b9f9cbc7-2be9-48ca-a483-227a958e4b2c",
+    "affectedKitVersion": "v1.7.49"
+  },
+  "phases": [
+    { "name": "scoping",        "status": "complete",    "startedAt": "2026-08-10", "completedAt": "2026-08-10", "notes": "Scope preflight 100/100, 0 blocking" },
+    { "name": "design",         "status": "complete",    "startedAt": "2026-08-10", "completedAt": "2026-08-10", "notes": "Spec preflight 100/100, 0 warnings" },
+    { "name": "implementation", "status": "in_progress", "startedAt": "2026-08-10", "completedAt": null },
+    { "name": "qa",             "status": "pending",     "startedAt": null,         "completedAt": null },
+    { "name": "human_testing",  "status": "pending",     "startedAt": null,         "completedAt": null },
+    { "name": "beta",           "status": "pending",     "startedAt": null,         "completedAt": null },
+    { "name": "released",       "status": "pending",     "startedAt": null,         "completedAt": null }
+  ],
+  "progress": {
+    "totalTasks": 19,
+    "completedTasks": 0,
+    "percentComplete": 0
+  },
+  "taskPhases": {
+    "A-module-and-boundary":   ["T001", "T002", "T003", "T004"],
+    "B-reporting-surface":     ["T005", "T006", "T007"],
+    "C-family-wiring":         ["T008", "T009", "T010", "T011"],
+    "D-verification":          ["T012", "T013", "T016"],
+    "E-instruction-and-hygiene": ["T014", "T015"],
+    "F-propagation-and-release": ["T017", "T018", "T019"]
+  },
+  "footprint": {
+    "scriptFilesModified": 54,
+    "newModuleCopies": 9,
+    "skillInstructionFiles": 9,
+    "auditChecks": 1,
+    "trees": [".claude", "_wxAI/skills", "wxkanban-agent/templates/skills"]
+  },
+  "compliance": {
+    "activeFrameworks": ["SOC2"],
+    "controls": ["CC6.1 Secrets management solution", "CC6.1 Different credentials per environment", "CC7.1 Vulnerability findings tracked to resolution"],
+    "advanceDocumentation": {
+      "framework": "HITRUST",
+      "enabled": false,
+      "record": "docs/HITRUST-Change-Record-SCOPE-125.html"
+    }
+  },
+  "gates": [
+    { "id": "C-1",  "name": "MOJIBAKE table byte integrity", "severity": "critical", "blocks": ["T008", "T017"] },
+    { "id": "WM",   "name": "stamp_markdown preserved through funnel refactor", "severity": "high", "blocks": ["T004", "T009"] },
+    { "id": "SIG",  "name": "Signal preservation — no over-redaction", "severity": "high", "blocks": ["T013"] },
+    { "id": "REL",  "name": "Kit release outstanding from SCOPE-124", "severity": "high", "blocks": ["T018"] },
+    { "id": "C-12", "name": "SKILL.md rule may not reach customised consumers — FR-011 is fast feedback, not the control of record", "severity": "high", "blocks": ["T014", "T016"], "note": "Delivered by modifying a file. Today it arrives by overwrite (the defect SCOPE-121 removes); after SCOPE-121 a customised SKILL.md gets a .kit-<version>.new sidecar, and the Cockpit one-click path (--yes logged override) proceeds with only a log line. Mitigation: T007 scanner + T006 gate cover the AI path with no SKILL.md involvement and ship as a NEW file; T014 adds a rule-version marker and T016 checks it. NOT to be fixed by carving security files out of SCOPE-121 preserve-and-report — that is a SCOPE-121 decision." }
+  ],
+  "blockedBy": [],
+  "relatedSpecs": ["SPEC-019", "SCOPE-026", "SCOPE-082", "SCOPE-124", "SCOPE-015"]
+}

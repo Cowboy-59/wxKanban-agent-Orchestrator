@@ -1,0 +1,74 @@
+{
+  "specNumber": "119",
+  "specName": "Consultant Customer Records",
+  "status": "implementing",
+  "createdAt": "2026-07-31",
+  "updatedAt": "2026-07-31",
+  "specId": "345ba7ba-5238-4042-abbd-45f7446df541",
+  "dependsOn": ["017-consultant-dashboard", "037-ConsultantMgmt", "005-scope-timeandBilling", "117-production-schema-integrity"],
+  "blocks": ["017-consultant-dashboard Phase 1"],
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Schema",
+      "status": "in_progress",
+      "duration": "0.5 day",
+      "deliverables": [
+        "customers table with four indexes (APPLIED 2026-07-31)",
+        "companyprojects.customerid nullable column (APPLIED 2026-07-31)",
+        "Drizzle schema src/db/schema/customer.ts",
+        "customerid declared on companyproject.ts",
+        "SCOPE-117 schema change log entry"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "API",
+      "status": "planned",
+      "duration": "1.5 days",
+      "deliverables": [
+        "Customer CRUD endpoints (FR-001, FR-002)",
+        "Archive and restore endpoints (FR-003)",
+        "Optional tenant link with engagement validation (FR-004)",
+        "Read-only engagement visibility (FR-005)",
+        "Project-to-customer association (FR-006)",
+        "Server-side access control across all nine endpoints (FR-007)",
+        "Ownership transfer, single and bulk (FR-011)"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "UI",
+      "status": "planned",
+      "duration": "1.5 days",
+      "deliverables": [
+        "Approved design via wxDesigner 119",
+        "Customer list and detail pages at /dashboard/consultant/customers",
+        "Consultant Dashboard Customers rail restored, 7/5 split (FR-008)",
+        "customers.* i18n namespace"
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Tests",
+      "status": "planned",
+      "duration": "0.5 day",
+      "deliverables": [
+        "Cross-consultant isolation tests",
+        "Link-confers-nothing tests",
+        "Archive-preserves-history tests"
+      ]
+    }
+  ],
+  "progress": {
+    "totalTasks": 16,
+    "completedTasks": 1,
+    "percentComplete": 6
+  },
+  "gates": [
+    "DDL already applied — do not re-apply",
+    "Declare customerid only after the DDL exists, or every companyprojects query returns 42703",
+    "Design before UI — run wxDesigner 119 before building screens",
+    "Never grant access; a Customer is a record, not a relationship"
+  ]
+}

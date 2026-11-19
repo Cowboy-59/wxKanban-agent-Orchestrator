@@ -1,0 +1,108 @@
+{
+  "specNumber": "124",
+  "specId": "23c7cf78-3f94-4ce2-b124-50935c4b8bbc",
+  "featureName": "Idempotent Spec Persistence",
+  "projectId": "ba924193-0335-4080-9fa6-33cd6b81300a",
+  "currentPhase": "design",
+  "status": "planned",
+  "priority": "critical",
+  "createdAt": "2026-08-05T19:31:26.729Z",
+  "progress": {
+    "totalTasks": 17,
+    "completed": 1,
+    "inProgress": 0,
+    "blocked": 0,
+    "todo": 16,
+    "percentComplete": 6
+  },
+  "phases": [
+    {
+      "name": "scoping",
+      "status": "complete",
+      "startedAt": "2026-08-05",
+      "completedAt": "2026-08-05",
+      "note": "SCOPE-124 authored from 8 field reports across 5 projects; preflight 100 (scored 57 on first attempt, blocked by the very marker check FR-007 fixes)"
+    },
+    {
+      "name": "design",
+      "status": "in_progress",
+      "startedAt": "2026-08-05",
+      "completedAt": null
+    },
+    {
+      "name": "implementation",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "human_testing",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "beta",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "released",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    }
+  ],
+  "documents": {},
+  "scopeDocument": "specs/Project-Scope/124-idempotent-spec-persistence.md",
+  "blockers": [],
+  "openQuestions": [
+    "How list_open_items exposes spec identity (FR-004): a specs[] collection, or specNumber resolved onto each task.",
+    "Whether FR-005 document identity is enforced by a unique index or in application code. Leaning application-level to keep the scope DDL-free.",
+    "What FR-008 does with a duplicate that has since diverged. Deleting edited work on an inference is not acceptable.",
+    "Whether FR-007 needs an escape for authors legitimately writing about markers \u2014 answered by this scope own document, which could not be filed until it stopped naming them."
+  ],
+  "origin": {
+    "type": "field-reports",
+    "count": 8,
+    "date": "2026-08-05",
+    "feedbackIds": [
+      "ff0eb155",
+      "a02e6ec5",
+      "ac139158",
+      "975ada4a",
+      "7d581603",
+      "a6734641",
+      "3de3efa6",
+      "c9fc52d4"
+    ]
+  },
+  "updatedAt": "2026-08-05T19:31:26.729Z",
+  "decisions": [
+    {
+      "id": "FR-001 ships ahead",
+      "decidedAt": "2026-08-05",
+      "decision": "FR-001 shipped as a standalone hotfix (commit 316ffef4), deployed to the hosted MCP, ahead of the rest of the scope.",
+      "rationale": "The batch-by-area rule exists because every kit release costs the customer an upgrade. mcp-server auto-deploys on push and costs them nothing, so the rule is: batch what customers must install, ship what they do not. FR-001 was live in production and crossed a tenant boundary.",
+      "consequence": "Recorded as SOC 2 finding NEW-12 in project-documentation/SOC2_RELEASE_REVIEW_2026-08-05.md. T001 is already done."
+    },
+    {
+      "id": "Build order vs SCOPE-123",
+      "decidedAt": "2026-08-05",
+      "decision": "SCOPE-124 is built before SCOPE-123.",
+      "rationale": "A blocked customer knows they are blocked; a corrupted board gets believed. This cluster is also larger (8 reports across 5 projects vs 5 across 2) and has no predecessor, whereas 123 waits on SCOPE-122.",
+      "consequence": "123 and 124 still ship in the same kit release."
+    }
+  ],
+  "spansServer": true,
+  "crossRepo": false,
+  "ddl": "prefer none \u2014 FR-005 should achieve idempotency in application code rather than adding an index",
+  "dependsOn": "SCOPE-098 FR-005 (project.delete_scope, T007-T009, not built) is required by FR-008"
+}

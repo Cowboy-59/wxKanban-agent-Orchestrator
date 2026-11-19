@@ -1,0 +1,13 @@
+{
+  "apply": {
+    "mode": "approve-each"
+  },
+  "analysis": {
+    "intentionalNullColumns": [
+      {
+        "column": "testplanitems.forcetest",
+        "reason": "Three-state by design (SCOPE-111 FR-030): NULL means inherit testplans.forcetest, TRUE/FALSE override it in either direction. All-null means no administrator has needed an override yet, not that the writer is dead. Adding NOT NULL, adding a default, or dropping it as an unused column silently un-forces every inheriting test item -- a fail-OPEN release gate. See migration 0063 and [SCOPE 111 / T045]."
+      }
+    ]
+  }
+}

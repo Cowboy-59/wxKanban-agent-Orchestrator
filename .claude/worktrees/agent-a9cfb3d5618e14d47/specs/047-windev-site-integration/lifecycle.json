@@ -1,0 +1,17 @@
+{
+  "specNumber": "047",
+  "featureName": "Marketing — windev.wxperts.com Integration",
+  "phase": "design",
+  "priority": "high",
+  "parentScope": "045",
+  "progress": {
+    "tasksTotal": 6,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-06-08T00:00:00.000Z",
+    "phaseStarted": "2026-06-08T00:00:00.000Z",
+    "launchTarget": "2026-07-05T00:00:00.000Z"
+  }
+}

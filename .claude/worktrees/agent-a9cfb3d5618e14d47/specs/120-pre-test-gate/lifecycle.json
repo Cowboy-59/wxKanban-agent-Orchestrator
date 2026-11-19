@@ -1,0 +1,181 @@
+{
+  "specNumber": "120",
+  "specId": "73c2232b-2bac-4d28-b01c-65598228becb",
+  "title": "Pre-Test Gate",
+  "status": "implementing",
+  "currentPhase": "implementation",
+  "priority": "high",
+  "createdAt": "2026-08-01T13:18:00.758Z",
+  "scopeRef": "specs/Project-Scope/120-pre-test-gate.md",
+  "progress": {
+    "totalTasks": 21,
+    "completed": 8,
+    "inProgress": 0,
+    "blocked": 0,
+    "percentComplete": 38
+  },
+  "phases": [
+    {
+      "name": "design",
+      "status": "complete",
+      "startedAt": "2026-08-01T12:40:00.000Z",
+      "completedAt": "2026-08-01T13:18:00.758Z",
+      "note": "Scope built interactively, section by section; preflight score 100, zero blocking issues, zero warnings."
+    },
+    {
+      "name": "implementation",
+      "status": "in_progress",
+      "startedAt": "2026-08-01T13:30:00.000Z",
+      "completedAt": null,
+      "taskGroups": [
+        {
+          "name": "Phase A — Stand up a truthful clone",
+          "tasks": [
+            "T001",
+            "T002",
+            "T003",
+            "T004",
+            "T005",
+            "T006",
+            "T007",
+            "T008"
+          ]
+        },
+        {
+          "name": "Phase B — Drive the application",
+          "tasks": [
+            "T009",
+            "T010",
+            "T011",
+            "T012"
+          ]
+        },
+        {
+          "name": "Phase C — Reconcile test items against change",
+          "tasks": [
+            "T013",
+            "T014"
+          ]
+        },
+        {
+          "name": "Phase D — Make the gate mandatory",
+          "tasks": [
+            "T015",
+            "T016",
+            "T017",
+            "T018",
+            "T019",
+            "T020"
+          ]
+        },
+        {
+          "name": "Validation",
+          "tasks": [
+            "T021"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "human_testing",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "beta",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "released",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    }
+  ],
+  "compliance": {
+    "frameworks": [
+      "SOC2"
+    ],
+    "controls": [
+      "CC8.1",
+      "CC7.1",
+      "CC6.1"
+    ]
+  },
+  "dependsOn": [
+    "SCOPE-111 (Amendment B — clone-test-schema.mjs)",
+    "SCOPE-117 (manual production DDL workflow)",
+    "spec 026 (code fencing — supplies the fence→task→FR chain)"
+  ],
+  "verificationBaseline": {
+    "capturedAt": "2026-08-01",
+    "branch": "main",
+    "scopes": 94,
+    "scopesWithFiledTestPlan": 1,
+    "testFiles": 115,
+    "committedSeedFixtures": 0,
+    "implementPhasesExecutingTests": 0,
+    "migrationsWithUnrecordedApplyStatus": 2,
+    "migrationFiles": [
+      "src/db/migrations/0059_scope119_customers.sql",
+      "src/db/migrations/0060_scope017_connections.sql"
+    ],
+    "migrationApplyStatusNote": "CORRECTED 2026-08-01. An earlier baseline recorded these as UNAPPLIED, inferred from their being untracked in git. Both were hand-applied to production on 2026-07-31. Untracked in git is not unapplied to production; under SCOPE-117's ledgerless workflow only execution against a faithful clone distinguishes them. apply-ddl.mjs reported 7 of 7 statements in 0059 already live.",
+    "operatorMinutesPerManualVerification": 30,
+    "productionShape": {
+      "tables": 129,
+      "foreignKeys": 201,
+      "indexes": 397
+    }
+  },
+  "phaseAVerified": {
+    "verifiedAt": "2026-08-01",
+    "clone": "wxktest_119_6f0ff",
+    "faithful": true,
+    "isolationProven": true,
+    "ddlClassified": {
+      "applied": 0,
+      "alreadyLive": 7
+    },
+    "seeded": {
+      "companies": 1,
+      "userprofiles": 2,
+      "fixtureRowsInPublic": 0
+    },
+    "smoke": {
+      "driven": 3,
+      "failing": 0,
+      "deferredToGate2": 59
+    },
+    "failFirstProofsPassed": [
+      "verify public -> refused",
+      "verify non-prefixed schema -> refused",
+      "verify nonexistent schema (search_path falls back to public) -> refused",
+      "seed into public -> refused",
+      "smoke against public -> refused",
+      "DDL targeting public. explicitly -> refused, object never created"
+    ]
+  },
+  "sequencingConstraints": [
+    "T003 before any write task — production unreachability proven before the first write",
+    "T002 before T004 — nothing to apply DDL to until the clone is certified faithful",
+    "T005 before T006 — the seed contract must exist before implement authors against it",
+    "T012 ships with T011 — a repair loop without the assertion guard is net-negative",
+    "T021 before T016 — do not make the gate blocking until proven against a real scope"
+  ],
+  "openQuestions": [
+    "Disposition of a clone left by an unattended red run — time-based sweep, or is --list plus next-run-drops-predecessor sufficient?",
+    "Do seeds belong on disk at tests/seeds/<NNN-name>/ or filed to the wxKanban DB alongside plans and items?",
+    "How should preTest behave for a scope with no HTTP or UI surface, where gates 1 and 2 have nothing to drive?",
+    "If pending SQL is corrected after a pre-test run, is it re-verified automatically or does that need a fresh run the operator must remember to trigger?"
+  ]
+}

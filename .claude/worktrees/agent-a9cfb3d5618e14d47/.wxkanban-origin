@@ -1,0 +1,23 @@
+re {
+  "project": "wxKanban",
+  "origin": true,
+  "version": "1.0.0",
+  "protected_files_editable": true,
+  "description": "This file identifies the wxKanban source repository. AI assistants use this marker to determine that protected governance files (_wxAI/rules/, specs/Project-Scope/015-AiInteraction.md, coding-standards.md, AGENTS.md) are editable in this project. Consumer projects that receive these files via wxAI-project-init or sync do NOT have this file, making those governance files read-only.",
+  "protected_files": [
+    "specs/Project-Scope/015-AiInteraction.md",
+    "_wxAI/rules/constitution.md",
+    "_wxAI/rules/projectrules.md",
+    "_wxAI/rules/development-guidelines.md",
+    "_wxAI/rules/git.md",
+    "_wxAI/rules/bashtools.md",
+    "_wxAI/commands/wxAI-pipeline.md",
+    "_wxAI/commands/wxAI-implement-gate.md",
+    "_wxAI/commands/wxAI-pipeline-mandatory-database.md",
+    "_wxAI/commands/ENFORCEMENT_SUMMARY.md",
+    "AGENTS.md",
+    "coding-standards.md"
+  ],
+  "governance_scope": "015",
+  "last_updated": "2025-01-28"
+}

@@ -1,0 +1,15 @@
+{
+  "specNumber": "143",
+  "featureName": "Agent Model Routing and Metering",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 21,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-23T17:47:54.149Z",
+    "phaseStarted": "2026-10-23T17:47:54.149Z"
+  }
+}

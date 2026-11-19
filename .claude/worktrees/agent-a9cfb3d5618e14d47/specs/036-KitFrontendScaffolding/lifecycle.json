@@ -1,0 +1,17 @@
+{
+  "specNumber": "036",
+  "featureName": "Kit Frontend Scaffolding - Tailwind v4 + shadcn/ui Defaults",
+  "phase": "released",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 41,
+    "tasksCompleted": 41,
+    "percentage": 100
+  },
+  "timeline": {
+    "created": "2026-05-23T00:00:00.000Z",
+    "phaseStarted": "2026-05-23T00:00:00.000Z",
+    "released": "2026-05-23T21:16:00.000Z"
+  },
+  "notes": "All 41 tasks done in one run. Shipped as wxkanban-agent v0.8.0. 45 new tests (25 unit scaffold-modules + 12 handler + 8 integration QT-1–QT-10), zero regressions across the 185 tests covering policy + scaffold. Spec 026 dogfood: 37 fences across SCOPE 036, auditfences --strict reports 0 errors for 036 files. One pre-existing spec027-qt failure (port 3002 bound on dev machine, unrelated). File count adjusted from 18 → 19 mid-implementation (dropdown-menu was a late add). All FRs/ACs verified."
+}

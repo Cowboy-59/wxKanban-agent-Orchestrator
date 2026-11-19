@@ -1,0 +1,22 @@
+system notes
+
+need to create extension for all wxkanban systems. 
+have command to init new project, listing projects that are new from database
+initialization will create the directories and download all files needed executing the md files to start.
+need to have command to list specs folders to put time towards
+can it monitor new files and based on names update the database information?
+can it run the lifecycle command for status updates? when wxAIGit is done?
+
+
+spec folders should be a level under project in correct lifecycle area.
+within each lifecycle spec level use specify each task seperately but add only the titles of the other items as method to 
+show the file information
+
+it would see that all this should have to come from the github data, since you may not be on the development Machine
+so each project will need the github definitions to access
+
+wxkanban -- add Minstral AI to conversationalize the creation of scope.md for each spec created... 
+should also do same for ProjectDesign.md an overall viewpoint of project to be done. and should attempt to define the 
+different spec areas needed to accomplish the project
+
+we will need to rename all the Claude to wx to be able to use multiple different generation AI like gemini 

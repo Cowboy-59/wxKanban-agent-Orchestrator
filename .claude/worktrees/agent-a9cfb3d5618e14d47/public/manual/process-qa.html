@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QA — wxKanban Manual</title>
+<style>
+:root { --accent: #2563eb; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1f2328; line-height: 1.6; margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1,h2,h3 { line-height: 1.25; }
+h1 { font-size: 1.9rem; border-bottom: 2px solid var(--accent); padding-bottom: .3em; }
+h2 { font-size: 1.35rem; margin-top: 1.8em; }
+img { max-width: 100%; border: 1px solid #d0d7de; border-radius: 6px; margin: .5em 0; }
+code { background: #f6f8fa; padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th,td { border: 1px solid #d0d7de; padding: .5em .7em; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; }
+.layout { display: flex; align-items: flex-start; }
+.sidebar { width: 250px; min-width: 250px; padding: 1.2em; border-right: 1px solid #d0d7de;
+  height: 100vh; position: sticky; top: 0; overflow-y: auto; background: #fafbfc; }
+.sidebar h3 { margin: 0 0 .3em; font-size: .8rem; text-transform: uppercase; color: #57606a; }
+.sidebar a { display: block; padding: .25em 0; color: #1f2328; }
+.sidebar a.active { color: var(--accent); font-weight: 600; }
+.content { padding: 2em 3em; max-width: 900px; }
+.brand { font-weight: 700; font-size: 1.1rem; margin-bottom: 1em; color: var(--accent); }
+.search { width: 100%; padding: .5em; margin-bottom: 1em; border: 1px solid #d0d7de; border-radius: 6px; }
+.card { border: 1px solid #d0d7de; border-radius: 8px; padding: 1em 1.2em; margin: .6em 0; }
+.card a { font-weight: 600; font-size: 1.1rem; }
+@media print { .sidebar, .search { display: none; } }
+</style></head>
+<body><div class="layout">
+<nav class="sidebar">
+<div class="brand"><a href="index.html">wxKanban Manual</a></div>
+<input class="search" id="q" placeholder="Search…" onkeyup="flt()">
+<h3>Sections</h3>
+<a data-t="part 1 — getting started" href="part-getting-started.html">Part 1 — Getting Started</a>
+<a data-t="getting started" href="getting-started.html">Getting Started</a>
+<a data-t="part 2 — the process" href="part-the-process.html">Part 2 — The Process</a>
+<a data-t="the road at a glance" href="process-overview.html">The road at a glance</a>
+<a data-t="scopes and specs" href="process-scopes-specs.html">Scopes and specs</a>
+<a data-t="design" href="process-design.html">Design</a>
+<a data-t="decision memory: the ledger and the ask gate" href="process-decision-memory.html">Decision memory: the ledger and the Ask Gate</a>
+<a data-t="implementation" href="process-implementation.html">Implementation</a>
+<a class="active" data-t="qa" href="process-qa.html">QA</a>
+<a data-t="human testing" href="process-human-testing.html">Human Testing</a>
+<a data-t="beta" href="process-beta.html">Beta</a>
+<a data-t="release" href="process-release.html">Release</a>
+<a data-t="converting an existing app" href="process-conversions.html">Converting an existing app</a>
+<a data-t="when something goes wrong" href="process-when-things-go-wrong.html">When something goes wrong</a>
+<a data-t="who does what" href="process-who-does-what.html">Who does what</a>
+<a data-t="part 3 — the web app" href="part-web-app.html">Part 3 — The Web App</a>
+<a data-t="signing in" href="login.html">Signing in</a>
+<a data-t="the dashboard" href="dashboard.html">The Dashboard</a>
+<a data-t="projects" href="projects.html">Projects</a>
+<a data-t="inside a project" href="project-detail.html">Inside a project</a>
+<a data-t="my tasks" href="tasks.html">My Tasks</a>
+<a data-t="automated tests (qa)" href="testing-qa.html">Automated tests (QA)</a>
+<a data-t="user tests" href="testing-user.html">User tests</a>
+<a data-t="work hub" href="work-hub.html">Work Hub</a>
+<a data-t="faq" href="faq.html">FAQ</a>
+<a data-t="help & plan features" href="help.html">Help & plan features</a>
+<a data-t="settings" href="settings.html">Settings</a>
+<a data-t="team members" href="team.html">Team Members</a>
+<a data-t="team chat (yappchatt)" href="team-chat.html">Team chat (YappChatt)</a>
+<a data-t="signing k.a.i.n. in" href="kain-signin.html">Signing K.A.I.N. in</a>
+<a data-t="pm integrations" href="integrations.html">PM Integrations</a>
+<a data-t="invoices" href="invoices.html">Invoices</a>
+<a data-t="reports" href="reports.html">Reports</a>
+<a data-t="stack profiles" href="stack-profiles.html">Stack Profiles</a>
+<a data-t="theme profiles" href="theme-profiles.html">Theme Profiles</a>
+<a data-t="part 4 — the dev cockpit" href="part-dev-cockpit.html">Part 4 — The Dev Cockpit</a>
+<a data-t="installing and linking the cockpit" href="cockpit-install.html">Installing and linking the Cockpit</a>
+<a data-t="the cockpit at a glance" href="cockpit-at-a-glance.html">The Cockpit at a glance</a>
+<a data-t="system health" href="cockpit-system-health.html">System Health</a>
+<a data-t="scopes" href="cockpit-scopes.html">Scopes</a>
+<a data-t="development plan" href="cockpit-dev-plan.html">Development Plan</a>
+<a data-t="git" href="cockpit-git.html">Git</a>
+<a data-t="kit updates" href="cockpit-kit-updates.html">Kit updates</a>
+<a data-t="change impact" href="cockpit-change-impact.html">Change Impact</a>
+<a data-t="feedback" href="cockpit-feedback.html">Feedback</a>
+<a data-t="help inside the cockpit" href="cockpit-help.html">Help inside the Cockpit</a>
+<a data-t="part 5 — command reference" href="part-command-reference.html">Part 5 — Command Reference</a>
+<a data-t="commands by stage" href="commands-by-stage.html">Commands by stage</a>
+<a data-t="commands by where they run" href="commands-by-where.html">Commands by where they run</a>
+<a data-t="commands a–z" href="commands-a-z.html">Commands A–Z</a>
+<a data-t="/ai-session" href="cmd-aisession.html">/ai-session</a>
+<a data-t="/analyzecode" href="cmd-analyzecode.html">/analyzecode</a>
+<a data-t="/analyzescope" href="cmd-analyzescope.html">/analyzescope</a>
+<a data-t="/autofix-tests" href="cmd-autofixtests.html">/autofix-tests</a>
+<a data-t="/buildscope" href="cmd-buildscope.html">/buildscope</a>
+<a data-t="/buildstack" href="cmd-buildstack.html">/buildstack</a>
+<a data-t="wxkanban-agent archive:files" href="cmd-cli-archive-files.html">wxkanban-agent archive:files</a>
+<a data-t="wxkanban-agent auditfences" href="cmd-cli-auditfences.html">wxkanban-agent auditfences</a>
+<a data-t="wxkanban-agent kit:configure" href="cmd-cli-kit-configure.html">wxkanban-agent kit:configure</a>
+<a data-t="wxkanban-agent kit:status" href="cmd-cli-kit-status.html">wxkanban-agent kit:status</a>
+<a data-t="wxkanban-agent scaffold:frontend" href="cmd-cli-scaffold-frontend.html">wxkanban-agent scaffold:frontend</a>
+<a data-t="refresh autopilot" href="cmd-cockpit-wxkanbanautopilotrefresh.html">Refresh Autopilot</a>
+<a data-t="check in scope" href="cmd-cockpit-wxkanbancockpitcheckinscope.html">Check In Scope</a>
+<a data-t="check out scope" href="cmd-cockpit-wxkanbancockpitcheckoutscope.html">Check Out Scope</a>
+<a data-t="install slash commands (.claude/commands)" href="cmd-cockpit-wxkanbancockpitinstallcommands.html">Install Slash Commands (.claude/commands)</a>
+<a data-t="install kit in this folder" href="cmd-cockpit-wxkanbancockpitinstallkit.html">Install Kit in This Folder</a>
+<a data-t="my feedback" href="cmd-cockpit-wxkanbancockpitmyfeedback.html">My Feedback</a>
+<a data-t="community help (live chat)" href="cmd-cockpit-wxkanbancockpitopenchat.html">Community Help (live chat)</a>
+<a data-t="open the manual" href="cmd-cockpit-wxkanbancockpitopenmanual.html">Open the Manual</a>
+<a data-t="open related spec / file" href="cmd-cockpit-wxkanbancockpitopenspec.html">Open Related Spec / File</a>
+<a data-t="push feedback to claude chat" href="cmd-cockpit-wxkanbancockpitpushfeedbacktochat.html">Push Feedback to Claude Chat</a>
+<a data-t="re-run the kit version check" href="cmd-cockpit-wxkanbancockpitrecheckkit.html">Re-run the Kit Version Check</a>
+<a data-t="refresh cockpit" href="cmd-cockpit-wxkanbancockpitrefresh.html">Refresh Cockpit</a>
+<a data-t="view feedback detail" href="cmd-cockpit-wxkanbancockpitshowfeedbackdetail.html">View Feedback Detail</a>
+<a data-t="show project agent output" href="cmd-cockpit-wxkanbancockpitshowprojectagentoutput.html">Show Project Agent Output</a>
+<a data-t="sign in / relink project" href="cmd-cockpit-wxkanbancockpitsignin.html">Sign In / Relink Project</a>
+<a data-t="start project agent" href="cmd-cockpit-wxkanbancockpitstartprojectagent.html">Start Project Agent</a>
+<a data-t="stop project agent" href="cmd-cockpit-wxkanbancockpitstopprojectagent.html">Stop Project Agent</a>
+<a data-t="report a bug / suggest a feature" href="cmd-cockpit-wxkanbancockpitsubmitfeedback.html">Report a Bug / Suggest a Feature</a>
+<a data-t="toggle recording theme (wxlight / wxdark)" href="cmd-cockpit-wxkanbancockpittoggletheme.html">Toggle Recording Theme (wxLight / wxDark)</a>
+<a data-t="install kit update" href="cmd-cockpit-wxkanbancockpitupgradekit.html">Install Kit Update</a>
+<a data-t="install the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactinstallhook.html">Install the Change Impact hook for Claude Code</a>
+<a data-t="show change impact" href="cmd-cockpit-wxkanbanimpactshowpanel.html">Show Change Impact</a>
+<a data-t="remove the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactuninstallhook.html">Remove the Change Impact hook for Claude Code</a>
+<a data-t="/compliance-scan" href="cmd-compliancescan.html">/compliance-scan</a>
+<a data-t="/consultant-hub" href="cmd-consultanthub.html">/consultant-hub</a>
+<a data-t="/createspecs" href="cmd-createspecs.html">/createSpecs</a>
+<a data-t="/cwconversion" href="cmd-cwconversion.html">/cwConversion</a>
+<a data-t="/cwconversionscope" href="cmd-cwconversionscope.html">/cwConversionScope</a>
+<a data-t="/dbpush" href="cmd-dbpush.html">/dbpush</a>
+<a data-t="/implement" href="cmd-implement.html">/implement</a>
+<a data-t="/pretest" href="cmd-pretest.html">/preTest</a>
+<a data-t="/remote" href="cmd-remote.html">/remote</a>
+<a data-t="/rescue-tokens" href="cmd-rescuetokens.html">/rescue-tokens</a>
+<a data-t="/research" href="cmd-research.html">/research</a>
+<a data-t="/scope-flow-map" href="cmd-scopeflowmap.html">/scope-flow-map</a>
+<a data-t="/test-sweep" href="cmd-testsweep.html">/test-sweep</a>
+<a data-t="/track-time" href="cmd-tracktime.html">/track-time</a>
+<a data-t="/validatescope" href="cmd-validatescope.html">/validateScope</a>
+<a data-t="/vbconversion" href="cmd-vbconversion.html">/vbConversion</a>
+<a data-t="/vbconversionscope" href="cmd-vbconversionscope.html">/vbConversionScope</a>
+<a data-t="/watermark" href="cmd-watermark.html">/watermark</a>
+<a data-t="/web-artifacts-builder" href="cmd-webartifactsbuilder.html">/web-artifacts-builder</a>
+<a data-t="/wxai-project-init" href="cmd-wxaiprojectinit.html">/wxAI-project-init</a>
+<a data-t="/wxbrainstorm" href="cmd-wxbrainstorm.html">/wxBrainstorm</a>
+<a data-t="/wxbrand" href="cmd-wxbrand.html">/wxBrand</a>
+<a data-t="/wxconversion" href="cmd-wxconversion.html">/wxConversion</a>
+<a data-t="/wxconversionparity" href="cmd-wxconversionparity.html">/wxConversionParity</a>
+<a data-t="/wxconversionscope" href="cmd-wxconversionscope.html">/wxConversionScope</a>
+<a data-t="/wxcreatetestplan" href="cmd-wxcreatetestplan.html">/wxCreateTestPlan</a>
+<a data-t="/wxdbanalyze" href="cmd-wxdbanalyze.html">/wxDBAnalyze</a>
+<a data-t="/wxdesigner" href="cmd-wxdesigner.html">/wxDesigner</a>
+<a data-t="/wxg-o-d" href="cmd-wxgod.html">/wxG-O-D</a>
+<a data-t="/wxhelpgenerate" href="cmd-wxhelpgenerate.html">/wxHelpGenerate</a>
+<a data-t="/wxledger" href="cmd-wxledger.html">/wxLedger</a>
+<a data-t="/wxuiuxcodereview" href="cmd-wxuiuxcodereview.html">/wxUIUXCodeReview</a>
+<a data-t="appendix" href="part-appendix.html">Appendix</a>
+<a data-t="glossary" href="glossary.html">Glossary</a>
+<a data-t="troubleshooting" href="troubleshooting.html">Troubleshooting</a>
+<a data-t="where to get help" href="get-help.html">Where to get help</a>
+<h3>Reference</h3>
+<a data-t="fields index" href="fields-index.html">A–Z field index</a>
+</nav>
+<main class="content"><h1 id="qa">QA</h1>
+<p>QA is where machine tests prove the scope works, before people spend time testing it.</p>
+<table>
+<thead>
+<tr>
+<th>What it is for</th>
+<th>What you do</th>
+<th>What the AI does</th>
+<th>Commands</th>
+<th>Leaves when</th>
+<th>Common blockers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Proving with machine tests that the scope works.</td>
+<td>Check that the scope's test plan was filed, set up a test environment, run the plan and verify its final gate, and confirm each proposed fix. Optionally, set up the nightly run.</td>
+<td>Runs the machine test items, records each result, signs off each item a run proved, and sorts every failure.</td>
+<td><a href="cmd-wxcreatetestplan.html"><code>/wxCreateTestPlan</code></a>, <a href="cmd-pretest.html"><code>/preTest</code></a>, <a href="cmd-autofixtests.html"><code>/autofix-tests</code></a>, and <a href="cmd-implement.html"><code>/implement</code></a> for fixes.</td>
+<td>No task is open, the scope has at least one machine test, and every machine test it owns is signed off with none failing.</td>
+<td>No machine tests; failing or unsigned tests; no proven non-production database for the data tests; the nightly check refuses.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a-scope-with-no-machine-tests-stays-in-qa">A scope with no machine tests stays in QA</h2>
+<p>This is the most common reason a scope stops here. Leaving QA needs at least one machine test, so a scope without a test plan never moves on.</p>
+<p><code>/implement</code> files the test plan at the end of its run. If it was skipped or not approved, the plan is missing. Check that the scope's test plan was filed. If not, run <code>/wxCreateTestPlan SCOPE-NNN</code> and approve it at each stop.</p>
+<h2 id="set-up-your-test-environment">Set up your test environment</h2>
+<p>Machine tests that write data never run against production. Here is what the commands set up for you, and what you must provide.</p>
+<h3 id="what-is-set-up-for-you">What is set up for you</h3>
+<ul>
+<li><strong><code>/preTest SCOPE-NNN</code> builds its own test database for each run.</strong> Depending on your stack, it is a copy of your database structure in the same database server, a database file made for the run, or a database container started for the run. Before it writes anything, it proves the copy is separate from production and keeps every constraint production enforces; if either check fails, it refuses. It then loads the scope's test data and starts your real application against the copy. You do not need a running app or a test database of your own for it. When it ends green, it leaves that environment running so you can look at real screens with known data.</li>
+<li><strong><code>/wxCreateTestPlan SCOPE-NNN --Execute</code> writes only to a database proven not to be production.</strong> If none is set up, it offers a disposable one first. If you decline, the create, read, update, and delete gate does not run and is reported as blocked.</li>
+<li><strong>Both learn your stack from a stack adapter in the kit.</strong> If no adapter fits your stack, the AI writes one from your project, tells you it is provisional, and continues.</li>
+</ul>
+<h3 id="what-you-provide-for-the-nightly-run">What you provide for the nightly run</h3>
+<p>The nightly run is different: it tests your application where it is deployed for testing, overnight. You provide:</p>
+<ul>
+<li><strong>A test server</strong> to run it on. A developer machine also works; the run then stops at 06:00 by default.</li>
+<li><strong>Your application, running there against its own non-production database.</strong> Or, instead, the commands that let the run start the application itself against its own database.</li>
+<li><strong>The addresses of your test and production apps and databases.</strong> The run refuses any address on the production list, or not on the test list. There is no override.</li>
+<li><strong>How a user signs in</strong>: the sign-in page, and your portal if users reach the app through one.</li>
+<li><strong>Test accounts</strong>: normal user accounts the run signs in with. Their user names, passwords, and authenticator secrets live in the test server's secret store, never in the settings file.</li>
+<li><strong>The admin pages a normal user must be refused.</strong> The run checks that each one is.</li>
+<li><strong>A schedule</strong>, the time of night the run starts.</li>
+</ul>
+<p>These settings live in the <code>config.json</code> file in your project's <code>docs-workspace</code> folder, in its <code>environments</code>, <code>entryPath</code>, and <code>nightly</code> blocks. If your project has no <code>docs-workspace</code> folder yet, create it and an empty <code>config.json</code> file in it. Run <a href="cmd-pretest.html"><code>/preTest</code></a> <code>--nightly</code> to check them. It names anything missing and writes nothing.</p>
+<p>This Manual does not yet cover building the test server, deploying your application to it, or creating its database and test accounts. Those are yours to set up.</p>
+<h2 id="running-the-plan">Running the plan</h2>
+<p>Run <code>/wxCreateTestPlan SCOPE-NNN --Execute</code> when you want the tests to run. It runs the machine items only, through three gates, and stops after each one:</p>
+<ol>
+<li><strong>Smoke.</strong> Every part responds without crashing. Nothing is written.</li>
+<li><strong>Create, read, update, delete.</strong> Real round-trips against a database proven not to be production. If no such database is proven, this gate does not run and is reported as blocked. It never writes to production.</li>
+<li><strong>Final sign-off.</strong> The AI shows you the evidence and stops. You verify and sign off. You can add new test cases at this point; they are filed and run before you sign.</li>
+</ol>
+<p>Before a run starts, the AI lists the items it will run. The same list appears in the web app's QA view; see <a href="testing-qa.html">Automated tests (QA)</a>.</p>
+<p>A run signs off only the items it actually passed. Every failure goes into one bucket: the test was wrong, the code is wrong, the feature is not built yet, or no spec covers the behavior. The AI does not change a test just to make it pass.</p>
+<h2 id="checking-one-scope-end-to-end">Checking one scope end to end</h2>
+<p><code>/preTest SCOPE-NNN</code> stands up a disposable copy of your database structure, loads the scope's test data, starts the real application, and drives every route and screen the scope touched. It repairs what it can in up to three rounds, and it never weakens a test to make it pass. It ends in one of three results:</p>
+<ul>
+<li><strong>green</strong>: the first two gates passed and are recorded; the final sign-off is waiting for you.</li>
+<li><strong>red</strong>: it lists what failed and every repair it tried.</li>
+<li><strong>refused</strong>: a safety check did not hold, and nothing was written.</li>
+</ul>
+<h3 id="what-clears-qa">What clears QA</h3>
+<p>QA clears when no task is open, the scope has at least one machine test, and every machine test it owns has passed in a run and been signed off. You do not sign machine tests one by one: when a run proves a test, that run records its sign-off. <code>/wxCreateTestPlan SCOPE-NNN --Execute</code> does this for each test it proves, and so does the nightly run. <strong>Either one is enough; the nightly run is optional.</strong> Its value is that it keeps testing as your code changes, without you starting it.</p>
+<h2 id="the-nightly-run">The nightly run</h2>
+<p><code>/preTest --nightly</code> checks your setup and shows the plan for the night. It writes nothing. When the check passes, <code>/preTest --nightly --install</code> schedules the run on your test server.</p>
+<p>Each night it tests what the day's changes reached, plus a rotation of other items. Failures arrive as tasks, and you get a summary each morning. The nightly run signs off each item it proves, the same way <code>--Execute</code> does, so a scope's machine test gate can clear overnight without you running anything.</p>
+<p>It refuses a production target or any target that is not listed. It also refuses when no test server or test accounts are set up. It never commits, pushes, deploys, or edits a test.</p>
+<h2 id="fixing-failures">Fixing failures</h2>
+<ul>
+<li><code>/autofix-tests</code> finds failing tests, works out the cause, and proposes a fix. It confirms each fix with you unless you pass <code>--auto-apply</code>.</li>
+<li>A failure in the code becomes a task on its spec. The nightly run opens these tasks for you. For a failure you found yourself, ask your AI to add one in plain words: "add a task to SPEC-NNN: what fails and what should happen". Then run <code>/implement</code> on that spec. <code>/implement</code> runs while the scope is in QA, and the scope stays in QA until its tests pass. See <a href="process-when-things-go-wrong.html">When something goes wrong</a>.</li>
+</ul>
+<h2 id="moving-on">Moving on</h2>
+<p>When QA is clear, the scope enters Human Testing on its own. Entering Human Testing releases the scope's human tests to your testers.</p>
+<p>If your project has testing switched off, the test conditions count as met, and scopes move on their tasks alone.</p><footer style="margin-top:3em;color:#57606a;font-size:.8rem;border-top:1px solid #d0d7de;padding-top:.6em">wxKanban 1.5.371 · built 2026-11-09</footer></main>
+</div>
+<script>
+function flt(){var v=document.getElementById('q').value.toLowerCase();
+document.querySelectorAll('.sidebar a[data-t]').forEach(function(a){
+a.style.display=a.getAttribute('data-t').indexOf(v)>-1?'block':'none';});}
+</script></body></html>

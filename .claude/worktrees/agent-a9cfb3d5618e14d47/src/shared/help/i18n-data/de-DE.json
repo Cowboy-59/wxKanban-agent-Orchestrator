@@ -1,0 +1,1469 @@
+{
+  "features": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Ihre Projektübersicht — der Fortschritt der Lifecycle-Phasen pro Projekt sowie Schnellzugriffe auf die generierten Dokumente jedes Projekts.",
+      "howTo": "Öffnen Sie das Dashboard über die Seitenleiste. Jede Projektkarte zeigt ihren Phasenfortschritt und Dokumentenlinks; ADMINs erhalten eine Schaltfläche „Neu“, um ein Projekt direkt anzulegen."
+    },
+    "projects": {
+      "title": "Projekte",
+      "description": "Erstellen und verwalten Sie Projekte. Unbegrenzte Projekte in allen kostenpflichtigen Tarifen.",
+      "howTo": "Erstellen Sie ein Projekt über die Schaltfläche „Neu“ im Dashboard oder das Menü „Projekte“ und öffnen Sie es dann, um seine Registerkarten (Übersicht, Lifecycle, Aufgaben) zu sehen."
+    },
+    "tasks": {
+      "title": "Meine Aufgaben (Kanban)",
+      "description": "Ihre zugewiesene Arbeit auf einem projektübergreifenden Kanban-Board.",
+      "howTo": "Öffnen Sie „Meine Aufgaben“; ziehen Sie Karten zwischen den Spalten, um den Status zu ändern, oder öffnen Sie eine Karte für Details."
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "description": "Konto-, Unternehmens- und Präferenzeinstellungen, einschließlich der Sprache.",
+      "howTo": "Öffnen Sie die Einstellungen über das Menü; hier befinden sich die Sprachauswahl und das Profil."
+    },
+    "faq": {
+      "title": "FAQ",
+      "description": "Antworten auf häufige Fragen zur Nutzung von wxKanban.",
+      "howTo": "Öffnen Sie die FAQ über das Menü."
+    },
+    "lifecycle": {
+      "title": "6-Phasen-Lifecycle und Orchestrator",
+      "description": "Die Methodik Design → Implementation → QA → HumanTesting → Beta → Release, die jede Funktion steuert und eine einzige verlässliche Quelle für den Stand eines Projekts vorhält.",
+      "howTo": "Steuern Sie es über Claude Code + das wxKanban-Kit in VS Code (buildscope → createSpecs → implement). Der richtige Befehl ist nur in der richtigen Phase verfügbar."
+    },
+    "specs": {
+      "title": "Specs und Scopes",
+      "description": "Die Scope-of-project-Dokumente sowie die generierten Specs, Pläne und Aufgaben für jede Funktion.",
+      "howTo": "Verfassen Sie einen Scope mit buildscope; generieren Sie Spec, Plan und Aufgaben mit createSpecs; verfolgen Sie sie im Cockpit."
+    },
+    "audit": {
+      "title": "Audit-Berichte",
+      "description": "Ein Audit-Verlauf pro Release darüber, was gebaut, getestet und mit Code-Fences versehen wurde.",
+      "howTo": "Öffnen Sie den Link „Audit-Bericht“ auf einer Projektkarte oder generieren Sie ihn im Admin-Dashboard neu."
+    },
+    "cockpit": {
+      "title": "Dev Cockpit",
+      "description": "Eine VS-Code-Seitenleiste, die die verbleibende Arbeit pro Scope in Echtzeit anzeigt, während die Arbeit voranschreitet.",
+      "howTo": "Installieren Sie die Dev-Cockpit-Erweiterung; sie heftet Ihren aktiven Scope an und listet unerledigte Aufgaben auf."
+    },
+    "pmIntegrations": {
+      "title": "PM-Integrationen",
+      "description": "Verbinden Sie Jira, Monday.com, Asana und Trello und synchronisieren Sie Aufgaben in beide Richtungen.",
+      "howTo": "Öffnen Sie PM-Integrationen und verbinden Sie sich über OAuth; die Synchronisierung läuft nach einem Hintergrundzeitplan."
+    },
+    "team": {
+      "title": "Teamverwaltung",
+      "description": "Laden Sie Teammitglieder ein, weisen Sie Rollen zu und verwalten Sie den Zugriff mit rollenbasierten Kontrollen.",
+      "howTo": "Öffnen Sie „Team“; laden Sie per E-Mail ein und legen Sie die Rolle jedes Mitglieds fest."
+    },
+    "timeTracking": {
+      "title": "Zeiterfassung und Abrechnung",
+      "description": "Integrierter Timer mit Erfassung abrechenbarer Stunden und Zeiteinträgen.",
+      "howTo": "Starten Sie den Timer für eine Aufgabe; markieren Sie Einträge als abrechenbar für die Rechnungsstellung."
+    },
+    "invoices": {
+      "title": "Rechnungen",
+      "description": "Erstellen Sie PDF-Rechnungen aus abrechenbaren Zeiteinträgen.",
+      "howTo": "Öffnen Sie „Rechnungen“, wählen Sie ein Projekt und einen Zeitraum und generieren Sie; abgerechnete Einträge werden markiert, um Duplikate zu vermeiden."
+    },
+    "reports": {
+      "title": "Berichte",
+      "description": "Erweiterte Berichte zu Zeit, Projekten und Ergebnissen.",
+      "howTo": "Öffnen Sie „Berichte“ über das Menü."
+    },
+    "workHub": {
+      "title": "Work Hub",
+      "description": "Ein Auftrags-Hub für Berater zur Verwaltung der Kundenarbeit.",
+      "howTo": "Öffnen Sie den Work Hub, um Ihre Aufträge einzusehen und zu verwalten."
+    },
+    "clientPortal": {
+      "title": "Kundenportal",
+      "description": "Geben Sie Kunden eine eingeschränkte, schreibgeschützte Ansicht ihres Projekts.",
+      "howTo": "Aktivieren Sie das Portal für ein Projekt und teilen Sie den Kundenlink."
+    },
+    "customWorkflows": {
+      "title": "Benutzerdefinierte Workflows",
+      "description": "Passen Sie die Lifecycle-Workflows an den Prozess Ihres Teams an.",
+      "howTo": "Konfigurieren Sie benutzerdefinierte Workflows in den Projekteinstellungen."
+    },
+    "apiAccess": {
+      "title": "API-Zugriff",
+      "description": "Programmatischer Zugriff auf Ihre wxKanban-Daten über die API.",
+      "howTo": "Erstellen Sie ein API-Token in den Einstellungen und rufen Sie die dokumentierten Endpunkte auf."
+    },
+    "stackProfiles": {
+      "title": "Stack-Profile",
+      "description": "Wiederverwendbare Ziel-Stack- und Stildefinitionen, die bei der Erstellung eines Projekts angewendet werden.",
+      "howTo": "Öffnen Sie die Stack-Profile (Admin), um die Stacks Ihres Unternehmens zu definieren oder zu bearbeiten."
+    },
+    "themeProfiles": {
+      "title": "Theme-Profile",
+      "description": "Wiederverwendbare Erscheinungsbild-Themes für generierte Ausgaben.",
+      "howTo": "Öffnen Sie die Theme-Profile (Admin), um Themes zu definieren oder zu bearbeiten."
+    },
+    "encryption": {
+      "title": "Verschlüsselung im Ruhezustand",
+      "description": "Geheimnisse werden im Ruhezustand mit AES-256-GCM verschlüsselt.",
+      "howTo": "Immer aktiv – keine Konfiguration erforderlich."
+    },
+    "soc2": {
+      "title": "SOC 2 & HIPAA",
+      "description": "An SOC 2 und HIPAA ausgerichtete Kontrollen und Compliance-Tools.",
+      "howTo": "Fügen Sie die SDLC-Dokumente Ihres Unternehmens für die Compliance-Analyse hinzu und weisen Sie Teammitgliedern Kontrollen zu."
+    },
+    "sso": {
+      "title": "Single Sign-On (SSO)",
+      "description": "Unternehmens-SSO für Ihre Organisation.",
+      "howTo": "Wenden Sie sich an Ihren wxKanban-Ansprechpartner, um Ihren Identitätsanbieter zu konfigurieren."
+    },
+    "advancedSecurity": {
+      "title": "Erweiterte Sicherheit",
+      "description": "Zusätzliche Sicherheitskontrollen auf Unternehmensniveau.",
+      "howTo": "Wird im Rahmen des Enterprise-Onboardings konfiguriert."
+    },
+    "emailSupport": {
+      "title": "E-Mail-Support",
+      "description": "Produktsupport per E-Mail.",
+      "howTo": "Senden Sie eine E-Mail an admin@wxperts.com."
+    },
+    "dedicatedSupport": {
+      "title": "Dedizierter Support",
+      "description": "Ein dedizierter Support-Ansprechpartner für Ihr Konto.",
+      "howTo": "Wird während des Enterprise-Onboardings zugewiesen."
+    },
+    "customIntegrations": {
+      "title": "Benutzerdefinierte Integrationen",
+      "description": "Maßgeschneiderte Integrationen für Ihre Organisation.",
+      "howTo": "Legen Sie den Umfang benutzerdefinierter Integrationen mit Ihrem wxKanban-Ansprechpartner fest."
+    },
+    "sla": {
+      "title": "SLA-Garantie",
+      "description": "Ein vertragliches SLA für Verfügbarkeit und Reaktionszeit.",
+      "howTo": "Bestandteil Ihres Enterprise-Vertrags."
+    },
+    "test-suite": {
+      "title": "Testsuite",
+      "description": "Automatische Tests, die die KI in der QA-Phase ausführt, und anschließend Benutzertests, die Sie selbst abzeichnen, sobald die Version in UAT ist. Eine Version kann nicht freigegeben werden, solange von beiden noch etwas offen ist.",
+      "howTo": "Öffnen Sie ein Projekt und wählen Sie die QA-Phase, um die automatischen Gates auszuführen und den Fortschritt live zu verfolgen; die Phase Human Testing enthält Ihre eigenen Tests, die freigeschaltet werden, sobald der automatische Lauf besteht."
+    },
+    "feedback": {
+      "title": "Feedback und Fehlerberichte",
+      "description": "Melden Sie ein Problem oder wünschen Sie eine Änderung direkt aus dem Produkt heraus und verfolgen Sie anschließend, was daraus geworden ist. Ein fehlgeschlagener Benutzertest erzeugt automatisch einen Fehlerbericht.",
+      "howTo": "Senden Sie Feedback aus dem Produkt und öffnen Sie anschließend Mein Feedback, um Status, Triage-Notizen und Antworten für das Projekt zu sehen, in dem Sie arbeiten."
+    }
+  },
+  "categories": {
+    "Core workspace": "Kern-Arbeitsbereich",
+    "Development lifecycle": "Entwicklungslebenszyklus",
+    "Integrations": "Integrationen",
+    "Team & collaboration": "Team & Zusammenarbeit",
+    "Time, billing & consulting": "Zeit, Abrechnung & Beratung",
+    "Admin & configuration": "Verwaltung & Konfiguration",
+    "Security & compliance": "Sicherheit & Compliance",
+    "Enterprise & support": "Enterprise & Support"
+  },
+  "plans": {
+    "SINGLE_USER": {
+      "label": "Einzelnutzer",
+      "userLimit": "1 Nutzer",
+      "tagline": "Solo, Einstiegsebene"
+    },
+    "SMALL_BUSINESS": {
+      "label": "Kleine/Mittlere Unternehmen",
+      "userLimit": "Bis zu 5 Nutzer",
+      "tagline": "Kleine Teams, Compliance-bereit"
+    },
+    "CONSULTANT": {
+      "label": "Berater",
+      "userLimit": "Unbegrenztes Team",
+      "tagline": "Abrechenbare Kundenarbeit"
+    },
+    "ENTERPRISE": {
+      "label": "Enterprise",
+      "userLimit": "25+ Nutzer",
+      "tagline": "Skalierung, Sicherheit, SLA"
+    }
+  },
+  "guides": {
+    "dashboard": [
+      "Öffnen Sie das Dashboard über die linke Seitenleiste.",
+      "Jede Projektkarte zeigt ihre aktuelle Lifecycle-Phase und einen Fortschrittsbalken.",
+      "Verwenden Sie die Dokumentlinks auf einer Karte — Übersicht, Lifecycle, Audit — um die generierten Berichte zu öffnen.",
+      "ADMINs: Klicken Sie auf Neu, um ein Projekt direkt zu erstellen."
+    ],
+    "projects": [
+      "Erstellen Sie ein Projekt über die Schaltfläche Neu im Dashboard oder das Menü Projekte.",
+      "Öffnen Sie ein Projekt, um seine Registerkarten zu sehen: Übersicht, Lifecycle und Aufgaben.",
+      "Projekte sind in jedem kostenpflichtigen Tarif unbegrenzt — organisieren Sie Ihre Arbeit in so vielen, wie Sie benötigen."
+    ],
+    "tasks": [
+      "Öffnen Sie Meine Aufgaben über das Menü.",
+      "Karten sind in Statusspalten gruppiert; ziehen Sie eine Karte, um ihren Status zu ändern.",
+      "Klicken Sie auf eine Karte, um ihre Details, Kommentare und den verknüpften Spec/die Aufgabe zu öffnen."
+    ],
+    "settings": [
+      "Öffnen Sie die Einstellungen über das Menü.",
+      "Aktualisieren Sie Ihr Profil und Ihre Einstellungen; wechseln Sie die Sprache mit der Sprachauswahl.",
+      "Unternehmens-ADMINs verwalten von hier aus die unternehmensweiten Einstellungen."
+    ],
+    "faq": [
+      "Öffnen Sie die FAQ über das Menü.",
+      "Durchsuchen Sie häufige Fragen oder suchen Sie danach.",
+      "Folgen Sie den verlinkten Dokumenten für ausführlichere Hinweise."
+    ],
+    "lifecycle": [
+      "Installieren Sie das wxKanban-Kit und das Dev Cockpit in VS Code.",
+      "Führen Sie /buildscope aus, um einen Scope zu definieren, dann /createSpecs, um den Spec, Plan und die Aufgaben zu generieren.",
+      "Führen Sie /implement aus, um Aufgaben zu erstellen, und schalten Sie die Phasen weiter (QA → Human Testing → Beta → Release), sobald jedes Gate bestanden ist.",
+      "Das Cockpit zeigt, welcher Befehl in der aktuellen Phase verfügbar ist."
+    ],
+    "specs": [
+      "Erstellen Sie einen Scope mit /buildscope — es befragt Sie Abschnitt für Abschnitt.",
+      "Generieren Sie den Spec, Plan und die Aufgaben mit /createSpecs.",
+      "Verfolgen Sie den Fortschritt im Dev Cockpit; jede Aufgabe verweist zurück auf ihren Spec."
+    ],
+    "audit": [
+      "Öffnen Sie den Link zum Audit-Bericht auf einer Projektkarte oder generieren Sie ihn im Admin-Dashboard neu.",
+      "Prüfen Sie, was für die Release gebaut, getestet und mit Code-Fences versehen wurde.",
+      "Bewahren Sie ihn als Ihren Compliance- und Nachverfolgbarkeitsnachweis auf."
+    ],
+    "cockpit": [
+      "Installieren Sie die VS-Code-Erweiterung „wxKanban Dev Cockpit“ (aus der VSIX).",
+      "Öffnen Sie das wxKanban-Symbol in der Aktivitätsleiste.",
+      "Ihr aktiver Scope wird angeheftet und unvollständige Aufgaben werden live aufgelistet, während Sie bauen."
+    ],
+    "pmIntegrations": [
+      "Öffnen Sie die PM-Integrationen über das Menü.",
+      "Verbinden Sie einen Anbieter — Jira, Monday.com, Asana oder Trello — über OAuth.",
+      "Aufgaben werden nach einem Hintergrundzeitplan synchronisiert; Konflikte werden nach dem Prinzip Letzter-Schreibvorgang-gewinnt gelöst (wxKanban gewinnt).",
+      "Single User und Small Business erhalten eine Verbindung; Consultant und höher erhalten mehrere."
+    ],
+    "team": [
+      "Öffnen Sie Team über das Menü (Tarif Small Business oder höher).",
+      "Laden Sie einen Teamkollegen per E-Mail ein und weisen Sie ihm seine Rolle zu.",
+      "Verwalten Sie Zugriffe und entfernen Sie Mitglieder nach Bedarf.",
+      "Platzlimits: 5 (Small Business), unbegrenzt (Consultant), 25+ (Enterprise)."
+    ],
+    "timeTracking": [
+      "Öffnen Sie im Tarif Consultant oder höher eine Aufgabe und starten Sie den Timer.",
+      "Markieren Sie Einträge als abrechenbar, damit sie in die Rechnungsstellung einfließen.",
+      "Prüfen und bearbeiten Sie Zeiteinträge; der Timer weist Sie darauf hin, wenn er über 8 Stunden läuft."
+    ],
+    "invoices": [
+      "Öffnen Sie im Tarif Consultant oder höher Rechnungen über das Menü.",
+      "Wählen Sie ein Projekt und einen Datumsbereich abrechenbarer Zeit.",
+      "Generieren Sie das PDF; abgerechnete Einträge werden markiert, um doppelte Abrechnung zu verhindern."
+    ],
+    "reports": [
+      "Öffnen Sie im Tarif Consultant oder höher Berichte über das Menü.",
+      "Wählen Sie einen Bericht und seine Filter (Zeit, Projekt, Ergebnisse).",
+      "Prüfen oder exportieren Sie die Ergebnisse."
+    ],
+    "workHub": [
+      "Öffnen Sie im Tarif Consultant oder höher den Arbeits-Hub über das Menü.",
+      "Sehen Sie Ihre Kundenaufträge und deren Status.",
+      "Öffnen Sie einen Auftrag, um dessen Arbeit und Abrechnung zu verwalten."
+    ],
+    "clientPortal": [
+      "Aktivieren Sie im Tarif Consultant oder höher das Portal für ein Projekt.",
+      "Teilen Sie den Kundenlink; Kunden erhalten eine eingeschränkte, schreibgeschützte Ansicht."
+    ],
+    "customWorkflows": [
+      "Öffnen Sie im Tarif Consultant oder höher die Projekteinstellungen.",
+      "Konfigurieren Sie die Workflow-Phasen passend zum Prozess Ihres Teams."
+    ],
+    "apiAccess": [
+      "Öffnen Sie im Tarif Consultant oder höher die Einstellungen und erstellen Sie ein API-Token.",
+      "Rufen Sie die dokumentierten Endpunkte mit dem Token als Bearer-Header auf.",
+      "Widerrufen Sie alle Token, die Sie nicht mehr benötigen."
+    ],
+    "stackProfiles": [
+      "Öffnen Sie als ADMIN die Stack-Profile über das Admin-Menü.",
+      "Definieren oder bearbeiten Sie einen Ziel-Stack und -Stil — er wird beim Erstellen eines Projekts angewendet."
+    ],
+    "themeProfiles": [
+      "Öffnen Sie als ADMIN die Theme-Profile über das Admin-Menü.",
+      "Definieren oder bearbeiten Sie ein Erscheinungsbild-Theme für die generierte Ausgabe."
+    ],
+    "encryption": [
+      "Nichts zu tun — Geheimnisse werden automatisch im Ruhezustand mit AES-256-GCM verschlüsselt."
+    ],
+    "soc2": [
+      "Fügen Sie im Tarif Small Business oder höher die SDLC-Dokumente Ihres Unternehmens für die Compliance-Analyse hinzu.",
+      "Weisen Sie Kontrollen den Teammitgliedern zu.",
+      "Verwenden Sie die KI-Compliance-Prüfungen, um zu bestätigen, dass Sie die Audit-Anforderungen erfüllen."
+    ],
+    "sso": [
+      "Kontaktieren Sie bei Enterprise Ihren wxKanban-Ansprechpartner, um Ihren Identitätsanbieter zu konfigurieren.",
+      "Nach der Einrichtung meldet sich Ihr Team über SSO an."
+    ],
+    "advancedSecurity": [
+      "Wird während des Enterprise-Onboardings konfiguriert — es gibt keine Selbstbedienungs-Einrichtung."
+    ],
+    "emailSupport": [
+      "Senden Sie Ihre Frage per E-Mail an admin@wxperts.com.",
+      "Geben Sie Ihren Konto- oder Firmennamen an, um schneller Hilfe zu erhalten."
+    ],
+    "dedicatedSupport": [
+      "Bei Enterprise wird Ihr fester Ansprechpartner während des Onboardings zugewiesen — wenden Sie sich direkt an ihn."
+    ],
+    "customIntegrations": [
+      "Legen Sie bei Enterprise den Scope der Integration mit Ihrem wxKanban-Ansprechpartner fest."
+    ],
+    "sla": [
+      "Bei Enterprise ist Ihr SLA für Verfügbarkeit und Reaktionszeit Teil Ihrer Vereinbarung — siehe Ihren Vertrag."
+    ]
+  },
+  "articles": {
+    "dashboard": {
+      "overview": "Das Dashboard ist Ihre Startseite nach der Anmeldung und passt sich Ihrer Rolle an. Administratoren erhalten das Admin-Dashboard (Abonnementstatus, Organisationsstatistiken, ein Projektübersichtsraster mit projektspezifischen Dokumentlinks, Vorschläge, ausstehende Aufgaben, Aktivitäts-Feed und Systemzustand), während Teammitglieder ein schlankeres Mein Dashboard erhalten, das sich auf zugewiesene Projekte, offene Aufgaben und einen Link zu ihrer Arbeitswarteschlange konzentriert. Mehrere untere Abschnitte (Zeit & Abrechnung, Berichte) sind Platzhalter, die erst Daten anzeigen, sobald Zeiteinträge vorhanden sind, und den richtigen Plan sowie die Administratorrolle erfordern.",
+      "whatYouSee": [
+        "Seitenkopf mit Ihrem Plan, Firmennamen und Begrüßungsnachricht",
+        "Statistik-Karten oben (Teammitglieder / Zugewiesene Projekte, Aktive Projekte / Offene Aufgaben, Stunden diese Woche)",
+        "Abonnementkarte, die Ihren aktuellen Abrechnungsplan anzeigt (Administrator)",
+        "Projektübersichtsraster — Karten gruppiert in Aktiv und Abgezweigt, jede mit dem Fortschritt der Lifecycle-Phasen",
+        "Projektspezifische Dokumentlinks innerhalb jeder Projektkarte (Übersicht, Lifecycle, Entwicklungsplan, Audit-Bericht, Gesammelte Erkenntnisse, Scope-Analyse, Entitätsdiagramm)",
+        "Panels Projektvorschläge und Ausstehende Aufgaben (Administrator)",
+        "Schnellansicht der Engagements (Administrator, ausgeblendet, wenn Sie keine haben)",
+        "Vorschau der Täglichen Zusammenfassung und Aktivitäts-Feed (Administrator)",
+        "Abschnitte Zeit & Abrechnung, Systemzustand und Berichte (Administrator, plangebundene Platzhalter)",
+        "Consultant Work Hub-Karte mit einem Link zu Ihrer Aufgabenwarteschlange (Teammitglied)"
+      ],
+      "controls": [
+        {
+          "label": "Neu",
+          "does": "Öffnet das Fenster Projekt erstellen, um ein Projekt direkt vom Dashboard aus hinzuzufügen.",
+          "adminOnly": true
+        },
+        {
+          "label": "Alle Projekte",
+          "does": "Link im Kopf des Projektpanels, der Sie zur vollständigen Projektliste führt."
+        },
+        {
+          "label": "Bearbeitungsstift (auf einer Projektkarte)",
+          "does": "Öffnet den Dialog Audit-Typ bearbeiten, um das Compliance-Framework eines Projekts festzulegen oder zu löschen (GDPR, HIPAA, HITRUST, SOC2).",
+          "adminOnly": true
+        },
+        {
+          "label": "Projektkarte",
+          "does": "Ein Klick auf eine Projektkarte öffnet den Arbeitsbereich dieses Projekts."
+        },
+        {
+          "label": "Projektübersicht (Kartenlink)",
+          "does": "Öffnet den KI-gestützten Projektübersichts-Editor für dieses Projekt und erstellt einen Entwurf, falls keiner vorhanden ist."
+        },
+        {
+          "label": "Projekt-Lifecycle (Kartenlink)",
+          "does": "Öffnet das generierte Projekt-Lifecycle-Dokument/PDF für dieses Projekt."
+        },
+        {
+          "label": "Entwicklungsplan (Kartenlink)",
+          "does": "Öffnet das generierte Build-Roadmap-PDF (Entwicklungsplan) für dieses Projekt."
+        },
+        {
+          "label": "Audit-Bericht (Kartenlink)",
+          "does": "Öffnet die Seite des Compliance-Audit-Berichts des Projekts."
+        },
+        {
+          "label": "Gesammelte Erkenntnisse (Kartenlink)",
+          "does": "Öffnet den Erkenntnisse-Bericht des Projekts, der erfasste Entscheidungen und Korrekturen zeigt."
+        },
+        {
+          "label": "Projekt-Scope-Analyse (Kartenlink)",
+          "does": "Öffnet den Scope-übergreifenden Analysebericht für das Projekt."
+        },
+        {
+          "label": "Entitätsdiagramm (Kartenlink)",
+          "does": "Öffnet den plattformweiten Datenbank-ER-Diagramm-Viewer."
+        },
+        {
+          "label": "Compliance-Framework (Dropdown in Audit-Typ bearbeiten)",
+          "does": "Wählt aus, welches Audit-Framework für das Projekt gilt, und Speichern wendet es an.",
+          "adminOnly": true
+        },
+        {
+          "label": "Work Hub öffnen",
+          "does": "Schaltfläche für Teammitglieder, die den Consultant Work Hub öffnet — Ihre einheitliche Aufgabenwarteschlange mit Zeiterfassung."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Ein neues Projekt vom Dashboard aus erstellen",
+          "steps": [
+            "Klicken Sie im Kopf des Panels Projektübersicht auf Neu",
+            "Füllen Sie die Projektdetails im Fenster aus",
+            "Bestätigen Sie zum Erstellen — Sie werden zum neuen Projekt weitergeleitet"
+          ]
+        },
+        {
+          "title": "Das Compliance-Framework eines Projekts festlegen",
+          "steps": [
+            "Finden Sie die Projektkarte",
+            "Klicken Sie auf den Bearbeitungsstift neben ihrem Audit-Badge",
+            "Wählen Sie ein Framework (oder Keines) im Dropdown",
+            "Klicken Sie auf Speichern"
+          ]
+        },
+        {
+          "title": "Den Lifecycle oder Entwicklungsplan eines Projekts öffnen",
+          "steps": [
+            "Suchen Sie die Projektkarte im Raster",
+            "Klicken Sie auf den Link Projekt-Lifecycle oder Entwicklungsplan innerhalb der Karte",
+            "Das generierte PDF wird geöffnet"
+          ]
+        }
+      ],
+      "tips": [
+        "Teammitglieder sehen ein schreibgeschütztes Projektraster ohne Schaltfläche Neu oder Bearbeitungsstifte.",
+        "Stunden diese Woche und die Abschnitte Zeit & Abrechnung / Berichte sind Platzhalter und zeigen null/leer an, bis Zeiteinträge erfasst werden.",
+        "Ein Dokumentlink mit der Angabe „nicht erstellt“ bedeutet, dass dieser Bericht für das Projekt noch nicht generiert wurde.",
+        "Zeit & Abrechnung, Berichte und Systemzustand erfordern den Consultant+-Plan und/oder die Administratorrolle."
+      ]
+    },
+    "projects": {
+      "overview": "Der Bereich Projekte listet alle Ihre Projekte mit Suche, Phasenfiltern und Sortierung auf und ermöglicht es Ihnen, jedes Projekt in einem vollständigen Arbeitsbereich zu öffnen. Der Projekt-Arbeitsbereich ist als 6-Phasen-Lifecycle organisiert (Design, Implementation, QA, Human Testing, Beta, Release) plus zusätzliche Registerkarten für Lifecycle, Entwicklungsplan, Portfolio-Analyzer, Compliance, Erkenntnisse und Kit sowie eine Ansichten-Zeile (Matrix, Kanban, Stack, Theme, Fehlerberichte). Administratoren können Projekte bearbeiten, archivieren oder löschen und den Phasenfortschritt steuern.",
+      "whatYouSee": [
+        "Kopf der Projektliste mit einer Anzahl und Schaltfläche Neues Projekt",
+        "Phasenfilter-Chips (Alle, Design, Implementation, QA Testing, Human Testing, Beta Release, Release)",
+        "Suchfeld und Sortierschaltflächen (Aktualisiert, Erstellt, Name)",
+        "Eine Zeile von Projektkarten; ein Klick auf eine erweitert ihr Detailpanel",
+        "Innerhalb eines Projekts: eine obere Leiste mit Projektname, Phasen-Badge und Steuerelementen Bearbeiten/Archivieren/Löschen",
+        "Registerkartenleiste: Lifecycle, Entwicklungsplan, Portfolio-Analyzer, Compliance, Erkenntnisse, Kit",
+        "Eine Ansichten-Zeile: Matrix, Kanban, Stack, Theme, Fehlerberichte",
+        "Der Arbeitsbereich der aktiven Phase (Specs, Aufgaben, Abschluss, Steuerelemente Fortschreiten/Wiedereröffnen)",
+        "Eine Aufgabenschublade, die eingleitet, wenn Sie eine bestimmte Aufgabe öffnen"
+      ],
+      "controls": [
+        {
+          "label": "Neues Projekt",
+          "does": "Öffnet das Fenster Projekt erstellen, um ein neues Projekt zu starten."
+        },
+        {
+          "label": "Alle anzeigen / Meine Projekte",
+          "does": "Schaltet zwischen nur Ihren zugewiesenen Projekten und allen Projekten Ihrer Organisation um (wird nur Nicht-Administratoren angezeigt; Administratoren sehen immer alles)."
+        },
+        {
+          "label": "Phasenfilter-Chips",
+          "does": "Filtert die Liste auf Projekte, die sich derzeit in der ausgewählten Lifecycle-Phase befinden."
+        },
+        {
+          "label": "Suchfeld",
+          "does": "Filtert Projekte während der Eingabe nach Name oder Beschreibung."
+        },
+        {
+          "label": "Sortierschaltflächen (Aktualisiert / Erstellt / Name)",
+          "does": "Sortiert die Liste nach diesem Feld; ein erneuter Klick auf das aktive Feld wechselt zwischen aufsteigend/absteigend."
+        },
+        {
+          "label": "Bearbeitungsstift (obere Projektleiste)",
+          "does": "Öffnet den Bearbeitungsdialog, um Name, Beschreibung, Stundensatz, zugewiesene Stunden, PM-Systeme, Sicherheitsklassifizierung, Audit-Typ und Phasenzuweisungen zu ändern."
+        },
+        {
+          "label": "Audit-Dropdown (obere Projektleiste)",
+          "does": "Legt schnell das Compliance-Framework des Projekts fest (Kein Audit, GDPR, HIPAA, HITRUST, SOC2).",
+          "adminOnly": true
+        },
+        {
+          "label": "Archivieren",
+          "does": "Archiviert das Projekt, sodass es aus der Projektliste ausgeblendet wird (mit einer Bestätigungsabfrage).",
+          "adminOnly": true
+        },
+        {
+          "label": "Löschen",
+          "does": "Löscht das Projekt und alle seine Aufgaben, Phasen, Specs und Dokumente dauerhaft (mit einer Bestätigungsabfrage).",
+          "adminOnly": true
+        },
+        {
+          "label": "Registerkarten Lifecycle / Entwicklungsplan",
+          "does": "Zeigen das generierte Lifecycle-PDF und das Build-Roadmap-PDF des Projekts direkt an."
+        },
+        {
+          "label": "Registerkarte Compliance",
+          "does": "Öffnet den Compliance-Arbeitsbereich mit Unterregisterkarten: Einstellungen, Dokumente, Aufgaben, Audit, Berichte."
+        },
+        {
+          "label": "Registerkarte Erkenntnisse",
+          "does": "Zeigt den erfassten Erkenntnisbericht; Administratoren können ihn neu generieren."
+        },
+        {
+          "label": "Registerkarte Kit",
+          "does": "Öffnet die Kit-Verwaltung zum Herunterladen und Verwalten des Orchestrator-Kits des Projekts."
+        },
+        {
+          "label": "Change-Impact-Modus (Registerkarte Kit)",
+          "does": "Legt fest, wie die Change-Impact-Prüfung des Kits KI-Änderungen in diesem Projekt behandelt: Benachrichtigen zeigt dem Entwickler, was eine Änderung betrifft, und fragt nie; Grenzen (Standard) fragt nur, wenn eine Änderung einen anderen Scope oder einen abgenommenen Test erreicht; Immer fragt, sobald eine Änderung etwas anderes betrifft. Gilt für das Kit jedes Entwicklers und hat Vorrang vor einem lokalen Wert. Möglicher Datenverlust wird in jedem Modus gestoppt. Nur der Projektinhaber oder ein Firmenadministrator kann ihn ändern; alle anderen sehen, wer ihn wann festgelegt hat."
+        },
+        {
+          "label": "Change-Impact-Protokoll (aufgeklappte Scope-Zeile)",
+          "does": "Klappen Sie einen Scope auf, um sein Change-Impact-Protokoll zu sehen: den schreibgeschützten Nachweis jeder Änderung, die für diesen Scope eine Impact-Grenze überschritten hat, wer ihr zugestimmt oder sie genehmigt hat, wann, und die Worte des Entwicklers. Einträge können weder geändert noch gelöscht werden."
+        },
+        {
+          "label": "Ansichten Matrix / Kanban",
+          "does": "Wechselt den Arbeitsbereich zwischen einem Scope-Matrix-Raster und einem Kanban-Board aus Scopes/Aufgaben."
+        },
+        {
+          "label": "Ansichten Stack / Theme / Fehlerberichte",
+          "does": "Öffnen den Tech-Stack-Editor, das visuelle Theme-Studio und die Fehlerbericht-Triage-Oberflächen des Projekts."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Ein Projekt finden und öffnen",
+          "steps": [
+            "Gehen Sie zur Projektliste",
+            "Tippen Sie in das Suchfeld oder klicken Sie auf einen Phasenfilter-Chip",
+            "Klicken Sie auf eine Projektkarte, um sie zu erweitern, und öffnen Sie dann ihren Arbeitsbereich"
+          ]
+        },
+        {
+          "title": "Ein Projekt in die nächste Phase verschieben",
+          "steps": [
+            "Öffnen Sie das Projekt und wählen Sie die Registerkarte der aktuellen Phase",
+            "Schließen Sie die Aufgaben oder Specs der Phase ab",
+            "Verwenden Sie das Steuerelement Fortschreiten in der Phasenansicht (Administratoren oder der zugewiesene Verantwortliche der Phase)"
+          ]
+        },
+        {
+          "title": "Projektdetails und Phasenverantwortliche bearbeiten",
+          "steps": [
+            "Öffnen Sie das Projekt",
+            "Klicken Sie auf den Bearbeitungsstift in der oberen Leiste",
+            "Aktualisieren Sie die Felder und weisen Sie den Phasen Teammitglieder zu",
+            "Speichern"
+          ]
+        },
+        {
+          "title": "Ein Compliance-Framework aktivieren",
+          "steps": [
+            "Öffnen Sie das Projekt",
+            "Wählen Sie ein Framework aus dem Audit-Dropdown (Administrator) oder dem Bearbeitungsdialog",
+            "Öffnen Sie die Registerkarte Compliance, um Einstellungen zu konfigurieren, Dokumente hochzuladen und Audits durchzuführen"
+          ]
+        },
+        {
+          "title": "Festlegen, wie das Kit KI-Änderungen prüft",
+          "steps": [
+            "Öffnen Sie das Projekt und klicken Sie auf die Registerkarte Kit",
+            "Wählen Sie unter Change-Impact-Modus Benachrichtigen, Grenzen oder Immer (Projektinhaber oder Firmenadministrator)",
+            "Prüfen Sie die Zeile unter der Auswahl: Sie zeigt, wer den Modus wann festgelegt hat; das Kit jedes Entwicklers übernimmt ihn innerhalb einer Stunde"
+          ]
+        }
+      ],
+      "tips": [
+        "Das Öffnen einer bloßen Projekt-URL landet standardmäßig auf dem Kanban-Board.",
+        "Der hier festgelegte Change-Impact-Modus hat Vorrang vor einem Modus, den ein Entwickler in den Einstellungen seines Kits eingetragen hat; das Kit weist ihn darauf hin.",
+        "Nur Administratoren (oder der zugewiesene Phasenverantwortliche / Teammanager) können eine Phase fortschreiten oder wiedereröffnen.",
+        "Das Löschen ist dauerhaft und kann nicht rückgängig gemacht werden; verwenden Sie Archivieren, um ein Projekt nur auszublenden.",
+        "Projekte, auf die über ein Kundenengagement zugegriffen wird, zeigen ein Badge „Kundenprojekt“ und blenden die Bearbeitungssteuerungen aus.",
+        "Die Lifecycle- und Entwicklungsplan-PDFs können aktuellen Änderungen hinterherhinken, bis sie neu generiert werden."
+      ]
+    },
+    "tasks": {
+      "overview": "Die Seite Aufgaben zeigt eine einheitliche, schreibgeschützte Ansicht aller Aufgaben, die aus deinen verbundenen Projektmanagement-Systemen (Jira, Monday.com, Asana, Trello) sowie internen Aufgaben zusammengeführt werden. Du kannst filtern, sortieren und eine Synchronisierung manuell auslösen, aber Aufgaben werden hier angesehen und nicht erstellt oder bearbeitet.",
+      "whatYouSee": [
+        "Kopfbereich mit Seitentitel und einem Badge, das die Gesamtzahl der Aufgaben anzeigt",
+        "Zeitpunkt der letzten Synchronisierung und eine Schaltfläche Jetzt synchronisieren",
+        "Filter-/Sortierleiste: Quelle, Priorität, Status, Sortierfeld und Umschalter für die Sortierrichtung",
+        "Ein responsives Raster aus Aufgabenkarten (Titel, Quell-Badge, Projekt, Priorität, Status, Fälligkeitsdatum, externe ID)",
+        "Hinweis im Leerzustand, der bei fehlenden Aufgaben auf Integrationen verweist"
+      ],
+      "controls": [
+        {
+          "label": "← Zurück",
+          "does": "Kehrt zum Dashboard zurück."
+        },
+        {
+          "label": "Jetzt synchronisieren",
+          "does": "Löst eine sofortige Synchronisierung aller verbundenen PM-Systeme aus, meldet dann, wie viele Aufgaben hinzugefügt, aktualisiert oder fehlerhaft waren, und aktualisiert die Liste."
+        },
+        {
+          "label": "Quelle (Dropdown)",
+          "does": "Filtert Aufgaben nach Herkunft: Alle Quellen, Jira, Monday.com, Asana, Trello oder Intern."
+        },
+        {
+          "label": "Priorität (Dropdown)",
+          "does": "Filtert Aufgaben nach Priorität: Alle, Kritisch, Hoch, Mittel oder Niedrig."
+        },
+        {
+          "label": "Status (Dropdown)",
+          "does": "Filtert Aufgaben nach Status: Alle, Offen, In Bearbeitung, Abgeschlossen oder Verwaist."
+        },
+        {
+          "label": "Sortieren (Dropdown)",
+          "does": "Wählt das Sortierfeld: Zuletzt aktualisiert, Fälligkeitsdatum, Priorität oder Titel."
+        },
+        {
+          "label": "↑ / ↓ (Richtungsumschalter)",
+          "does": "Wechselt die Sortierreihenfolge zwischen aufsteigend und absteigend."
+        },
+        {
+          "label": "Integrationen (Link)",
+          "does": "Öffnet im Leerzustand die Seite Integrationen, um ein PM-System zu verbinden."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Aufgaben aus einem bestimmten Tool ansehen",
+          "steps": [
+            "Öffne die Seite Aufgaben",
+            "Stelle das Dropdown Quelle auf Jira, Monday.com, Asana, Trello oder Intern",
+            "Sieh dir die gefilterten Karten an"
+          ]
+        },
+        {
+          "title": "Die neuesten Aufgaben abrufen",
+          "steps": [
+            "Klicke auf Jetzt synchronisieren",
+            "Warte, bis die Ladeanzeige abgeschlossen ist",
+            "Lies die Zusammenfassung von hinzugefügt/aktualisiert/Fehlern und die aktualisierten Karten"
+          ]
+        },
+        {
+          "title": "Auf dringende Arbeit konzentrieren",
+          "steps": [
+            "Stelle die Priorität auf Kritisch oder Hoch",
+            "Stelle Sortieren auf Fälligkeitsdatum",
+            "Schalte die Richtung auf aufsteigend, um die nächstfälligen Termine zuerst zu sehen"
+          ]
+        }
+      ],
+      "tips": [
+        "Der Zähler-Badge spiegelt die aktuell gefilterte Ergebnismenge wider.",
+        "Aufgaben sind hier schreibgeschützt; verbinde oder verwalte Quellen auf der Seite Integrationen.",
+        "Die letzte Synchronisierung zeigt eine relative Zeit (z. B. „vor 5 Min.“) basierend auf der jüngsten Verbindungssynchronisierung."
+      ]
+    },
+    "team": {
+      "overview": "Die Seite Teammitglieder (Personal) listet alle Personen deines Unternehmens auf, mit Suche, Aktiv/Inaktiv-Filterung und — für Admins — Steuerelementen zum Einladen von Mitgliedern, Ändern von Rollen und Sprache, Aktivieren/Deaktivieren, Entfernen, erneuten Einladen und Zurücksetzen von Passwörtern. Admins sehen außerdem eine Tabelle Ausstehende Einladungen und ein Consultants-Panel.",
+      "whatYouSee": [
+        "Kopfbereich mit dem Titel „Teammitglieder“, der Mitgliederanzahl und einer Schaltfläche Mitglied einladen",
+        "Suchfeld sowie die Filterschaltflächen Alle / Aktiv / Inaktiv",
+        "Mitgliedertabelle: E-Mail, Name, Rolle, Sprache, Status, Beigetreten, Aktionen",
+        "Inline-Fehlerbanner und ein grünes Bestätigungspanel mit Handlungsschritten",
+        "Tabelle Ausstehende Einladungen (nur Admins, wenn Einladungen vorhanden sind)",
+        "Consultants-Panel für beauftragte Beratungsunternehmen (spec 037)"
+      ],
+      "controls": [
+        {
+          "label": "Mitglied einladen",
+          "does": "Öffnet das Dialogfeld Teammitglied einladen, um eine E-Mail-Einladung mit einer gewählten Rolle zu senden."
+        },
+        {
+          "label": "Nach Name oder E-Mail suchen",
+          "does": "Filtert die Mitgliederliste während der Eingabe."
+        },
+        {
+          "label": "Alle / Aktiv / Inaktiv",
+          "does": "Filtert die Tabelle auf alle Mitglieder, nur aktive oder nur inaktive."
+        },
+        {
+          "label": "Name bearbeiten (Stift)",
+          "does": "Bearbeitet den vollständigen Namen des Mitglieds inline; mit dem Häkchen speichern, mit dem X abbrechen (Enter/Esc funktionieren ebenfalls)."
+        },
+        {
+          "label": "Rolle (Dropdown)",
+          "does": "Ändert die Rolle eines Mitglieds zu Admin, Manager oder Member.",
+          "adminOnly": true
+        },
+        {
+          "label": "Sprache (Dropdown)",
+          "does": "Legt die bevorzugte Oberflächensprache des Mitglieds aus den unterstützten Sprachen fest.",
+          "adminOnly": true
+        },
+        {
+          "label": "Aktiv / Inaktiv (Statusumschalter)",
+          "does": "Deaktiviert (mit Bestätigung) oder reaktiviert den Zugang eines Mitglieds.",
+          "adminOnly": true
+        },
+        {
+          "label": "Einladung erneut senden (Umschlagsymbol)",
+          "does": "Sendet einem Mitglied eine neue Einladungs-E-Mail und zeigt die daraus resultierenden Schritte an.",
+          "adminOnly": true
+        },
+        {
+          "label": "Passwort zurücksetzen (Schlüsselsymbol)",
+          "does": "Sendet dem Mitglied eine E-Mail zum Zurücksetzen des Passworts.",
+          "adminOnly": true
+        },
+        {
+          "label": "Mitglied entfernen (Papierkorbsymbol)",
+          "does": "Entfernt nach einer Ja/Nein-Bestätigung das Mitglied (deaktiviert dessen Zugang).",
+          "adminOnly": true
+        },
+        {
+          "label": "Einladung erneut senden (Tabelle Ausstehend)",
+          "does": "Stellt eine ausstehende Einladung mit einem neuen Link und einer neuen Gültigkeit von 7 Tagen erneut aus.",
+          "adminOnly": true
+        },
+        {
+          "label": "Einladung abbrechen (Tabelle Ausstehend)",
+          "does": "Bricht nach Bestätigung eine ausstehende Einladung ab, sodass sie nicht mehr angenommen werden kann.",
+          "adminOnly": true
+        },
+        {
+          "label": "Rollen-Optionsfelder (Einladungsdialog)",
+          "does": "Wähle Admin, Team Manager oder Team Member für die eingeladene Person; Team Manager erfordert einen CONSULTANT+-Plan."
+        },
+        {
+          "label": "Einladung senden (Einladungsdialog)",
+          "does": "Sendet die Einladung an die eingegebene E-Mail-Adresse; zeigt ein Erfolgspanel mit einem 7-Tage-Annahmefenster."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Ein neues Teammitglied einladen",
+          "steps": [
+            "Klicke auf Mitglied einladen",
+            "Gib die E-Mail-Adresse der Person ein",
+            "Wähle eine Rolle (Admin, Team Manager oder Team Member)",
+            "Klicke auf Einladung senden",
+            "Die eingeladene Person erhält eine E-Mail und hat 7 Tage Zeit zum Annehmen"
+          ]
+        },
+        {
+          "title": "Die Rolle einer Person ändern",
+          "steps": [
+            "Finde das Mitglied in der Tabelle",
+            "Öffne das Dropdown Rolle in seiner Zeile",
+            "Wähle Admin, Manager oder Member"
+          ]
+        },
+        {
+          "title": "Ein Konto deaktivieren",
+          "steps": [
+            "Suche das Mitglied",
+            "Klicke auf sein grünes Aktiv-Badge",
+            "Bestätige „Auf inaktiv setzen?“ mit Ja"
+          ]
+        },
+        {
+          "title": "Eine veraltete Einladung erneut senden",
+          "steps": [
+            "Scrolle zu Ausstehende Einladungen",
+            "Klicke auf das Umschlagsymbol in der Einladungszeile, um sie mit einer neuen Gültigkeit von 7 Tagen erneut zu senden"
+          ]
+        }
+      ],
+      "tips": [
+        "Rolle, Sprache, Statusumschalter, erneutes Einladen, Passwort-Zurücksetzen, Entfernen und die Tabelle Ausstehende Einladungen sind nur für Admins sichtbar.",
+        "Admins können Status oder Rolle anderer Admins oder ihre eigenen nicht ändern.",
+        "Es gelten Platzlimits: Bei Erreichen des Plan-Limits ist das Einladungsformular deaktiviert und zeigt eine Upgrade-Aufforderung, und Team Manager erfordert einen CONSULTANT- oder ENTERPRISE-Plan.",
+        "Die Aktionen Deaktivieren/Entfernen/Abbrechen erfordern jeweils eine Ja/Nein-Bestätigung."
+      ]
+    },
+    "pmIntegrations": {
+      "overview": "Auf der Seite Integrationen können Sie Ihre Projektmanagement-Tools über OAuth mit wxKanban verbinden, sodass deren Aufgaben in die einheitliche Aufgabenansicht einfließen. Sie zeigt eine Karte pro unterstütztem System (Jira, Monday.com, Asana, Trello) mit Steuerelementen zum Verbinden/Trennen und dem Verbindungsstatus.",
+      "whatYouSee": [
+        "Kopfbereich mit Titel, Untertitel und einer Schaltfläche Aufgaben anzeigen",
+        "Optionales grünes Erfolgsbanner nach der Rückkehr aus einem OAuth-Ablauf",
+        "Optionales rotes Fehlerbanner, wenn eine Verbindungsaktion fehlschlägt",
+        "Ein Raster aus vier PM-System-Karten (Jira, Monday.com, Asana, Trello)",
+        "Status je Karte: Datum seit der Verbindung, Synchronisierungsstatus-Abzeichen (aktiv/abgelaufen/fehlgeschlagen) und Zeitpunkt der letzten Synchronisierung",
+        "Ein blaues Infofeld „Brauchen Sie Hilfe?“ unten"
+      ],
+      "controls": [
+        {
+          "label": "← Zurück",
+          "does": "Kehrt zum Dashboard zurück."
+        },
+        {
+          "label": "Aufgaben anzeigen",
+          "does": "Navigiert zur Seite Aufgaben, um synchronisierte Aufgaben anzuzeigen."
+        },
+        {
+          "label": "Verbinden",
+          "does": "Startet den OAuth-Autorisierungsablauf für dieses System und leitet Sie zu dessen Anmelde-/Zustimmungsseite weiter."
+        },
+        {
+          "label": "Trennen",
+          "does": "Entfernt nach einer Bestätigungsabfrage die Verbindung zu diesem PM-System und aktualisiert die Karten."
+        },
+        {
+          "label": "Synchronisierungsstatus-Abzeichen",
+          "does": "Zeigt den Verbindungszustand an: Aktiv (grün) oder eine Warnung für Abgelaufen (gelb) / Fehlgeschlagen (rot)."
+        },
+        {
+          "label": "Feld Brauchen Sie Hilfe?",
+          "does": "Statischer Informationstext mit Hinweisen zum Verbinden von Integrationen."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Ein PM-Tool verbinden",
+          "steps": [
+            "Öffnen Sie die Seite Integrationen",
+            "Suchen Sie die Karte des Systems (z. B. Jira)",
+            "Klicken Sie auf Verbinden",
+            "Schließen Sie die Anmeldung/Zustimmung auf der Website des Anbieters ab",
+            "Kehren Sie zurück, um ein Erfolgsbanner und den Status Verbunden zu sehen"
+          ]
+        },
+        {
+          "title": "Eine Verbindung entfernen",
+          "steps": [
+            "Suchen Sie die Karte des verbundenen Systems",
+            "Klicken Sie auf Trennen",
+            "Bestätigen Sie in der Abfrage"
+          ]
+        },
+        {
+          "title": "Prüfen, warum die Synchronisierung gestoppt hat",
+          "steps": [
+            "Öffnen Sie die Seite Integrationen",
+            "Sehen Sie sich das Statusabzeichen der Karte an",
+            "Wenn es Abgelaufen oder Fehlgeschlagen anzeigt, trennen Sie die Verbindung und verbinden Sie sie erneut, um neu zu autorisieren"
+          ]
+        }
+      ],
+      "tips": [
+        "Es werden nur Jira, Monday.com, Asana und Trello unterstützt.",
+        "Ein Abzeichen Abgelaufen oder Fehlgeschlagen bedeutet in der Regel, dass das OAuth-Token über Verbinden neu autorisiert werden muss.",
+        "Verwenden Sie nach dem Verbinden Aufgaben anzeigen (oder Jetzt synchronisieren auf der Seite Aufgaben), um die Aufgaben abzurufen."
+      ]
+    },
+    "settings": {
+      "overview": "Es gibt zwei unterschiedliche Einstellungsbereiche. Die Admin-Seite Unternehmenseinstellungen (src/client/pages/admin/SettingsPage.tsx) verwaltet Unternehmensinformationen, Abrechnung/Abonnement und beliebige verschlüsselte Schlüssel/Wert-Anwendungseinstellungen. Eine zweite Konto-Seite SettingsPage (src/client/pages/SettingsPage.tsx) ist ein persönlicher/unternehmensbezogener Bildschirm mit Registerkarten: Unternehmen, Profil, Benachrichtigungen und Sicherheit. Benachrichtigungen ist ein Platzhalter („demnächst“); die einzige aktive Aktion unter Sicherheit ist eine (nicht verdrahtete) Schaltfläche Konto löschen, während die Passwortänderung unter Profil liegt.",
+      "whatYouSee": [
+        "Admin-Seite Unternehmenseinstellungen: Überschrift „Unternehmenseinstellungen“, ein Editor für Unternehmensinformationen (Admin), ein Panel Abrechnung & Abonnement (Admin), ein Formular „Einstellung hinzufügen“ und eine Liste „Aktuelle Einstellungen“ mit einer Anzahl",
+        "Seite Kontoeinstellungen: ein Pfeil zurück zum Dashboard, eine Karte mit Stufeninfo und Upgrade und eine Registerkartenleiste — Unternehmen (nur Admins), Profil, Benachrichtigungen, Sicherheit",
+        "Registerkarte Unternehmen: Unternehmensname, Abrechnungs-E-Mail, Berater-Rechnungs-E-Mail, Rechnungsadresse, Rechnungstelefon, Änderungen speichern",
+        "Registerkarte Profil: schreibgeschützte E-Mail, vollständiger Name, Zeitzone, Sprache, ein Kontrollkästchen „Zeiterfassung aktivieren“, Profil speichern sowie eine Karte Passwort ändern",
+        "Registerkarte Benachrichtigungen: Platzhalter „Benachrichtigungseinstellungen demnächst...“",
+        "Registerkarte Sicherheit: Hinweis, der für die Passwortänderung auf Profil verweist, sowie eine Schaltfläche Konto löschen in einer Gefahrenzone"
+      ],
+      "controls": [
+        {
+          "label": "Unternehmensinformationen — Unternehmensinfos speichern",
+          "does": "Speichert Unternehmensname, Abrechnungs-E-Mail, Berater-Rechnungs-E-Mail, Rechnungsadresse und Telefon über die Admin-Einstellungs-API.",
+          "adminOnly": true
+        },
+        {
+          "label": "Berater-Rechnungs-E-Mail",
+          "does": "E-Mail, an die B2B-Rechnungen von beauftragten Beratungsunternehmen zugestellt werden; ist sie leer, schlägt die Rechnungserstellung fehl.",
+          "adminOnly": true
+        },
+        {
+          "label": "Karte aktualisieren / Abonnement reaktivieren",
+          "does": "Öffnet das Stripe-Kartenformular, um eine Karte erneut einzugeben und ein fehlgeschlagenes/unvollständiges Abonnement zu reaktivieren (die Beschriftung lautet „Karte hinzufügen / Abonnieren“, wenn keine hinterlegt ist). Ausgeblendet, wenn die Kartenverarbeitung deaktiviert ist.",
+          "adminOnly": true
+        },
+        {
+          "label": "Formular Einstellung hinzufügen (Name / Typ / Wert / Beschreibung)",
+          "does": "Erstellt eine neue Unternehmenseinstellung. Der Name ist snake_case (max. 64); der Typ ist boolean, default, report_header oder image, was das Werteingabefeld ändert (Dropdown / Text / Textbereich / URL).",
+          "adminOnly": true
+        },
+        {
+          "label": "Einstellung hinzufügen (Schaltfläche)",
+          "does": "Übermittelt die neue Einstellung; zeigt „Wird hinzugefügt…“ während des Speicherns an.",
+          "adminOnly": true
+        },
+        {
+          "label": "Einstellungszeile bearbeiten (Stift)",
+          "does": "Bearbeitet den Wert und die Beschreibung einer Einstellung inline; Speichern/Abbrechen, mit Enter zum Speichern und Escape zum Abbrechen in Textfeldern.",
+          "adminOnly": true
+        },
+        {
+          "label": "Einstellungszeile löschen (Papierkorb)",
+          "does": "Fragt „Diese Einstellung löschen?“ und dann Bestätigen/Abbrechen, um sie zu entfernen.",
+          "adminOnly": true
+        },
+        {
+          "label": "Profil — Vollständiger Name / Zeitzone / Sprache / Zeiterfassung aktivieren",
+          "does": "Bearbeitbare Profilfelder; das Ändern der Sprache wendet die neue Locale sofort an. Die E-Mail wird angezeigt, ist aber gesperrt.",
+          "adminOnly": false
+        },
+        {
+          "label": "Profil speichern",
+          "does": "Speichert die Profilfelder und aktualisiert den Kontext des angemeldeten Benutzers.",
+          "adminOnly": false
+        },
+        {
+          "label": "Passwort ändern (Aktuell / Neu / Bestätigen + Schaltfläche)",
+          "does": "Ändert das Kontopasswort; prüft mindestens 8 Zeichen, eine übereinstimmende Bestätigung und dass sich das neue Passwort vom aktuellen unterscheidet.",
+          "adminOnly": false
+        },
+        {
+          "label": "Upgrade (Karte Stufeninfo)",
+          "does": "Navigiert zur Seite /upgrade, um die Tarifstufe zu ändern.",
+          "adminOnly": false
+        },
+        {
+          "label": "Konto löschen (Registerkarte Sicherheit, Gefahrenzone)",
+          "does": "Wird als destruktive Schaltfläche zum Löschen des Kontos dargestellt (im Komponenten ist kein Bestätigungs-Handler verdrahtet).",
+          "adminOnly": false
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Unternehmens-Abrechnungsdaten aktualisieren",
+          "steps": [
+            "Öffnen Sie die Admin-Unternehmenseinstellungen (oder die Registerkarte Unternehmen der Kontoeinstellungen)",
+            "Bearbeiten Sie Unternehmensname, Abrechnungs-E-Mail, Berater-Rechnungs-E-Mail, Adresse, Telefon",
+            "Klicken Sie auf Unternehmensinfos speichern / Änderungen speichern"
+          ]
+        },
+        {
+          "title": "Ein fehlgeschlagenes Abonnement wiederherstellen",
+          "steps": [
+            "Öffnen Sie die Admin-Unternehmenseinstellungen",
+            "Überprüfen Sie unter Abrechnung & Abonnement den Tarif und den Status",
+            "Klicken Sie auf „Karte aktualisieren / Abonnement reaktivieren“",
+            "Geben Sie die Kartendaten im Stripe-Formular ein und schließen Sie ab"
+          ]
+        },
+        {
+          "title": "Eine Unternehmenseinstellung hinzufügen",
+          "steps": [
+            "Geben Sie unter Einstellung hinzufügen einen Namen in snake_case ein",
+            "Wählen Sie einen Typ (boolean / default / report_header / image)",
+            "Geben Sie den Wert (und eine optionale Beschreibung) ein",
+            "Klicken Sie auf Einstellung hinzufügen"
+          ]
+        },
+        {
+          "title": "Ihr Passwort ändern",
+          "steps": [
+            "Öffnen Sie die Registerkarte Profil der Kontoeinstellungen",
+            "Geben Sie unter Passwort ändern das aktuelle, das neue (8+ Zeichen) ein und bestätigen Sie",
+            "Übermitteln Sie; das neue Passwort muss sich vom aktuellen unterscheiden"
+          ]
+        }
+      ],
+      "tips": [
+        "Unternehmenseinstellungen sind im Ruhezustand verschlüsselt.",
+        "Die Registerkarte Benachrichtigungen ist ein Platzhalter; die Passwortänderung befindet sich unter Profil, nicht unter Sicherheit."
+      ]
+    },
+    "timeTracking": {
+      "overview": "Es gibt keine eigene Zeiterfassungsseite, die in die App eingebunden ist. Die Live-Zeiterfassung erfolgt im Consultant Work Hub (siehe workHub). Im Code existiert eine Reihe eigenständiger Zeiterfassungs-Widgets (TimerWidget, TimeEntriesList, TimeSummary), die die /api/time-tracking-Endpunkte ansprechen, aber derzeit auf keiner Route eingebunden sind, sodass diese Funktion teilweise erstellt / für Benutzer nicht als eigener Bildschirm erreichbar ist. Die folgenden Steuerelemente beschreiben diese Widgets der Vollständigkeit halber.",
+      "whatYouSee": [
+        "Timer-Widget: eine Start/Stopp-Stoppuhr, die während der Ausführung die verstrichene Zeit HH:MM:SS anzeigt (nicht eingebundene Komponente)",
+        "Liste der Zeiteinträge: vergangene Einträge mit Dauer, Start/Ende, Abzeichen für abrechenbar und in Rechnung gestellt (nicht eingebundene Komponente)",
+        "Zeitzusammenfassung: Gesamtzeit, abrechenbare Zeit, abrechenbarer Prozentsatz und Durchschnittswerte pro Eintrag (nicht eingebundene Komponente)"
+      ],
+      "controls": [
+        {
+          "label": "Beschreibung (optional)",
+          "does": "Freitext-Notiz (max. 500 Zeichen) zu dem, woran Sie arbeiten, bevor Sie den Timer starten"
+        },
+        {
+          "label": "Als abrechenbar markieren",
+          "does": "Kontrollkästchen, das den neuen Zeiteintrag beim Starten des Timers als abrechenbar festlegt"
+        },
+        {
+          "label": "Timer starten",
+          "does": "Startet einen Live-Timer für das Projekt/die Aufgabe; blockiert, wenn bereits ein Timer läuft"
+        },
+        {
+          "label": "Timer stoppen",
+          "does": "Stoppt den laufenden Timer und erfasst die verstrichene Dauer als Zeiteintrag"
+        },
+        {
+          "label": "Nur abrechenbar",
+          "does": "Kontrollkästchen-Filter, der in der Liste der Zeiteinträge nur abrechenbare Einträge anzeigt"
+        },
+        {
+          "label": "Löschen",
+          "does": "Entfernt einen Zeiteintrag; deaktiviert, sobald der Eintrag in Rechnung gestellt wurde"
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Zeit für Arbeit erfassen (über das Work Hub)",
+          "steps": [
+            "Öffnen Sie das Consultant Work Hub",
+            "Drücken Sie bei der Aufgabe, an der Sie arbeiten, auf Timer starten",
+            "Drücken Sie nach Abschluss auf Stoppen und beantworten Sie die Abrechenbarkeitsabfrage"
+          ]
+        }
+      ],
+      "tips": [
+        "Ein Timer, der länger als 8 Stunden läuft, löst eine Inaktivitätswarnung aus, die Sie auffordert, ihn zu stoppen",
+        "Es kann immer nur ein Timer gleichzeitig laufen"
+      ]
+    },
+    "invoices": {
+      "overview": "Vollständig funktionierender Rechnungsbildschirm. Zeigt zusammenfassende Statistiken an, ermöglicht das Erstellen einer Rechnung aus Zeiteinträgen in einem Datumsbereich und anschließend das Anzeigen, Herunterladen, Versenden per E-Mail, erneute Senden oder Löschen jeder Rechnung.",
+      "whatYouSee": [
+        "Kopfzeile mit Titel und einer Schaltfläche Rechnung erstellen",
+        "Drei Statistikkarten: Rechnungen gesamt, Umsatz gesamt, Gesendete Rechnungen",
+        "Rechnungsverlaufstabelle: Nummer, Datum, Rechnungsempfänger, Stunden, Betrag, Status (Gesendet/Entwurf) und Zeilenaktionen",
+        "Erstellungsdialog (Datumsbereich) und ein Detaildialog pro Rechnung"
+      ],
+      "controls": [
+        {
+          "label": "Rechnung erstellen (+)",
+          "does": "Öffnet den Erstellungsdialog, um eine Rechnung für einen Datumsbereich zu erstellen"
+        },
+        {
+          "label": "Startdatum / Enddatum",
+          "does": "Datumsauswahl im Dialog, die festlegt, welche Zeiteinträge abgerechnet werden (der Standardsatz beträgt 100 $/Std.)"
+        },
+        {
+          "label": "Rechnung erstellen (bestätigen)",
+          "does": "Erstellt die Rechnung aus der abrechenbaren Zeit im gewählten Bereich; deaktiviert, bis beide Daten festgelegt sind"
+        },
+        {
+          "label": "Abbrechen",
+          "does": "Schließt den Erstellungsdialog, ohne eine Rechnung zu erstellen"
+        },
+        {
+          "label": "Anzeigen (Augensymbol)",
+          "does": "Öffnet den Rechnungsdetaildialog mit Rechnungsempfänger, Status, Stunden und Gesamtbetrag"
+        },
+        {
+          "label": "Senden (Papierflieger-Symbol)",
+          "does": "Sendet die Rechnung per E-Mail und markiert sie als Gesendet; nur bei nicht gesendeten Rechnungen angezeigt"
+        },
+        {
+          "label": "Löschen (Papierkorb-Symbol)",
+          "does": "Löscht die Rechnung; deaktiviert, sobald die Rechnung gesendet wurde"
+        },
+        {
+          "label": "PDF herunterladen",
+          "does": "Öffnet das Rechnungs-PDF in einem neuen Tab (Detaildialog)"
+        },
+        {
+          "label": "Rechnung senden",
+          "does": "Sendet eine nicht gesendete Rechnung aus dem Detaildialog per E-Mail"
+        },
+        {
+          "label": "Erneut senden",
+          "does": "Sendet eine bereits gesendete Rechnung aus dem Detaildialog erneut"
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Eine Rechnung erstellen",
+          "steps": [
+            "Klicken Sie auf Rechnung erstellen",
+            "Wählen Sie ein Start- und ein Enddatum",
+            "Klicken Sie zur Bestätigung auf Rechnung erstellen"
+          ]
+        },
+        {
+          "title": "Eine Rechnung senden",
+          "steps": [
+            "Suchen Sie die Rechnung in der Verlaufstabelle",
+            "Klicken Sie auf das Senden-Symbol (Papierflieger) oder öffnen Sie Anzeigen und klicken Sie auf Rechnung senden"
+          ]
+        }
+      ],
+      "tips": [
+        "Gesendete Rechnungen können nicht gelöscht werden",
+        "Das Status-Abzeichen ist grün für Gesendet, gelb für Entwurf"
+      ]
+    },
+    "reports": {
+      "overview": "Berichtsbildschirm mit zwei Registerkarten: Zeitbericht (Stunden pro Teammitglied für einen Datumsbereich) und Projektbericht (Leistung pro Projekt). Die Daten sind echt; die Schaltfläche CSV-Export ist ein Platzhalter und erzeugt noch keine Datei.",
+      "whatYouSee": [
+        "Zwei Registerkarten: Zeit und Projekte",
+        "Registerkarte Zeit: eine Filterkarte für den Datumsbereich sowie eine Tabelle pro Mitglied (Mitglied, Gesamtstunden, abrechenbare Stunden, abrechenbar %)",
+        "Registerkarte Projekte: eine Tabelle der Projekte (Stunden, Anzahl Aufgaben, Balken für die Abschlussrate, Teamgröße)"
+      ],
+      "controls": [
+        {
+          "label": "Zeit (Registerkarte)",
+          "does": "Zeigt die pro Teammitglied erfassten Stunden für den ausgewählten Datumsbereich an"
+        },
+        {
+          "label": "Projekte (Registerkarte)",
+          "does": "Zeigt die Leistung pro Projekt an: Stunden, Aufgaben, Abschluss, Teamgröße"
+        },
+        {
+          "label": "Startdatum / Enddatum",
+          "does": "Datumsauswahl; der Zeitbericht wird erst geladen, sobald beide Daten festgelegt sind"
+        },
+        {
+          "label": "CSV exportieren",
+          "does": "Soll den Bericht als CSV exportieren, ist aber derzeit nicht implementiert (kein Download)"
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Zeit nach Teammitglied anzeigen",
+          "steps": [
+            "Öffnen Sie die Registerkarte Zeit",
+            "Legen Sie ein Start- und ein Enddatum fest",
+            "Überprüfen Sie die Stunden pro Mitglied und den abrechenbaren Prozentsatz"
+          ]
+        },
+        {
+          "title": "Projektleistung überprüfen",
+          "steps": [
+            "Öffnen Sie die Registerkarte Projekte",
+            "Lesen Sie die Stunden, die Anzahl der Aufgaben und die Abschlussrate pro Projekt"
+          ]
+        }
+      ],
+      "tips": [
+        "Das Abzeichen abrechenbar % ist über 80 % grün, darunter gelb",
+        "Der Zeitbericht bleibt leer, bis beide Daten ausgewählt sind"
+      ]
+    },
+    "faq": {
+      "overview": "Hilfe & FAQ ist für jeden angemeldeten Benutzer verfügbar (nicht auf Administratoren beschränkt). Es listet veröffentlichte, beantwortete FAQs als aufklappbares Akkordeon auf und ermöglicht Ihnen, eine neue Frage zu stellen, die weitergeleitet wird, um beantwortet und zur FAQ hinzugefügt zu werden.",
+      "whatYouSee": [
+        "Seitenüberschrift „Hilfe & FAQ“ mit einem Untertitel, der Sie zum Durchsuchen oder Fragen einlädt",
+        "Eine Karte „Häufig gestellte Fragen“, die veröffentlichte FAQ-Einträge auflistet, jeder in einer einklappbaren Zeile",
+        "Ein Bereich „Eine Frage stellen“ mit einem Textfeld und einer Schaltfläche Frage absenden",
+        "Leer-/Ladezustände: „Wird geladen…“ oder „Noch keine FAQs — stellen Sie unten eine Frage.“"
+      ],
+      "controls": [
+        {
+          "label": "FAQ-Zeile (Titel)",
+          "does": "Klicken Sie, um die Antwort auf-/zuzuklappen; ein Chevron dreht sich, um den geöffneten Zustand anzuzeigen. Aufgeklappte Antworten können ein eingebettetes Video enthalten.",
+          "adminOnly": false
+        },
+        {
+          "label": "Textfeld für die Frage",
+          "does": "Geben Sie Ihre Frage ein (bis zu 2000 Zeichen); muss mindestens 5 Zeichen umfassen, um abgesendet zu werden.",
+          "adminOnly": false
+        },
+        {
+          "label": "Frage absenden",
+          "does": "Sendet Ihre Frage, damit sie beantwortet und zur FAQ hinzugefügt wird; zeigt „Wird gesendet…“ und dann eine Bestätigungsmeldung an. Lehnt Fragen mit weniger als 5 Zeichen ab.",
+          "adminOnly": false
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Eine Antwort finden",
+          "steps": [
+            "Öffnen Sie Hilfe & FAQ",
+            "Überfliegen Sie die FAQ-Liste",
+            "Klicken Sie auf eine Frage, um ihre Antwort aufzuklappen (und ein etwaig angehängtes Video anzusehen)"
+          ]
+        },
+        {
+          "title": "Eine neue Frage stellen",
+          "steps": [
+            "Scrollen Sie zu „Keine Antwort gefunden? Fragen Sie uns“",
+            "Geben Sie Ihre Frage ein (5 oder mehr Zeichen)",
+            "Klicken Sie auf Frage absenden und warten Sie auf die Bestätigung"
+          ]
+        }
+      ],
+      "tips": [
+        "Es erscheinen nur veröffentlichte, beantwortete FAQs — Ihre abgesendete Frage wird hinzugefügt, sobald sie beantwortet ist."
+      ]
+    },
+    "workHub": {
+      "overview": "Das Consultant Work Hub ist der tägliche Arbeitsbereich des Beraters: eine Warteschlange zugewiesener Aufgaben mit einer integrierten Stoppuhr, Auslastungszählern, einer Vorschau der abrechenbaren Zeit und Compliance-Kennzeichen. Vollständig entwickelt und der primäre Ort, an dem Zeit erfasst wird.",
+      "whatYouSee": [
+        "Kopfzeile mit einem Dropdown-Filter für Projekte",
+        "Grünes Banner für laufende Stoppuhr (wenn eine Stoppuhr aktiv ist) und eine bernsteinfarbene Inaktivitätswarnung nach 8 Stunden",
+        "Auslastungs-Übersichtsleiste: Zähler für Gesamt, Überfällig, Alterung ab 30 Tagen und Compliance-Aufmerksamkeit",
+        "Liste der zugewiesenen Warteschlange: Jede Aufgabe zeigt Name, Projekt, Status, Priorität, Quell-Tags und Aktionsschaltflächen",
+        "Vorschaubereich für abrechenbare Zeit mit einem Datumsbereich, einer Aufschlüsselung nach manueller/IA-Quelle und einer Compliance-Prüfliste"
+      ],
+      "controls": [
+        {
+          "label": "Projektfilter (Dropdown)",
+          "does": "Filtert die Aufgaben-Warteschlange und die Vorschauen auf Alle Projekte oder ein einzelnes Projekt"
+        },
+        {
+          "label": "Timer starten (pro Aufgabe)",
+          "does": "Startet eine abrechenbare Stoppuhr für diese Aufgabe; deaktiviert, solange eine andere Stoppuhr läuft"
+        },
+        {
+          "label": "Stoppen / Timer stoppen",
+          "does": "Stoppt die laufende Stoppuhr und öffnet die Aufforderung Zeiteintrag speichern (abrechenbar)"
+        },
+        {
+          "label": "Weiterlaufen lassen",
+          "does": "Verwirft die 8-Stunden-Inaktivitätswarnung und lässt die Stoppuhr weiterlaufen"
+        },
+        {
+          "label": "Aktivität",
+          "does": "Öffnet die Zeitprotokoll-Leiste der Aufgabe: Zeiteinträge, Verlauf der Statusänderungen und PM-Synchronisierungsstatus"
+        },
+        {
+          "label": "Blockiert",
+          "does": "Öffnet das Statusfenster, um die Aufgabe als blockiert zu markieren (erfordert einen Grund)"
+        },
+        {
+          "label": "Ausgesetzt",
+          "does": "Öffnet das Statusfenster, um die Aufgabe als ausgesetzt zu markieren (erfordert einen Grund)"
+        },
+        {
+          "label": "Abrechenbar / Nicht abrechenbar (Speicheraufforderung)",
+          "does": "Legt nach dem Stoppen einer Stoppuhr fest, ob der Eintrag abrechenbar ist, mit optionalen Notizen"
+        },
+        {
+          "label": "Eintrag speichern",
+          "does": "Speichert den gestoppten Zeiteintrag mit dem gewählten Abrechnungskennzeichen und den Notizen"
+        },
+        {
+          "label": "Start-/Enddatum der Rechnungsvorschau",
+          "does": "Datumsfelder, die den Bereich für die Summen der Vorschau der abrechenbaren Zeit festlegen"
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Zeit für eine Aufgabe erfassen",
+          "steps": [
+            "Optional nach Projekt filtern",
+            "Auf Timer starten bei der Aufgabe klicken",
+            "Auf Stoppen klicken, wenn fertig",
+            "Abrechenbar oder Nicht abrechenbar wählen und Eintrag speichern"
+          ]
+        },
+        {
+          "title": "Eine Aufgabe als blockiert oder ausgesetzt markieren",
+          "steps": [
+            "Auf Blockiert oder Ausgesetzt bei der Aufgabe klicken",
+            "Einen erforderlichen Grund eingeben",
+            "Auf Absenden klicken"
+          ]
+        },
+        {
+          "title": "Abrechenbare Zeit als Vorschau anzeigen",
+          "steps": [
+            "Start- und Enddatum der Vorschau festlegen",
+            "Die Anzahl der Einträge / die Gesamtstunden und die Aufschlüsselung manuell vs. IA lesen"
+          ]
+        }
+      ],
+      "tips": [
+        "Es läuft immer nur eine Stoppuhr; das grüne Banner zeigt die aktive Aufgabe und die verstrichene Zeit",
+        "Ein Grund ist beim Markieren einer Aufgabe als blockiert oder ausgesetzt zwingend erforderlich"
+      ]
+    },
+    "stackProfiles": {
+      "overview": "Company Stack Profiles ist ein nur für ADMINS zugänglicher Bildschirm, der einen unternehmensweiten Standard-Stack & -Stil für jeden Anwendungstyp (Web / Desktop / Mobile) festlegt. Neue Projekte eines Typs erben das Profil, sofern sie nicht ihren eigenen Stack erfassen – in diesem Fall hat der eigene Stack des Projekts immer Vorrang. Es gibt ein Profil pro Typ (maximal 3).",
+      "whatYouSee": [
+        "Seitenüberschrift „Company Stack Profiles“ mit einer Erklärung, dass neue Projekte den Unternehmensstandard je Anwendungstyp erben",
+        "Ein Bereich „Stack eines Projekts unternehmensweit hochstufen“ mit einem Projekt-Dropdown und einer Schaltfläche Hochstufen",
+        "Eine Liste „Profiles“ mit einer Zeile pro Anwendungstyp (Web / Desktop / Mobile), die jeweils anzeigt, ob er Festgelegt (mit Datum der letzten Aktualisierung) oder Nicht festgelegt ist",
+        "Nicht-Admins sehen nur eine rote Meldung „Diese Seite erfordert Administratorzugriff.“"
+      ],
+      "controls": [
+        {
+          "label": "Projekt (muss einen erfassten Stack & Stil haben)",
+          "does": "Dropdown der Projekte mit einem erfassten Stack; wählen Sie das Projekt, dessen Stack Sie zum Unternehmensstandard machen möchten. Es erscheinen nur Projekte mit einem Anwendungstyp.",
+          "adminOnly": true
+        },
+        {
+          "label": "Hochstufen",
+          "does": "Kopiert den erfassten Stack/Stil des ausgewählten Projekts in das unternehmensweite Profil für den Anwendungstyp dieses Projekts. Deaktiviert, bis ein Projekt ausgewählt ist; zeigt während der Verarbeitung „Wird hochgestuft…“.",
+          "adminOnly": true
+        },
+        {
+          "label": "Löschen",
+          "does": "Entfernt das unternehmensweite Stack-Profil für diesen Anwendungstyp, sodass Projekte dieses Typs auf den integrierten Standard zurückfallen. Wird in jeder festgelegten Zeile angezeigt.",
+          "adminOnly": true
+        },
+        {
+          "label": "Wiederholen",
+          "does": "Lädt die Profilliste nach einem Ladefehler neu.",
+          "adminOnly": true
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Den Stack eines Projekts zum Unternehmensstandard machen",
+          "steps": [
+            "Öffnen Sie Company Stack Profiles (Admin)",
+            "Wählen Sie im Bereich Hochstufen ein Projekt mit einem erfassten Stack & Stil",
+            "Klicken Sie auf Hochstufen",
+            "Bestätigen Sie, dass die passende Anwendungstyp-Zeile nun „Festgelegt“ anzeigt"
+          ]
+        },
+        {
+          "title": "Einen Anwendungstyp auf den integrierten Standard zurücksetzen",
+          "steps": [
+            "Suchen Sie die Anwendungstyp-Zeile (Web / Desktop / Mobile), die als „Festgelegt“ markiert ist",
+            "Klicken Sie in dieser Zeile auf Löschen",
+            "Die Zeile kehrt zu „Nicht festgelegt“ zurück und Projekte dieses Typs fallen auf den wxKanban-Standard zurück"
+          ]
+        }
+      ],
+      "tips": [
+        "Wenn im Dropdown keine Projekte erscheinen, führen Sie zuerst /buildstack für ein Projekt aus, um dessen Stack & Stil zu erfassen.",
+        "Ein Projekt mit einem eigenen erfassten Stack ignoriert das Unternehmensprofil."
+      ]
+    },
+    "themeProfiles": {
+      "overview": "Company Theme Profiles ist ein nur für ADMINS zugänglicher Bildschirm, der ein unternehmensweites Standard-Farb-Theme je Anwendungstyp (Web / Desktop / Mobile) festlegt. Neue Projekte erben das Theme, sofern sie nicht ihr eigenes festlegen; ein Projekt mit eigenem Theme hat immer Vorrang. Profile werden über die Theme-Registerkarte eines Projekts erstellt, nicht auf dieser Seite.",
+      "whatYouSee": [
+        "Seitenüberschrift „Company Theme Profiles“ mit einer Erklärung und einem Hinweis, ein Theme über die Theme-Registerkarte eines Projekts per „Als Unternehmens-Theme speichern“ festzulegen",
+        "Eine Liste „Profiles“ mit einer Zeile pro Anwendungstyp (Web / Desktop / Mobile)",
+        "Jede festgelegte Zeile zeigt eine Farbfeld-Vorschau der Primär-, Sekundär-, Akzent- und Hintergrundfarben sowie ein Datum der letzten Aktualisierung; nicht festgelegte Zeilen lauten „Nicht festgelegt (Projekte fallen auf den wxKanban-Standard zurück)“",
+        "Nicht-Admins sehen nur eine rote Meldung „Diese Seite erfordert Administratorzugriff.“"
+      ],
+      "controls": [
+        {
+          "label": "Farbfelder",
+          "does": "Schreibgeschützte Vorschau der Primär-, Sekundär-, Akzent- und Hintergrundfarben des Profils für jeden festgelegten Anwendungstyp.",
+          "adminOnly": true
+        },
+        {
+          "label": "Löschen",
+          "does": "Entfernt das unternehmensweite Theme-Profil für diesen Anwendungstyp, sodass Projekte dieses Typs auf das wxKanban-Standard-Theme zurückfallen. Wird in jeder festgelegten Zeile angezeigt.",
+          "adminOnly": true
+        },
+        {
+          "label": "Wiederholen",
+          "does": "Lädt die Profilliste nach einem Ladefehler neu.",
+          "adminOnly": true
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Ein Unternehmens-Standard-Theme festlegen",
+          "steps": [
+            "Öffnen Sie ein Projekt und gehen Sie zu dessen Theme-Registerkarte",
+            "Wählen Sie „Als Unternehmens-Theme speichern“",
+            "Kehren Sie zu Company Theme Profiles zurück, um zu bestätigen, dass die Anwendungstyp-Zeile „Festgelegt“ mit der Farbfeld-Vorschau anzeigt"
+          ]
+        },
+        {
+          "title": "Ein Unternehmens-Theme entfernen",
+          "steps": [
+            "Suchen Sie die als „Festgelegt“ markierte Anwendungstyp-Zeile",
+            "Klicken Sie auf Löschen",
+            "Die Zeile kehrt zu „Nicht festgelegt“ zurück und Projekte fallen auf den wxKanban-Standard zurück"
+          ]
+        }
+      ],
+      "tips": [
+        "Es gibt keine Möglichkeit, ein Theme direkt auf dieser Seite festzulegen — es wird über die Theme-Registerkarte eines Projekts erstellt.",
+        "Ein Projekt, das sein eigenes Theme festlegt, überschreibt das Unternehmensprofil."
+      ]
+    },
+    "test-suite": {
+      "overview": "Jede Version eines Projekts wird zweimal geprüft, bevor sie freigegeben werden kann. In der QA-Phase führt die KI die automatischen Tests Gate für Gate aus, und Sie sehen die Ergebnisse live eintreffen. In der Phase Human Testing führen Sie die Tests durch, die nur ein Mensch beurteilen kann, und zeichnen jeden einzeln ab — diese bleiben jedoch gesperrt, bis der automatische Lauf besteht, damit Sie nie einen Build testen sollen, von dem bereits bekannt ist, dass er fehlerhaft ist. Eine Version erreicht die Produktion nicht, solange eine der beiden Mengen offen ist.",
+      "whatYouSee": [
+        "Eine Versionskopfzeile mit «Version 1.4.0» und dem Zustand: In Entwicklung, In UAT, In Produktion oder Ersetzt",
+        "Ein Filter «Bereich:», damit ein Projekt mit einer Suite je Scope die Frage «was ist für DIESEN Bereich offen» beantwortet, statt eine flache Liste mit Hunderten Einträgen zu zeigen",
+        "Filter: Alle, Offen, Erzwungen, Fehlgeschlagen",
+        "Jeder Testfall als Pflicht oder Optional gekennzeichnet und mit KI oder Tester versehen, damit erkennbar ist, wer ihn geschrieben hat",
+        "Je Gate eine Schaltfläche «<Gate> ausführen»; während eines Laufs aktualisieren sich die Summen: «12 bestanden · 1 fehlgeschlagen · 20 gesamt»",
+        "Ein Hinweis «4 Benutzertest(s) warten auf die UAT-Freigabe» — die menschliche Menge existiert, ist aber noch nicht bearbeitbar",
+        "In Human Testing vor der Freigabe: «Noch nicht bereit für Sie», mit Anzahl und Erläuterung",
+        "Nach der Freigabe: jeder Test zeigt «Vorbereitung», «Schritte» und «Danach prüfen», mit den Schaltflächen Bestanden und Fehlgeschlagen",
+        "Leerer Zustand: «Noch keine Testfälle. Sie entstehen bei der Umsetzung des Scopes.»"
+      ],
+      "controls": [
+        {
+          "label": "<Gate> ausführen",
+          "does": "Startet den KI-Runner für alle maschinellen Tests dieses Gates und öffnet die Live-Ansicht. Die Ergebnisse laufen nach und nach ein; meldet sich der Runner nicht mehr, sehen Sie «Testlauf hängt — keine Rückmeldung vom Runner» statt eines endlosen Ladevorgangs."
+        },
+        {
+          "label": "Bereich:",
+          "does": "Schränkt die Suite auf einen Bereich ein. Es werden nur dessen Testfälle geladen — das hält ein großes Projekt reaktionsfähig."
+        },
+        {
+          "label": "Alle / Offen / Erzwungen / Fehlgeschlagen",
+          "does": "Filtert die Liste. Offen ist die Arbeitsansicht, Fehlgeschlagen die Triage-Ansicht, und Erzwungen zeigt Testfälle, deren Testanforderung überschrieben wurde."
+        },
+        {
+          "label": "Bestanden",
+          "does": "Zeichnet den Test in Ihrem Namen ab. Die Abzeichnung gilt für diese Version, nicht für das Projekt allgemein."
+        },
+        {
+          "label": "Fehlgeschlagen",
+          "does": "Fragt, was tatsächlich passiert ist, und erzeugt einen Fehlerbericht mit den Schritten des Tests im Anhang. Ihre Beschreibung wird zum Bericht: schildern Sie das beobachtete Verhalten und nicht eine Vermutung über die Ursache."
+        },
+        {
+          "label": "Test hinzufügen",
+          "does": "Fügt der Suite einen eigenen Test hinzu. Er wird mit Tester statt KI gekennzeichnet, sodass erkennbar bleibt, dass ihn ein Mensch verfasst hat."
+        },
+        {
+          "label": "Testanforderung",
+          "does": "Schaltet das Test-Gate für ein Projekt ab oder erzwingt es für einen Bereich, der eine abgeschaltete Einstellung erbt. Nur Administratoren, und die Änderung wird im Audit-Log festgehalten.",
+          "adminOnly": true
+        },
+        {
+          "label": "Erbt / Überschreiben",
+          "does": "Zeigt, ob ein Bereich der Testanforderung des Projekts folgt oder eine eigene festlegt.",
+          "adminOnly": true
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Die automatischen Tests einer Version ausführen",
+          "steps": [
+            "Projekt öffnen und die QA-Phase wählen",
+            "«Bereich:» auf den gewünschten Bereich setzen oder alle Bereiche belassen",
+            "Neben dem gewünschten Gate auf Ausführen klicken",
+            "Die Summen verfolgen; die Liste aktualisiert sich nach dem Lauf selbst",
+            "Den Filter auf Fehlgeschlagen stellen, um Nichtbestandenes abzuarbeiten"
+          ]
+        },
+        {
+          "title": "Einen Benutzertest abzeichnen",
+          "steps": [
+            "Projekt öffnen und die Phase Human Testing wählen",
+            "Erscheint «Noch nicht bereit für Sie», sind die automatischen Tests noch nicht bestanden — dann ist nichts zu tun",
+            "«Vorbereitung» lesen, den «Schritten» folgen, dann «Danach prüfen» bestätigen",
+            "Auf Bestanden klicken, oder auf Fehlgeschlagen und beschreiben, was tatsächlich passiert ist",
+            "Wiederholen, bis kein Pflichttest mehr offen ist"
+          ]
+        },
+        {
+          "title": "Eine Aufforderung zum erneuten Testen bearbeiten",
+          "steps": [
+            "Human Testing öffnen und nach «Bitte erneut testen» suchen",
+            "Seit Ihrer Abzeichnung hat sich etwas geändert, daher wird erneut geprüft",
+            "Erneut testen und wie gewohnt abzeichnen",
+            "Konnte die Änderung das Geprüfte nicht betreffen, begründen Sie das — Ihre frühere Abzeichnung bleibt bestehen"
+          ]
+        }
+      ],
+      "tips": [
+        "Die QA-Phase zeigt ausschließlich automatische Tests. Die Benutzertests bestehen von Anfang an und erscheinen als Anzahl, damit Sie die Arbeit sehen, ohne sie zu früh beginnen zu können.",
+        "Ein Fehlschlag ist nützlicher als ein Kommentar: Er erzeugt einen Fehlerbericht mit angehängten Schritten, was ein Kommentar nicht tut.",
+        "Optionale Tests blockieren keine Freigabe. Pflichttests schon.",
+        "Die Testanforderung abzuschalten ist eine Administratoraktion und wird im Audit-Log festgehalten; die Tests werden dabei nicht gelöscht, sie blockieren die Freigabe nur nicht mehr."
+      ]
+    },
+    "feedback": {
+      "overview": "Sie können ein Problem melden oder eine Änderung wünschen, direkt aus dem Produkt heraus, und anschließend verfolgen, was daraus geworden ist. Eingesendetes Feedback wird triagiert, kann beantwortet werden und bleibt für Sie unter Mein Feedback sichtbar. Ein fehlgeschlagener Benutzertest erzeugt auf demselben Weg einen Fehlerbericht, mit den Schritten des Tests bereits im Anhang.",
+      "whatYouSee": [
+        "Ein Formular, das fragt, was passiert ist, mit Platz für Details",
+        "Mein Feedback: Ihre eigenen Einsendungen für das Projekt, in dem Sie arbeiten, neueste zuerst",
+        "Ein Status je Eintrag, der zeigt, wie weit er ist",
+        "Antworten oder Triage-Notizen der Person, die ihn übernommen hat",
+        "Die Fehlerberichte des Projekts, in denen Erledigtes standardmäßig ausgeblendet ist",
+        "Statusfilter mit Zählern, damit Sie sehen, wie viele Einträge in welchem Zustand sind"
+      ],
+      "controls": [
+        {
+          "label": "Feedback senden",
+          "does": "Sendet Ihre Meldung zur Triage. Beschreiben Sie, was Sie getan und gesehen haben, nicht was Sie für die Ursache halten — wer es liest, sieht Ihren Bildschirm nicht."
+        },
+        {
+          "label": "Mein Feedback",
+          "does": "Listet Ihre Einsendungen für das aktuelle Projekt mit Status und Antworten. Die Liste ist auf dieses Projekt beschränkt: Feedback aus einem anderen Projekt erscheint hier nicht."
+        },
+        {
+          "label": "Statusfilter",
+          "does": "Filtert Fehlerberichte nach Zustand; jeder Filter trägt einen Zähler. Erledigt ist standardmäßig ausgeblendet, damit die Liste die offene Arbeit zeigt."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Ein Problem melden",
+          "steps": [
+            "Das Feedback-Formular im Produkt öffnen",
+            "Beschreiben, was Sie getan haben, was Sie erwartet haben und was stattdessen passiert ist",
+            "Absenden und anschließend unter Mein Feedback Status und Antworten prüfen"
+          ]
+        },
+        {
+          "title": "Herausfinden, was aus einer Meldung geworden ist",
+          "steps": [
+            "Prüfen, dass Sie im richtigen Projekt sind",
+            "Mein Feedback öffnen",
+            "Den Eintrag suchen und Status sowie Triage-Notizen lesen"
+          ]
+        }
+      ],
+      "tips": [
+        "Mein Feedback ist auf das aktuelle Projekt beschränkt. Fehlt eine Meldung, prüfen Sie, ob Sie im richtigen Projekt sind.",
+        "Einen Benutzertest fehlschlagen zu lassen ist der schnellste Weg zu einem guten Fehlerbericht — die Schritte werden für Sie angehängt."
+      ]
+    }
+  }
+}

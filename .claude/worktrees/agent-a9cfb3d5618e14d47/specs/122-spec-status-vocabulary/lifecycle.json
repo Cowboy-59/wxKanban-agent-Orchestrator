@@ -1,0 +1,61 @@
+{
+  "specNumber": "122",
+  "specId": "7af67cd1-976b-476b-a3b9-a636e9617c1a",
+  "title": "Spec Status Vocabulary",
+  "status": "planned",
+  "currentPhase": "design",
+  "priority": "high",
+  "createdAt": "2026-08-04T01:04:05.952Z",
+  "scopeRef": "specs/Project-Scope/122-spec-status-vocabulary.md",
+  "origin": {
+    "source": "customer field report",
+    "reporter": "Linnell Technology — project \"Just Invoicing\"",
+    "reportedOn": "2026-08-03",
+    "feedbackRef": "board defect relayed via Andy; related feedback row 7491c2a2 covers the separate wxDesigner MCP defect"
+  },
+  "progress": {
+    "totalTasks": 7,
+    "completed": 0,
+    "inProgress": 0,
+    "blocked": 0,
+    "percentComplete": 0
+  },
+  "phases": [
+    {
+      "name": "design",
+      "status": "complete",
+      "startedAt": "2026-08-03T19:30:00.000Z",
+      "completedAt": "2026-08-04T01:04:05.952Z",
+      "note": "Scope built interactively, section by section, with three decisions ruled by Andy: the MCP's shorter vocabulary is canonical (no data migration), archived is hidden rather than shown in Deferred, and no customer data is written. Scope and spec both scored 100 on preflight with zero blocking issues and zero warnings."
+    },
+    {
+      "name": "implementation",
+      "status": "not_started",
+      "startedAt": null,
+      "completedAt": null,
+      "taskGroups": [
+        {
+          "name": "Customer-visible fix — ships with the hosted app",
+          "tasks": ["T001", "T002", "T003", "T004"]
+        },
+        {
+          "name": "Hardening — rides a kit/MCP release",
+          "tasks": ["T005", "T006"]
+        },
+        {
+          "name": "Verification — read-only",
+          "tasks": ["T007"]
+        }
+      ]
+    },
+    { "name": "qa", "status": "not_started", "startedAt": null, "completedAt": null },
+    { "name": "human_testing", "status": "not_started", "startedAt": null, "completedAt": null },
+    { "name": "beta", "status": "not_started", "startedAt": null, "completedAt": null },
+    { "name": "release", "status": "not_started", "startedAt": null, "completedAt": null }
+  ],
+  "notes": [
+    "T002 is the requirement that removes the failure mode. T001 alone fixes today's four values and leaves the next divergence equally silent.",
+    "The rendering fix reaches every customer on deploy because the Kanban board is the hosted web app. No kit update and no writes to customer data.",
+    "Third instance in one week of one surface accepting a value another silently fails to recognise — the others being fence labels that could not match the parser regex, and a schema mirror missing a column."
+  ]
+}

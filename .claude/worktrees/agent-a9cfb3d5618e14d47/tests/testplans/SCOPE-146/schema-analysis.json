@@ -1,0 +1,219 @@
+{
+  "target": "SCOPE-146",
+  "tables": [
+    "wxkanbandocuments",
+    "complianceaudittasks",
+    "auditexecutions",
+    "auditresults",
+    "auditreportmetadata",
+    "companyauditlogs",
+    "companyprojects"
+  ],
+  "riScoreWholeSchema": null,
+  "findings": [
+    {
+      "dim": "fieldMapping",
+      "table": "auditexecutions",
+      "file": "src/db/schema/auditexecutions.ts",
+      "line": 28,
+      "issue": "missing updatedat timestamp"
+    },
+    {
+      "dim": "fieldMapping",
+      "table": "auditreportmetadata",
+      "file": "src/db/schema/auditreportmetadata.ts",
+      "line": 29,
+      "issue": "missing updatedat timestamp"
+    },
+    {
+      "dim": "fieldMapping",
+      "table": "auditresults",
+      "file": "src/db/schema/auditresults.ts",
+      "line": 18,
+      "issue": "missing updatedat timestamp"
+    },
+    {
+      "dim": "fieldMapping",
+      "table": "companyauditlogs",
+      "file": "src/db/schema/companyauditlog.ts",
+      "line": 12,
+      "issue": "missing createdat timestamp"
+    },
+    {
+      "dim": "fieldMapping",
+      "table": "companyauditlogs",
+      "file": "src/db/schema/companyauditlog.ts",
+      "line": 12,
+      "issue": "missing updatedat timestamp"
+    },
+    {
+      "dim": "fieldMapping",
+      "table": "complianceaudittasks",
+      "file": "src/db/schema/complianceaudittasks.ts",
+      "line": 25,
+      "issue": "missing updatedat timestamp"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "auditexecutions",
+      "file": "src/db/schema/auditexecutions.ts",
+      "line": 32,
+      "severity": "medium",
+      "issue": "FK 'triggeredby' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_auditexecutions_triggeredby ON auditexecutions(triggeredby);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "auditexecutions",
+      "file": "src/db/schema/auditexecutions.ts",
+      "line": 38,
+      "severity": "medium",
+      "issue": "FK 'specid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_auditexecutions_specid ON auditexecutions(specid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "auditexecutions",
+      "file": "src/db/schema/auditexecutions.ts",
+      "line": 52,
+      "severity": "low",
+      "issue": "frequent filter column 'status' has no index",
+      "fix": "CREATE INDEX idx_auditexecutions_status ON auditexecutions(status);  -- confirm query patterns first"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "auditexecutions",
+      "file": "src/db/schema/auditexecutions.ts",
+      "line": 62,
+      "severity": "medium",
+      "issue": "FK 'reportdocumentid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_auditexecutions_reportdocumentid ON auditexecutions(reportdocumentid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "auditreportmetadata",
+      "file": "src/db/schema/auditreportmetadata.ts",
+      "line": 32,
+      "severity": "medium",
+      "issue": "FK 'documentid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_auditreportmetadata_documentid ON auditreportmetadata(documentid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "auditreportmetadata",
+      "file": "src/db/schema/auditreportmetadata.ts",
+      "line": 37,
+      "severity": "medium",
+      "issue": "FK 'executionid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_auditreportmetadata_executionid ON auditreportmetadata(executionid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "auditreportmetadata",
+      "file": "src/db/schema/auditreportmetadata.ts",
+      "line": 61,
+      "severity": "medium",
+      "issue": "FK 'reviewedby' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_auditreportmetadata_reviewedby ON auditreportmetadata(reviewedby);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "auditresults",
+      "file": "src/db/schema/auditresults.ts",
+      "line": 19,
+      "severity": "medium",
+      "issue": "FK 'executionid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_auditresults_executionid ON auditresults(executionid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "auditresults",
+      "file": "src/db/schema/auditresults.ts",
+      "line": 26,
+      "severity": "medium",
+      "issue": "FK 'taskid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_auditresults_taskid ON auditresults(taskid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "companyauditlogs",
+      "file": "src/db/schema/companyauditlog.ts",
+      "line": 13,
+      "severity": "medium",
+      "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_companyauditlogs_companyid ON companyauditlogs(companyid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "companyauditlogs",
+      "file": "src/db/schema/companyauditlog.ts",
+      "line": 17,
+      "severity": "medium",
+      "issue": "FK 'changedby' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_companyauditlogs_changedby ON companyauditlogs(changedby);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "companyprojects",
+      "file": "src/db/schema/companyproject.ts",
+      "line": 17,
+      "severity": "medium",
+      "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_companyprojects_userid ON companyprojects(userid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "companyprojects",
+      "file": "src/db/schema/companyproject.ts",
+      "line": 20,
+      "severity": "medium",
+      "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_companyprojects_companyid ON companyprojects(companyid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "companyprojects",
+      "file": "src/db/schema/companyproject.ts",
+      "line": 37,
+      "severity": "medium",
+      "issue": "FK 'customerid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_companyprojects_customerid ON companyprojects(customerid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "companyprojects",
+      "file": "src/db/schema/companyproject.ts",
+      "line": 46,
+      "severity": "low",
+      "issue": "frequent filter column 'status' has no index",
+      "fix": "CREATE INDEX idx_companyprojects_status ON companyprojects(status);  -- confirm query patterns first"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "complianceaudittasks",
+      "file": "src/db/schema/complianceaudittasks.ts",
+      "line": 26,
+      "severity": "medium",
+      "issue": "FK 'documentid' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_complianceaudittasks_documentid ON complianceaudittasks(documentid);"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "wxkanbandocuments",
+      "file": "src/db/schema/wxkanbandocuments.ts",
+      "line": 58,
+      "severity": "low",
+      "issue": "frequent filter column 'status' has no index",
+      "fix": "CREATE INDEX idx_wxkanbandocuments_status ON wxkanbandocuments(status);  -- confirm query patterns first"
+    },
+    {
+      "dim": "missingIndexes",
+      "table": "wxkanbandocuments",
+      "file": "src/db/schema/wxkanbandocuments.ts",
+      "line": 62,
+      "severity": "medium",
+      "issue": "FK 'createdby' has no covering index (Postgres does not auto-index FKs)",
+      "fix": "CREATE INDEX idx_wxkanbandocuments_createdby ON wxkanbandocuments(createdby);"
+    }
+  ]
+}

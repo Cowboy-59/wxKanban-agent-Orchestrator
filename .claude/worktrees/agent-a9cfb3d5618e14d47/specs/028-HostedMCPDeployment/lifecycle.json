@@ -1,0 +1,15 @@
+{
+  "specNumber": "028",
+  "featureName": "Hosted MCP Deployment - Eliminate Consumer DB Port Requirement",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 47,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-05-13T00:00:00.000Z",
+    "phaseStarted": "2026-05-13T00:00:00.000Z"
+  }
+}

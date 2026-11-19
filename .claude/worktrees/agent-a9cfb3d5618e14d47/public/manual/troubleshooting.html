@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troubleshooting — wxKanban Manual</title>
+<style>
+:root { --accent: #2563eb; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1f2328; line-height: 1.6; margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1,h2,h3 { line-height: 1.25; }
+h1 { font-size: 1.9rem; border-bottom: 2px solid var(--accent); padding-bottom: .3em; }
+h2 { font-size: 1.35rem; margin-top: 1.8em; }
+img { max-width: 100%; border: 1px solid #d0d7de; border-radius: 6px; margin: .5em 0; }
+code { background: #f6f8fa; padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th,td { border: 1px solid #d0d7de; padding: .5em .7em; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; }
+.layout { display: flex; align-items: flex-start; }
+.sidebar { width: 250px; min-width: 250px; padding: 1.2em; border-right: 1px solid #d0d7de;
+  height: 100vh; position: sticky; top: 0; overflow-y: auto; background: #fafbfc; }
+.sidebar h3 { margin: 0 0 .3em; font-size: .8rem; text-transform: uppercase; color: #57606a; }
+.sidebar a { display: block; padding: .25em 0; color: #1f2328; }
+.sidebar a.active { color: var(--accent); font-weight: 600; }
+.content { padding: 2em 3em; max-width: 900px; }
+.brand { font-weight: 700; font-size: 1.1rem; margin-bottom: 1em; color: var(--accent); }
+.search { width: 100%; padding: .5em; margin-bottom: 1em; border: 1px solid #d0d7de; border-radius: 6px; }
+.card { border: 1px solid #d0d7de; border-radius: 8px; padding: 1em 1.2em; margin: .6em 0; }
+.card a { font-weight: 600; font-size: 1.1rem; }
+@media print { .sidebar, .search { display: none; } }
+</style></head>
+<body><div class="layout">
+<nav class="sidebar">
+<div class="brand"><a href="index.html">wxKanban Manual</a></div>
+<input class="search" id="q" placeholder="Search…" onkeyup="flt()">
+<h3>Sections</h3>
+<a data-t="part 1 — getting started" href="part-getting-started.html">Part 1 — Getting Started</a>
+<a data-t="getting started" href="getting-started.html">Getting Started</a>
+<a data-t="part 2 — the process" href="part-the-process.html">Part 2 — The Process</a>
+<a data-t="the road at a glance" href="process-overview.html">The road at a glance</a>
+<a data-t="scopes and specs" href="process-scopes-specs.html">Scopes and specs</a>
+<a data-t="design" href="process-design.html">Design</a>
+<a data-t="decision memory: the ledger and the ask gate" href="process-decision-memory.html">Decision memory: the ledger and the Ask Gate</a>
+<a data-t="implementation" href="process-implementation.html">Implementation</a>
+<a data-t="qa" href="process-qa.html">QA</a>
+<a data-t="human testing" href="process-human-testing.html">Human Testing</a>
+<a data-t="beta" href="process-beta.html">Beta</a>
+<a data-t="release" href="process-release.html">Release</a>
+<a data-t="converting an existing app" href="process-conversions.html">Converting an existing app</a>
+<a data-t="when something goes wrong" href="process-when-things-go-wrong.html">When something goes wrong</a>
+<a data-t="who does what" href="process-who-does-what.html">Who does what</a>
+<a data-t="part 3 — the web app" href="part-web-app.html">Part 3 — The Web App</a>
+<a data-t="signing in" href="login.html">Signing in</a>
+<a data-t="the dashboard" href="dashboard.html">The Dashboard</a>
+<a data-t="projects" href="projects.html">Projects</a>
+<a data-t="inside a project" href="project-detail.html">Inside a project</a>
+<a data-t="my tasks" href="tasks.html">My Tasks</a>
+<a data-t="automated tests (qa)" href="testing-qa.html">Automated tests (QA)</a>
+<a data-t="user tests" href="testing-user.html">User tests</a>
+<a data-t="work hub" href="work-hub.html">Work Hub</a>
+<a data-t="faq" href="faq.html">FAQ</a>
+<a data-t="help & plan features" href="help.html">Help & plan features</a>
+<a data-t="settings" href="settings.html">Settings</a>
+<a data-t="team members" href="team.html">Team Members</a>
+<a data-t="team chat (yappchatt)" href="team-chat.html">Team chat (YappChatt)</a>
+<a data-t="signing k.a.i.n. in" href="kain-signin.html">Signing K.A.I.N. in</a>
+<a data-t="pm integrations" href="integrations.html">PM Integrations</a>
+<a data-t="invoices" href="invoices.html">Invoices</a>
+<a data-t="reports" href="reports.html">Reports</a>
+<a data-t="stack profiles" href="stack-profiles.html">Stack Profiles</a>
+<a data-t="theme profiles" href="theme-profiles.html">Theme Profiles</a>
+<a data-t="part 4 — the dev cockpit" href="part-dev-cockpit.html">Part 4 — The Dev Cockpit</a>
+<a data-t="installing and linking the cockpit" href="cockpit-install.html">Installing and linking the Cockpit</a>
+<a data-t="the cockpit at a glance" href="cockpit-at-a-glance.html">The Cockpit at a glance</a>
+<a data-t="system health" href="cockpit-system-health.html">System Health</a>
+<a data-t="scopes" href="cockpit-scopes.html">Scopes</a>
+<a data-t="development plan" href="cockpit-dev-plan.html">Development Plan</a>
+<a data-t="git" href="cockpit-git.html">Git</a>
+<a data-t="kit updates" href="cockpit-kit-updates.html">Kit updates</a>
+<a data-t="change impact" href="cockpit-change-impact.html">Change Impact</a>
+<a data-t="feedback" href="cockpit-feedback.html">Feedback</a>
+<a data-t="help inside the cockpit" href="cockpit-help.html">Help inside the Cockpit</a>
+<a data-t="part 5 — command reference" href="part-command-reference.html">Part 5 — Command Reference</a>
+<a data-t="commands by stage" href="commands-by-stage.html">Commands by stage</a>
+<a data-t="commands by where they run" href="commands-by-where.html">Commands by where they run</a>
+<a data-t="commands a–z" href="commands-a-z.html">Commands A–Z</a>
+<a data-t="/ai-session" href="cmd-aisession.html">/ai-session</a>
+<a data-t="/analyzecode" href="cmd-analyzecode.html">/analyzecode</a>
+<a data-t="/analyzescope" href="cmd-analyzescope.html">/analyzescope</a>
+<a data-t="/autofix-tests" href="cmd-autofixtests.html">/autofix-tests</a>
+<a data-t="/buildscope" href="cmd-buildscope.html">/buildscope</a>
+<a data-t="/buildstack" href="cmd-buildstack.html">/buildstack</a>
+<a data-t="wxkanban-agent archive:files" href="cmd-cli-archive-files.html">wxkanban-agent archive:files</a>
+<a data-t="wxkanban-agent auditfences" href="cmd-cli-auditfences.html">wxkanban-agent auditfences</a>
+<a data-t="wxkanban-agent kit:configure" href="cmd-cli-kit-configure.html">wxkanban-agent kit:configure</a>
+<a data-t="wxkanban-agent kit:status" href="cmd-cli-kit-status.html">wxkanban-agent kit:status</a>
+<a data-t="wxkanban-agent scaffold:frontend" href="cmd-cli-scaffold-frontend.html">wxkanban-agent scaffold:frontend</a>
+<a data-t="refresh autopilot" href="cmd-cockpit-wxkanbanautopilotrefresh.html">Refresh Autopilot</a>
+<a data-t="check in scope" href="cmd-cockpit-wxkanbancockpitcheckinscope.html">Check In Scope</a>
+<a data-t="check out scope" href="cmd-cockpit-wxkanbancockpitcheckoutscope.html">Check Out Scope</a>
+<a data-t="install slash commands (.claude/commands)" href="cmd-cockpit-wxkanbancockpitinstallcommands.html">Install Slash Commands (.claude/commands)</a>
+<a data-t="install kit in this folder" href="cmd-cockpit-wxkanbancockpitinstallkit.html">Install Kit in This Folder</a>
+<a data-t="my feedback" href="cmd-cockpit-wxkanbancockpitmyfeedback.html">My Feedback</a>
+<a data-t="community help (live chat)" href="cmd-cockpit-wxkanbancockpitopenchat.html">Community Help (live chat)</a>
+<a data-t="open the manual" href="cmd-cockpit-wxkanbancockpitopenmanual.html">Open the Manual</a>
+<a data-t="open related spec / file" href="cmd-cockpit-wxkanbancockpitopenspec.html">Open Related Spec / File</a>
+<a data-t="push feedback to claude chat" href="cmd-cockpit-wxkanbancockpitpushfeedbacktochat.html">Push Feedback to Claude Chat</a>
+<a data-t="re-run the kit version check" href="cmd-cockpit-wxkanbancockpitrecheckkit.html">Re-run the Kit Version Check</a>
+<a data-t="refresh cockpit" href="cmd-cockpit-wxkanbancockpitrefresh.html">Refresh Cockpit</a>
+<a data-t="view feedback detail" href="cmd-cockpit-wxkanbancockpitshowfeedbackdetail.html">View Feedback Detail</a>
+<a data-t="show project agent output" href="cmd-cockpit-wxkanbancockpitshowprojectagentoutput.html">Show Project Agent Output</a>
+<a data-t="sign in / relink project" href="cmd-cockpit-wxkanbancockpitsignin.html">Sign In / Relink Project</a>
+<a data-t="start project agent" href="cmd-cockpit-wxkanbancockpitstartprojectagent.html">Start Project Agent</a>
+<a data-t="stop project agent" href="cmd-cockpit-wxkanbancockpitstopprojectagent.html">Stop Project Agent</a>
+<a data-t="report a bug / suggest a feature" href="cmd-cockpit-wxkanbancockpitsubmitfeedback.html">Report a Bug / Suggest a Feature</a>
+<a data-t="toggle recording theme (wxlight / wxdark)" href="cmd-cockpit-wxkanbancockpittoggletheme.html">Toggle Recording Theme (wxLight / wxDark)</a>
+<a data-t="install kit update" href="cmd-cockpit-wxkanbancockpitupgradekit.html">Install Kit Update</a>
+<a data-t="install the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactinstallhook.html">Install the Change Impact hook for Claude Code</a>
+<a data-t="show change impact" href="cmd-cockpit-wxkanbanimpactshowpanel.html">Show Change Impact</a>
+<a data-t="remove the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactuninstallhook.html">Remove the Change Impact hook for Claude Code</a>
+<a data-t="/compliance-scan" href="cmd-compliancescan.html">/compliance-scan</a>
+<a data-t="/consultant-hub" href="cmd-consultanthub.html">/consultant-hub</a>
+<a data-t="/createspecs" href="cmd-createspecs.html">/createSpecs</a>
+<a data-t="/cwconversion" href="cmd-cwconversion.html">/cwConversion</a>
+<a data-t="/cwconversionscope" href="cmd-cwconversionscope.html">/cwConversionScope</a>
+<a data-t="/dbpush" href="cmd-dbpush.html">/dbpush</a>
+<a data-t="/implement" href="cmd-implement.html">/implement</a>
+<a data-t="/pretest" href="cmd-pretest.html">/preTest</a>
+<a data-t="/remote" href="cmd-remote.html">/remote</a>
+<a data-t="/rescue-tokens" href="cmd-rescuetokens.html">/rescue-tokens</a>
+<a data-t="/research" href="cmd-research.html">/research</a>
+<a data-t="/scope-flow-map" href="cmd-scopeflowmap.html">/scope-flow-map</a>
+<a data-t="/test-sweep" href="cmd-testsweep.html">/test-sweep</a>
+<a data-t="/track-time" href="cmd-tracktime.html">/track-time</a>
+<a data-t="/validatescope" href="cmd-validatescope.html">/validateScope</a>
+<a data-t="/vbconversion" href="cmd-vbconversion.html">/vbConversion</a>
+<a data-t="/vbconversionscope" href="cmd-vbconversionscope.html">/vbConversionScope</a>
+<a data-t="/watermark" href="cmd-watermark.html">/watermark</a>
+<a data-t="/web-artifacts-builder" href="cmd-webartifactsbuilder.html">/web-artifacts-builder</a>
+<a data-t="/wxai-project-init" href="cmd-wxaiprojectinit.html">/wxAI-project-init</a>
+<a data-t="/wxbrainstorm" href="cmd-wxbrainstorm.html">/wxBrainstorm</a>
+<a data-t="/wxbrand" href="cmd-wxbrand.html">/wxBrand</a>
+<a data-t="/wxconversion" href="cmd-wxconversion.html">/wxConversion</a>
+<a data-t="/wxconversionparity" href="cmd-wxconversionparity.html">/wxConversionParity</a>
+<a data-t="/wxconversionscope" href="cmd-wxconversionscope.html">/wxConversionScope</a>
+<a data-t="/wxcreatetestplan" href="cmd-wxcreatetestplan.html">/wxCreateTestPlan</a>
+<a data-t="/wxdbanalyze" href="cmd-wxdbanalyze.html">/wxDBAnalyze</a>
+<a data-t="/wxdesigner" href="cmd-wxdesigner.html">/wxDesigner</a>
+<a data-t="/wxg-o-d" href="cmd-wxgod.html">/wxG-O-D</a>
+<a data-t="/wxhelpgenerate" href="cmd-wxhelpgenerate.html">/wxHelpGenerate</a>
+<a data-t="/wxledger" href="cmd-wxledger.html">/wxLedger</a>
+<a data-t="/wxuiuxcodereview" href="cmd-wxuiuxcodereview.html">/wxUIUXCodeReview</a>
+<a data-t="appendix" href="part-appendix.html">Appendix</a>
+<a data-t="glossary" href="glossary.html">Glossary</a>
+<a class="active" data-t="troubleshooting" href="troubleshooting.html">Troubleshooting</a>
+<a data-t="where to get help" href="get-help.html">Where to get help</a>
+<h3>Reference</h3>
+<a data-t="fields index" href="fields-index.html">A–Z field index</a>
+</nav>
+<main class="content"><h1 id="troubleshooting">Troubleshooting</h1>
+<p>Find what you see on your screen, then follow the fix. Each entry gives the cause, the fix, and where to read more. If none of these match, see <a href="get-help.html">Where to get help</a>.</p>
+<h2 id="claude-command-not-found"><code>claude</code> command not found</h2>
+<p><strong>What you see:</strong> you type <code>claude</code> or <code>claude --version</code> in the terminal and get "not recognized" or "command not found".</p>
+<p><strong>Why:</strong> the terminal was opened before Claude Code was installed, so it does not know the new command yet. On Windows, it can also mean you ran the Mac install command instead of the PowerShell one.</p>
+<p><strong>Fix:</strong></p>
+<ol>
+<li>Close the terminal and open a new one. If that does not help, close and reopen VS Code.</li>
+<li>On Windows, make sure you ran the PowerShell install (<code>irm https://claude.ai/install.ps1 | iex</code>), not the Mac one.</li>
+<li>Run <code>claude --version</code> again to check.</li>
+</ol>
+<p><strong>See also:</strong> <a href="getting-started.html">Getting Started</a>, step 3.</p>
+<h2 id="claude-code-panel-not-showing">Claude Code panel not showing</h2>
+<p><strong>What you see:</strong> there is no <strong>Claude</strong> icon at the top right of VS Code, or the chat panel does not open.</p>
+<p><strong>Why:</strong> the panel can stay hidden until a file is open, and older versions of VS Code may not show it.</p>
+<p><strong>Fix:</strong></p>
+<ol>
+<li>Open a file, not just the folder.</li>
+<li>Update VS Code to the latest version.</li>
+<li>Or open the Command Palette (<code>Ctrl+Shift+P</code>, Mac: <code>Cmd+Shift+P</code>) and run <strong>Claude Code: Open</strong>.</li>
+</ol>
+<p><strong>See also:</strong> <a href="getting-started.html">Getting Started</a>, step 3.</p>
+<h2 id="mcp-wont-connect-or-the-mcp-light-is-red">MCP won't connect, or the MCP light is red</h2>
+<p><strong>What you see:</strong> in the Cockpit, <strong>System Health</strong> shows <strong>offline</strong> or <strong>degraded</strong> and opens by itself. The <strong>MCP connection</strong> line has a red icon and reads <strong>unreachable</strong>, with a reason. Or your AI assistant cannot reach wxKanban after a restart.</p>
+<p><strong>Why:</strong> the MCP is the connection between your AI assistant and wxKanban. "timeout" means the hosted service did not answer within 5 seconds. "HTTP" and a number means it answered with an error. Any other text is a network error. If <strong>Orchestrator</strong> reads <strong>not linked</strong>, the folder you opened is not linked to a project at all. If <strong>Database</strong> reads <strong>down</strong>, the hosted service is up but its database is not.</p>
+<p><strong>Fix:</strong></p>
+<ol>
+<li>Check your network connection.</li>
+<li>If <strong>Orchestrator</strong> reads <strong>not linked</strong>, open the folder that holds <code>.wxkanban-project.json</code>, not a parent or child folder.</li>
+<li>Run <strong>wxKanban: Refresh Cockpit</strong> from the Command Palette, or click <strong>Retry</strong> on the warning.</li>
+<li>If your AI assistant still cannot connect after a restart, re-run <code>node scripts/init.mjs</code> in the terminal from your project folder. Then restart VS Code, open Claude Code's list of MCP servers, and approve <strong>wxkanban</strong> again.</li>
+<li>If <strong>Database</strong> reads <strong>down</strong>, there is nothing to fix on your machine. Wait a few minutes and refresh. If it stays down, ask for help.</li>
+</ol>
+<p><strong>See also:</strong> <a href="cockpit-system-health.html">System Health</a>.</p>
+<h2 id="cockpit-sidebar-is-empty">Cockpit sidebar is empty</h2>
+<p><strong>What you see:</strong> the wxKanban sidebar shows no scopes. Instead you may see one of these rows:</p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>No wxKanban project linked</strong></td>
+<td>The open folder has no <code>.wxkanban-project.json</code>.</td>
+<td>Open the folder you unzipped the kit into, then refresh.</td>
+</tr>
+<tr>
+<td><strong>Sign in to wxKanban</strong></td>
+<td>No API token is stored for this project.</td>
+<td>Click the row, or run <strong>wxKanban: Sign In / Relink Project</strong>, and enter your token. The token comes from the project's <strong>Kit</strong> tab in the web app; see <a href="getting-started.html">Getting Started</a>, section 5.</td>
+</tr>
+<tr>
+<td><strong>Cannot reach wxKanban — click to retry</strong></td>
+<td>The Cockpit could not load your project.</td>
+<td>Click the row to retry. If it keeps failing, see the MCP entry above.</td>
+</tr>
+<tr>
+<td><strong>No kit installed — Install</strong></td>
+<td>The folder has no kit.</td>
+<td>Click the row to connect the folder to a project, download the kit, and run its setup.</td>
+</tr>
+<tr>
+<td><strong>All caught up — no remaining work</strong></td>
+<td>Nothing is wrong. Every task in the project is complete.</td>
+<td>Nothing to do.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Fix, in order:</strong></p>
+<ol>
+<li>Make sure <code>.wxkanban-project.json</code> is in the folder you opened.</li>
+<li>Run <strong>wxKanban: Sign In / Relink Project</strong> from the Command Palette.</li>
+<li>Run <a href="cmd-cockpit-wxkanbancockpitrefresh.html"><strong>wxKanban: Refresh Cockpit</strong></a>.</li>
+</ol>
+<p><strong>See also:</strong> <a href="cockpit-install.html">Installing and linking the Cockpit</a> and <a href="cockpit-at-a-glance.html">The Cockpit at a glance</a>.</p>
+<h2 id="kit-tasks-dont-run-when-the-folder-opens">Kit tasks don't run when the folder opens</h2>
+<p><strong>What you see:</strong> the kit does not update itself or start the orchestrator when you open the project folder.</p>
+<p><strong>Why:</strong> VS Code asks before it runs tasks on folder open. If you clicked anything other than <strong>Allow</strong>, or never saw the prompt, the tasks stay off.</p>
+<p><strong>Fix:</strong> open the Command Palette and run <strong>Tasks: Manage Automatic Tasks in Folder</strong>, then choose <strong>Allow Automatic Tasks in Folder</strong>. Close and reopen the folder. Or run the kit setup by hand: <code>node scripts/init.mjs</code> in the terminal, from your project folder.</p>
+<p><strong>See also:</strong> <a href="getting-started.html">Getting Started</a>, step 6.</p>
+<h2 id="powershell-vs-cmd-confusion">PowerShell vs CMD confusion</h2>
+<p><strong>What you see:</strong> an install command fails with a syntax error, or a command that worked for someone else does nothing for you. This happens on Windows.</p>
+<p><strong>Why:</strong> Windows has two different command shells, PowerShell and CMD, and they use different syntax. The <code>irm ... | iex</code> install command only works in PowerShell.</p>
+<p><strong>Fix:</strong></p>
+<ol>
+<li>Look at the prompt. If it starts with <code>PS</code>, as in <code>PS C:\&gt;</code>, you are in PowerShell. If it shows only <code>C:\&gt;</code>, you are in CMD.</li>
+<li>Use the PowerShell commands from this Manual in PowerShell. In VS Code, the terminal opens in PowerShell by default.</li>
+<li>Never mix PowerShell and CMD syntax in one command.</li>
+</ol>
+<p><strong>See also:</strong> <a href="getting-started.html">Getting Started</a>, steps 2 and 3.</p>
+<h2 id="kit-update-failed-or-keeps-saying-waiting">Kit update failed, or keeps saying waiting</h2>
+<p><strong>What you see:</strong> one of these rows at the top of the Cockpit.</p>
+<p><strong>Kit update waiting — Install</strong>, with "held back: uncommitted changes in the working tree".</p>
+<ul>
+<li><strong>Why:</strong> a newer kit is ready, but you have changes that are not committed yet. The update overwrites files in your folder, so the Cockpit will not start it on its own.</li>
+<li><strong>Fix:</strong> commit or stash your changes, then click the row. You can also click it right away and confirm in the terminal, but commit first if you can.</li>
+</ul>
+<p><strong>Kit update check failed</strong>, with a reason.</p>
+<ul>
+<li><strong>Why:</strong> the kit could not check for a newer release. This is not the same as being up to date. Your kit version is unknown.</li>
+<li><strong>Fix:</strong> click the row, or run <a href="cmd-cockpit-wxkanbancockpitrecheckkit.html"><strong>wxKanban: Re-run the Kit Version Check</strong></a>. The check runs in a terminal where you can read any error. Check your network if the error is a connection problem.</li>
+</ul>
+<p><strong>The update started but failed in the terminal.</strong></p>
+<ul>
+<li><strong>Why:</strong> the update runs in a terminal named <strong>wxKanban Kit Upgrade</strong>, and the error is shown there.</li>
+<li><strong>Fix:</strong> read the error, fix its cause (often the network), then run <a href="cmd-cockpit-wxkanbancockpitupgradekit.html"><strong>wxKanban: Install Kit Update</strong></a> again.</li>
+</ul>
+<p><strong>See also:</strong> <a href="cockpit-kit-updates.html">Kit updates</a>.</p>
+<h2 id="my-scope-is-stuck-in-a-stage">My scope is stuck in a stage</h2>
+<p><strong>What you see:</strong> a scope stays in the same stage for a long time, even though the work seems done.</p>
+<p><strong>Why:</strong> scopes move to the next stage on their own, but only when the stage they are in is clear. Nobody presses an Advance button. Something is still blocking the gate. Ask your AI assistant what is blocking the scope. It reads the scope's stage and blockers from wxKanban through the MCP. What each stage needs:</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>What it needs before the scope moves on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Implementation</strong></td>
+<td>The scope has tasks, and none is open.</td>
+</tr>
+<tr>
+<td><strong>QA</strong></td>
+<td>No open tasks, at least one machine test, and none of the scope's machine tests unsigned or failing.</td>
+</tr>
+<tr>
+<td><strong>Human Testing</strong></td>
+<td>No open tasks, and a tester's sign-off on every released human test.</td>
+</tr>
+<tr>
+<td><strong>Beta</strong></td>
+<td>No open tasks, and every test the scope owns is clear.</td>
+</tr>
+<tr>
+<td><strong>Release</strong></td>
+<td>Nothing. Release is the final stage, and a scope never leaves it. The separate release check, before you deploy, needs every earlier stage complete and every forced test clear across the project; see <a href="process-release.html">Release</a>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Fix, for the most common blockers:</strong></p>
+<ul>
+<li><strong>A scope with no machine tests stays in QA.</strong> Its test plan was probably never filed. <a href="cmd-implement.html"><code>/implement</code></a> files it when the scope's tasks are done. If it is missing, run <a href="cmd-wxcreatetestplan.html"><code>/wxCreateTestPlan</code></a> for the scope.</li>
+<li><strong>A machine test has not been proven yet.</strong> Each machine test needs a passing run, which records its sign-off. Run <a href="cmd-wxcreatetestplan.html"><code>/wxCreateTestPlan</code></a> <code>SCOPE-NNN --Execute</code>, or let the nightly run do it (set up with <a href="cmd-pretest.html"><code>/preTest</code></a> <code>--nightly</code>). Either one is enough.</li>
+<li><strong>A test failed on its last run.</strong> A failing test holds the scope until a run passes it. Fix the cause, then run the plan again.</li>
+<li><strong>The data tests did not run.</strong> If no database proven not to be production was available, the create, read, update and delete gate is reported as blocked and its tests stay unproven. Accept the disposable database that <code>/wxCreateTestPlan</code> offers, then run it again.</li>
+<li><strong>Smoke tests fail.</strong> Run <a href="cmd-autofixtests.html"><code>/autofix-tests</code></a>. It confirms each fix with you. Then run the smoke test again.</li>
+<li><strong>Human tests need a person's sign-off.</strong> Your testers run them and sign them off in the web app. The AI never signs off a human test, so this stage waits for people.</li>
+<li><strong>A fix is needed in Beta.</strong> <a href="cmd-implement.html"><code>/implement</code></a> does not run on a scope in Beta or Release. Make the fix as a new scope with <a href="cmd-buildscope.html"><code>/buildscope</code></a>; the new scope travels the normal road. See <a href="process-beta.html">Beta</a>.</li>
+</ul>
+<p><strong>See also:</strong> <a href="process-when-things-go-wrong.html">When things go wrong</a>, <a href="process-qa.html">QA</a>, and <a href="testing-user.html">User tests</a>.</p>
+<h2 id="a-scope-disappeared-from-the-cockpit">A scope disappeared from the Cockpit</h2>
+<p><strong>What you see:</strong> a scope you are still working on is no longer listed under <strong>N Scopes unfinished</strong>, or the Cockpit says <strong>All caught up — no remaining work</strong>, but the scope has not reached Release.</p>
+<p><strong>Why:</strong> the Cockpit lists only scopes that still have incomplete tasks, and it shows a scope's status, not its stage. A scope whose tasks are all done can still be waiting in QA or Human Testing for its tests or sign-offs. With no open tasks, it drops out of the list.</p>
+<p><strong>Fix:</strong> ask your AI for the scope's stage. It reports the stage, what would advance the scope, and what is blocking it. You can also check the scope in the web app.</p>
+<p><strong>See also:</strong> <a href="cockpit-scopes.html">Scopes</a> and <a href="process-when-things-go-wrong.html">When something goes wrong</a>.</p>
+<h2 id="a-command-says-no-handler-registered">A command says "No handler registered"</h2>
+<p><strong>What you see:</strong> you run a command from the kit's terminal tool and get "No handler registered for command" followed by the command's name.</p>
+<p><strong>Why:</strong> that command is not part of the current kit. A few older commands are still listed by the kit's terminal tool, but nothing runs them. Their work is now done other ways: QA tests come from <code>/wxCreateTestPlan</code>, human tests are signed off in the web app, and scopes move through Beta and Release on their own.</p>
+<p><strong>Fix:</strong> do not run that command again. Look up what runs today in the Command Reference: <a href="commands-by-stage.html">Commands by stage</a> or <a href="commands-a-z.html">Commands A to Z</a>.</p>
+<p><strong>See also:</strong> <a href="process-overview.html">How the process works</a>.</p><footer style="margin-top:3em;color:#57606a;font-size:.8rem;border-top:1px solid #d0d7de;padding-top:.6em">wxKanban 1.5.371 · built 2026-11-09</footer></main>
+</div>
+<script>
+function flt(){var v=document.getElementById('q').value.toLowerCase();
+document.querySelectorAll('.sidebar a[data-t]').forEach(function(a){
+a.style.display=a.getAttribute('data-t').indexOf(v)>-1?'block':'none';});}
+</script></body></html>

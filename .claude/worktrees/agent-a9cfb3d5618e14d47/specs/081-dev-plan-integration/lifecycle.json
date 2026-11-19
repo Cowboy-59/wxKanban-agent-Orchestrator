@@ -1,0 +1,15 @@
+{
+  "specNumber": "081",
+  "featureName": "Dev Plan Integration",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 14,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-06-30T11:05:25.476Z",
+    "phaseStarted": "2026-06-30T11:05:25.476Z"
+  }
+}

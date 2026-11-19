@@ -1,0 +1,475 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Task Routing API",
+    "description": "Endpoints for task workflow routing based on duty sequences",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/tasks/{taskId}/route-next-duty": {
+      "post": {
+        "summary": "Route task to next duty in workflow sequence",
+        "description": "When a task is completed by current duty, automatically determine and assign to next duty in sequence (Developer → Design → Review → QA → Final → Publish). Returns auto-assignment result or options for manual selection.",
+        "operationId": "routeTaskToNextDuty",
+        "tags": ["Task Routing"],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Task ID to route to next duty"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "manualAssigneeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Optional: If multiple team members available for next duty, specify which one to assign"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task routing result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": ["autoAssigned"]
+                        },
+                        "taskId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "currentDuty": {
+                          "type": "string",
+                          "description": "Duty that just completed the task"
+                        },
+                        "nextDuty": {
+                          "type": "string",
+                          "description": "Duty now assigned to continue"
+                        },
+                        "assignedToUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "User auto-assigned to next duty (only one was available)"
+                        },
+                        "assignedToUserName": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Task auto-assigned to John Doe (QA)"
+                        }
+                      },
+                      "description": "Auto-assignment: exactly one team member has the next duty"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": ["requiresManualSelection"]
+                        },
+                        "taskId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "currentDuty": {
+                          "type": "string"
+                        },
+                        "nextDuty": {
+                          "type": "string",
+                        },
+                        "availableTeamMembers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "userId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "userName": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "description": "Team members assigned to next duty (multiple available)"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Multiple team members have QA duty. Please select one."
+                        }
+                      },
+                      "description": "Manual selection required: multiple team members available"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": ["complete"]
+                        },
+                        "taskId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Task has completed all duty stages"
+                        }
+                      },
+                      "description": "Task completed: no more duties in sequence"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": ["assignAllTeamMembers"]
+                        },
+                        "taskId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "assignedCount": {
+                          "type": "integer",
+                          "description": "Number of team members assigned"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Task assigned to all 3 team members (ALL duty on single-source project)"
+                        }
+                      },
+                      "description": "ALL duty: task assigned to all team members without prompting"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request or manual selection required but not provided",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": ["MANUAL_SELECTION_REQUIRED", "NO_TEAM_MEMBERS_AVAILABLE", "INVALID_ASSIGNEE"]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "nextDuty": {
+                      "type": "string",
+                      "description": "The duty that needs assignment"
+                    },
+                    "availableCount": {
+                      "type": "integer",
+                      "description": "For MANUAL_SELECTION_REQUIRED: how many options available"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task or project not found"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/tasks/{taskId}/reassign-duty": {
+      "post": {
+        "summary": "Manually reassign a task to a different duty",
+        "description": "Reassign task from current duty to a different duty (can move backward in sequence or change to any available duty with compliance validation)",
+        "operationId": "reassignTaskDuty",
+        "tags": ["Task Routing"],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "newDutyName": {
+                    "type": "string",
+                    "description": "Name of duty to reassign to"
+                  },
+                  "assignToUserId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "User with the new duty to assign to"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Reason for reassignment (for audit trail)"
+                  }
+                },
+                "required": ["newDutyName", "assignToUserId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task reassignment successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "taskId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "previousDuty": {
+                      "type": "string"
+                    },
+                    "previousAssigneeId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "previousAssigneeName": {
+                      "type": "string"
+                    },
+                    "newDuty": {
+                      "type": "string"
+                    },
+                    "newAssigneeId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "newAssigneeName": {
+                      "type": "string"
+                    },
+                    "reassignedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid reassignment or user does not have target duty",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": ["INVALID_DUTY", "USER_DOES_NOT_HAVE_DUTY", "INVALID_USER"]
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task, user, or duty not found"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/tasks/{taskId}/duty-history": {
+      "get": {
+        "summary": "Get duty assignment history for a task",
+        "description": "Retrieve all duty assignments and reassignments for a task (audit trail)",
+        "operationId": "getTaskDutyHistory",
+        "tags": ["Task Routing"],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Duty assignment history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "dutyName": {
+                        "type": "string"
+                      },
+                      "assignedToUserId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "assignedToUserName": {
+                        "type": "string"
+                      },
+                      "assignedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "completedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "When this duty stage was completed (null if still in progress)"
+                      },
+                      "reason": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Reason for reassignment if applicable"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token from Clerk authentication"
+      }
+    },
+    "schemas": {
+      "RoutingResult": {
+        "type": "object",
+        "discriminator": {
+          "propertyName": "status",
+          "mapping": {
+            "autoAssigned": "#/components/schemas/AutoAssignedResult",
+            "requiresManualSelection": "#/components/schemas/ManualSelectionResult",
+            "complete": "#/components/schemas/CompleteResult"
+          }
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AutoAssignedResult"
+          },
+          {
+            "$ref": "#/components/schemas/ManualSelectionResult"
+          },
+          {
+            "$ref": "#/components/schemas/CompleteResult"
+          }
+        ]
+      },
+      "AutoAssignedResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["autoAssigned"]
+          },
+          "assignedToUserId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ManualSelectionResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["requiresManualSelection"]
+          },
+          "availableTeamMembers": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "CompleteResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["complete"]
+          }
+        }
+      }
+    }
+  }
+}

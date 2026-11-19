@@ -1,0 +1,93 @@
+{
+  "specNumber": "017",
+  "specName": "Consultant Dashboard",
+  "status": "ready",
+  "createdAt": "2026-03-18",
+  "updatedAt": "2026-03-18",
+  "dependsOn": ["002-Scope", "005-scope-timeandBilling"],
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Database & API Foundation",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "4 database tables with migrations",
+        "Encryption service (AES-256-GCM)",
+        "24 API endpoints",
+        "Unit tests for API"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Dashboard UI",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "ConsultantDashboard layout",
+        "ProjectCard, TimeTracker, EarningsWidget components",
+        "Dashboard hooks (useDashboard, useProjects, etc.)",
+        "Dashboard page and routing"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Customer & Connection UI",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "CustomerPanel and CustomerForm components",
+        "ConnectionManager and ConnectionForm components",
+        "ConnectionList and ConnectionCard components",
+        "Customer and connection pages"
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Sync & Audit Features",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "SyncDialog and SyncProgress components",
+        "AuditLogViewer component",
+        "Health monitoring hooks",
+        "Time & billing components"
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "Security & Background Jobs",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "Credential scope middleware",
+        "Audit logging system",
+        "Health monitoring job",
+        "wxAI command handlers"
+      ]
+    },
+    {
+      "phase": 6,
+      "name": "Testing & Documentation",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "Unit tests (90%+ coverage)",
+        "Integration tests",
+        "E2E tests",
+        "Documentation"
+      ]
+    }
+  ],
+  "totalTasks": 135,
+  "completedTasks": 0,
+  "progress": 0,
+  "priority": "high",
+  "estimatedEffort": "5-6 days",
+  "team": ["frontend", "backend", "security"],
+  "tags": ["dashboard", "time-tracking", "billing", "integrations", "security"],
+  "compliance": ["SOC2", "GDPR"],
+  "securityLevel": "high",
+  "encryptionRequired": true,
+  "auditLoggingRequired": true
+}

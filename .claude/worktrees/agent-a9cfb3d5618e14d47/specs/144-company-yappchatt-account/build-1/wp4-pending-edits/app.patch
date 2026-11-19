@@ -1,0 +1,28 @@
+--- app.orig.ts	2026-10-24 10:04:29.296392900 -0500
++++ app.ts	2026-10-24 10:19:35.447191000 -0500
+@@ -21,6 +21,8 @@
+ import agentGrantRoutes from "./routes/agentGrants.js"; // [SCOPE 134 / T027]
+ import agentConnectRoutes from "./routes/agentConnect.js"; // [SCOPE 134 / T028]
+ import projectAgentRoutes from "./routes/projectAgent.js"; // [SCOPE 134 / T029]
++import companyYappchattRoutes from "./routes/companyYappchatt.js"; // [SCOPE 144 / T006]
++import { yappchattSyncObserver } from "./services/CompanyYappchattService.js"; // [SCOPE 144 / T007]
+ import changeImpactRoutes from "./routes/changeImpact.js"; // [SCOPE 137 / T014]
+ import impactModeRoutes from "./routes/impactMode.js"; // [SCOPE 137 / T019]
+ import teachingSkillsRoutes from "./routes/teachingSkills.js"; // [SCOPE 138 / T011]
+@@ -157,11 +159,16 @@
+   // Inert unless SUBSCRIPTION_GATE_ENFORCE is set to `log` or `on`.
+   app.use(requireActiveSubscription);
+ 
++  // [SCOPE 144 / T007] Membership sync after user and engagement changes. Watches the
++  // response finish, so it never blocks or fails the routes it follows.
++  app.use(yappchattSyncObserver);
+   app.use("/api/auth", authRoutes);
+   // [SCOPE 134 / T026] Agent admission tickets. requireAdmin on every mutating route.
+   // MUST precede companyRoutes: its GET /:id stub answers GET /agent-tokens with a
+   // 200 and no `tokens`, which crashed the Company tab of Settings.
+   app.use("/api/company/agent-tokens", agentTokenRoutes);
++  // [SCOPE 144 / T006] Company YappChatt account. Same reason to precede companyRoutes.
++  app.use("/api/company/yappchatt", companyYappchattRoutes);
+   app.use("/api/company", companyRoutes);
+   app.use("/api/pm-systems", pmSystemsRoutes);
+   app.use("/api/projects", projectsRoutes);

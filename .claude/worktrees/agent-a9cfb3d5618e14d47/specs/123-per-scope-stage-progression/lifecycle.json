@@ -1,0 +1,103 @@
+{
+  "specNumber": "123",
+  "specId": "6c83c489-f16a-47fe-8627-00d82c6242d4",
+  "featureName": "Per-Scope Stage Progression",
+  "projectId": "ba924193-0335-4080-9fa6-33cd6b81300a",
+  "currentPhase": "design",
+  "status": "planned",
+  "priority": "critical",
+  "createdAt": "2026-08-05T19:31:25.614Z",
+  "progress": {
+    "totalTasks": 14,
+    "completed": 0,
+    "inProgress": 0,
+    "blocked": 0,
+    "todo": 14,
+    "percentComplete": 0
+  },
+  "phases": [
+    {
+      "name": "scoping",
+      "status": "complete",
+      "startedAt": "2026-08-05",
+      "completedAt": "2026-08-05",
+      "note": "SCOPE-123 authored from 7 field reports across 3 projects; preflight 100"
+    },
+    {
+      "name": "design",
+      "status": "in_progress",
+      "startedAt": "2026-08-05",
+      "completedAt": null
+    },
+    {
+      "name": "implementation",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "human_testing",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "beta",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "released",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    }
+  ],
+  "documents": {},
+  "scopeDocument": "specs/Project-Scope/123-per-scope-stage-progression.md",
+  "blockers": [],
+  "openQuestions": [
+    "Where the FR-003 advance is placed: shared service or database trigger. It must be ONE place reachable by both the app task service and the MCP tool.",
+    "The derivation rule for a project rollup stage (FR-006): lowest scope stage, highest, or most common. The choice is visible to customers on the board.",
+    "Whether the FR-007 backfill runs automatically on upgrade or as an explicit command."
+  ],
+  "origin": {
+    "type": "field-reports",
+    "count": 5,
+    "date": "2026-08-05",
+    "feedbackIds": [
+      "600d11d2-bc02-40cc-bb4d-d43cc5eadb61",
+      "7fee37ad",
+      "8369ad91",
+      "0304ff5d",
+      "15429454"
+    ]
+  },
+  "updatedAt": "2026-08-05T19:31:25.614Z",
+  "decisions": [
+    {
+      "id": "Stage ownership",
+      "decidedAt": "2026-08-05",
+      "decision": "A stage belongs to a scope, not a project; each scope moves independently once its tasks complete; a project never stops a scope from moving.",
+      "rationale": "Stated by the product owner. Settles two questions open at drafting: scope-driven advance is the model rather than a governance decision, and no project-stage advance command is needed because the project stage stops being a gate.",
+      "consequence": "resolveCurrentPhase is demoted to display/rollup only, and projectspecifications.phaseid loses its readers."
+    },
+    {
+      "id": "SCOPE-122 sequencing",
+      "decidedAt": "2026-08-05",
+      "decision": "SCOPE-122 is a hard predecessor.",
+      "rationale": "FR-009 consumes its unified vocabulary; building 123 first would wire specificationphases while four vocabularies disagree.",
+      "consequence": "123 cannot start until 122 lands."
+    }
+  ],
+  "spansServer": false,
+  "crossRepo": false,
+  "ddl": "none \u2014 every table already exists in production"
+}

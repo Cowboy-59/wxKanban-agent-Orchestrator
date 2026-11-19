@@ -1,0 +1,65 @@
+# wxkanban-agent kit — recommended .gitignore entries
+# Paste into your project's .gitignore. None of these belong in version control.
+
+# Spec 027 — per-developer transient runtime state (port, PID, parent PID).
+# Cleared automatically by the parent-watcher when VS Code exits.
+.wxai/kit-runtime.json
+
+# Phase 1B — cached, signed entitlement token (per-developer license state).
+# Machine-local; never commit. Refreshed automatically from wxKanban when online.
+.wxai/.entitlement
+
+# Spec 028 — kit:configure writes an API token into the `kit` block of
+# .wxai/project.json. Treat the whole file as a secret-bearing artifact;
+# either ignore it (default below) and re-run kit:configure per checkout,
+# or commit it with the `kit` block stripped before push.
+.wxai/project.json
+
+# Legacy MCP pid file (pre-027 — still honored as a fallback by kit:stop).
+.mcp-server.pid
+
+# Legacy pre-028 token/credentials file. Safe to remove after migrating.
+.wxkanban-project.json
+
+# Local-only legacy hashes for spec 026 auditfences --baseline.
+# Captured once per machine; safe to leave gitignored.
+.wxai/auditfences-legacy.json
+
+# SPEC-149 FR-005 — HANDOFF REMOTE summaries and the Project Agent's recorded start refusal.
+# Short-lived, per-developer state; never commit.
+**/.wxai/handoff/
+**/.wxai/project-agent-status.json
+# SPEC-150 FR-014 — records that the retired room key notice was shown, so it never repeats.
+**/.wxai/retired-room-keys-notice.json
+# SPEC-151 — the Project Agent's room token (a live yca_ credential). Never commit.
+**/.wxai/agent-room.json
+
+# Kit runtime logs.
+logs/
+
+# SCOPE-083 Amendment A FR-009 (T013) — the session-start kit update check rewrites this
+# on every boot. Per-developer state; nothing here is meaningful to a teammate.
+.wxai/kit-update-check.json
+
+# SCOPE-121 FR-015 — upgrade snapshots. The archive is the current form; the bare
+# directory is the pre-Amendment-B form and the staging dir is what a crashed run
+# leaves behind. Each is a full copy of the kit, so none belong in the repository.
+.wxai/kit-upgrade-snapshot-*
+.wxai/kit-staging-*
+
+# SCOPE-083 Amendment A FR-009 (T013) — the kit's own build and dependency output.
+# These are also why the pre-amendment author-repo heuristic misfired: it ran
+# `git status --porcelain` over these paths, --porcelain reports UNTRACKED files,
+# and so any consumer who had installed the kit's dependencies read as the kit
+# AUTHOR and silently lost their update check. The heuristic is gone, but the kit
+# should not be dirtying the tree with its own artifacts either way.
+wxkanban-agent/node_modules/
+wxkanban-agent/dist/
+mcp-server/node_modules/
+mcp-server/dist/
+mcp-server/logs/
+
+# Local env overrides.
+.env
+.env.local
+mcp-server/.env

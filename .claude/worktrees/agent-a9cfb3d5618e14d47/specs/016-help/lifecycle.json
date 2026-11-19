@@ -1,0 +1,63 @@
+{
+  "feature": "016-help",
+  "spec": "specs/016-help/spec.md",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Design",
+      "status": "complete",
+      "enteredAt": "2025-01-08T00:00:00Z",
+      "completedAt": "2025-01-08T00:00:00Z",
+      "artifacts": [
+        "specs/016-help/spec.md",
+        "specs/016-help/plan.md",
+        "specs/016-help/tasks.md"
+      ],
+      "notes": "Help System feature. Basic documentation with spec, plan, and tasks. Minimal feature set."
+    },
+    {
+      "phase": 2,
+      "name": "Implementation",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null,
+      "notes": "Awaiting implementation start."
+    },
+    {
+      "phase": 3,
+      "name": "QA Testing",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null
+    },
+    {
+      "phase": 4,
+      "name": "Human Testing",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null
+    },
+    {
+      "phase": 5,
+      "name": "Beta Release",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null
+    },
+    {
+      "phase": 6,
+      "name": "Release",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null
+    }
+  ],
+  "transitionHistory": [
+    {
+      "from": null,
+      "to": "Design",
+      "timestamp": "2025-01-08T00:00:00Z",
+      "reason": "Feature initiated — Help System specification created"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "specNumber": "112",
+  "featureName": "Compliance Enablement Repair",
+  "scope": "SCOPE-113",
+  "status": "implementing",
+  "phase": "implementation",
+  "currentPhase": "implementation",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 11,
+    "tasksCompleted": 9,
+    "tasksPartial": 2,
+    "percentage": 82
+  },
+  "timeline": {
+    "created": "2026-07-27T00:00:00.000Z",
+    "phaseStarted": "2026-07-28T00:00:00.000Z",
+    "lastReconciled": "2026-08-04T00:00:00.000Z"
+  },
+  "phases": [
+    {
+      "name": "design",
+      "status": "complete",
+      "startedAt": "2026-07-27T00:00:00.000Z",
+      "completedAt": "2026-07-28T00:00:00.000Z"
+    },
+    {
+      "name": "implementation",
+      "status": "in_progress",
+      "startedAt": "2026-07-28T00:00:00.000Z",
+      "completedAt": null
+    },
+    { "name": "qa", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "human_testing", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "beta", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "released", "status": "pending", "startedAt": null, "completedAt": null }
+  ],
+  "tasks": {
+    "done": ["T001", "T002", "T004", "T005", "T006", "T007", "T009", "T010", "T011"],
+    "open": ["T003", "T008"]
+  },
+  "openTasks": [
+    {
+      "id": "T003",
+      "title": "Fix project.get_audit_config with a failing regression test",
+      "status": "partial",
+      "note": "The re-key shipped in 9e93da4d. The task's actual requirement — write the failing regression test FIRST — is not met; no such test exists, so the re-key is verified by manual inspection only, which is what the task was written to prevent."
+    },
+    {
+      "id": "T008",
+      "title": "Build per-project compliance settings UI",
+      "status": "partial",
+      "note": "Per-project framework enablement ships in the AdminDashboard Edit Audit modal, fenced [SCOPE 112 / T006], carrying all six frameworks. AuditConfigPanel is project-scoped and ADMIN-gated but renders only four toggles — nistssdfenabled and iso27001enabled have columns, an API contract and an MCP surface, but no control in that panel."
+    }
+  ],
+  "shippedArtifacts": {
+    "migrations": [
+      "0010_spec112_per_project_audit_config.sql",
+      "0011_spec112_soc2_check_corpus.sql",
+      "0012_spec112_harvest_securityclassification.sql",
+      "0013_spec112_drop_audittype.sql",
+      "0016_spec112_honest_automation_flags.sql"
+    ],
+    "soc2Catalog": { "controls": 119, "machineChecked": 12 }
+  },
+  "notes": [
+    "Reconciled 2026-08-04. The prior file read phase 'design', 0 of 10 complete, which was stale on every count: nine tasks are done, the migrations are applied to production, and the table in tasks.md carries 11 tasks — T011 was added by Amendment A and never reached this file.",
+    "tasks.md is internally inconsistent on T010 and the table is the correct half: its header note records 0013 dropping audittype at 13:58Z on 2026-07-28, while the T010 detail section below still reads 'WRITTEN, NOT RUN'. The detail text is stale, not the status.",
+    "SPEC-113 depends on this spec. Neither open task blocks it — 113's blocker is its own unbuilt crosswalk."
+  ]
+}

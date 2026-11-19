@@ -1,0 +1,54 @@
+{
+  "specNumber": "020",
+  "featureName": "Consultant Work Hub",
+  "currentPhase": 2,
+  "status": "implementation",
+  "progress": 20,
+  "phases": [
+    {
+      "phase": 0,
+      "name": "Scoping",
+      "status": "completed",
+      "startedAt": "2026-04-01T22:50:38.504Z",
+      "completedAt": "2026-05-12T00:00:00.000Z"
+    },
+    {
+      "phase": 1,
+      "name": "Design",
+      "status": "completed",
+      "startedAt": "2026-05-12T00:00:00.000Z",
+      "completedAt": "2026-05-12T00:00:00.000Z",
+      "note": "Schema + API + component design captured inline in spec.md during buildscope; no separate design artifacts produced."
+    },
+    {
+      "phase": 2,
+      "name": "Implementation",
+      "status": "active",
+      "startedAt": "2026-05-12T00:00:00.000Z"
+    },
+    {
+      "phase": 3,
+      "name": "QA Testing",
+      "status": "pending"
+    },
+    {
+      "phase": 4,
+      "name": "Human Testing",
+      "status": "pending"
+    },
+    {
+      "phase": 5,
+      "name": "Beta Release",
+      "status": "pending"
+    },
+    {
+      "phase": 6,
+      "name": "Released",
+      "status": "pending"
+    }
+  ],
+  "createdAt": "2026-04-01T22:50:38.504Z",
+  "updatedAt": "2026-05-12T00:00:00.000Z",
+  "lastRefinedAt": "2026-05-12T00:00:00.000Z",
+  "deferredToScope021": ["FR-010 team management"]
+}

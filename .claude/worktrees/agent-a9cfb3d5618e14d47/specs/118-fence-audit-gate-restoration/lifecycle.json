@@ -1,0 +1,62 @@
+{
+  "specNumber": "118",
+  "specId": "31229318-601c-4206-ba37-b82669d9ef18",
+  "title": "Fence Audit Gate Restoration",
+  "status": "implementing",
+  "currentPhase": "implementation",
+  "priority": "high",
+  "createdAt": "2026-07-31T11:20:26.613Z",
+  "scopeRef": "specs/Project-Scope/118-fence-audit-gate-restoration.md",
+  "progress": {
+    "totalTasks": 9,
+    "completed": 0,
+    "inProgress": 0,
+    "blocked": 0,
+    "percentComplete": 0
+  },
+  "phases": [
+    {
+      "name": "design",
+      "status": "complete",
+      "startedAt": "2026-07-31T10:50:00.000Z",
+      "completedAt": "2026-07-31T11:20:26.613Z",
+      "note": "Scope built interactively, section by section; preflight score 100."
+    },
+    {
+      "name": "implementation",
+      "status": "in_progress",
+      "startedAt": "2026-07-31T11:20:26.613Z",
+      "completedAt": null,
+      "taskGroups": [
+        { "name": "Phase 1 — Correct the scanning boundary", "tasks": ["T001", "T002"] },
+        { "name": "Phase 2 — Separate the signal", "tasks": ["T003", "T004"] },
+        { "name": "Phase 3 — Prove and stage the gate", "tasks": ["T005", "T006", "T007"] },
+        { "name": "Phase 4 — Ship safely to consumers", "tasks": ["T008", "T009"] }
+      ]
+    },
+    { "name": "qa", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "human_testing", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "beta", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "released", "status": "pending", "startedAt": null, "completedAt": null }
+  ],
+  "compliance": {
+    "frameworks": ["SOC2"],
+    "controls": ["CC8.1", "CC7.1"]
+  },
+  "verificationBaseline": {
+    "capturedAt": "2026-07-31",
+    "branch": "main",
+    "totalErrors": 1893,
+    "filesScanned": 4074,
+    "fencesFound": 839,
+    "errorsInGitignoredPaths": 885,
+    "genuineUnfencedDecl": 795,
+    "unknownTask": 213,
+    "expectedAfterT001": 1008
+  },
+  "openQuestions": [
+    "Disposition of the 213 UNKNOWN_TASK findings — renumbered, archived, or never existed?",
+    "Which release boundary triggers the flip from advisory to blocking?",
+    "Does any consumer rely on auditing paths their .gitignore excludes?"
+  ]
+}

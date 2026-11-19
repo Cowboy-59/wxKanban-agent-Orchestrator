@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Figma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#00B6FF;
+    --primary-active:#00A1E0;
+    --cta-bg:#000000;            /* solid color OR a linear-gradient(...) */
+    --on-primary:#FFFFFF;
+    --dark:#000000;
+    --canvas:#FFFFFF;
+    --canvas-soft:#F5F5F5;
+    --surface:#FFFFFF;
+    --surface-alt:#EBEBEB;
+    --ink:#000000;
+    --ink-secondary:#757575;
+    --ink-faint:#B3B3B3;
+    --ink-placeholder:#B3B3B3;
+    --hairline:#D9D9D9;
+    --hairline-soft:#EBEBEB;
+    --r-xs:2px;--r-sm:8px;--r-md:8px;--r-lg:16px;--r-xl:24px;--r-xxl:24px;--r-full:9999px;
+    --e1:0 1px 2px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.16);
+    --e2:0 10px 15px -3px rgba(0,0,0,0.10), 0 4px 6px rgba(0,0,0,0.05);
+    --font:'Inter','SF Pro Display',system-ui,helvetica,sans-serif;
+    --display-size:56px;
+    --display-weight:400;
+    --section-size:44px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:10px;}
+  h1.display{font-size:var(--display-size);font-weight:var(--display-weight);line-height:1.05;letter-spacing:-1px;}
+  h2.sec{font-size:var(--section-size);font-weight:700;line-height:1.1;letter-spacing:-.5px;margin-bottom:14px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;}
+  .hero{padding:80px 0 64px;}
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-size:14px;font-weight:600;border:none;cursor:pointer;border-radius:var(--r-sm);padding:14px 24px;line-height:1.29;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-accent{background:var(--primary);color:var(--on-primary);}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--ink);padding:13px 23px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:11px 18px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:600;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:600;}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px 16px;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--primary);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:1/1;border-radius:var(--r-md);background:linear-gradient(135deg,var(--surface-alt),var(--hairline));position:relative;overflow:hidden;}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:var(--r-full);font-size:12px;font-weight:600;padding:5px 10px;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+  .listing .l-title{font-weight:600;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:15px;margin-top:2px;}
+  .listing .l-price{margin-top:6px;font-size:15px;}
+  .listing .l-price b{font-weight:600;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--primary);}
+  .plan .price{font-size:48px;font-weight:700;margin:14px 0 4px;line-height:1;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:var(--r-full);}
+  .s-ok{background:var(--surface-alt);color:var(--primary);}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-lg);padding:36px;box-shadow:var(--e1);}
+  .auth h3{font-size:28px;font-weight:700;margin:4px 0 24px;}
+  .auth label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:var(--r-sm);background:#fff;padding:13px;font-size:14px;font-weight:600;cursor:pointer;}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:48px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Figma</h1>
+  <p class="lede" style="margin-top:28px;">A near-monochrome editorial system — paper-white canvas, ink-black type and CTAs, one 54% grey for secondary voice — energised by a single electric blue (#00B6FF) and set in Figma's proprietary variable grotesque, figmaSans (shown here substituted with Inter).</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Get started</button>
+    <button class="btn btn-secondary">Contact sales</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Hierarchy is built from size and tracking, not weight: regular-weight headlines run huge with tight negative tracking, while body sits a hair heavier (a ~330 variable weight) at a relaxed 1.4 line-height.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Get started</button><div class="desc">Solid ink-black, 8px radius, 12x22 padding — Figma's real primary action.</div></div>
+    <div class="ccard"><div class="lbl">button-accent</div><button class="btn btn-accent">See what's new</button><div class="desc">The signature #00B6FF. On the live site the blue is reserved for accents, focus and the canvas gradient rather than buttons.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">Contact sales</button><div class="desc">Transparent fill with ink text, sitting beside the primary as the quieter 'Contact sales'.</div></div>
+    <div class="ccard"><div class="lbl">button-pill</div><button class="btn btn-pill">Watch demo</button><div class="desc">Fully-rounded utility pill on an 8%-black fill, used for tags and minor controls.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Figma Design</a><a href="#">FigJam</a><div class="desc">Inline links are ink-black and underlined; the blue accent is spent sparingly.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Cards are flat by default — a 1px hairline and an 8px radius with no resting shadow. Hover lifts them to the menu-level shadow.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="you@company.com"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Tell us about your team..."></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">Built on a 4px base unit, stepping 4 / 8 / 12 / 16 / 24 / 32 / 48 with very large gaps between full-bleed sections.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">Restrained corners: 8px on buttons and cards, 2-4px on small controls, fully round for avatars and pills.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The default — most surfaces are defined by a hairline, not a shadow.</div>
+    <div class="e l1">Level 1 — a 1px inset ring at 16% black plus a faint drop, the subtlest possible lift.</div>
+    <div class="e l2">Level 2 — reserved for menus and dropdowns — a soft layered shadow that genuinely floats.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Single column; display type drops to ~40px; bands stack but keep their inverted colour.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Two-column card galleries; hero headline eases to ~48px.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Three-to-four-column galleries; full display scale returns.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Centred wide measure; 56px hero; maximum vertical breathing room.</td></tr>
+  </table>
+  <p class="note">The layout behaves like an editorial column rather than a dashboard — wide, airy and type-led at every breakpoint.</p>
+</div></section>
+
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Pricing Tiers</h2>
+  <p class="lede">Figma's real plan ladder rendered in the system's own flat cards, with a black 'most popular' tier standing in for the inverted bands.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Starter</span></div><div class="price">$0<span> / editor / mo</span></div><div class="blurb">For individuals trying Figma out.</div><ul><li>3 Figma and FigJam files</li><li>Unlimited collaborators</li><li>Basic templates and plugins</li></ul><button class="btn btn-block-dark">Get started</button></div>
+    <div class="plan feat"><div class="tier"><span>Professional</span><span class="pop">● Most popular</span></div><div class="price">$16<span> / editor / mo</span></div><div class="blurb">For growing product teams.</div><ul><li>Unlimited files</li><li>Shared team libraries</li><li>Dev Mode and version history</li><li>Audio and voting</li></ul><button class="btn btn-block-dark">Get started</button></div>
+    <div class="plan"><div class="tier"><span>Organization</span></div><div class="price">$45<span> / editor / mo</span></div><div class="blurb">For whole orgs building together.</div><ul><li>Org-wide design systems</li><li>SSO and advanced security</li><li>Design system analytics</li><li>Centralized administration</li></ul><button class="btn btn-block-dark">Contact sales</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Data Table</h2>
+  <p class="lede">A dense table in the same hairline-and-flat language Figma uses across its file and admin views.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>ID</th><th>Project</th><th>Owner</th><th>Status</th><th>When</th></tr>
+      <tr><td>#4821</td><td>Mobile app redesign</td><td>A. Rivera</td><td><span class="status s-ok">Active</span></td><td>2h ago</td></tr><tr><td>#4820</td><td>Design system v3</td><td>J. Okafor</td><td><span class="status s-ok">Active</span></td><td>5h ago</td></tr><tr><td>#4815</td><td>Marketing site refresh</td><td>L. Chen</td><td><span class="status s-pend">Draft</span></td><td>Yesterday</td></tr><tr><td>#4809</td><td>Onboarding flow</td><td>M. Santos</td><td><span class="status s-pend">Draft</span></td><td>2 days ago</td></tr><tr><td>#4802</td><td>Brand guidelines</td><td>R. Patel</td><td><span class="status s-ok">Active</span></td><td>3 days ago</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Auth Forms</h2>
+  <p class="lede">Sign-in and sign-up in the system's plain, type-led forms — ink labels, hairline inputs and an SSO fallback.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@company.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Google</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Create your account</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@company.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Google</button></div>
+  </div>
+</div></section>
+
+<script>
+// Replace each array below with the extracted tokens.
+const colors = [["primary", "#00B6FF", "Signature Figma blue \u2014 accents, focus, canvas gradient"], ["accent gradient", "conic-ray", "The hero spoke pattern behind the headline", "repeating-conic-gradient(#00B6FF 0deg,#00B6FF 18deg,transparent 18deg,transparent 30deg)"], ["dark", "#000000", "Primary CTA surface and full-bleed inverted bands"], ["ink", "#000000", "Headings and body \u2014 pure black, dominant"], ["ink-secondary", "#757575", "Eyebrows and secondary copy (black at 54%)"], ["ink-faint", "#B3B3B3", "Captions and placeholder text"], ["canvas", "#FFFFFF", "Page background"], ["canvas-soft", "#F5F5F5", "Soft section band (black at 4%)"], ["surface-alt", "#EBEBEB", "Chips and hover fill (black at 8%)"], ["hairline", "#D9D9D9", "1px borders and dividers (black at ~16%)"], ["on-primary", "#FFFFFF", "Text on the blue accent and inverted bands"], ["on-dark hairline", "16% white", "Dividers inside black bands", "#171717"]];
+// Format: [["name","#hex","role"], ...]   Use background:"linear-gradient(...)" via a 4th item if needed.
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [["display-1", "56px \u00b7 400 \u00b7 -1.25px \u00b7 lh 1.0", "The intelligent canvas", "font-size:40px;font-weight:400;letter-spacing:-1px;line-height:1.05"], ["display-2", "44px \u00b7 400 \u00b7 -0.66px \u00b7 lh 1.1", "Designed in Figma", "font-size:34px;font-weight:400;letter-spacing:-.6px;line-height:1.1"], ["heading-1", "30px \u00b7 400 \u00b7 -0.4px", "What you can do in Figma", "font-size:28px;font-weight:400;letter-spacing:-.4px"], ["heading-2", "24px \u00b7 400 \u00b7 -0.2px", "Explore all products", "font-size:23px;font-weight:400;letter-spacing:-.2px"], ["title", "18px \u00b7 500", "Figma Design", "font-size:18px;font-weight:600"], ["body-lg", "18px \u00b7 330 \u00b7 lh 1.4", "Ideas no longer have to wait for the right tool \u2014 they start right here on the canvas.", "font-size:18px;font-weight:400;line-height:1.4"], ["body-md", "16px \u00b7 400 \u00b7 lh 1.5", "The products you love are designed and built with Figma every day.", "font-size:16px;font-weight:400;line-height:1.5"], ["body-sm", "14px \u00b7 400", "Helper and supporting text in the smaller body tier.", "font-size:14px;color:#757575"], ["button", "16px \u00b7 400", "Get started", "font-size:16px;font-weight:600"], ["eyebrow", "14px \u00b7 400 \u00b7 0.5px \u00b7 UPPER", "USE CASES", "font-size:14px;font-weight:400;letter-spacing:.5px;text-transform:uppercase;color:#757575"], ["caption", "13px \u00b7 400", "Captions, footnotes and metadata.", "font-size:13px;color:#757575"]];
+// Format: [["token","16px / 400 / 1.5","Sample text","inline-style"], ...]
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs", "4px", 8], ["xs", "8px", 14], ["sm", "12px", 20], ["md", "16px", 28], ["lg", "24px", 42], ["xl", "32px", 56], ["xxl", "48px", 84]];
+// Format: [["xs","8px",24], ...]  (3rd value = bar height px for display)
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs", "2px", "2"], ["sm", "4px", "4"], ["md", "8px", "8"], ["lg", "16px", "16"], ["xl", "24px", "24"], ["full", "9999px", "\u221e"]];
+// Format: [["sm","8px","8"], ... , ["full","9999px","∞"]]
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [["Figma Design", "Design and prototype interfaces", "<b>Try it free</b>", "", "Popular"], ["FigJam", "Online whiteboard for teams", "<b>Try it free</b>", "", ""], ["Figma Slides", "Decks built to collaborate", "<b>New</b>", "", "New"], ["Dev Mode", "From design straight to code", "<b>For devs</b>", "", ""]];
+// Format: [["Card title","subtitle","headline","meta","badge or empty"], ...]
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

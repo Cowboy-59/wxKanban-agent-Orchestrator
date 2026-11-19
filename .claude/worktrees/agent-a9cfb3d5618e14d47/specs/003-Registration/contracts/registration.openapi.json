@@ -1,0 +1,255 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "wxKanban Registration API",
+    "description": "Company registration, subscription tier selection, and admin account creation",
+    "version": "1.0.0",
+    "contact": {
+      "name": "wxKanban API Support",
+      "url": "https://wxkanban.io/support"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.wxkanban.io/api",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register new company and create admin account",
+        "description": "Complete registration flow: collect company info, select tier, optionally process payment, create admin user",
+        "operationId": "registerCompany",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "companyName",
+                  "billingEmail",
+                  "billingAddress",
+                  "billingCountry",
+                  "billingPhone",
+                  "subscriptionTier",
+                  "adminEmail",
+                  "adminPassword",
+                  "adminFirstName"
+                ],
+                "properties": {
+                  "companyName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 255,
+                    "description": "Legal company name"
+                  },
+                  "billingEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Primary contact email for invoices"
+                  },
+                  "billingAddress": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 500,
+                    "description": "Full billing address (street, city, state, zip)"
+                  },
+                  "billingCountry": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$",
+                    "description": "ISO 3166-1 alpha-2 country code (e.g., 'US')"
+                  },
+                  "billingPhone": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 20,
+                    "description": "Company phone number"
+                  },
+                  "subscriptionTier": {
+                    "type": "string",
+                    "enum": ["FREE", "CONSULTANT", "ENTERPRISE"],
+                    "description": "Pricing tier selection"
+                  },
+                  "adminEmail": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email for admin account (unique per company)"
+                  },
+                  "adminPassword": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128,
+                    "description": "Admin account password (must contain uppercase, lowercase, number, special char)"
+                  },
+                  "adminFirstName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "Admin's first name"
+                  },
+                  "adminLastName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "Admin's last name (optional)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Company and admin account created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Company registered. Check your email to verify account."
+                    },
+                    "company": {
+                      "type": "object",
+                      "properties": {
+                        "companyId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Unique company identifier"
+                        },
+                        "companyName": {
+                          "type": "string"
+                        },
+                        "subscriptionTier": {
+                          "type": "string",
+                          "enum": ["FREE", "CONSULTANT", "ENTERPRISE"]
+                        },
+                        "subscriptionStatus": {
+                          "type": "string",
+                          "enum": ["ACTIVE", "PAYMENT_REQUIRED", "CANCELLED"]
+                        }
+                      }
+                    },
+                    "admin": {
+                      "type": "object",
+                      "properties": {
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["PENDING", "ACTIVE"],
+                          "description": "PENDING until email verification"
+                        }
+                      }
+                    },
+                    "nextStep": {
+                      "type": "string",
+                      "enum": ["verify_email", "complete_onboarding"],
+                      "description": "What user should do next"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "example": {
+                        "companyName": ["Must be 2-255 characters"],
+                        "adminPassword": ["Must contain uppercase, lowercase, number, and special character"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email or company name already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Company name already registered"
+                    },
+                    "field": {
+                      "type": "string",
+                      "enum": ["companyName", "billingEmail", "adminEmail"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error (e.g., Stripe API failure)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Failed to process registration. Please try again."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

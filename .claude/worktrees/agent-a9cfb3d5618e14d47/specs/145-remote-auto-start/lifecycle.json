@@ -1,0 +1,15 @@
+{
+  "specNumber": "145",
+  "featureName": "Remote Auto-Start",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 12,
+    "tasksCompleted": 10,
+    "percentage": 83
+  },
+  "timeline": {
+    "created": "2026-10-25T11:35:07.718Z",
+    "phaseStarted": "2026-10-25T11:35:07.718Z"
+  }
+}

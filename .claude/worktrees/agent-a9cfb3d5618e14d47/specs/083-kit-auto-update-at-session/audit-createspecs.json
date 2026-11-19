@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-07-01T12:53:22.475Z",
+  "command": "createspecs",
+  "input": {
+    "specNumber": "083",
+    "featureName": "Kit auto-update — notify + confirm-apply at session start",
+    "phase": "implementation"
+  },
+  "result": {
+    "specNumber": "083",
+    "featureName": "Kit auto-update — notify + confirm-apply at session start",
+    "specDir": "specs\\083-kit-auto-update--notify--confirm-apply-at-session-start",
+    "filesCreated": [
+      "specs\\083-kit-auto-update--notify--confirm-apply-at-session-start\\spec.md",
+      "specs\\083-kit-auto-update--notify--confirm-apply-at-session-start\\plan.md",
+      "specs\\083-kit-auto-update--notify--confirm-apply-at-session-start\\tasks.md",
+      "specs\\083-kit-auto-update--notify--confirm-apply-at-session-start\\tests.md",
+      "specs\\083-kit-auto-update--notify--confirm-apply-at-session-start\\lifecycle.json",
+      "specs\\083-kit-auto-update--notify--confirm-apply-at-session-start\\quickstart.md",
+      "specs\\083-kit-auto-update--notify--confirm-apply-at-session-start\\checklists\\requirements.md"
+    ],
+    "tasksCreated": 5,
+    "testsGenerated": true,
+    "lifecycleGenerated": true
+  },
+  "user": "andy@wxperts.com"
+}

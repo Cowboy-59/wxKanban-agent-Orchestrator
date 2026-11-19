@@ -1,0 +1,8 @@
+#!/bin/sh
+# [SCOPE 058 / T018] post-checkout — claim a scope/NNN-* branch in wxKanban.
+# git passes: $1=prev HEAD, $2=new HEAD, $3=1 when this is a branch checkout.
+# Best-effort and NON-BLOCKING: delegates to the node helper, never fails the checkout.
+[ "$3" = "1" ] || exit 0
+command -v node >/dev/null 2>&1 || exit 0
+node "$(git rev-parse --show-toplevel)/scripts/wxkanban-scope-hook.mjs" checkout || true
+exit 0

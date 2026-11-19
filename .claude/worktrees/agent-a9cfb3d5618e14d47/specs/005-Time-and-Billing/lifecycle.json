@@ -1,0 +1,15 @@
+{
+  "specNumber": "005",
+  "featureName": "Time and Billing",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 21,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-11-01T23:56:16.447Z",
+    "phaseStarted": "2026-11-01T23:56:16.447Z"
+  }
+}

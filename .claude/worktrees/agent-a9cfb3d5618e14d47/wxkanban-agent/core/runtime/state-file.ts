@@ -1,0 +1,152 @@
+import { readFileSync, writeFileSync, renameSync, unlinkSync, mkdirSync, existsSync } from "fs";
+import { join, dirname } from "path";
+
+export const RUNTIME_STATE_SCHEMA_VERSION = 1;
+export const RUNTIME_STATE_PATH = ".wxai/kit-runtime.json";
+
+// Hosted-MCP only (spec 028 / 042 cleanup): the MCP is never a locally-tracked
+// service — it lives at mcp.wxperts.com and is resolved via resolveMcpBaseUrl().
+// The only service the kit starts/tracks locally is the orchestrator gateway.
+export type ServiceName = "gateway";
+
+export interface ServiceEntry {
+  port: number;
+  pid: number;
+  parentpid: number;
+  startedAt: string;
+  cmd: string;
+  // [SCOPE 068] Project that owns this gateway — recorded so dead/foreign
+  // entries can be cross-checked. Optional for back-compat with older files.
+  projectId?: string;
+}
+
+export interface RuntimeState {
+  schemaVersion: number;
+  services: Partial<Record<ServiceName, ServiceEntry>>;
+}
+
+// [SCOPE 027 / T001] BEGIN — core/runtime/state-file.ts — atomic read/write
+export function readRuntimeState(projectRoot: string = process.cwd()): RuntimeState | null {
+  const absPath = join(projectRoot, RUNTIME_STATE_PATH);
+  if (!existsSync(absPath)) return null;
+  let raw: string;
+  try {
+    raw = readFileSync(absPath, "utf-8");
+  } catch {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const rec = parsed as Record<string, unknown>;
+  if (rec["schemaVersion"] !== RUNTIME_STATE_SCHEMA_VERSION) return null;
+  const services = (rec["services"] as RuntimeState["services"]) ?? {};
+  return { schemaVersion: RUNTIME_STATE_SCHEMA_VERSION, services };
+}
+// [SCOPE 027 / T001] END
+
+// [SCOPE 027 / T001] BEGIN — core/runtime/state-file.ts — atomic read/write
+export function writeServiceEntry(
+  name: ServiceName,
+  entry: ServiceEntry,
+  projectRoot: string = process.cwd(),
+): void {
+  const absPath = join(projectRoot, RUNTIME_STATE_PATH);
+  const dir = dirname(absPath);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  const current = readRuntimeState(projectRoot) ?? {
+    schemaVersion: RUNTIME_STATE_SCHEMA_VERSION,
+    services: {},
+  };
+  current.services[name] = entry;
+  const tmp = `${absPath}.tmp.${process.pid}`;
+  writeFileSync(tmp, JSON.stringify(current, null, 2));
+  renameSync(tmp, absPath);
+}
+// [SCOPE 027 / T001] END
+
+// [SCOPE 027 / T001] BEGIN — core/runtime/state-file.ts — atomic read/write
+export function removeServiceEntry(
+  name: ServiceName,
+  projectRoot: string = process.cwd(),
+): void {
+  const absPath = join(projectRoot, RUNTIME_STATE_PATH);
+  if (!existsSync(absPath)) return;
+  const current = readRuntimeState(projectRoot);
+  if (!current) return;
+  delete current.services[name];
+  if (Object.keys(current.services).length === 0) {
+    try {
+      unlinkSync(absPath);
+    } catch {
+      // best effort
+    }
+    return;
+  }
+  const tmp = `${absPath}.tmp.${process.pid}`;
+  writeFileSync(tmp, JSON.stringify(current, null, 2));
+  renameSync(tmp, absPath);
+}
+// [SCOPE 027 / T001] END
+
+// [SCOPE 027 / T001] BEGIN — core/runtime/state-file.ts — atomic read/write
+export function isPidAlive(pid: number): boolean {
+  if (!Number.isFinite(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ESRCH") return false;
+    if (code === "EPERM") return true;
+    return false;
+  }
+}
+// [SCOPE 027 / T001] END
+
+// [SCOPE 068 / FR-004] BEGIN — reap dead service entries
+/**
+ * Drop any service entry whose pid is no longer alive, persisting the cleaned
+ * state atomically (or deleting the file when nothing remains). Returns the
+ * cleaned state. Best-effort: a write failure leaves the file untouched and
+ * returns the in-memory cleaned view. Called on gateway start and on client
+ * read so a crashed/`kill -9`'d gateway is never treated as "running".
+ */
+export function reapDeadEntries(
+  projectRoot: string = process.cwd(),
+): RuntimeState | null {
+  const current = readRuntimeState(projectRoot);
+  if (!current) return null;
+
+  const live: RuntimeState["services"] = {};
+  let removed = false;
+  for (const [name, entry] of Object.entries(current.services)) {
+    if (entry && isPidAlive(entry.pid)) {
+      live[name as ServiceName] = entry;
+    } else {
+      removed = true;
+    }
+  }
+  if (!removed) return current;
+
+  const absPath = join(projectRoot, RUNTIME_STATE_PATH);
+  try {
+    if (Object.keys(live).length === 0) {
+      if (existsSync(absPath)) unlinkSync(absPath);
+    } else {
+      const tmp = `${absPath}.tmp.${process.pid}`;
+      writeFileSync(tmp, JSON.stringify({ schemaVersion: RUNTIME_STATE_SCHEMA_VERSION, services: live }, null, 2));
+      renameSync(tmp, absPath);
+    }
+  } catch {
+    // best effort — return the cleaned view even if persistence failed
+  }
+  return { schemaVersion: RUNTIME_STATE_SCHEMA_VERSION, services: live };
+}
+// [SCOPE 068 / FR-004] END

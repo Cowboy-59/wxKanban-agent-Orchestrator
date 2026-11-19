@@ -1,0 +1,15 @@
+{
+  "specNumber": "136",
+  "featureName": "wxG-O-D Development Process Manager",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 29,
+    "tasksCompleted": 4,
+    "percentage": 14
+  },
+  "timeline": {
+    "created": "2026-10-04T00:43:26.572Z",
+    "phaseStarted": "2026-10-04T00:43:26.573Z"
+  }
+}

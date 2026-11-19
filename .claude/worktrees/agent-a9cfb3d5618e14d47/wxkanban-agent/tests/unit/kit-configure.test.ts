@@ -1,0 +1,169 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { mkdtempSync, readFileSync, existsSync, rmSync, mkdirSync, writeFileSync, cpSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { handleKitConfigureCommand } from '../../core/orchestrator/command-handlers/kit-configure';
+
+const VALID_TOKEN = 'wxk_live_' + 'b'.repeat(64);
+// [SCOPE 095 / T004] The real minted format: crypto.randomBytes(32).toString('base64url')
+// → ~43 URL-safe chars, no prefix. kit:configure must accept these (it rejected them before).
+const REAL_TOKEN = '9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0';
+const VALID_PROJECT = '11111111-2222-3333-4444-555555555555';
+
+function freshRoot(): string {
+	const root = mkdtempSync(join(tmpdir(), 'kit-configure-'));
+	return root;
+}
+
+describe('handleKitConfigureCommand', () => {
+	let root: string;
+
+	beforeEach(() => {
+		root = freshRoot();
+	});
+
+	it('rejects a malformed (too-short) token with exit 2', () => {
+		const r = handleKitConfigureCommand({ token: 'short', projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(2);
+		expect(r.message).toMatch(/wxKanban API token/);
+	});
+
+	it('rejects a token containing an invalid character with exit 2', () => {
+		const r = handleKitConfigureCommand({ token: 'has space in it not valid', projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(2);
+	});
+
+	// [SCOPE 095 / T004] The prior regex (^wxk_(live|test)_<64hex>$) rejected every real
+	// token. Both accept-cases below must pass: the aspirational wxk_ form AND the real
+	// base64url form the system actually mints.
+	it('accepts a real base64url minted token (exit 0)', () => {
+		const r = handleKitConfigureCommand({ token: REAL_TOKEN, projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(0);
+	});
+
+	it('accepts the aspirational wxk_ token form (exit 0)', () => {
+		const r = handleKitConfigureCommand({ token: VALID_TOKEN, projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(0);
+	});
+
+	it('rejects a non-https mcp-url with exit 2', () => {
+		const r = handleKitConfigureCommand({
+			token: VALID_TOKEN,
+			projectId: VALID_PROJECT,
+			mcpUrl: 'http://localhost:3002',
+			projectRoot: root,
+		});
+		expect(r.exitCode).toBe(2);
+		expect(r.message).toMatch(/https/);
+	});
+
+	it('writes a fresh .wxai/project.json atomically', () => {
+		const r = handleKitConfigureCommand({
+			token: VALID_TOKEN,
+			projectId: VALID_PROJECT,
+			projectRoot: root,
+		});
+		expect(r.exitCode).toBe(0);
+		const written = r.writtenTo!;
+		expect(existsSync(written)).toBe(true);
+		const json = JSON.parse(readFileSync(written, 'utf-8'));
+		expect(json.kit).toMatchObject({
+			mcpBaseUrl: 'https://mcp.wxperts.com',
+			apiToken: VALID_TOKEN,
+			projectId: VALID_PROJECT,
+		});
+	});
+
+	it('merges into an existing project.json instead of overwriting', () => {
+		const path = join(root, '.wxai', 'project.json');
+		mkdirSync(join(root, '.wxai'), { recursive: true });
+		writeFileSync(path, JSON.stringify({ project: { name: 'demo' }, kit: { stale: true } }), 'utf-8');
+		const r = handleKitConfigureCommand({
+			token: VALID_TOKEN,
+			projectId: VALID_PROJECT,
+			projectRoot: root,
+		});
+		expect(r.exitCode).toBe(0);
+		const json = JSON.parse(readFileSync(path, 'utf-8'));
+		expect(json.project.name).toBe('demo');
+		expect(json.kit.stale).toBe(true);
+		expect(json.kit.apiToken).toBe(VALID_TOKEN);
+	});
+
+	it('redacts the token in the success message', () => {
+		const r = handleKitConfigureCommand({
+			token: VALID_TOKEN,
+			projectId: VALID_PROJECT,
+			projectRoot: root,
+		});
+		expect(r.exitCode).toBe(0);
+		expect(r.message).not.toContain(VALID_TOKEN);
+		expect(r.message).toContain('…');
+	});
+
+	it('--write-to=.env appends/replaces KEY= lines', () => {
+		const envPath = join(root, '.env');
+		writeFileSync(envPath, 'EXISTING=true\nWXKANBAN_API_TOKEN=old\n', 'utf-8');
+		const r = handleKitConfigureCommand({
+			token: VALID_TOKEN,
+			projectId: VALID_PROJECT,
+			writeTo: '.env',
+			projectRoot: root,
+		});
+		expect(r.exitCode).toBe(0);
+		const contents = readFileSync(envPath, 'utf-8');
+		expect(contents).toContain(`WXKANBAN_API_TOKEN=${VALID_TOKEN}`);
+		expect(contents).toContain('MCP_BASE_URL=https://mcp.wxperts.com');
+		expect(contents).toContain('EXISTING=true');
+		expect(contents).not.toContain('WXKANBAN_API_TOKEN=old');
+	});
+
+	afterEach(() => {
+		try { rmSync(root, { recursive: true, force: true }); } catch { /* ignore */ }
+	});
+});
+
+import { afterEach } from 'vitest';
+
+// [SCOPE 143 / T026] BEGIN — kit:configure stores the agent-run token on this machine and installs the hooks
+describe('kit:configure sets up agent-run forwarding (SPEC-143 T026)', () => {
+	const REPO_ROUTING = join(__dirname, '..', '..', '..', '_wxAI', 'routing');
+	let root: string;
+	let home: string;
+	const savedHome = process.env.WXAI_HOME;
+
+	beforeEach(() => {
+		root = freshRoot();
+		home = mkdtempSync(join(tmpdir(), 'kit-configure-home-'));
+		process.env.WXAI_HOME = home; // the token store goes here, never into the real ~/.wxai
+	});
+	afterEach(() => {
+		if (savedHome === undefined) delete process.env.WXAI_HOME;
+		else process.env.WXAI_HOME = savedHome;
+		for (const d of [root, home]) {
+			try { rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ }
+		}
+	});
+
+	it('stores the token keyed by project and installs the routing hooks, without printing the token', () => {
+		cpSync(REPO_ROUTING, join(root, '_wxAI', 'routing'), { recursive: true });
+		const r = handleKitConfigureCommand({ token: REAL_TOKEN, projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(0);
+		expect(r.message).not.toContain(REAL_TOKEN);
+		expect(r.message).toContain('project token stored on this machine');
+		const store = JSON.parse(readFileSync(join(home, '.wxai', 'agentrun-tokens.json'), 'utf-8'));
+		expect(store.projects[VALID_PROJECT].token).toBe(REAL_TOKEN);
+		const settings = JSON.parse(readFileSync(join(root, '.claude', 'settings.json'), 'utf-8'));
+		expect(Object.keys(settings.hooks)).toContain('SessionStart');
+		// a second run changes nothing in the hooks
+		expect(handleKitConfigureCommand({ token: REAL_TOKEN, projectId: VALID_PROJECT, projectRoot: root }).message).toContain('already current');
+	});
+
+	it('a project without the routing kit is configured as before, with no extra lines', () => {
+		const r = handleKitConfigureCommand({ token: REAL_TOKEN, projectId: VALID_PROJECT, projectRoot: root });
+		expect(r.exitCode).toBe(0);
+		expect(r.message).not.toContain('agent runs');
+		expect(existsSync(join(home, '.wxai', 'agentrun-tokens.json'))).toBe(false);
+	});
+});
+// [SCOPE 143 / T026] END

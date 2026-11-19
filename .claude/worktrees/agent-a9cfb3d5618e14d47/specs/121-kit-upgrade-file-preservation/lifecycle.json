@@ -1,0 +1,103 @@
+{
+  "specNumber": "121",
+  "specId": "dde4a6e7-19c0-4253-a174-268324927b7c",
+  "featureName": "Kit Upgrade File Preservation",
+  "projectId": "ba924193-0335-4080-9fa6-33cd6b81300a",
+  "currentPhase": "design",
+  "status": "planned",
+  "priority": "critical",
+  "createdAt": "2026-08-04T19:55:52.311Z",
+  "progress": {
+    "totalTasks": 13,
+    "completed": 0,
+    "inProgress": 0,
+    "blocked": 0,
+    "todo": 13,
+    "percentComplete": 0
+  },
+  "phases": [
+    {
+      "name": "scoping",
+      "status": "complete",
+      "startedAt": "2026-08-04",
+      "completedAt": "2026-08-04",
+      "note": "SCOPE-121 authored from 5 field reports; preflight 100"
+    },
+    {
+      "name": "design",
+      "status": "in_progress",
+      "startedAt": "2026-08-04",
+      "completedAt": null
+    },
+    {
+      "name": "implementation",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "qa",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "human_testing",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "beta",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "name": "released",
+      "status": "pending",
+      "startedAt": null,
+      "completedAt": null
+    }
+  ],
+  "documents": {
+    "spec": "39218ff8-32c0-4c67-8e35-d32f780424a2",
+    "plan": "72faef9d-20a2-4467-be72-531999066c62",
+    "lifecycle": "a80ab8d8-3b90-419e-8faa-2e5a852d87e0"
+  },
+  "scopeDocument": "specs/Project-Scope/121-kit-upgrade-file-preservation.md",
+  "targetRepository": "wxKanban-agent-Orchestrator",
+  "crossRepo": true,
+  "blockers": [],
+  "openQuestions": [
+    "FR-008 acknowledgement form and persistence: a query parameter a pre-fix client can send unaided (the floor), a per-project flag set from the wxKanban UI or Dev Cockpit, or both.",
+    "FR-008 gate sunset condition: a fixed date, a version distance, or manual removal in a later release.",
+    "Stale-file rename list: hand-maintained per release, or derived by diffing consecutive kit-manifest.json files at package time.",
+    "Preserve list breadth: .claude/skills/ wholesale, or only .claude/<skill>/scripts/."
+  ],
+  "origin": {
+    "type": "field-reports",
+    "count": 5,
+    "date": "2026-08-04",
+    "kitVersion": "v1.7.48",
+    "canonicalFeedbackId": "5d4864fa-bc18-442d-b0d3-983887ce57ba",
+    "feedbackIds": [
+      "a60b95b3-4a33-41d6-acfb-a2f398f2abda",
+      "24ee838a-2e5a-4b74-97aa-745df8806878",
+      "4294090f-ff98-4040-8bdb-21f45fb1a5ff",
+      "aef6a602-df28-4cdd-bf7e-aa3f4d369bf6"
+    ]
+  },
+  "updatedAt": "2026-08-04T19:55:52.311Z",
+  "decisions": [
+    {
+      "id": "FR-008 mechanism",
+      "decidedAt": "2026-08-04",
+      "decision": "Server-side 409 gate on GET /api/projects/:id/kit/upgrade",
+      "rationale": "The pre-fix client already sends fromVersion, already prints the first 300 chars of a non-OK response body verbatim, and already die()s on 4xx without falling back to GitHub. The server can therefore refuse the delivering upgrade and explain why, using only behaviour already on the consumer's disk. This makes it a real gate rather than an advisory.",
+      "consequence": "Pulls wxKanban server work into an otherwise kit-only spec, and makes deploy ordering a hard constraint: the gate must be live before the kit release ships."
+    }
+  ],
+  "spansServer": true,
+  "deployOrdering": "wxKanban server gate (T011) MUST deploy before the kit release (T013)."
+}

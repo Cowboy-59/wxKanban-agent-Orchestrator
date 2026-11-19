@@ -1,0 +1,31 @@
+{
+  "specNumber": "108",
+  "title": "Theme Header & Footer Designer",
+  "status": "planned",
+  "phase": "design",
+  "priority": "high",
+  "createdAt": "2026-07-21",
+  "retargetedAt": "2026-07-21",
+  "sourceScope": "specs/Project-Scope/108-block-composer-full-editor.md",
+  "dependsOn": ["SCOPE-107", "SCOPE-106", "SCOPE-062"],
+  "progress": {
+    "totalTasks": 12,
+    "done": 0,
+    "inProgress": 0,
+    "todo": 12,
+    "percentComplete": 0
+  },
+  "phases": [
+    { "name": "design", "status": "active", "startedAt": "2026-07-21" },
+    { "name": "implementation", "status": "pending" },
+    { "name": "qa", "status": "pending" },
+    { "name": "human_testing", "status": "pending" },
+    { "name": "beta", "status": "pending" },
+    { "name": "released", "status": "pending" }
+  ],
+  "taskGroups": [
+    { "name": "Phase A — Model + Designer UI (FR-001..005, 007)", "tasks": ["T001", "T002", "T003", "T004", "T005", "T006", "T007", "T008"] },
+    { "name": "Phase B — Emit + downstream reference (FR-006)", "tasks": ["T009", "T010"] },
+    { "name": "Phase C — Verification", "tasks": ["T011", "T012"] }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "specNumber": "048",
+  "featureName": "Marketing — In-App Marketing Module",
+  "phase": "implementation",
+  "priority": "high",
+  "parentScope": "045",
+  "progress": {
+    "tasksTotal": 9,
+    "tasksCompleted": 9,
+    "percentage": 100
+  },
+  "timeline": {
+    "created": "2026-06-08T00:00:00.000Z",
+    "phaseStarted": "2026-06-08T00:00:00.000Z",
+    "launchTarget": "2026-07-05T00:00:00.000Z"
+  }
+}

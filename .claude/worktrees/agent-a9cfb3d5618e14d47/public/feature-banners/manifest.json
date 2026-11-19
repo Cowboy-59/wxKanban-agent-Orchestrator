@@ -1,0 +1,285 @@
+{
+  "generatedAt": null,
+  "locales": [
+    "en-US",
+    "fr-FR"
+  ],
+  "features": [
+    {
+      "slug": "windev-to-ai-conversion",
+      "rank": 1,
+      "name": "Cross From WinDev to AI-Built Software You Own",
+      "category": "Cross to AI",
+      "link": "#features",
+      "dwellMs": 9000,
+      "enhanced": true,
+      "billboards": {
+        "en-US": "banners/windev-to-ai-conversion.billboard.en-US.png",
+        "fr-FR": "banners/windev-to-ai-conversion.billboard.fr-FR.png"
+      },
+      "og": {
+        "en-US": "banners/windev-to-ai-conversion.og.en-US.png",
+        "fr-FR": "banners/windev-to-ai-conversion.og.fr-FR.png"
+      }
+    },
+    {
+      "slug": "six-phase-lifecycle",
+      "rank": 2,
+      "name": "Ship Nothing Untested — the 6-Phase Lifecycle",
+      "category": "Methodology & Lifecycle",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/six-phase-lifecycle.billboard.en-US.png",
+        "fr-FR": "banners/six-phase-lifecycle.billboard.fr-FR.png"
+      },
+      "og": {
+        "en-US": "banners/six-phase-lifecycle.og.en-US.png",
+        "fr-FR": "banners/six-phase-lifecycle.og.fr-FR.png"
+      }
+    },
+    {
+      "slug": "unified-task-aggregation",
+      "rank": 3,
+      "name": "One Board for Every PM Tool",
+      "category": "Work Management",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/unified-task-aggregation.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/unified-task-aggregation.og.en-US.png"
+      }
+    },
+    {
+      "slug": "time-tracking-invoices",
+      "rank": 4,
+      "name": "Bill Every Minute — Timers to Invoices",
+      "category": "Time & Billing",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/time-tracking-invoices.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/time-tracking-invoices.og.en-US.png"
+      }
+    },
+    {
+      "slug": "stack-and-style",
+      "rank": 5,
+      "name": "Generate Code in YOUR Stack & Style",
+      "category": "Build Your Way",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/stack-and-style.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/stack-and-style.og.en-US.png"
+      }
+    },
+    {
+      "slug": "editor-cockpit-kit",
+      "rank": 6,
+      "name": "Your Work, Live in VS Code",
+      "category": "In Your Editor",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/editor-cockpit-kit.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/editor-cockpit-kit.og.en-US.png"
+      }
+    },
+    {
+      "slug": "consultant-command-center",
+      "rank": 7,
+      "name": "The Consultant's Command Center",
+      "category": "Time & Billing",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/consultant-command-center.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/consultant-command-center.og.en-US.png"
+      }
+    },
+    {
+      "slug": "speak-your-language",
+      "rank": 8,
+      "name": "Use It in Your Language — French-First",
+      "category": "Reach & Language",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/speak-your-language.billboard.en-US.png",
+        "fr-FR": "banners/speak-your-language.billboard.fr-FR.png"
+      },
+      "og": {
+        "en-US": "banners/speak-your-language.og.en-US.png",
+        "fr-FR": "banners/speak-your-language.og.fr-FR.png"
+      }
+    },
+    {
+      "slug": "ai-task-suggestions",
+      "rank": 9,
+      "name": "AI That Finds the Work You Forgot",
+      "category": "Work Management",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/ai-task-suggestions.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/ai-task-suggestions.og.en-US.png"
+      }
+    },
+    {
+      "slug": "built-in-compliance",
+      "rank": 10,
+      "name": "Compliance Built Into the Workflow",
+      "category": "Trust & Quality",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/built-in-compliance.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/built-in-compliance.og.en-US.png"
+      }
+    },
+    {
+      "slug": "design-by-conversation",
+      "rank": 11,
+      "name": "Design by Conversation",
+      "category": "Methodology & Lifecycle",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/design-by-conversation.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/design-by-conversation.og.en-US.png"
+      }
+    },
+    {
+      "slug": "catch-your-bugs",
+      "rank": 12,
+      "name": "Catch Your App's Bugs Automatically",
+      "category": "Trust & Quality",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/catch-your-bugs.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/catch-your-bugs.og.en-US.png"
+      }
+    },
+    {
+      "slug": "portfolio-reuse",
+      "rank": 13,
+      "name": "Reuse What You've Already Built",
+      "category": "Trust & Quality",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/portfolio-reuse.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/portfolio-reuse.og.en-US.png"
+      }
+    },
+    {
+      "slug": "project-theme",
+      "rank": 14,
+      "name": "Pick Your Product's Look",
+      "category": "Build Your Way",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/project-theme.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/project-theme.og.en-US.png"
+      }
+    },
+    {
+      "slug": "in-app-help",
+      "rank": 15,
+      "name": "Help That's Always Right for Your Plan",
+      "category": "Reach & Language",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/in-app-help.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/in-app-help.og.en-US.png"
+      }
+    },
+    {
+      "slug": "consulting-marketplace",
+      "rank": 16,
+      "name": "Hire a Consulting Firm Inside the Platform",
+      "category": "Marketplace",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/consulting-marketplace.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/consulting-marketplace.og.en-US.png"
+      }
+    },
+    {
+      "slug": "bring-your-own-llm",
+      "rank": 17,
+      "name": "Bring Your Own LLM — Your Data Stays Home",
+      "category": "Build Your Way",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/bring-your-own-llm.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/bring-your-own-llm.og.en-US.png"
+      }
+    },
+    {
+      "slug": "community-help-in-editor",
+      "rank": 18,
+      "name": "Live Community Help in Your Editor",
+      "category": "In Your Editor",
+      "link": "#features",
+      "dwellMs": 5000,
+      "enhanced": false,
+      "billboards": {
+        "en-US": "banners/community-help-in-editor.billboard.en-US.png"
+      },
+      "og": {
+        "en-US": "banners/community-help-in-editor.og.en-US.png"
+      }
+    }
+  ]
+}

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Allbirds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#202223;
+    --primary-active:#000000;
+    --cta-bg:#202223;
+    --on-primary:#FFFFFF;
+    --dark:#202223;
+    --canvas:#FFFFFF;
+    --canvas-soft:#ECE9E2;
+    --surface:#FFFFFF;
+    --surface-alt:#EAE7E0;
+    --ink:#202223;
+    --ink-secondary:#6D7175;
+    --ink-faint:#A4A2A2;
+    --ink-placeholder:#808080;
+    --hairline:#DDDDDD;
+    --hairline-soft:rgba(32,34,35,0.15);
+    --r-xs:3px;--r-sm:10px;--r-md:20px;--r-lg:26px;--r-xl:30px;--r-xxl:80px;--r-full:100px;
+    --e1:0 1px 2px rgba(0,0,0,0.10);
+    --e2:0 8px 24px rgba(0,0,0,0.12);
+    --font:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --display-size:30px;
+    --display-weight:500;
+    --section-size:25px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:10px;}
+  h1.display{font-size:44px;font-weight:var(--display-weight);line-height:1.1;letter-spacing:0;}
+  h2.sec{font-size:var(--section-size);font-weight:600;line-height:1.2;letter-spacing:0;margin-bottom:14px;}
+  .lede{font-size:16px;color:var(--ink-secondary);max-width:680px;line-height:1.5;}
+  .hero{padding:80px 0 64px;}
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-size:16px;font-weight:400;border:none;cursor:pointer;border-radius:var(--r-full);padding:14px 28px;line-height:1;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--ink);padding:13px 27px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:11px 18px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:600;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:600;}
+  input.field,textarea.field{width:100%;border:1px solid var(--ink-placeholder);border-radius:var(--r-full);padding:12px 24px;font-family:var(--font);font-size:16px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-faint);}
+  textarea.field{resize:vertical;min-height:90px;border-radius:var(--r-md);}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--primary);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:1/1;border-radius:var(--r-md);background:linear-gradient(135deg,var(--surface-alt),var(--canvas-soft));position:relative;overflow:hidden;}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:var(--r-full);font-size:12px;font-weight:600;padding:5px 10px;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+  .listing .l-title{font-weight:600;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:15px;margin-top:2px;}
+  .listing .l-price{margin-top:6px;font-size:15px;}
+  .listing .l-price b{font-weight:600;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--primary);}
+  .plan.feat .pop{color:#fff;}
+  .plan .price{font-size:48px;font-weight:700;margin:14px 0 4px;line-height:1;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan.feat li::before{background:#fff;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:var(--r-full);}
+  .s-ok{background:var(--surface-alt);color:var(--primary);}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-lg);padding:36px;box-shadow:var(--e1);}
+  .auth h3{font-size:28px;font-weight:600;margin:4px 0 24px;}
+  .auth label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:var(--r-full);background:#fff;padding:13px;font-size:16px;font-weight:400;cursor:pointer;font-family:var(--font);}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:40px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Allbirds</h1>
+  <p class="lede" style="margin-top:28px;">A near-monochrome, flat retail system where warm oatmeal beige is the canvas and near-black charcoal does all the talking — humanist Geograph type, fully-pilled buttons, hairline borders instead of shadows, and not a single gradient in sight.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Shop Best Sellers</button>
+    <button class="btn btn-secondary">Take the Quiz</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Set in <b>Geograph</b>, a proprietary humanist geometric sans — shown here in its nearest Google substitute, <b>Hanken Grotesk</b>. Hierarchy is built through size and weight (tracking stays normal). A 14px / 400 tier carries almost all body copy; a heavy 900 weight is reserved for short uppercase labels.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Add to Cart</button><div class="desc">Charcoal #202223 pill, white label, regular 400 weight. The single dominant CTA across the store.</div></div>
+    <div class="ccard"><div class="lbl">button-dark</div><button class="btn btn-dark">Sign Up &amp; Save</button><div class="desc">Same charcoal — the brand is monochrome, so dark and primary are one and the same.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">Learn More</button><div class="desc">Outlined pill: white fill, 1px ink border. Used for low-emphasis actions.</div></div>
+    <div class="ccard"><div class="lbl">button-pill</div><button class="btn btn-pill">Men's</button><div class="desc">Beige surface-alt chip for filters and toggles. Fully rounded.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Size Guide</a><a href="#">Materials</a><div class="desc">Underlined ink links at 14px / 600. No accent colour — links stay in the charcoal.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Product cards are borderless: a softly-rounded beige media tile, then ink title and price below. Depth is absent — a faint lift appears only on hover and on floating sale badges.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Enter your email"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Tell us about your fit…"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">Built on a 4px base unit (8px effective rhythm). Control padding clusters around 12–13px vertical and 24–25px horizontal.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">Soft and fully rounded throughout — from a 3px detail up to 80px media corners and a 100px pill. Buttons and inputs are true pills.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The brand default. Surfaces are separated by borders and the beige/white contrast, not shadow.</div>
+    <div class="e l1">Level 1 — a barely-there 1px lift, used only on floating sale badges and on card hover.</div>
+    <div class="e l2">Level 2 — a soft 24px-blur drop for the cart drawer, modals and dialogs. The only place depth gets real.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Single / two-up product grid, hamburger nav, full-width pill CTAs, stacked beige bands.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Two-up grids, condensed header, side padding tightens to ~22px.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Four-up product grids return, full horizontal nav.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Centred 1200px column with generous gutters; editorial full-bleed beige sections.</td></tr>
+  </table>
+  <p class="note"><b>Graceful by design:</b> because the system leans on so few moving parts — pills, hairlines and beige bands — it collapses cleanly across breakpoints with almost no visual change.</p>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:25px;">Pricing Tiers</h2>
+  <p class="lede">Illustrative only — Allbirds is a single-purchase retailer, not a subscription. These demonstrate the card / tier component pattern in the brand's flat, bordered style.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>The Essentials</span></div><div class="price">₱5,500<span>/ pair</span></div><div class="blurb">Everyday comfort in our signature wool.</div><ul><li>Free shipping &amp; returns</li><li>Machine washable</li><li>Carbon-neutral delivery</li></ul><button class="btn btn-block-dark">Shop Now</button></div>
+    <div class="plan feat"><div class="tier"><span>The Bundle</span><span class="pop">● Most popular</span></div><div class="price">₱9,900<span>/ 2 pairs</span></div><div class="blurb">Mix runners and loungers, save more.</div><ul><li>Everything in Essentials</li><li>Save ₱1,100 vs. singles</li><li>Priority customer support</li></ul><button class="btn btn-block-dark">Build a Bundle</button></div>
+    <div class="plan"><div class="tier"><span>The Collection</span></div><div class="price">₱14,500<span>/ 3 pairs</span></div><div class="blurb">A full rotation for every occasion.</div><ul><li>Everything in The Bundle</li><li>Free sock 3-pack</li><li>Early access to drops</li></ul><button class="btn btn-block-dark">Explore</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:25px;">Data Table</h2>
+  <p class="lede">An order-history pattern rendered in the brand's hairline-and-beige table style.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>Order</th><th>Product</th><th>Size</th><th>Status</th><th>When</th></tr>
+      <tr><td>#AB-10428</td><td>Wool Runner — Natural Grey</td><td>US 9</td><td><span class="status s-ok">Delivered</span></td><td>Jun 24</td></tr>
+      <tr><td>#AB-10391</td><td>Tree Dasher 2 — Thunder</td><td>US 10</td><td><span class="status s-ok">Delivered</span></td><td>Jun 18</td></tr>
+      <tr><td>#AB-10355</td><td>Wool Lounger — Hazy Beige</td><td>US 8</td><td><span class="status s-pend">In transit</span></td><td>Jun 28</td></tr>
+      <tr><td>#AB-10310</td><td>Tree Runner — Buff</td><td>US 9.5</td><td><span class="status s-pend">Processing</span></td><td>Jun 29</td></tr>
+      <tr><td>#AB-10288</td><td>Trail Runner SWT — Rugged Green</td><td>US 11</td><td><span class="status s-ok">Delivered</span></td><td>Jun 12</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:25px;">Auth Forms</h2>
+  <p class="lede">Account sign-in and creation in the pill-input, charcoal-CTA house style.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@email.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Apple</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Join the flock</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@email.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Apple</button></div>
+  </div>
+</div></section>
+
+<script>
+const colors = [
+  ["primary","#202223","CTAs, brand mark, all text"],
+  ["primary-active","#000000","Pressed / hover state"],
+  ["on-primary","#FFFFFF","Label on charcoal CTA"],
+  ["canvas","#FFFFFF","Page background"],
+  ["canvas-soft","#ECE9E2","Signature oatmeal band"],
+  ["surface-alt","#EAE7E0","Sunken beige fill / chips"],
+  ["ink-secondary","#6D7175","Secondary copy"],
+  ["ink-muted","#808080","Input borders"],
+  ["ink-faint","#A4A2A2","Captions / placeholders"],
+  ["hairline","#DDDDDD","1px borders & dividers"],
+  ["hairline-soft","rgba(32,34,35,.15)","Faint inner rules","rgba(32,34,35,.15)"],
+  ["link-blue","#007AFF","System fallback (not brand)"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","30px / 500 / 1.33","Comfortable, sustainable shoes","font-size:30px;font-weight:500;line-height:1.33;"],
+  ["heading-1","25px / 500 / 1.2","Made with natural materials","font-size:25px;font-weight:500;line-height:1.2;"],
+  ["heading-2","20px / 900 / 1.6","NEW ARRIVALS","font-size:20px;font-weight:900;line-height:1.6;"],
+  ["heading-3","17px / 600 / 1.4","Find your perfect fit","font-size:17px;font-weight:600;line-height:1.4;"],
+  ["title","16px / 600 / 1.5","Wool Runner","font-size:16px;font-weight:600;line-height:1.5;"],
+  ["body-lg","16px / 400 / 1.5","Soft, breathable, and ready for anything the day brings.","font-size:16px;font-weight:400;line-height:1.5;"],
+  ["body-md","14px / 400 / 1.5","The dominant body tier — carries almost all reading text across the store.","font-size:14px;font-weight:400;line-height:1.5;"],
+  ["body-sm","13px / 400 / 1.4","Shipping, returns and fine print.","font-size:13px;font-weight:400;line-height:1.4;"],
+  ["button","16px / 400 / 1.0","Add to Cart","font-size:16px;font-weight:400;line-height:1;"],
+  ["caption","13px / 500 / 1.4","Carbon footprint: 7.1 kg CO2e","font-size:13px;font-weight:500;line-height:1.4;"],
+  ["eyebrow","11px / 500 / caps","BEST SELLER","font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",16],["xs","8px",24],["sm","12px",36],["md","16px",48],["lg","24px",64],["xl","32px",84],["xxl","48px",108]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs","3px","3"],["sm","10px","10"],["md","20px","20"],["lg","26px","26"],["xl","30px","30"],["xxl","80px","80"],["full","100px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["Wool Runner","Natural Grey","<b>₱5,500</b>","","Best Seller"],
+  ["Tree Dasher 2","Thunder / White","<b>₱7,200</b>","",""],
+  ["Wool Lounger","Hazy Beige","<b>₱4,900</b>","","Sale"],
+  ["Tree Runner","Buff","<b>₱5,500</b>","",""]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

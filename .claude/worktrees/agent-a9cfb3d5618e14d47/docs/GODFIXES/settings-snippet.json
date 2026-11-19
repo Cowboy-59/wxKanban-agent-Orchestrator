@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "clear",   "hooks": [{ "type": "command", "command": "node .claude/hooks/god-resume-hint.mjs" }] },
+      { "matcher": "compact", "hooks": [{ "type": "command", "command": "node .claude/hooks/god-resume-hint.mjs" }] }
+    ]
+  }
+}

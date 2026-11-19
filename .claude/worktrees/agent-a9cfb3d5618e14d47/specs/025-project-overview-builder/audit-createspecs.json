@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-04-24T18:17:10.819Z",
+  "command": "createspecs",
+  "input": {
+    "specNumber": "025",
+    "featureName": "Project Overview Builder",
+    "phase": "design"
+  },
+  "result": {
+    "specNumber": "025",
+    "featureName": "Project Overview Builder",
+    "specDir": "specs\\025-project-overview-builder",
+    "filesCreated": [
+      "specs\\025-project-overview-builder\\spec.md",
+      "specs\\025-project-overview-builder\\plan.md",
+      "specs\\025-project-overview-builder\\tasks.md",
+      "specs\\025-project-overview-builder\\tests.md",
+      "specs\\025-project-overview-builder\\lifecycle.json",
+      "specs\\025-project-overview-builder\\quickstart.md",
+      "specs\\025-project-overview-builder\\checklists\\requirements.md"
+    ],
+    "tasksCreated": 42,
+    "testsGenerated": true,
+    "lifecycleGenerated": true
+  },
+  "user": "andy@wxperts.com"
+}

@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+# package-lock.json is COMMITTED on purpose (SCOPE-124 T024). Ignoring it left the App Runner
+# build resolving ~338 packages from the registry on every deploy, and npm 10.9.4 — the version
+# in the Node 22 build image — crashes on this tree with "Cannot read properties of null
+# (reading 'edgesOut')". That silently rolled back the 2026-09-08 MCP release. Reproduced both
+# ways with npm@10.9.4: without the lock it fails, with the lock it installs clean.
+yarn.lock
+pnpm-lock.yaml
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# MCP Security - Never commit these
+.env.mcp
+.env.mcp.*
+.mcp-credentials.json
+.mcp-security-checksum
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/*
+!.vscode/mcp.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

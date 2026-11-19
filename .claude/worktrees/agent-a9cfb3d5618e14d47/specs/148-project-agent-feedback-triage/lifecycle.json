@@ -1,0 +1,15 @@
+{
+  "specNumber": "148",
+  "featureName": "Project Agent Feedback Triage",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 16,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-26T13:57:40.749Z",
+    "phaseStarted": "2026-10-26T13:57:40.749Z"
+  }
+}

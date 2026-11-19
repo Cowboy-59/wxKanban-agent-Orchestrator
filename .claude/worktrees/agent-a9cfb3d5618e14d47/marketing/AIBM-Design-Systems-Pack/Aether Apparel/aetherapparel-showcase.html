@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of AETHER Apparel</title>
+<!--
+  Tokens reverse-engineered from the live rendered styles of https://aetherapparel.com/
+  Fonts are nearest-Google substitutes for the site's proprietary Maison Neue family:
+    Archivo (expanded)  ← Maison Neue Extended Demi  (display / headings)
+    Inter               ← Maison Neue Book           (body / UI / buttons)
+    IBM Plex Mono       ← Maison Neue Mono           (utility micro-labels)
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,500;112,600;112,700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#000000;
+    --primary-active:#2b2b2b;
+    --cta-bg:#000000;            /* solid color OR a linear-gradient(...) */
+    --on-primary:#ffffff;
+    --dark:#000000;
+    --canvas:#ffffff;
+    --canvas-soft:#f5f5f5;
+    --surface:#ffffff;
+    --surface-alt:#eeece4;       /* warm sand — the one non-grey */
+    --ink:#000000;
+    --ink-secondary:#545454;
+    --ink-faint:#9b9b9b;
+    --ink-placeholder:#9b9b9b;
+    --hairline:#d8d8d8;
+    --hairline-soft:#ececec;
+    --r-xs:5px;--r-sm:10px;--r-md:12px;--r-lg:14px;--r-xl:25px;--r-xxl:25px;--r-full:999px;
+    --e1:0 0 8px rgba(0,0,0,0.20);
+    --e2:0 12px 36px rgba(0,0,0,0.16);
+    --font:"Inter",system-ui,-apple-system,sans-serif;
+    --font-display:"Archivo","Inter",sans-serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,monospace;
+    --display-size:48px;
+    --display-weight:600;
+    --section-size:36px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+
+  /* signature mono utility strip */
+  .util{background:var(--ink);color:var(--on-primary);font-family:var(--font-mono);font-size:10px;letter-spacing:.5px;text-transform:uppercase;}
+  .util .wrap{display:flex;justify-content:space-between;align-items:center;height:34px;}
+  .util .l{display:flex;gap:22px;}
+  .util .l span{opacity:.7;}
+  .util .r{opacity:.7;}
+
+  .eyebrow{font-family:var(--font-display);font-size:14px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink);margin-bottom:12px;}
+  h1.display{font-family:var(--font-display);font-size:var(--display-size);font-weight:var(--display-weight);line-height:1.1;letter-spacing:-.5px;}
+  h2.sec{font-family:var(--font-display);font-size:var(--section-size);font-weight:600;line-height:1.1;letter-spacing:-.3px;margin-bottom:14px;}
+  .lede{font-size:16px;color:var(--ink-secondary);max-width:660px;line-height:1.5;}
+  .hero{padding:64px 0 60px;}
+
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-family:var(--font);font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:1.2px;border:none;cursor:pointer;border-radius:var(--r-full);padding:15px 28px;line-height:1;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-primary:hover{background:var(--primary-active);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-inverted{background:#fff;color:var(--ink);border:1px solid #fff;}
+  .btn-secondary{background:transparent;color:var(--ink);border:1px solid var(--ink);padding:14px 27px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-xs);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:13px;letter-spacing:.2px;}
+  .swatch .hex{font-family:var(--font-mono);font-size:11px;color:var(--ink-secondary);margin:4px 0;text-transform:uppercase;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:220px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-family:var(--font-mono);font-size:11px;color:var(--ink-secondary);text-transform:uppercase;letter-spacing:.4px;}
+  .row .spec b{display:block;font-family:var(--font);color:var(--ink);font-weight:600;font-size:13px;margin-bottom:5px;letter-spacing:.2px;text-transform:none;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-xs);padding:24px;background:var(--surface);display:flex;flex-direction:column;align-items:flex-start;}
+  .ccard.dark{background:var(--ink);}
+  .ccard.dark .lbl{color:rgba(255,255,255,.6);}
+  .ccard.dark .desc{color:rgba(255,255,255,.7);}
+  .ccard .lbl{font-family:var(--font-mono);font-size:11px;color:var(--ink-secondary);margin-bottom:16px;text-transform:uppercase;letter-spacing:.4px;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-right:18px;font-weight:500;font-family:var(--font);}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-xs);padding:13px 16px;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  input.field:focus,textarea.field:focus{outline:none;border-color:var(--ink);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--ink);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-family:var(--font-mono);font-size:11px;color:var(--ink-secondary);margin-top:8px;text-align:center;text-transform:uppercase;}
+  .sp .t b{display:block;font-family:var(--font);color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:14px;color:var(--ink);}
+  .rad .t{font-family:var(--font-mono);font-size:11px;color:var(--ink-secondary);text-align:center;margin-top:8px;text-transform:uppercase;}
+  .rad .t b{display:block;font-family:var(--font);color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-xs);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:4/5;border-radius:var(--r-xs);background:linear-gradient(150deg,var(--surface-alt),var(--canvas-soft));position:relative;overflow:hidden;border:1px solid var(--hairline-soft);}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:var(--r-full);font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;padding:6px 11px;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+  .listing .l-title{font-weight:600;font-size:14px;margin-top:14px;display:flex;justify-content:space-between;letter-spacing:.2px;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:13px;margin-top:3px;}
+  .listing .l-price{margin-top:7px;font-family:var(--font-mono);font-size:13px;}
+  .listing .l-price b{font-weight:500;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-md);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:#fff;}
+  .plan .price{font-family:var(--font-display);font-size:46px;font-weight:600;margin:14px 0 4px;line-height:1;letter-spacing:-1px;}
+  .plan .price span{font-family:var(--font-mono);font-size:13px;font-weight:400;color:var(--ink-secondary);letter-spacing:.3px;}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ink);flex:none;}
+  .plan.feat li::before{background:#fff;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-xs);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  table.dt td.mono{font-family:var(--font-mono);font-size:12px;letter-spacing:.3px;}
+  .status{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;padding:5px 11px;border-radius:var(--r-full);}
+  .s-ok{background:var(--ink);color:#fff;}
+  .s-pend{background:var(--surface-alt);color:var(--ink);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-family:var(--font-mono);font-size:11px;letter-spacing:.3px;text-transform:uppercase;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:36px;box-shadow:var(--e1);}
+  .auth h3{font-family:var(--font-display);font-size:26px;font-weight:600;letter-spacing:-.4px;margin:4px 0 24px;}
+  .auth label{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-family:var(--font-mono);font-size:10px;letter-spacing:.5px;text-transform:uppercase;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:var(--r-full);background:#fff;padding:14px;font-size:12px;font-weight:500;letter-spacing:1.2px;text-transform:uppercase;cursor:pointer;font-family:var(--font);}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:42px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}.util .l span.hide{display:none;}}
+</style>
+</head>
+<body>
+
+<div class="util"><div class="wrap"><div class="l"><span>Los Angeles</span><span class="hide">For The Restless</span><span id="clock">—</span></div><div class="r">Free Shipping Over $150</div></div></div>
+
+<div class="wrap hero">
+  <div class="eyebrow">Design System — Reverse-Engineered</div>
+  <h1 class="display">Design System<br>Analysis of AETHER Apparel</h1>
+  <p class="lede" style="margin-top:26px;">A stark, gallery-white system with absolute-black ink, no saturated colour, and a single warm sand accent — built for technical apparel, with all the personality carried by an extended grotesque and a utilitarian mono.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Shop Men's</button>
+    <button class="btn btn-secondary">Shop Women's</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <p class="lede">Effectively monochrome: black ink, white canvas, one soft grey, and a single warm sand. Contrast does the work a palette usually would.</p>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Three Maison Neue cuts — substituted here with Archivo (expanded), Inter, and IBM Plex Mono. Hierarchy is built from size, not weight; the brand voice lives in the tiny mono.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Shop Men's</button><div class="desc">Solid black pill, uppercase, 1.2px tracking. The default action everywhere.</div></div>
+    <div class="ccard dark"><div class="lbl">button-inverted</div><button class="btn btn-inverted">Explore Motion</button><div class="desc">White pill for use over imagery and dark bands.</div></div>
+    <div class="ccard"><div class="lbl">button-outline</div><button class="btn btn-secondary">Shop The Look</button><div class="desc">1px solid ink, transparent fill — the quiet secondary.</div></div>
+    <div class="ccard"><div class="lbl">utility-pill</div><button class="btn btn-pill">Filter +</button><div class="desc">Sand-filled pill for filters, tags and facets.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Size Guide</a><a href="#">Fabric</a><div class="desc">Underlined uppercase micro-links inside copy.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Product Cards</h2>
+  <p class="lede">Flat by default — a 5px-radius image on white, separated by hairlines. A soft even glow appears only on hover. Prices are set in mono.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <p class="lede">Minimal fields on the 5px radius, hairline border darkening to ink on focus. Labels are set in uppercase mono.</p>
+  <div class="cgrid" style="grid-template-columns:repeat(2,1fr);">
+    <div class="ccard"><div class="lbl">text-input · email</div><input class="field" placeholder="you@email.com"></div>
+    <div class="ccard"><div class="lbl">textarea · message</div><textarea class="field" placeholder="Tell us how it fits…"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">A 4px base on an 8px working rhythm, scaling out to generous 48–64px gaps that let full-width imagery breathe.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">A barely-rounded 5px workhorse for media and inputs; controls round all the way to a pill.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The default. Nearly everything sits flat on the canvas.</div>
+    <div class="e l1">Level 1 — a soft, even <code>0 0 8px rgba(0,0,0,.2)</code> glow, the one shadow used in the wild, appearing on hover.</div>
+    <div class="e l2">Level 2 — a deeper, diffuse drop reserved for the cart drawer and modal overlays.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Product grids collapse to 1–2 up; utility strip trims to clock + city; nav becomes a drawer.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Four-up grids become two-up; hero type steps down to ~42px.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Full four-up product grid returns; sticky header condenses on scroll.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Max 1200px editorial canvas, centred, with full-bleed imagery bands.</td></tr>
+  </table>
+  <p class="note">The page reads as a stack of full-width editorial panels, alternating white with <b>#f5f5f5</b> and occasional <b>sand</b> bands rather than a boxed, carded layout.</p>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">10 — Pattern</div><h2 class="sec" style="font-size:42px;">AETHER Insider Tiers</h2>
+  <p class="lede">Sample membership table demonstrating the pricing pattern — the live site has no pricing page, so this is brand-appropriate placeholder content.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Essentials</span></div><div class="price">$0<span>/year</span></div><div class="blurb">Create an account and start earning.</div><ul><li>Order tracking &amp; history</li><li>Free 30-day returns</li><li>Early-access waitlist</li></ul><button class="btn btn-block-dark">Join Free</button></div>
+    <div class="plan feat"><div class="tier"><span>Insider</span><span class="pop">● Most chosen</span></div><div class="price">$48<span>/year</span></div><div class="blurb">For the restless who live in the kit.</div><ul><li>Everything in Essentials</li><li>Free expedited shipping</li><li>First access to every drop</li><li>Members-only colourways</li></ul><button class="btn btn-block-dark">Become an Insider</button></div>
+    <div class="plan"><div class="tier"><span>Collective</span></div><div class="price">$120<span>/year</span></div><div class="blurb">Lifetime gear, looked after.</div><ul><li>Everything in Insider</li><li>Free repairs for life</li><li>Concierge styling</li><li>Archive &amp; sample sales</li></ul><button class="btn btn-block-dark">Join Collective</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">11 — Pattern</div><h2 class="sec" style="font-size:42px;">Order History</h2>
+  <p class="lede">Sample account table demonstrating the data pattern: mono IDs, pill status chips, hairline rows.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>Order</th><th>Item</th><th>Size</th><th>Status</th><th>When</th></tr>
+      <tr><td class="mono">#AE-48213</td><td>Alice Linen Shirt</td><td>M</td><td><span class="status s-ok">Delivered</span></td><td>Jun 24</td></tr>
+      <tr><td class="mono">#AE-48109</td><td>Dune Tech Short</td><td>32</td><td><span class="status s-ok">Delivered</span></td><td>Jun 18</td></tr>
+      <tr><td class="mono">#AE-47996</td><td>Moto Riding Jacket</td><td>L</td><td><span class="status s-pend">In transit</span></td><td>Jun 14</td></tr>
+      <tr><td class="mono">#AE-47880</td><td>Restless Merino Tee</td><td>M</td><td><span class="status s-pend">Processing</span></td><td>Jun 11</td></tr>
+      <tr><td class="mono">#AE-47731</td><td>Capsule Crew Sweat</td><td>S</td><td><span class="status s-ok">Delivered</span></td><td>Jun 03</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">12 — Pattern</div><h2 class="sec" style="font-size:42px;">Account</h2>
+  <p class="lede">Sample auth forms demonstrating the input + button patterns end to end.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow" style="font-size:11px;">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@email.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">Or</div><button class="ghost">Continue with Apple</button></div>
+    <div class="card"><div class="eyebrow" style="font-size:11px;">Create account</div><h3>Join AETHER</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@email.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">Or</div><button class="ghost">Continue with Apple</button></div>
+  </div>
+</div></section>
+
+<script>
+// live mono clock — the AETHER signature
+function tick(){
+  try{
+    const t=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Los_Angeles'});
+    document.getElementById('clock').textContent=t+' PDT';
+  }catch(e){document.getElementById('clock').textContent='08:56 PDT';}
+}
+tick();setInterval(tick,15000);
+
+const colors = [
+  ["Ink / Primary","#000000","CTAs, links, body text"],
+  ["Canvas","#ffffff","Page & card surface"],
+  ["Canvas Soft","#f5f5f5","Alternating section bands"],
+  ["Sand","#eeece4","The one warm accent"],
+  ["Ink Secondary","#545454","Secondary copy (sparing)"],
+  ["Ink Faint","#9b9b9b","Captions & placeholders"],
+  ["Hairline","#d8d8d8","Input & card borders"],
+  ["Overlay Scrim","#000000","85% scrim over imagery","rgba(0,0,0,0.85)"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","48 / 600 / 1.1 · Archivo","Built For The Restless","font-family:var(--font-display);font-size:48px;font-weight:600;line-height:1.1;letter-spacing:-.5px;"],
+  ["display-2","36 / 600 / 1.1 · Archivo","Seasonal Best Sellers","font-family:var(--font-display);font-size:36px;font-weight:600;line-height:1.1;letter-spacing:-.3px;"],
+  ["heading-1","22 / 600 / 1.2 · Archivo","The Moto Collection","font-family:var(--font-display);font-size:22px;font-weight:600;line-height:1.2;"],
+  ["heading-2","18 / 600 / 1.3 · Archivo","Engineered for performance","font-family:var(--font-display);font-size:18px;font-weight:600;line-height:1.3;"],
+  ["eyebrow","14 / 600 · UPPER 1.4px","FEATURED","font-family:var(--font-display);font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:1.4px;"],
+  ["body-lg","16 / 400 / 1.5 · Inter","Technical apparel for life in motion — moisture-wicking, four-way stretch, built to outlast the season.","font-family:var(--font);font-size:16px;font-weight:400;line-height:1.5;"],
+  ["body-md","13 / 400 / 1.45 · Inter","Secondary copy and product detail sits a step down at thirteen pixels.","font-family:var(--font);font-size:13px;font-weight:400;line-height:1.45;color:var(--ink-secondary);"],
+  ["button","12 / 500 · UPPER 1.2px","ADD TO CART","font-family:var(--font);font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:1.2px;"],
+  ["caption","11 / 400 · UPPER 1.1px","ALL MEN'S · MEN'S HOME","font-family:var(--font);font-size:11px;font-weight:400;text-transform:uppercase;letter-spacing:1.1px;color:var(--ink-secondary);"],
+  ["mono-label","10 / 400 · MONO UPPER","LOS ANGELES · 08:56 PDT · FOR THE RESTLESS","font-family:var(--font-mono);font-size:10px;font-weight:400;text-transform:uppercase;letter-spacing:.5px;"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",4],["xs","8px",8],["sm","12px",12],["md","16px",16],["lg","24px",24],["xl","32px",32],["xxl","48px",48],["xxxl","64px",64]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs","5px","5"],["sm","10px","10"],["md","12px","12"],["lg","14px","14"],["xl","25px","25"],["full","999px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["Alice Linen Shirt","Men's · Stone","<b>$128</b>","","New"],
+  ["Dune Tech Short","Men's · Sand","<b>$98</b>","",""],
+  ["Moto Riding Jacket","Men's · Black","<b>$345</b>","","Limited"],
+  ["Restless Merino Tee","Unisex · White","<b>$72</b>","",""]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

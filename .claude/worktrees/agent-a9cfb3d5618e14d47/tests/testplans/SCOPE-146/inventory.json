@@ -1,0 +1,795 @@
+{
+  "target": "SCOPE-146",
+  "filteredFrom": 2218,
+  "filter": [
+    "routes/audit.ts",
+    "routes/auditAccess.ts",
+    "services/DocumentService.ts",
+    "services/AuditTaskService.ts",
+    "middleware/requireSysAdmin.ts"
+  ],
+  "units": [
+    {
+      "id": "fn:requireSysAdmin",
+      "file": "src/server/middleware/requireSysAdmin.ts",
+      "line": 15,
+      "name": "requireSysAdmin",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "(req: AuthRequest, res: Response, next: NextFunction): void",
+      "doc": "Middleware that restricts an endpoint to SYSADMIN users only.",
+      "deps": [
+        "auth",
+        "logger"
+      ],
+      "mutates": false,
+      "risk": "HIGH",
+      "loc": 21
+    },
+    {
+      "id": "route:GET /config",
+      "file": "src/server/routes/audit.ts",
+      "line": 45,
+      "name": "GET /config",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "()",
+      "middleware": [],
+      "deps": [],
+      "mutates": false,
+      "risk": "HIGH",
+      "loc": 39
+    },
+    {
+      "id": "route:PUT /config",
+      "file": "src/server/routes/audit.ts",
+      "line": 105,
+      "name": "PUT /config",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(requireAdmin, validateBody)",
+      "middleware": [
+        "requireAdmin",
+        "validateBody"
+      ],
+      "deps": [
+        "validation"
+      ],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 40
+    },
+    {
+      "id": "route:POST /documents",
+      "file": "src/server/routes/audit.ts",
+      "line": 198,
+      "name": "POST /documents",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"POST /documents\"), validateBody)",
+      "middleware": [
+        "...guardFor(\"POST /documents\")",
+        "validateBody"
+      ],
+      "deps": [
+        "auth",
+        "validation",
+        "clock"
+      ],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 27
+    },
+    {
+      "id": "route:POST /documents/:id/extract",
+      "file": "src/server/routes/audit.ts",
+      "line": 230,
+      "name": "POST /documents/:id/extract",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"POST /documents/:id/extract\"))",
+      "middleware": [
+        "...guardFor(\"POST /documents/:id/extract\")"
+      ],
+      "deps": [],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 39
+    },
+    {
+      "id": "route:DELETE /documents/:id",
+      "file": "src/server/routes/audit.ts",
+      "line": 329,
+      "name": "DELETE /documents/:id",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"DELETE /documents/:id\"))",
+      "middleware": [
+        "...guardFor(\"DELETE /documents/:id\")"
+      ],
+      "deps": [],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 28
+    },
+    {
+      "id": "route:GET /tasks",
+      "file": "src/server/routes/audit.ts",
+      "line": 376,
+      "name": "GET /tasks",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(validateQuery)",
+      "middleware": [
+        "validateQuery"
+      ],
+      "deps": [
+        "validation"
+      ],
+      "mutates": false,
+      "risk": "HIGH",
+      "loc": 36
+    },
+    {
+      "id": "route:GET /tasks/relevant",
+      "file": "src/server/routes/audit.ts",
+      "line": 417,
+      "name": "GET /tasks/relevant",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "()",
+      "middleware": [],
+      "deps": [],
+      "mutates": false,
+      "risk": "HIGH",
+      "loc": 44
+    },
+    {
+      "id": "route:POST /execute",
+      "file": "src/server/routes/audit.ts",
+      "line": 500,
+      "name": "POST /execute",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"POST /execute\"), validateBody)",
+      "middleware": [
+        "...guardFor(\"POST /execute\")",
+        "validateBody"
+      ],
+      "deps": [
+        "auth",
+        "validation",
+        "logger"
+      ],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 49
+    },
+    {
+      "id": "route:POST /executions/:id/cancel",
+      "file": "src/server/routes/audit.ts",
+      "line": 651,
+      "name": "POST /executions/:id/cancel",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"POST /executions/:id/cancel\"))",
+      "middleware": [
+        "...guardFor(\"POST /executions/:id/cancel\")"
+      ],
+      "deps": [],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 16
+    },
+    {
+      "id": "route:POST /reports",
+      "file": "src/server/routes/audit.ts",
+      "line": 682,
+      "name": "POST /reports",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"POST /reports\"), validateBody)",
+      "middleware": [
+        "...guardFor(\"POST /reports\")",
+        "validateBody"
+      ],
+      "deps": [
+        "auth",
+        "validation"
+      ],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 21
+    },
+    {
+      "id": "route:GET /reports/:id/download",
+      "file": "src/server/routes/audit.ts",
+      "line": 764,
+      "name": "GET /reports/:id/download",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"GET /reports/:id/download\"))",
+      "middleware": [
+        "...guardFor(\"GET /reports/:id/download\")"
+      ],
+      "deps": [],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 23
+    },
+    {
+      "id": "route:POST /reports/:id/approve",
+      "file": "src/server/routes/audit.ts",
+      "line": 792,
+      "name": "POST /reports/:id/approve",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"POST /reports/:id/approve\"))",
+      "middleware": [
+        "...guardFor(\"POST /reports/:id/approve\")"
+      ],
+      "deps": [
+        "auth"
+      ],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 21
+    },
+    {
+      "id": "fn:recordAuditLibraryWrite",
+      "file": "src/server/routes/auditAccess.ts",
+      "line": 121,
+      "name": "recordAuditLibraryWrite",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (req: AuthRequest, action: string, description: string, values: { previousvalue?: Record<string, unknown>; newvalue?: Record<string, unknown> } = {}): Promise<void>",
+      "doc": "Writes a companyauditlogs row for a state-changing /api/audit action, attributed to the acting",
+      "deps": [
+        "drizzle-db",
+        "auth",
+        "audit",
+        "logger"
+      ],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 23
+    },
+    {
+      "id": "fn:extractTasksFromDocument",
+      "file": "src/server/services/AuditTaskService.ts",
+      "line": 58,
+      "name": "extractTasksFromDocument",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (documentId: string): Promise<ExtractionResult>",
+      "doc": "Extract compliance tasks from a document's content.",
+      "deps": [
+        "drizzle-db",
+        "logger"
+      ],
+      "mutates": false,
+      "risk": "HIGH",
+      "loc": 112
+    },
+    {
+      "id": "fn:computeHash",
+      "file": "src/server/services/DocumentService.ts",
+      "line": 47,
+      "name": "computeHash",
+      "kind": "internal-function",
+      "exported": false,
+      "signature": "(content: string): string",
+      "doc": "Compute SHA-256 hash of content for tamper detection.",
+      "deps": [],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 3
+    },
+    {
+      "id": "fn:uploadDocument",
+      "file": "src/server/services/DocumentService.ts",
+      "line": 55,
+      "name": "uploadDocument",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (data: UploadDocumentInput, userId: string): Promise<WxKanbanDocument>",
+      "doc": "Upload a new document to wxkanbandocuments.",
+      "deps": [
+        "drizzle-db",
+        "pg-raw",
+        "clock",
+        "logger"
+      ],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 40
+    },
+    {
+      "id": "fn:deleteDocument",
+      "file": "src/server/services/DocumentService.ts",
+      "line": 163,
+      "name": "deleteDocument",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (id: string): Promise<void>",
+      "doc": "Delete a document by ID.",
+      "deps": [
+        "drizzle-db",
+        "logger"
+      ],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 9
+    },
+    {
+      "id": "fn:updateExtractedTaskCount",
+      "file": "src/server/services/DocumentService.ts",
+      "line": 210,
+      "name": "updateExtractedTaskCount",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (documentId: string, count: number): Promise<void>",
+      "doc": "Update extracted task count for a document.",
+      "deps": [
+        "drizzle-db",
+        "logger"
+      ],
+      "mutates": true,
+      "risk": "HIGH",
+      "loc": 16
+    },
+    {
+      "id": "route:GET /executions",
+      "file": "src/server/routes/audit.ts",
+      "line": 560,
+      "name": "GET /executions",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"GET /executions\"), validateQuery)",
+      "middleware": [
+        "...guardFor(\"GET /executions\")",
+        "validateQuery"
+      ],
+      "deps": [
+        "drizzle-db",
+        "validation"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 27
+    },
+    {
+      "id": "route:GET /executions/:id",
+      "file": "src/server/routes/audit.ts",
+      "line": 592,
+      "name": "GET /executions/:id",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"GET /executions/:id\"))",
+      "middleware": [
+        "...guardFor(\"GET /executions/:id\")"
+      ],
+      "deps": [
+        "drizzle-db"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 29
+    },
+    {
+      "id": "route:GET /executions/:id/results",
+      "file": "src/server/routes/audit.ts",
+      "line": 626,
+      "name": "GET /executions/:id/results",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"GET /executions/:id/results\"))",
+      "middleware": [
+        "...guardFor(\"GET /executions/:id/results\")"
+      ],
+      "deps": [
+        "drizzle-db"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 20
+    },
+    {
+      "id": "fn:projectCompanyId",
+      "file": "src/server/routes/auditAccess.ts",
+      "line": 86,
+      "name": "projectCompanyId",
+      "kind": "internal-function",
+      "exported": false,
+      "signature": "async (projectId: string): Promise<string | null>",
+      "doc": "",
+      "deps": [
+        "drizzle-db"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 8
+    },
+    {
+      "id": "fn:countTasksForDocument",
+      "file": "src/server/services/AuditTaskService.ts",
+      "line": 45,
+      "name": "countTasksForDocument",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (documentId: string): Promise<number>",
+      "doc": "Counts a document's complianceaudittasks rows. Used before a delete, whose cascade removes them,",
+      "deps": [
+        "drizzle-db"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 7
+    },
+    {
+      "id": "fn:listTasks",
+      "file": "src/server/services/AuditTaskService.ts",
+      "line": 228,
+      "name": "listTasks",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (filters: TaskFilters = {}): Promise<ComplianceAuditTask[]>",
+      "doc": "List compliance tasks with optional filters.",
+      "deps": [
+        "drizzle-db",
+        "logger"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 39
+    },
+    {
+      "id": "fn:getTask",
+      "file": "src/server/services/AuditTaskService.ts",
+      "line": 272,
+      "name": "getTask",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (id: string): Promise<ComplianceAuditTask | null>",
+      "doc": "Get a single task by ID.",
+      "deps": [
+        "drizzle-db",
+        "logger"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 14
+    },
+    {
+      "id": "fn:getRelevantTasks",
+      "file": "src/server/services/AuditTaskService.ts",
+      "line": 291,
+      "name": "getRelevantTasks",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (featureKeywords: string[], enabledFrameworks: string[]): Promise<ComplianceAuditTask[]>",
+      "doc": "Get tasks relevant to a feature based on keywords.",
+      "deps": [
+        "drizzle-db",
+        "logger"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 35
+    },
+    {
+      "id": "fn:listDocuments",
+      "file": "src/server/services/DocumentService.ts",
+      "line": 99,
+      "name": "listDocuments",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (filters: DocumentFilters = {}): Promise<WxKanbanDocument[]>",
+      "doc": "List documents with optional filters.",
+      "deps": [
+        "drizzle-db",
+        "logger"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 32
+    },
+    {
+      "id": "fn:getDocument",
+      "file": "src/server/services/DocumentService.ts",
+      "line": 136,
+      "name": "getDocument",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (id: string, options: DocumentReadOptions = {}): Promise<WxKanbanDocument | null>",
+      "doc": "Get a single document by ID.",
+      "deps": [
+        "drizzle-db",
+        "logger"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 23
+    },
+    {
+      "id": "fn:searchDocuments",
+      "file": "src/server/services/DocumentService.ts",
+      "line": 176,
+      "name": "searchDocuments",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (query: string, options: DocumentReadOptions = {}): Promise<WxKanbanDocument[]>",
+      "doc": "Search documents using full-text search.",
+      "deps": [
+        "drizzle-db",
+        "pg-raw",
+        "logger"
+      ],
+      "mutates": false,
+      "risk": "MEDIUM",
+      "loc": 30
+    },
+    {
+      "id": "route:GET /documents",
+      "file": "src/server/routes/audit.ts",
+      "line": 162,
+      "name": "GET /documents",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(validateQuery)",
+      "middleware": [
+        "validateQuery"
+      ],
+      "deps": [
+        "validation"
+      ],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 20
+    },
+    {
+      "id": "route:GET /documents/search",
+      "file": "src/server/routes/audit.ts",
+      "line": 275,
+      "name": "GET /documents/search",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "()",
+      "middleware": [],
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 23
+    },
+    {
+      "id": "route:GET /documents/:id",
+      "file": "src/server/routes/audit.ts",
+      "line": 303,
+      "name": "GET /documents/:id",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "()",
+      "middleware": [],
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 21
+    },
+    {
+      "id": "route:GET /tasks/:id",
+      "file": "src/server/routes/audit.ts",
+      "line": 466,
+      "name": "GET /tasks/:id",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "()",
+      "middleware": [],
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 20
+    },
+    {
+      "id": "route:GET /reports",
+      "file": "src/server/routes/audit.ts",
+      "line": 715,
+      "name": "GET /reports",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"GET /reports\"), validateQuery)",
+      "middleware": [
+        "...guardFor(\"GET /reports\")",
+        "validateQuery"
+      ],
+      "deps": [
+        "validation"
+      ],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 18
+    },
+    {
+      "id": "route:GET /reports/:id",
+      "file": "src/server/routes/audit.ts",
+      "line": 738,
+      "name": "GET /reports/:id",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"GET /reports/:id\"))",
+      "middleware": [
+        "...guardFor(\"GET /reports/:id\")"
+      ],
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 21
+    },
+    {
+      "id": "route:GET /trends",
+      "file": "src/server/routes/audit.ts",
+      "line": 818,
+      "name": "GET /trends",
+      "kind": "express-route",
+      "exported": true,
+      "registeredBy": null,
+      "signature": "(...guardFor(\"GET /trends\"))",
+      "middleware": [
+        "...guardFor(\"GET /trends\")"
+      ],
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 14
+    },
+    {
+      "id": "fn:guardFor",
+      "file": "src/server/routes/auditAccess.ts",
+      "line": 64,
+      "name": "guardFor",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "(route: AuditRouteKey): AuditGuard[]",
+      "doc": "The middleware to mount first on a route, ahead of any body or query validation, so a caller",
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 11
+    },
+    {
+      "id": "fn:isSysAdminCaller",
+      "file": "src/server/routes/auditAccess.ts",
+      "line": 77,
+      "name": "isSysAdminCaller",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "(req: AuthRequest): boolean",
+      "doc": "True when the caller may see the whole Platform Compliance Library, internal documents included.",
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 3
+    },
+    {
+      "id": "fn:canReadProjectCompliance",
+      "file": "src/server/routes/auditAccess.ts",
+      "line": 100,
+      "name": "canReadProjectCompliance",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (req: AuthRequest, projectId: string): Promise<boolean>",
+      "doc": "Read access to a project's compliance settings: the owner company, a company holding an",
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 5
+    },
+    {
+      "id": "fn:ownsProject",
+      "file": "src/server/routes/auditAccess.ts",
+      "line": 107,
+      "name": "ownsProject",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (req: AuthRequest, projectId: string): Promise<boolean>",
+      "doc": "Write access: only the project's owner company. A consulting company may read, never change.",
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 4
+    },
+    {
+      "id": "method:NoTasksExtractedError.constructor",
+      "file": "src/server/services/AuditTaskService.ts",
+      "line": 33,
+      "name": "NoTasksExtractedError.constructor",
+      "kind": "class-method",
+      "exported": true,
+      "visibility": "public",
+      "signature": "(public readonly documentId: string)",
+      "doc": "",
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 4
+    },
+    {
+      "id": "fn:extractControlReference",
+      "file": "src/server/services/AuditTaskService.ts",
+      "line": 174,
+      "name": "extractControlReference",
+      "kind": "internal-function",
+      "exported": false,
+      "signature": "(text: string): string | undefined",
+      "doc": "Extract control reference from task text (e.g., \"CC6.1\", \"§164.312(a)\").",
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 15
+    },
+    {
+      "id": "fn:inferPhases",
+      "file": "src/server/services/AuditTaskService.ts",
+      "line": 193,
+      "name": "inferPhases",
+      "kind": "internal-function",
+      "exported": false,
+      "signature": "(text: string): string[]",
+      "doc": "Infer applicable SDLC phases from task text.",
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 15
+    },
+    {
+      "id": "fn:inferFileTypes",
+      "file": "src/server/services/AuditTaskService.ts",
+      "line": 212,
+      "name": "inferFileTypes",
+      "kind": "internal-function",
+      "exported": false,
+      "signature": "(tasktype: string): string[]",
+      "doc": "Infer applicable file types from task type.",
+      "deps": [],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 12
+    },
+    {
+      "id": "fn:verifyDocumentIntegrity",
+      "file": "src/server/services/DocumentService.ts",
+      "line": 231,
+      "name": "verifyDocumentIntegrity",
+      "kind": "exported-function",
+      "exported": true,
+      "signature": "async (id: string): Promise<boolean>",
+      "doc": "Verify document integrity by recomputing hash.",
+      "deps": [
+        "logger"
+      ],
+      "mutates": false,
+      "risk": "LOW",
+      "loc": 14
+    }
+  ]
+}

@@ -1,0 +1,185 @@
+--- AgentConnectService.orig.ts	2026-10-24 10:04:29.114147300 -0500
++++ AgentConnectService.ts	2026-10-24 10:19:35.446191800 -0500
+@@ -18,21 +18,16 @@
+ import { db } from '~/db/client.js';
+ import { mcpapitokens } from '~/db/schema/mcpapitokens.js';
+ import { projectagentgrants } from '~/db/schema/projectagentgrant.js';
+-import { projectrooms } from '~/db/schema/projectroom.js';
+ import { companyprojects } from '~/db/schema/companyproject.js';
+ import { userprofiles } from '~/db/schema/userprofiles.js';
+ import type { CompanyAgentToken } from '~/db/schema/companyagenttoken.js';
+ import { kitEncryptionService } from './KitEncryptionService.js';
+ import { projectAgentGrantService, type GrantedProject } from './ProjectAgentGrantService.js';
+-import {
+-  createRoom,
+-  ensureProjectsGrouping,
+-  mintAgentToken,
+-  operatorSession,
+-} from '~/server/lib/yappchattBroker.js';
++import { companyYappchattService, CompanyYappchattError } from './CompanyYappchattService.js';
+ import { logger } from '~/server/lib/logger.js';
+ 
+ // [SCOPE 134 / T028] BEGIN — AgentConnectService
++// MODIFIED-BY: [SCOPE 144 / T008] — rooms only under the company account; room before MCP token; error extra fields
+ /**
+  * `mcpapitokens.name` prefix for grant-minted tokens. The MCP middleware keys its
+  * per-call grant re-check off this exact prefix — change both or neither.
+@@ -51,6 +46,8 @@
+     readonly code: string,
+     readonly status: number,
+     message: string,
++    /** Extra response fields, e.g. `{ contactEmail }` on 409 no_company_account. */
++    readonly extra: Record<string, string | null> = {},
+   ) {
+     super(message);
+     this.name = 'AgentConnectError';
+@@ -72,6 +69,10 @@
+      * session is minted for this email — the agent token can post but cannot read.
+      */
+     operatorEmail: string;
++    /** SCOPE-144: the company YappChatt account that owns the room (FR-005). */
++    ownerYappchattId?: string;
++    /** SCOPE-144: the old room retired and replaced on this call (FR-007). */
++    replacedConversationId?: string;
+   };
+ }
+ 
+@@ -122,6 +123,13 @@
+       throw new AgentConnectError('no_operator', 409, 'The user who granted this project has no email on file.');
+     }
+ 
++    // The room first (SCOPE-144): a refusal such as no_company_account then leaves no
++    // MCP token minted and no prior one revoked.
++    const room = await this.resolveRoom(projectId, grant.projectName, agentName, operator.email, {
++      mintAgentToken: opts.mintAgentToken,
++      companyId: ticket.companyid,
++      actorUserId: grant.grantedbyid,
++    });
+     const mcp = await this.mintProjectToken({
+       companyid: ticket.companyid,
+       projectId,
+@@ -129,12 +137,12 @@
+       name: `${AGENT_GRANT_TOKEN_PREFIX}${ticket.agentname}`,
+       bindAs: ticket.agentname,
+     });
+-    const room = await this.resolveRoom(projectId, grant.projectName, agentName, operator.email, opts);
+ 
+     return { projectId, projectName: grant.projectName, agentName, mcp, room };
+   }
+ 
+   // [SCOPE 134 / T029] BEGIN — the project agent's room (SCOPE-132 Amendment A, FR-031)
++  // MODIFIED-BY: [SCOPE 144 / T008] — createCompanyAccount; the room is the company account's
+   /**
+    * The room a project's kit agent joins to be supervised by `supervisor` (KAIN).
+    *
+@@ -146,7 +154,7 @@
+   async projectAgentRoom(
+     token: { projectid: string; customerid: string; issuedbyid: string; name: string; expiresat: Date | null },
+     supervisor: string,
+-    opts: { mintAgentToken?: boolean } = {},
++    opts: { mintAgentToken?: boolean; createCompanyAccount?: boolean } = {},
+   ): Promise<{
+     projectId: string;
+     projectName: string;
+@@ -165,7 +173,7 @@
+     }
+ 
+     const [project] = await db
+-      .select({ name: companyprojects.name })
++      .select({ name: companyprojects.name, companyid: companyprojects.companyid })
+       .from(companyprojects)
+       .where(eq(companyprojects.id, token.projectid))
+       .limit(1);
+@@ -180,7 +188,12 @@
+       throw new AgentConnectError('no_operator', 409, 'The user who issued this project token has no email on file.');
+     }
+ 
+-    const room = await this.resolveRoom(token.projectid, project.name, supervisor, operator.email, opts);
++    const room = await this.resolveRoom(token.projectid, project.name, supervisor, operator.email, {
++      mintAgentToken: opts.mintAgentToken,
++      createCompanyAccount: opts.createCompanyAccount,
++      companyId: project.companyid ?? token.customerid,
++      actorUserId: token.issuedbyid,
++    });
+ 
+     // Its own bound, short-lived MCP token, so the gate's decisions can be filed through
+     // record_override (which accepts only bound tokens). Binding the shared kit token
+@@ -253,57 +266,29 @@
+     projectName: string,
+     agentName: string,
+     operatorEmail: string,
+-    opts: { mintAgentToken?: boolean },
++    opts: { mintAgentToken?: boolean; createCompanyAccount?: boolean; companyId: string; actorUserId: string | null },
+   ): Promise<AgentConnectResult['room']> {
+-    const [existing] = await db
+-      .select({ id: projectrooms.id, conversationid: projectrooms.conversationid })
+-      .from(projectrooms)
+-      .where(and(eq(projectrooms.projectid, projectId), eq(projectrooms.agentname, agentName)))
+-      .limit(1);
+-
+-    // Bound, and the agent still holds its token: the common case, no YappChatt call.
+-    if (existing && !opts.mintAgentToken) {
+-      return { conversationId: existing.conversationid, minted: false, operatorEmail };
+-    }
+-
+-    const session = await operatorSession(operatorEmail);
+-
+-    if (existing) {
+-      // The agent lost its copy. Mint again and move the timestamp, which is how a room
+-      // accumulating never-revoked tokens stays visible.
+-      const agentToken = await mintAgentToken(session, existing.conversationid);
+-      await db
+-        .update(projectrooms)
+-        .set({ agenttokenmintedat: new Date(), updatedat: new Date() })
+-        .where(eq(projectrooms.id, existing.id));
+-      return { conversationId: existing.conversationid, agentToken, minted: true, operatorEmail };
+-    }
+-
+-    const groupingid = await ensureProjectsGrouping(session);
+-    const conversationid = await createRoom(session, groupingid, `${projectName} · ${agentName}`);
+-    const agentToken = await mintAgentToken(session, conversationid);
+-
+-    const inserted = await db
+-      .insert(projectrooms)
+-      .values({ projectid: projectId, agentname: agentName, conversationid, agenttokenmintedat: new Date() })
+-      .onConflictDoNothing()
+-      .returning({ id: projectrooms.id });
+-
+-    if (!inserted.length) {
+-      // A concurrent first connect bound a room first. Theirs wins; ours is orphaned in
+-      // YappChatt, which is logged rather than hidden.
+-      logger.warn({ projectId, agentName, orphan: conversationid }, 'concurrent room bind — orphaned room left in YappChatt');
+-      const [winner] = await db
+-        .select({ conversationid: projectrooms.conversationid })
+-        .from(projectrooms)
+-        .where(and(eq(projectrooms.projectid, projectId), eq(projectrooms.agentname, agentName)))
+-        .limit(1);
+-      const retoken = await mintAgentToken(session, winner.conversationid);
+-      return { conversationId: winner.conversationid, agentToken: retoken, minted: true, operatorEmail };
++    // SCOPE-144 / T008: every room is created and owned by the company YappChatt account
++    // (FR-005); no account → 409 no_company_account (FR-006); a room with another or no
++    // recorded owner is retired and replaced (FR-007). The rules live in
++    // CompanyYappchattService so both connect paths share them.
++    try {
++      return await companyYappchattService.ensureCompanyRoom({
++        companyId: opts.companyId,
++        projectId,
++        projectName,
++        agentName,
++        operatorEmail,
++        actorUserId: opts.actorUserId,
++        mintAgentToken: opts.mintAgentToken,
++        createCompanyAccount: opts.createCompanyAccount,
++      });
++    } catch (err) {
++      if (err instanceof CompanyYappchattError) {
++        throw new AgentConnectError(err.code, err.status, err.message, err.extra);
++      }
++      throw err;
+     }
+-
+-    logger.info({ projectId, agentName, conversationid }, 'agent room bound');
+-    return { conversationId: conversationid, agentToken, minted: true, operatorEmail };
+   }
+ }
+ // [SCOPE 134 / T028] END

@@ -1,0 +1,263 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "wxKanban Settings API",
+    "version": "1.0.0",
+    "description": "Company-scoped application settings management. All settings are stored encrypted. Admin-only write access; all authenticated users receive settings at login."
+  },
+  "servers": [
+    { "url": "/api", "description": "Express API server" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "token"
+      }
+    },
+    "schemas": {
+      "Setting": {
+        "type": "object",
+        "required": ["name", "type", "value"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{1,64}$",
+            "description": "Unique identifier for this setting within the company. snake_case."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["boolean", "default", "report_header", "image"],
+            "description": "Category of setting. Determines how the value is interpreted."
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "String value. For boolean type, use 'true' or 'false'. For image type, provide a URL."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Optional human-readable label or explanation."
+          }
+        }
+      },
+      "SettingsList": {
+        "type": "array",
+        "items": { "$ref": "#/components/schemas/Setting" }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["code", "error"],
+        "properties": {
+          "code": { "type": "string" },
+          "error": { "type": "string" }
+        }
+      }
+    }
+  },
+  "security": [{ "cookieAuth": [] }],
+  "paths": {
+    "/settings": {
+      "get": {
+        "operationId": "listSettings",
+        "summary": "List all company settings",
+        "description": "Returns the decrypted settings array for the authenticated user's company. Available to all authenticated users.",
+        "tags": ["Settings"],
+        "responses": {
+          "200": {
+            "description": "Settings list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["settings"],
+                  "properties": {
+                    "settings": { "$ref": "#/components/schemas/SettingsList" }
+                  }
+                },
+                "example": {
+                  "settings": [
+                    { "name": "maintenance_mode", "type": "boolean", "value": "false", "description": "Disable access for non-admins" },
+                    { "name": "report_company_name", "type": "report_header", "value": "Acme Corp" },
+                    { "name": "company_logo", "type": "image", "value": "https://cdn.example.com/logo.png" }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSetting",
+        "summary": "Create a new setting",
+        "description": "Creates a new setting for the company. Name must be unique. Admin only.",
+        "tags": ["Settings"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Setting" },
+              "example": {
+                "name": "maintenance_mode",
+                "type": "boolean",
+                "value": "false",
+                "description": "Disable access for non-admins when set to true"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Setting created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "setting"],
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "setting": { "$ref": "#/components/schemas/Setting" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (invalid name pattern, invalid type, invalid boolean value, etc.)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "Not an Admin user",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "409": {
+            "description": "Setting name already exists for this company",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "code": "SETTING_NAME_CONFLICT", "error": "A setting named 'maintenance_mode' already exists." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/{name}": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string", "pattern": "^[a-z0-9_]{1,64}$" },
+          "description": "Setting name (unique identifier)"
+        }
+      ],
+      "patch": {
+        "operationId": "updateSetting",
+        "summary": "Update a setting's value",
+        "description": "Updates the value (and optionally description) of an existing setting. Name and type are immutable. Admin only.",
+        "tags": ["Settings"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["value"],
+                "properties": {
+                  "value": { "type": "string", "maxLength": 2048 },
+                  "description": { "type": "string", "maxLength": 255 }
+                }
+              },
+              "example": { "value": "true" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Setting updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "setting"],
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "setting": { "$ref": "#/components/schemas/Setting" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "Not an Admin user",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": {
+            "description": "Setting not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "code": "SETTING_NOT_FOUND", "error": "Setting 'maintenance_mode' not found." }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSetting",
+        "summary": "Delete a setting",
+        "description": "Permanently removes a setting from the company's settings collection. Admin only.",
+        "tags": ["Settings"],
+        "responses": {
+          "200": {
+            "description": "Setting deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success"],
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": { "success": true, "message": "Setting 'maintenance_mode' deleted." }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "Not an Admin user",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": {
+            "description": "Setting not found",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    }
+  }
+}

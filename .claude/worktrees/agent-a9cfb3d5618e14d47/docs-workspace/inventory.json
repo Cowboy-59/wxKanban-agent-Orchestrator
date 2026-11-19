@@ -1,0 +1,169 @@
+{
+  "screens": [
+    {
+      "id": "login", "title": "Signing in", "url": "/login", "nav": "Public page",
+      "elements": [
+        { "label": "Email Address", "type": "input", "region": "form", "behavior": "Account identifier; must match an existing wxKanban user." },
+        { "label": "Password", "type": "password", "region": "form", "behavior": "Secret credential; the eye icon toggles local visibility only." },
+        { "label": "Sign In", "type": "button", "region": "form", "behavior": "Authenticates; on success lands admins on Dashboard, members on My Tasks; wrong credentials error and repeated failures lock the account." },
+        { "label": "Forgot password?", "type": "link", "region": "form", "behavior": "Starts the email-based password reset flow." },
+        { "label": "Register here", "type": "link", "region": "form", "behavior": "Opens the new-company sign-up wizard; not for joining an existing company." },
+        { "label": "Jira/Monday/Asana/Trello chips", "type": "button", "region": "footer", "behavior": "Shortcut to begin by connecting a PM system; most users connect later in PM Integrations." }
+      ]
+    },
+    {
+      "id": "dashboard", "title": "The Dashboard", "url": "/admin/dashboard", "nav": "Sidebar > Dashboard",
+      "elements": [
+        { "label": "Sidebar navigation", "type": "nav", "region": "sidebar", "behavior": "Links to every app area; padlocked items are outside the current plan." },
+        { "label": "New", "type": "button", "region": "toolbar", "behavior": "Creates a project inline (admins only)." },
+        { "label": "All projects", "type": "link", "region": "toolbar", "behavior": "Opens the full Projects list." },
+        { "label": "Summary cards", "type": "card", "region": "top", "behavior": "Read-only headline numbers: Current Plan/seats, Team Members, Active Projects, Hours This Week." },
+        { "label": "Project card", "type": "card", "region": "grid", "behavior": "Per-project lifecycle phase progress, outstanding tasks, and document quick-links; click the name to open the project." },
+        { "label": "Document links", "type": "link", "region": "grid", "behavior": "Open a project's generated docs; 'not created' means not yet generated, a date means it exists." },
+        { "label": "Edit audit type", "type": "button", "region": "grid", "behavior": "Sets the compliance framework the project is audited against." },
+        { "label": "Project Proposals", "type": "panel", "region": "lower", "behavior": "Captured future-project ideas with statuses; Create Project turns an accepted proposal into a project." },
+        { "label": "Pending Tasks", "type": "table", "region": "lower", "behavior": "Per-project unfinished task counts (NEW / IN-PROG / TOTAL)." },
+        { "label": "System Health", "type": "panel", "region": "bottom", "behavior": "Live app/database status, uptime, latency, connections; Refresh re-checks." },
+        { "label": "Upgrade Plan", "type": "button", "region": "bottom", "behavior": "Prompts to upgrade for Consultant-only Time & Billing / Reports features." }
+      ]
+    },
+    {
+      "id": "projects", "title": "Projects", "url": "/admin/projects", "nav": "Sidebar > Projects",
+      "elements": [
+        { "label": "Phase filter tabs", "type": "tab", "region": "toolbar", "behavior": "Narrow the list to projects in a lifecycle phase (All/Design/Implementation/QA/Human/Beta/Release)." },
+        { "label": "Search projects", "type": "input", "region": "toolbar", "behavior": "Filters the list by project name as you type." },
+        { "label": "Sort (Updated/Created/Name)", "type": "button", "region": "toolbar", "behavior": "Orders the list; Updated is default." },
+        { "label": "Project row", "type": "link", "region": "list", "behavior": "Shows phase badge and scope summary; click to open the project." },
+        { "label": "New Project", "type": "button", "region": "toolbar", "behavior": "Creates a new project (name + description)." }
+      ]
+    },
+    {
+      "id": "project-detail", "title": "Inside a project", "url": "/projects/:id", "nav": "Dashboard or Projects > pick a project",
+      "elements": [
+        { "label": "Audit dropdown", "type": "select", "region": "header", "behavior": "Chooses the compliance framework to audit against (No Audit/GDPR/HIPAA/HITRUST/SOC2)." },
+        { "label": "Archive", "type": "button", "region": "header", "behavior": "Archives the project after confirmation." },
+        { "label": "Delete", "type": "button", "region": "header", "behavior": "Deletes the project after confirmation; destructive." },
+        { "label": "VIEWS: Kanban", "type": "tab", "region": "views", "behavior": "Scopes laid out as cards per lifecycle phase." },
+        { "label": "VIEWS: Matrix", "type": "tab", "region": "views", "behavior": "Scopes as a table with a status column per phase." },
+        { "label": "VIEWS: Stack", "type": "tab", "region": "views", "behavior": "The project's technology stack & style (inherited from company Stack Profiles unless overridden)." },
+        { "label": "VIEWS: Theme", "type": "tab", "region": "views", "behavior": "The project's visual theme (inherited from company Theme Profiles unless overridden)." },
+        { "label": "VIEWS: Bug Reports", "type": "tab", "region": "views", "behavior": "Bug reports for the project; Install/get endpoint seeds a bug-trapping scope if none exist." },
+        { "label": "Lifecycle tab", "type": "tab", "region": "docs", "behavior": "Lifecycle report: scope distribution across the six phases, shown with charts." },
+        { "label": "Development Plan tab", "type": "tab", "region": "docs", "behavior": "Build roadmap: what's built/next/blocking, dependency map, critical path." },
+        { "label": "Portfolio Analyzer tab", "type": "tab", "region": "docs", "behavior": "Searches other projects for overlapping scopes ('Has the company already built this?'); reuse instead of rebuild; Download PDF." },
+        { "label": "Compliance tab", "type": "tab", "region": "docs", "behavior": "Enable compliance frameworks and review audit config, documents, tasks, and reports." },
+        { "label": "Learnings tab", "type": "tab", "region": "docs", "behavior": "Compound-learnings report of decisions, fixes, and controls after work is done." },
+        { "label": "Kit tab", "type": "tab", "region": "docs", "behavior": "Downloadable AI-ready development environment (kit) for the project, with version and status." },
+        { "label": "Search scopes", "type": "input", "region": "board", "behavior": "Filters scope cards by text." },
+        { "label": "All statuses filter", "type": "select", "region": "board", "behavior": "Filters scopes by state." },
+        { "label": "Show deferred", "type": "checkbox", "region": "board", "behavior": "Includes scopes that were intentionally set aside." },
+        { "label": "Scope card", "type": "card", "region": "board", "behavior": "A unit of work with number, title, task count, state badge, progress bar, and Scope Process Flow / Scope Analysis links." }
+      ]
+    },
+    {
+      "id": "tasks", "title": "My Tasks", "url": "/tasks", "nav": "Sidebar > My Tasks",
+      "elements": [
+        { "label": "Sync now", "type": "button", "region": "header", "behavior": "Immediately pulls assigned tasks from all connected PM systems." },
+        { "label": "All sources filter", "type": "select", "region": "toolbar", "behavior": "Limits tasks to Jira/Monday/Asana/Trello/Internal." },
+        { "label": "All priorities filter", "type": "select", "region": "toolbar", "behavior": "Shows only Critical/High/Medium/Low tasks." },
+        { "label": "All statuses filter", "type": "select", "region": "toolbar", "behavior": "Shows only Open/In progress/Completed/Orphaned tasks." },
+        { "label": "Sort", "type": "select", "region": "toolbar", "behavior": "Orders by Recently updated/Due date/Priority/Title with a direction toggle." },
+        { "label": "Empty state", "type": "text", "region": "list", "behavior": "'No tasks yet' with a prompt to connect a PM system when nothing has synced." }
+      ]
+    },
+    {
+      "id": "work-hub", "title": "Work Hub", "url": "/dashboard/work-hub", "nav": "Sidebar > Work Hub",
+      "elements": [
+        { "label": "Project filter", "type": "select", "region": "header", "behavior": "Scopes the whole page to one project or All Projects." },
+        { "label": "Total Tasks tile", "type": "card", "region": "tiles", "behavior": "Count of all tasks in the assigned queue." },
+        { "label": "Past Due tile", "type": "card", "region": "tiles", "behavior": "Tasks past their due date (amber)." },
+        { "label": "30+ Day Aging tile", "type": "card", "region": "tiles", "behavior": "Tasks untouched 30+ days (red)." },
+        { "label": "Compliance tile", "type": "card", "region": "tiles", "behavior": "Count of compliance-flagged tasks." },
+        { "label": "Assigned Work Queue", "type": "panel", "region": "main", "behavior": "Your tasks across projects with one-click time tracking." },
+        { "label": "Invoice-Ready Billable Preview", "type": "panel", "region": "main", "behavior": "Billable hours in a chosen date range; a preview of what could be invoiced." },
+        { "label": "Compliance Review Panel", "type": "panel", "region": "main", "behavior": "Lists compliance-flagged tasks so non-compliant work isn't billed." }
+      ]
+    },
+    {
+      "id": "team", "title": "Team Members", "url": "/admin/team", "nav": "Sidebar > Team Members",
+      "elements": [
+        { "label": "Invite Member", "type": "button", "region": "header", "behavior": "Adds a person by email + role; emails them an invite to set a password; uses a plan seat." },
+        { "label": "Search / All-Active-Inactive", "type": "input", "region": "toolbar", "behavior": "Filters the member table by name/email or status." },
+        { "label": "Role dropdown", "type": "select", "region": "row", "behavior": "Sets a member as Admin (full control) or Manager." },
+        { "label": "Language dropdown", "type": "select", "region": "row", "behavior": "Sets the member's interface language." },
+        { "label": "Status", "type": "badge", "region": "row", "behavior": "Active (can sign in) or Inactive (retained but blocked)." },
+        { "label": "Row actions", "type": "button", "region": "row", "behavior": "Edit member, resend invite, reset/manage access, remove (remove confirms)." },
+        { "label": "Invite Consulting Company", "type": "button", "region": "consultants", "behavior": "Starts an engagement with an external firm that doesn't use seats and sees only assigned projects." },
+        { "label": "Consultant card actions", "type": "button", "region": "consultants", "behavior": "Open / Pause / Disable / End the engagement; Pause/Disable/End change the firm's access." }
+      ]
+    },
+    {
+      "id": "integrations", "title": "PM Integrations", "url": "/integrations", "nav": "Sidebar > PM Integrations",
+      "elements": [
+        { "label": "Connect (per system)", "type": "button", "region": "cards", "behavior": "Starts OAuth2 authorization for Jira/Monday/Asana/Trello; access is stored encrypted." },
+        { "label": "System card state", "type": "badge", "region": "cards", "behavior": "Shows Not connected or connected per tool." },
+        { "label": "View My Tasks", "type": "link", "region": "header", "behavior": "Opens the synced task list (My Tasks)." }
+      ]
+    },
+    {
+      "id": "invoices", "title": "Invoices", "url": "/admin/invoices", "nav": "Sidebar > Invoices (Consultant plan)",
+      "elements": [
+        { "label": "Generate Invoice", "type": "button", "region": "header", "behavior": "Builds a PDF invoice from billable time for a project/date range; marks entries invoiced to prevent double billing." },
+        { "label": "Total Invoices", "type": "card", "region": "summary", "behavior": "How many invoices exist." },
+        { "label": "Total Revenue", "type": "card", "region": "summary", "behavior": "Summed value of invoices." },
+        { "label": "Sent Invoices", "type": "card", "region": "summary", "behavior": "How many have been sent." },
+        { "label": "Invoice History", "type": "list", "region": "main", "behavior": "Each invoice with client, amount, and status." }
+      ]
+    },
+    {
+      "id": "reports", "title": "Reports", "url": "/admin/reports", "nav": "Sidebar > Reports (Consultant plan)",
+      "elements": [
+        { "label": "Time Reports / Project Reports", "type": "tab", "region": "header", "behavior": "Switches between time analytics and project-progress analytics." },
+        { "label": "Date Range (Start/End)", "type": "input", "region": "toolbar", "behavior": "Scopes the report to a window; required before data shows." },
+        { "label": "Export CSV", "type": "button", "region": "toolbar", "behavior": "Downloads the current report as CSV." },
+        { "label": "Time by Team Member", "type": "panel", "region": "main", "behavior": "Hours logged per person in the selected range." }
+      ]
+    },
+    {
+      "id": "stack-profiles", "title": "Stack Profiles", "url": "/admin/stack-profiles", "nav": "Sidebar > Stack Profiles",
+      "elements": [
+        { "label": "Project dropdown", "type": "select", "region": "promote", "behavior": "Projects with a captured Stack & Style, eligible to promote; each tagged with its type." },
+        { "label": "Promote", "type": "button", "region": "promote", "behavior": "Makes the selected project's stack the company-wide default for its application type." },
+        { "label": "Profiles (Web/Desktop/Mobile)", "type": "list", "region": "main", "behavior": "Current company default stack per type; a project with its own stack overrides it." }
+      ]
+    },
+    {
+      "id": "theme-profiles", "title": "Theme Profiles", "url": "/admin/theme-profiles", "nav": "Sidebar > Theme Profiles",
+      "elements": [
+        { "label": "Profiles (Web/Desktop/Mobile)", "type": "list", "region": "main", "behavior": "Current company default theme per type, or 'Not set' (falls back to wxKanban default)." },
+        { "label": "Save a theme from a project", "type": "link", "region": "main", "behavior": "Shortcut into a project's Theme tab where 'Save as company theme' sets the default." }
+      ]
+    },
+    {
+      "id": "faq", "title": "FAQ", "url": "/faq", "nav": "Sidebar > FAQ",
+      "elements": [
+        { "label": "Question rows", "type": "button", "region": "list", "behavior": "Click to expand and reveal each answer." },
+        { "label": "Ask box", "type": "input", "region": "header", "behavior": "Submits a new question to the wxKanban team for inclusion in the FAQ." }
+      ]
+    },
+    {
+      "id": "help", "title": "Help & plan features", "url": "/help", "nav": "Sidebar > Help",
+      "elements": [
+        { "label": "Plan cards", "type": "button", "region": "top", "behavior": "Selecting Single User/Small-Medium Business/Consultant/Enterprise sets which plan the feature badges reflect; your plan is default." },
+        { "label": "Included / Upgrade required badge", "type": "badge", "region": "cards", "behavior": "Whether the selected plan includes that feature." },
+        { "label": "Feature card", "type": "card", "region": "cards", "behavior": "Describes an app area with a How-to tip and its availability." }
+      ]
+    },
+    {
+      "id": "settings", "title": "Settings", "url": "/admin/settings", "nav": "Sidebar > Settings",
+      "elements": [
+        { "label": "Company Name", "type": "input", "region": "company", "behavior": "Organization name shown app-wide as the active tenant." },
+        { "label": "Billing Email", "type": "input", "region": "company", "behavior": "General company contact email." },
+        { "label": "Consultant Invoice Email", "type": "input", "region": "company", "behavior": "Destination for B2B invoices." },
+        { "label": "Billing Address / Phone", "type": "input", "region": "company", "behavior": "Postal and phone billing contacts." },
+        { "label": "Save Company Info", "type": "button", "region": "company", "behavior": "Stores changes to company information." },
+        { "label": "Subscription & Payment", "type": "panel", "region": "billing", "behavior": "Shows Plan and Status and lets you review the plan and update a card if payment failed." }
+      ]
+    }
+  ]
+}

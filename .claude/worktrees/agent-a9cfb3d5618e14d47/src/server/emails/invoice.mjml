@@ -1,0 +1,98 @@
+<mjml>
+  <mj-head>
+    <mj-title>Payment Confirmation - wxKanban</mj-title>
+    <mj-font name="Inter" href="https://fonts.googleapis.com/css?family=Inter:400,600,700" />
+    <mj-attributes>
+      <mj-all font-family="Inter, Helvetica, Arial, sans-serif" />
+      <mj-text font-size="16px" line-height="24px" color="#1e293b" />
+      <mj-button background-color="#3b82f6" color="#ffffff" font-size="16px" font-weight="600" border-radius="8px" padding="16px 32px" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f1f5f9">
+    <mj-section padding="40px 20px">
+      <mj-column>
+        <mj-image src="https://wxkanban.com/logo.png" alt="wxKanban" width="200px" align="center" />
+      </mj-column>
+    </mj-section>
+    
+    <mj-section background-color="#ffffff" border-radius="12px" padding="40px 30px">
+      <mj-column>
+        <mj-text font-size="28px" font-weight="700" color="#0f172a" align="center" padding-bottom="20px">
+          Payment Received ✓
+        </mj-text>
+        
+        <mj-text padding-bottom="20px">
+          Hi {{firstName}},
+        </mj-text>
+        
+        <mj-text padding-bottom="20px">
+          Thank you for your payment! Your subscription has been successfully processed.
+        </mj-text>
+        
+        <mj-section background-color="#f8fafc" border-radius="8px" padding="20px">
+          <mj-column>
+            <mj-text font-size="14px" color="#64748b" padding-bottom="5px">
+              Company
+            </mj-text>
+            <mj-text font-size="16px" font-weight="600" color="#0f172a" padding-bottom="15px">
+              {{companyName}}
+            </mj-text>
+            
+            <mj-text font-size="14px" color="#64748b" padding-bottom="5px">
+              Subscription Tier
+            </mj-text>
+            <mj-text font-size="16px" font-weight="600" color="#0f172a" padding-bottom="15px">
+              {{subscriptionTier}}
+            </mj-text>
+            
+            <mj-text font-size="14px" color="#64748b" padding-bottom="5px">
+              Amount Paid
+            </mj-text>
+            <mj-text font-size="20px" font-weight="700" color="#059669" padding-bottom="15px">
+              {{amount}}
+            </mj-text>
+            
+            <mj-text font-size="14px" color="#64748b" padding-bottom="5px">
+              Invoice Number
+            </mj-text>
+            <mj-text font-size="16px" font-weight="600" color="#0f172a" padding-bottom="15px">
+              {{invoiceNumber}}
+            </mj-text>
+            
+            <mj-text font-size="14px" color="#64748b" padding-bottom="5px">
+              Date
+            </mj-text>
+            <mj-text font-size="16px" font-weight="600" color="#0f172a">
+              {{paymentDate}}
+            </mj-text>
+          </mj-column>
+        </mj-section>
+        
+        <mj-button href="{{billingLink}}" padding="30px 0">
+          View Billing History
+        </mj-button>
+        
+        <mj-divider border-color="#e2e8f0" padding="20px 0" />
+        
+        <mj-text font-size="14px" color="#64748b" padding-bottom="10px">
+          <strong>Questions about your billing?</strong>
+        </mj-text>
+        
+        <mj-text font-size="14px" color="#64748b">
+          Contact our billing team at <a href="mailto:billing@wxkanban.com" style="color: #3b82f6;">billing@wxkanban.com</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    
+    <mj-section padding="30px 20px">
+      <mj-column>
+        <mj-text font-size="12px" color="#64748b" align="center">
+          © 2026 wxKanban. All rights reserved.
+        </mj-text>
+        <mj-text font-size="12px" color="#64748b" align="center">
+          You're receiving this because you made a payment on wxKanban.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

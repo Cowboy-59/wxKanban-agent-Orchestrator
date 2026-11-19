@@ -1,0 +1,218 @@
+[
+  {
+    "mode": "default",
+    "steps": [
+      {
+        "tool": "AskUserQuestion",
+        "target": "How are endorsements prorated?",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:AskUserQuestion:Ask Gate: this question was not sent to the developer. Question: How a",
+          "hook_system_message:PreToolUse:AskUserQuestion:Ask Gate: memory service not installed (file search) [enforce]"
+        ],
+        "result": "Ask Gate: this question was not sent to the developer. Question: How are endorsements pror"
+      },
+      {
+        "tool": "Write",
+        "target": "db/0007_drop.sql",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This "
+        ],
+        "result": "Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This stops in every impac"
+      },
+      {
+        "tool": "Write",
+        "target": "decisions/ledger.yaml",
+        "hooks": [],
+        "result": "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_"
+      },
+      {
+        "tool": "Bash",
+        "target": "echo \"- id: D-9998\" >> decisions/ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  },
+  {
+    "mode": "acceptEdits",
+    "steps": [
+      {
+        "tool": "AskUserQuestion",
+        "target": "How are endorsements prorated?",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:AskUserQuestion:Ask Gate: this question was not sent to the developer. Question: How a",
+          "hook_system_message:PreToolUse:AskUserQuestion:Ask Gate: memory service not installed (file search) [enforce]"
+        ],
+        "result": "Ask Gate: this question was not sent to the developer. Question: How are endorsements pror"
+      },
+      {
+        "tool": "Write",
+        "target": "db/0007_drop.sql",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This "
+        ],
+        "result": "Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This stops in every impac"
+      },
+      {
+        "tool": "Write",
+        "target": "decisions/ledger.yaml",
+        "hooks": [],
+        "result": "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_"
+      },
+      {
+        "tool": "Bash",
+        "target": "echo \"- id: D-9998\" >> decisions/ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  },
+  {
+    "mode": "plan",
+    "steps": [
+      {
+        "tool": "AskUserQuestion",
+        "target": "How are endorsements prorated?",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:AskUserQuestion:Ask Gate: this question was not sent to the developer. Question: How a",
+          "hook_system_message:PreToolUse:AskUserQuestion:Ask Gate: memory service not installed (file search) [enforce]"
+        ],
+        "result": "Ask Gate: this question was not sent to the developer. Question: How are endorsements pror"
+      },
+      {
+        "tool": "Write",
+        "target": "db/0007_drop.sql",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This "
+        ],
+        "result": "Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This stops in every impac"
+      },
+      {
+        "tool": "Write",
+        "target": "decisions/ledger.yaml",
+        "hooks": [],
+        "result": "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_"
+      },
+      {
+        "tool": "Bash",
+        "target": "echo \"- id: D-9998\" >> decisions/ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  },
+  {
+    "mode": "auto",
+    "steps": [
+      {
+        "tool": "AskUserQuestion",
+        "target": "How are endorsements prorated?",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:AskUserQuestion:Ask Gate: this question was not sent to the developer. Question: How a",
+          "hook_system_message:PreToolUse:AskUserQuestion:Ask Gate: memory service not installed (file search) [enforce]"
+        ],
+        "result": "Ask Gate: this question was not sent to the developer. Question: How are endorsements pror"
+      },
+      {
+        "tool": "Write",
+        "target": "db/0007_drop.sql",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This "
+        ],
+        "result": "Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This stops in every impac"
+      },
+      {
+        "tool": "Write",
+        "target": "decisions/ledger.yaml",
+        "hooks": [],
+        "result": "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_"
+      },
+      {
+        "tool": "Bash",
+        "target": "decisions/ledger.yaml\"",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  },
+  {
+    "mode": "dontAsk",
+    "steps": [
+      {
+        "tool": "AskUserQuestion",
+        "target": "How are endorsements prorated?",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:AskUserQuestion:Ask Gate: this question was not sent to the developer. Question: How a",
+          "hook_system_message:PreToolUse:AskUserQuestion:Ask Gate: memory service not installed (file search) [enforce]"
+        ],
+        "result": "Ask Gate: this question was not sent to the developer. Question: How are endorsements pror"
+      },
+      {
+        "tool": "Write",
+        "target": "db/0007_drop.sql",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This "
+        ],
+        "result": "Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This stops in every impac"
+      },
+      {
+        "tool": "Write",
+        "target": "decisions/ledger.yaml",
+        "hooks": [],
+        "result": "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_"
+      },
+      {
+        "tool": "Bash",
+        "target": "echo \"- id: D-9998\" >> decisions/ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  },
+  {
+    "mode": "bypassPermissions",
+    "steps": [
+      {
+        "tool": "AskUserQuestion",
+        "target": "How are endorsements prorated?",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:AskUserQuestion:Ask Gate: this question was not sent to the developer. Question: How a",
+          "hook_system_message:PreToolUse:AskUserQuestion:Ask Gate: memory service not installed (file search) [enforce]"
+        ],
+        "result": "Ask Gate: this question was not sent to the developer. Question: How are endorsements pror"
+      },
+      {
+        "tool": "Write",
+        "target": "db/0007_drop.sql",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:Change Impact: STOPPED — possible data loss in db/0007_drop.sql. This "
+        ],
+        "result": "Hook PreToolUse:Write denied this tool"
+      },
+      {
+        "tool": "Write",
+        "target": "decisions/ledger.yaml",
+        "hooks": [],
+        "result": "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_"
+      },
+      {
+        "tool": "Bash",
+        "target": "echo \"- id: D-9998\" >> decisions/ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  }
+]

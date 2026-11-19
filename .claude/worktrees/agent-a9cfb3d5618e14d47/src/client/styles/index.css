@@ -1,0 +1,167 @@
+/*
+ * `source(none)` disables Tailwind v4's automatic content detection — WITHOUT
+ * it, a bare `@source` only ADDS to the repo-wide scan rather than replacing
+ * it, and the failure below persists.
+ */
+@import "tailwindcss" source(none);
+
+/*
+ * Scan ONLY the application source.
+ *
+ * Without this, Tailwind v4 auto-detects sources across the whole repository —
+ * including markdown, prompts and scratch files that contain no utilities at
+ * all. That is not merely wasteful: its candidate parser treats a backslash
+ * followed by hex as a CSS unicode escape, so an ordinary Windows path such as
+ * `...\620ae72d-cab5-...` inside a prose file is read as the escape `\620ae7`,
+ * which is beyond the Unicode maximum and aborts the entire stylesheet build
+ * with "Invalid code point 6425319". The error surfaces against this file at
+ * 1:1, pointing nowhere near the actual cause.
+ *
+ * Declaring the source positively also makes the failure impossible to
+ * reintroduce: any future document containing a Windows path is simply never
+ * scanned. Add a line here if utilities ever live outside src/.
+ */
+@source "../../";
+
+/* Enable class-based dark mode: `dark:` utilities trigger when <html> (or any ancestor) has .dark */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Map shadcn/ui semantic tokens to Tailwind v4 color utilities.
+ * Without this @theme block, classes like `bg-background`, `text-muted-foreground`,
+ * `border-border`, `bg-card`, etc. generate zero CSS in Tailwind v4.
+ */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  /*
+   * Status colours (SCOPE-017 / FR-013). The base shadcn set carries no green
+   * and no amber, so health signalling had nowhere to go but hardcoded Tailwind
+   * classes. These three close that gap. Without the mapping below the
+   * `text-success` / `bg-warning` utilities generate zero CSS in Tailwind v4.
+   */
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-danger: hsl(var(--danger));
+  --radius: 0.5rem;
+}
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  /*
+   * Darkened 2026-07-31 from `0 84.2% 60.2%`, which failed AA in BOTH of the jobs
+   * this token actually does. It is used ~20 times as text and ~10 times as a
+   * button fill:
+   *
+   *              as text on card    white text on it (fill)
+   *   was            3.76 FAIL             3.59 FAIL
+   *   now            6.41 PASS             6.12 PASS
+   *
+   * Light mode can serve both roles with one value. Dark mode cannot — see the
+   * note in `.dark` below.
+   */
+  --destructive: 0 74% 42%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+
+  /* Status — measured against --card (white). All clear WCAG AA (4.5:1). */
+  --success: 142 76% 26%; /* 5.83:1 */
+  --warning: 32 95% 33%; /* 5.21:1 */
+  --danger: 0 74% 42%; /* 6.41:1 — --destructive is only 3.76:1 as text */
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  /*
+   * DELIBERATELY UNCHANGED. This value is correct for what it is used for here —
+   * a button FILL, where white text on it measures 9.56:1.
+   *
+   * It measures only 2.00:1 when used as TEXT on the dark card, and no single
+   * value fixes both: text wants a light red on a dark surface, a fill wants a
+   * dark red under white text. Measured alternatives:
+   *
+   *                        as text    as fill
+   *   0 62.8% 30.6% (this)   2.00      9.56
+   *   0 84% 68%              6.65      2.87
+   *   0 63% 48%              3.67      5.19
+   *
+   * So the token is not broken — it is a fill colour, and the ~20 `text-destructive`
+   * usages are the misuse. Those should migrate to `--danger`, which exists for
+   * exactly this and measures 6.65:1 here. Tracked, not yet done.
+   */
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 212.7 26.8% 83.9%;
+
+  /* Status — measured against --card (222.2 84% 4.9%). All clear WCAG AA. */
+  --success: 142 69% 58%; /* 11.45:1 */
+  --warning: 38 92% 60%; /* 10.83:1 */
+  --danger: 0 84% 68%; /* 6.65:1 — --destructive is 2.00:1, below even the 3:1 UI floor */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}

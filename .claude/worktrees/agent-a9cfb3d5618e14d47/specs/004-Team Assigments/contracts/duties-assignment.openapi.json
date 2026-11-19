@@ -1,0 +1,396 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Team Duty Assignment API",
+    "description": "Endpoints for assigning duties to team members with compliance validation",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/projects/{projectId}/duties/assign": {
+      "post": {
+        "summary": "Assign a duty to a team member",
+        "description": "Assign a specific duty to a team member on a project. Validates compliance rules and requires Team Manager role.",
+        "operationId": "assignDutyToTeamMember",
+        "tags": ["Duty Assignment"],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Project ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Team member to assign duty to"
+                  },
+                  "dutyName": {
+                    "type": "string",
+                    "enum": ["Developer", "Design Coordinator", "System Review", "QA", "Final Acceptance Review", "Publisher", "ALL"],
+                    "description": "Duty to assign"
+                  },
+                  "overrideReason": {
+                    "type": "string",
+                    "minLength": 50,
+                    "description": "Required only if assignment violates compliance rules. Must be >= 50 characters."
+                  }
+                },
+                "required": ["userId", "dutyName"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Duty successfully assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "dutyAssignmentId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "dutyName": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or missing override reason for compliance violation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": ["COMPLIANCE_VIOLATION", "VALIDATION_ERROR", "MISSING_OVERRIDE_REASON"]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "violatedRules": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Only present if error is COMPLIANCE_VIOLATION"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions (requires Team Manager role)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": ["INSUFFICIENT_PERMISSIONS"]
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project, user, or duty not found"
+          },
+          "409": {
+            "description": "Conflict: User already has this duty assigned"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/projects/{projectId}/duties/assignments": {
+      "get": {
+        "summary": "List all duty assignments on a project",
+        "description": "Get all duty assignments for team members on a project",
+        "operationId": "listDutyAssignments",
+        "tags": ["Duty Assignment"],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Optional: Filter by team member"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of duty assignments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "dutyAssignmentId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "projectId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "userName": {
+                        "type": "string"
+                      },
+                      "dutyName": {
+                        "type": "string"
+                      },
+                      "assignedBy": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "assignedByName": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/projects/{projectId}/duties/assignments/{assignmentId}": {
+      "delete": {
+        "summary": "Remove a duty assignment",
+        "description": "Remove a duty assignment from a team member. Requires Team Manager role.",
+        "operationId": "removeDutyAssignment",
+        "tags": ["Duty Assignment"],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Assignment successfully removed"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Assignment not found"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/projects/{projectId}/duties/available": {
+      "get": {
+        "summary": "List available duties for a project",
+        "description": "Get all duties available on a project (based on security classification and subscription settings)",
+        "operationId": "listAvailableDuties",
+        "tags": ["Duty Assignment"],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of available duties",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "teamProjectDutyId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "dutyName": {
+                        "type": "string"
+                      },
+                      "sequence": {
+                        "type": "integer",
+                        "description": "Order in workflow (0-6)"
+                      },
+                      "isSystemDefault": {
+                        "type": "boolean"
+                      },
+                      "assignedMemberCount": {
+                        "type": "integer",
+                        "description": "How many team members have this duty"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token from Clerk authentication"
+      }
+    },
+    "schemas": {
+      "DutyAssignment": {
+        "type": "object",
+        "properties": {
+          "dutyAssignmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dutyName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ComplianceError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": ["COMPLIANCE_VIOLATION"]
+          },
+          "violatedRules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of compliance rules that were violated"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

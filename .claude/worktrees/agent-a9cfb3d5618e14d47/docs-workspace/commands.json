@@ -1,0 +1,4385 @@
+{
+  "generatedBy": "docs-workspace/tooling/manual/command-reference.mts",
+  "entries": [
+    {
+      "key": "aisession",
+      "id": "cmd-aisession",
+      "name": "/ai-session",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/ai-session"
+      ],
+      "purpose": "Open and manage the **spec-level AI session** that captures all AI-driven dev work for a given spec.",
+      "usage": "/ai-session start    <spec-id>\n/ai-session task     <spec-id> <task-id>\n/ai-session overhead <spec-id> <minutes>\n/ai-session close    <spec-id>\n/ai-session status   <spec-id>",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "tracktime",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "tracktime",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/ai-session.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "analyzecode",
+      "id": "cmd-analyzecode",
+      "name": "/analyzecode",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/analyzecode"
+      ],
+      "purpose": "Run the wxICA architecture review on the current codebase — mechanical drift audit followed by judgment-driven deepening candidates.",
+      "usage": "/analyzecode                       # full review: drift audit + deepening exploration\n/analyzecode --drift-only          # mechanical drift audit only — stop after step 0\n/analyzecode --deepen-only         # skip drift audit, go straight to deepening\n/analyzecode --scope <path>        # restrict exploration to a subtree (e.g. <path>)\n/analyzecode --since <git-ref>     # tailor the drift audit's \"recent diff\" to a ref (default: last commit)\n/analyzecode --collect-only [--out <file>]  # unattended: steps 0-2 only; writes a findings file (default docs/brainstorms/analyze/findings/analyzecode.json); no questions, no edits",
+      "stage": "Implementation",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/analyzecode.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "analyzescope",
+      "id": "cmd-analyzescope",
+      "name": "/analyzescope",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/analyzescope"
+      ],
+      "purpose": "Audit one scope doc (holes, ambiguity, internal contradictions) or all scopes (cross-scope conflicts), and persist a findings report.",
+      "usage": "",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaianalyze",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "helpcatalog",
+          "label": "Mention"
+        },
+        {
+          "target": "scopeflowmap",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.create_specs",
+        "project.get_command_prompt",
+        "project.help",
+        "project.upsert_document"
+      ],
+      "sources": [
+        "_wxAI/commands/analyzescope.md",
+        "mcp-server/src/prompts/analyzescope.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "auditcheck",
+      "id": "cmd-auditcheck",
+      "name": "/audit-check",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/audit-check"
+      ],
+      "purpose": "close ---",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "auditreport",
+          "label": "Confirmed"
+        },
+        {
+          "target": "auditrun",
+          "label": "Confirmed"
+        },
+        {
+          "target": "audittasks",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiimplement",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiplan",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/audit-check.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "auditreport",
+      "id": "cmd-auditreport",
+      "name": "/audit-report",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/audit-report"
+      ],
+      "purpose": "Retrieve and display compliance audit reports with detailed findings",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "auditrun",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "auditcheck",
+          "label": "Confirmed"
+        },
+        {
+          "target": "auditrun",
+          "label": "Confirmed"
+        },
+        {
+          "target": "audittasks",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/audit-report.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "auditrun",
+      "id": "cmd-auditrun",
+      "name": "/audit-run",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/audit-run"
+      ],
+      "purpose": "Trigger and monitor post-implementation compliance audits",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "auditreport",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiimplement",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "auditcheck",
+          "label": "Confirmed"
+        },
+        {
+          "target": "auditreport",
+          "label": "Confirmed"
+        },
+        {
+          "target": "audittasks",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/audit-run.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "audittasks",
+      "id": "cmd-audittasks",
+      "name": "/audit-tasks",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/audit-tasks"
+      ],
+      "purpose": "Get pre-implementation compliance task recommendations based on feature keywords",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "auditreport",
+          "label": "Confirmed"
+        },
+        {
+          "target": "auditrun",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaipipeline",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiplan",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaitasks",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "auditcheck",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/audit-tasks.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "autofixtests",
+      "id": "cmd-autofixtests",
+      "name": "/autofix-tests",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/autofix-tests"
+      ],
+      "purpose": "Automatically detect failing tests, analyze root causes, and apply fixes without human intervention.",
+      "usage": "/autofix-tests <args>",
+      "stage": "QA",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [
+        "project.capture_event",
+        "project.list_open_items",
+        "project.upsert_document"
+      ],
+      "sources": [
+        "_wxAI/commands/autofix-tests.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "autofixtranslation",
+      "id": "cmd-autofixtranslation",
+      "name": "/autofix-translation",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/autofix-translation"
+      ],
+      "purpose": "Automatically translate Microsoft SQL Server schemas, stored procedures, and queries to PostgreSQL-compatible syntax.",
+      "usage": "/autofix-translation <args>",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [
+        "project.capture_event",
+        "project.list_open_items",
+        "project.upsert_document"
+      ],
+      "sources": [
+        "_wxAI/commands/autofix-translation.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "buildscope",
+      "id": "cmd-buildscope",
+      "name": "/buildscope",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/buildscope",
+        "wxkanban-agent buildscope"
+      ],
+      "purpose": "Interactive agent for building Scope of Project markdown files with proper structure and wxKanban integration.",
+      "usage": "",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaipipeline",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildstack",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversion",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxbrainstorm",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        },
+        {
+          "target": "cwconversionscope",
+          "label": "Likely"
+        },
+        {
+          "target": "vbconversionscope",
+          "label": "Likely"
+        }
+      ],
+      "mcpTools": [
+        "project.buildscope",
+        "project.create_specs",
+        "project.get_command_prompt",
+        "project.help",
+        "project.search_capabilities",
+        "project.validatescope"
+      ],
+      "sources": [
+        "_wxAI/commands/buildscope.md",
+        "mcp-server/src/prompts/buildscope.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "buildstack",
+      "id": "cmd-buildstack",
+      "name": "/buildstack",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/buildstack"
+      ],
+      "purpose": "Update the project's Stack & Style document (stack.md) from VS Code — a guided, default-first interview that revises the target stack and look-and-feel, then persists the ProjectStack document.",
+      "usage": "",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "wxcreatetestplan",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildscope",
+          "label": "Mention"
+        },
+        {
+          "target": "createspecs",
+          "label": "Mention"
+        },
+        {
+          "target": "cwconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "implement",
+          "label": "Mention"
+        },
+        {
+          "target": "vbconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "wxuiuxcodereview",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.upsert_document"
+      ],
+      "sources": [
+        "_wxAI/commands/buildstack.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "compliancescan",
+      "id": "cmd-compliancescan",
+      "name": "/compliance-scan",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/compliance-scan"
+      ],
+      "purpose": "Retroactive compliance analysis.",
+      "usage": "/compliance-scan                        # Scan all scopes and specs for this project\n/compliance-scan --scope NNN            # Scan one specific scope\n/compliance-scan --framework hipaa      # Check one framework only\n/compliance-scan --mode report          # Report only — no changes to any files",
+      "stage": "Implementation",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "wxairelease",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.create_specs",
+        "project.get_audit_config",
+        "project.get_compliance_context"
+      ],
+      "sources": [
+        "_wxAI/commands/compliance-scan.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "consultanthub",
+      "id": "cmd-consultanthub",
+      "name": "/consultant-hub",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/consultant-hub"
+      ],
+      "purpose": "Open or navigate to the Consultant Work Hub for the authenticated user, optionally filtered to a single project.",
+      "usage": "/consultant-hub [--project <project-id>]",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/consultant-hub.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "createspecs",
+      "id": "cmd-createspecs",
+      "name": "/createSpecs",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/createSpecs",
+        "wxkanban-agent createspecs"
+      ],
+      "purpose": "full spec pipeline (capture → specify → clarify → plan → tasks → lifecycle) via the MCP project.create_specs tool.",
+      "usage": "",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildstack",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        },
+        {
+          "target": "cwconversionscope",
+          "label": "Likely"
+        },
+        {
+          "target": "vbconversionscope",
+          "label": "Likely"
+        },
+        {
+          "target": "wxbrainstorm",
+          "label": "Likely"
+        }
+      ],
+      "mcpTools": [
+        "project.create_specs",
+        "project.get_command_prompt",
+        "project.help",
+        "project.list_open_items",
+        "project.validatescope"
+      ],
+      "sources": [
+        "_wxAI/commands/createSpecs.md",
+        "mcp-server/src/prompts/createspecs.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cwconversion",
+      "id": "cmd-cwconversion",
+      "name": "/cwConversion",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/cwConversion",
+        "wxkanban-agent cwconversion"
+      ],
+      "purpose": "Convert a legacy SoftVelocity / PCSoft Clarion desktop app into a modern React + Tailwind + shadcn/ui rebuild scaffold by parsing its raw source (TXA/TXD/.clw) — per-element Markdown, regenerated stack-native windows…",
+      "usage": "/cwConversion --txa conversion/<path><App>.txa --txd conversion/<path><App>.txd --clw \"conversion/<path>*.clw\"\n/cwConversion --clw \"conversion/<path>*.clw\"     # generated-source-only handover",
+      "stage": "Conversion",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "cwconversionscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildstack",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversion",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "cwconversionscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "vbconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversionparity",
+          "label": "Mention"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.get_command_prompt"
+      ],
+      "sources": [
+        "_wxAI/commands/cwConversion.md",
+        "_wxAI/skills/cwConversion/SKILL.md",
+        "mcp-server/src/prompts/cwconversion.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cwconversionscope",
+      "id": "cmd-cwconversionscope",
+      "name": "/cwConversionScope",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/cwConversionScope",
+        "wxkanban-agent cwconversionscope"
+      ],
+      "purpose": "Generate Scope-of-Project documents from a Clarion app already converted by /cwConversion — acting as a Systems & Business Analyst, one scope per window/report plus overall Program, Database, and Backend/API scopes, B…",
+      "usage": "/cwConversionScope            # resume or start scope generation over the converted artifacts\n/cwConversionScope --restart  # discard saved progress and rebuild the scope queue",
+      "stage": "Conversion",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "cwconversion",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildscope",
+          "label": "Likely"
+        },
+        {
+          "target": "createspecs",
+          "label": "Likely"
+        },
+        {
+          "target": "wxaiprojectinit",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversionscope",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "cwconversion",
+          "label": "Confirmed"
+        },
+        {
+          "target": "vbconversionscope",
+          "label": "Mention"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.get_command_prompt"
+      ],
+      "sources": [
+        "_wxAI/commands/cwConversionScope.md",
+        "_wxAI/skills/cwConversionScope/SKILL.md",
+        "mcp-server/src/prompts/cwconversionscope.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "dbpush",
+      "id": "cmd-dbpush",
+      "name": "/dbpush",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/dbpush",
+        "wxkanban-agent dbpush"
+      ],
+      "purpose": "Validate all local spec files, tasks, and lifecycle data, then push everything to the MCP Project Hub database.",
+      "usage": "/dbpush [options]",
+      "stage": "Implementation",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [
+        "project.capture_event",
+        "project.create_specs",
+        "project.create_task",
+        "project.list_open_items",
+        "project.update_task_status",
+        "project.upsert_document"
+      ],
+      "sources": [
+        "_wxAI/commands/dbpush.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "devplan",
+      "id": "cmd-devplan",
+      "name": "/dev-plan",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/dev-plan"
+      ],
+      "purpose": "dev-plan (deprecated alias, one release) — runs /wxG-O-D --roadmap, which now writes the build roadmap docs/DEVELOPMENT-PLAN.md and its PDF.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        },
+        {
+          "target": "helpcatalog",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.get_command_prompt"
+      ],
+      "sources": [
+        "_wxAI/commands/dev-plan.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /wxG-O-D --roadmap."
+    },
+    {
+      "key": "help",
+      "id": "cmd-help",
+      "name": "/help",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/help"
+      ],
+      "purpose": "This reference provides a visual and categorized list of all available wxAI commands for the wxKanban Project Hub.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "helpcatalog",
+          "label": "Mention"
+        },
+        {
+          "target": "wxrefreshhelp",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/help.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Stale command list; replaced by this Command Reference."
+    },
+    {
+      "key": "helpcatalog",
+      "id": "cmd-helpcatalog",
+      "name": "/help-catalog",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/help-catalog"
+      ],
+      "purpose": "regenerate the subscription-aware in-app Help (refresh per-area articles from the real UI, rebuild the standalone help page, run the tier drift + coverage tests).",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "analyzescope",
+          "label": "Mention"
+        },
+        {
+          "target": "devplan",
+          "label": "Mention"
+        },
+        {
+          "target": "help",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxhelpgenerate",
+          "label": "Mention"
+        },
+        {
+          "target": "wxrefreshhelp",
+          "label": "Mention"
+        },
+        {
+          "target": "wxregenhelp",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        ".claude/skills/help-catalog/SKILL.md",
+        "_wxAI/commands/help-catalog.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Maintains wxKanban's own help; not part of the customer kit."
+    },
+    {
+      "key": "implement",
+      "id": "cmd-implement",
+      "name": "/implement",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/implement",
+        "wxkanban-agent implement"
+      ],
+      "purpose": "Execute implementation tasks for a spec using the MCP Project Hub.",
+      "usage": "/implement <spec-number> [options]",
+      "stage": "Implementation",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "cli:auditfences",
+          "label": "Confirmed"
+        },
+        {
+          "target": "pretest",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxconversionparity",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxcreatetestplan",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxuiuxcodereview",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildstack",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxdesigner",
+          "label": "Likely"
+        }
+      ],
+      "mcpTools": [
+        "project.capture_event",
+        "project.get_command_prompt",
+        "project.list_open_items",
+        "project.update_task_status"
+      ],
+      "sources": [
+        "_wxAI/commands/implement.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "marketingfeatureset",
+      "id": "cmd-marketingfeatureset",
+      "name": "/marketing-feature-set",
+      "kind": "skill",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/marketing-feature-set"
+      ],
+      "purpose": "Turn the project's own scopes and specs into a ranked, customer-facing marketing feature set AND the assets to sell it.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        ".claude/skills/marketing-feature-set/SKILL.md"
+      ],
+      "excluded": true,
+      "excludedReason": "wxKanban's own marketing; not part of the customer kit."
+    },
+    {
+      "key": "pretest",
+      "id": "cmd-pretest",
+      "name": "/preTest",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/preTest"
+      ],
+      "purpose": "Verify a scope before the operator ever sees it — clone the schema, apply the scope's pending DDL to the clone, seed it, boot the real app, drive every route and screen the scope touched, repair within a bounded loop,…",
+      "usage": "/preTest SCOPE-119            # verify one scope end to end\n/preTest SCOPE-119 --dry-run  # plan the run; create nothing\n/preTest --list               # enumerate any wxktest_ clones present\n/preTest --teardown           # drop this scope's clone",
+      "stage": "QA",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "implement",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxcreatetestplan",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        ".claude/commands/preTest.md",
+        "_wxAI/skills/wxPreTest/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "pullfromproject",
+      "id": "cmd-pullfromproject",
+      "name": "/pull-from-project",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/pull-from-project"
+      ],
+      "purpose": "Pull rules and git hooks changes from a real project back into the starter kit.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/pull-from-project.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Author-side configuration sync; not part of the customer kit."
+    },
+    {
+      "key": "remote",
+      "id": "cmd-remote",
+      "name": "/remote",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/remote"
+      ],
+      "purpose": "hand where the work stands to this repo's Project Agent so you can carry on from your phone (HANDOFF REMOTE).",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/remote.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "rescuetokens",
+      "id": "cmd-rescuetokens",
+      "name": "/rescue-tokens",
+      "kind": "skill",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/rescue-tokens"
+      ],
+      "purpose": "Use when user hits rate limits, quota exceeded errors, context exceeds 40%, or exhibits token waste symptoms (long conversations, wrong model, verbose output, MCP bloat, cache invalidation, expensive files, too many r…",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/skills/rescue-tokens/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "research",
+      "id": "cmd-research",
+      "name": "/research",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/research"
+      ],
+      "purpose": "Research & PRD generation — landscape research, synthesis, and a phased PRD for a feature.",
+      "usage": "",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [
+        "project.create_specs",
+        "project.get_command_prompt",
+        "project.help"
+      ],
+      "sources": [
+        "_wxAI/commands/research.md",
+        "mcp-server/src/prompts/research.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "scopeflowmap",
+      "id": "cmd-scopeflowmap",
+      "name": "/scope-flow-map",
+      "kind": "skill",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/scope-flow-map"
+      ],
+      "purpose": "Build one overall Mermaid dependency map of the whole wxKanban build from specs/Project-Scope/*.md — showing how scopes connect across different processes and flows, including connections that no single scope doc refl…",
+      "usage": "",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "analyzescope",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        ".claude/skills/scope-flow-map/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "scopeimport",
+      "id": "cmd-scopeimport",
+      "name": "/scope-import",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/scope-import"
+      ],
+      "purpose": "Scan all specs/NNN-* directories, create missing scaffold stubs, and sync every tasks.md task into PostgreSQL via the wxKanban MCP server",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaipipeline",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiplan",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaitasks",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/scope-import.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "suspendtask",
+      "id": "cmd-suspendtask",
+      "name": "/suspend-task",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/suspend-task"
+      ],
+      "purpose": "Mark a task as `blocked` or `suspended` with a required reason.",
+      "usage": "/suspend-task <task-id> --status <blocked|suspended> --reason \"<text>\"",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/suspend-task.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "synccpl",
+      "id": "cmd-synccpl",
+      "name": "/sync-cpl",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/sync-cpl"
+      ],
+      "purpose": "Synchronize the Current Project Lineage (CPL) with the wxKanban database using MCP Project Hub tools, ensuring all specs, tasks, and dependencies are properly tracked with full audit trail.",
+      "usage": "/sync-cpl <args>",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [
+        "project.capture_event",
+        "project.create_task",
+        "project.link_doc_to_task",
+        "project.list_open_items",
+        "project.upsert_document"
+      ],
+      "sources": [
+        "_wxAI/commands/sync-cpl.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired kit-sync tool: no live caller."
+    },
+    {
+      "key": "syncglobal",
+      "id": "cmd-syncglobal",
+      "name": "/sync-global",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/sync-global"
+      ],
+      "purpose": "Sync between `~/.claude/` (Claude Code installed) and `_wxAI-global/` (starter kit).",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/sync-global.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired kit-sync tool: no live caller."
+    },
+    {
+      "key": "syncstarterkit",
+      "id": "cmd-syncstarterkit",
+      "name": "/sync-starter-kit",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/sync-starter-kit"
+      ],
+      "purpose": "Synchronize the current project with the wxKanban starter kit using MCP Project Hub tools, updating templates, commands, and configuration files while preserving project-specific customizations and capturing all opera…",
+      "usage": "/sync-starter-kit <args>",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [
+        "project.capture_event",
+        "project.create_task",
+        "project.link_doc_to_task",
+        "project.list_open_items",
+        "project.update_task_status",
+        "project.upsert_document"
+      ],
+      "sources": [
+        "_wxAI/commands/sync-starter-kit.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired kit-sync tool: no live caller."
+    },
+    {
+      "key": "taskdone",
+      "id": "cmd-taskdone",
+      "name": "/task-done",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/task-done"
+      ],
+      "purpose": "Mark one or more tasks as completed in both the local `tasks.md` and the wxKanban database using MCP Project Hub tools.",
+      "usage": "/task-done <args>",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [
+        "project.capture_event",
+        "project.list_open_items",
+        "project.update_task_status"
+      ],
+      "sources": [
+        "_wxAI/commands/task-done.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Superseded by /dbpush."
+    },
+    {
+      "key": "taskpush",
+      "id": "cmd-taskpush",
+      "name": "/task-push",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/task-push"
+      ],
+      "purpose": "Synchronize tasks from a spec's `tasks.md` into the wxKanban database using MCP Project Hub tools, creating tasks with proper event capture and document linking.",
+      "usage": "/task-push <args>",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "wxaipipelineagent",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.capture_event",
+        "project.create_task",
+        "project.link_doc_to_task",
+        "project.list_open_items",
+        "project.upsert_document"
+      ],
+      "sources": [
+        "_wxAI/commands/task-push.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Superseded by /dbpush."
+    },
+    {
+      "key": "testsweep",
+      "id": "cmd-testsweep",
+      "name": "/test-sweep",
+      "kind": "skill",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/test-sweep"
+      ],
+      "purpose": "Analyze every function, procedure, and MCP tool handler in the app, produce a full test plan, build the test harness, write and run the tests, and report issues + successes with a ranked remediation action list.",
+      "usage": "",
+      "stage": "QA",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        ".claude/skills/test-sweep/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "tracktime",
+      "id": "cmd-tracktime",
+      "name": "/track-time",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/track-time"
+      ],
+      "purpose": "Start or stop a **manual** consultant time-tracking session on a task.",
+      "usage": "/track-time start <task-id>\n/track-time stop  <task-id>",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "aisession",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "aisession",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/track-time.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "validatescope",
+      "id": "cmd-validatescope",
+      "name": "/validateScope",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/validateScope"
+      ],
+      "purpose": "Validate Scope of Project documents against wxKanban quality criteria",
+      "usage": "",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaipipeline",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxbrainstorm",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [
+        "project.create_specs",
+        "project.get_command_prompt",
+        "project.help",
+        "project.validatescope"
+      ],
+      "sources": [
+        "_wxAI/commands/validateScope.md",
+        "mcp-server/src/prompts/validatescope.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "vbconversion",
+      "id": "cmd-vbconversion",
+      "name": "/vbConversion",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/vbConversion",
+        "wxkanban-agent vbconversion"
+      ],
+      "purpose": "Convert a legacy Visual Basic 6 (Classic VB) desktop app into a modern React + Tailwind + shadcn/ui rebuild scaffold by parsing its text source (.vbp/.frm/.bas/.cls/.ctl) — per-element Markdown, regenerated forms (bou…",
+      "usage": "/vbConversion --vbp conversion/<path><App>.vbp        # follows the .vbp's form/module list\n/vbConversion --src \"conversion/<path>*\"              # no .vbp — glob the source files",
+      "stage": "Conversion",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "vbconversionscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxconversion",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildstack",
+          "label": "Mention"
+        },
+        {
+          "target": "cwconversion",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "vbconversionscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxconversionparity",
+          "label": "Mention"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.get_command_prompt"
+      ],
+      "sources": [
+        "_wxAI/commands/vbConversion.md",
+        "_wxAI/skills/vbConversion/SKILL.md",
+        "mcp-server/src/prompts/vbconversion.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "vbconversionscope",
+      "id": "cmd-vbconversionscope",
+      "name": "/vbConversionScope",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/vbConversionScope",
+        "wxkanban-agent vbconversionscope"
+      ],
+      "purpose": "Generate Scope-of-Project documents from a VB6 app already converted by /vbConversion — acting as a Systems & Business Analyst, one scope per form/report plus overall Program, Database, and Backend/API scopes, BuildSc…",
+      "usage": "/vbConversionScope            # resume or start scope generation over the converted artifacts\n/vbConversionScope --restart  # discard saved progress and rebuild the scope queue",
+      "stage": "Conversion",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "vbconversion",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildscope",
+          "label": "Likely"
+        },
+        {
+          "target": "createspecs",
+          "label": "Likely"
+        },
+        {
+          "target": "cwconversionscope",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversionscope",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "vbconversion",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.get_command_prompt"
+      ],
+      "sources": [
+        "_wxAI/commands/vbConversionScope.md",
+        "_wxAI/skills/vbConversionScope/SKILL.md",
+        "mcp-server/src/prompts/vbconversionscope.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "watermark",
+      "id": "cmd-watermark",
+      "name": "/watermark",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/watermark"
+      ],
+      "purpose": "manually stamp or verify the wxKanban generated-output watermark on a Markdown file.",
+      "usage": "npm run watermark verify <file.md>\nnpm run watermark stamp <file.md> [--converted] [--version <v>] [--generator <name>] [--write]",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/watermark.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "webartifactsbuilder",
+      "id": "cmd-webartifactsbuilder",
+      "name": "/web-artifacts-builder",
+      "kind": "skill",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/web-artifacts-builder"
+      ],
+      "purpose": "Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web technologies (React, Tailwind CSS, shadcn/ui).",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        ".claude/skills/web-artifacts-builder/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxaianalyze",
+      "id": "cmd-wxaianalyze",
+      "name": "/wxAI-analyze",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-analyze"
+      ],
+      "purpose": "Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaitasks",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiimplement",
+          "label": "Likely"
+        },
+        {
+          "target": "wxaiplan",
+          "label": "Likely"
+        },
+        {
+          "target": "wxaispecify",
+          "label": "Likely"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "analyzescope",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-analyze.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs and /analyzescope."
+    },
+    {
+      "key": "wxaibeta",
+      "id": "cmd-wxaibeta",
+      "name": "/wxAI-beta",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-beta"
+      ],
+      "purpose": "Run Phase 5 (Beta Release) — manage beta deployment, collect feedback with approval gates",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaihumantest",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxairelease",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxaihumantest",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-beta.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Does not run: needs a prerequisites script that does not exist. Scopes advance on their own."
+    },
+    {
+      "key": "wxaichecklist",
+      "id": "cmd-wxaichecklist",
+      "name": "/wxAI-checklist",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-checklist"
+      ],
+      "purpose": "Generate a custom checklist for the current feature based on user requirements.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-checklist.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs, which writes the requirements checklist."
+    },
+    {
+      "key": "wxaiclarify",
+      "id": "cmd-wxaiclarify",
+      "name": "/wxAI-clarify",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-clarify"
+      ],
+      "purpose": "Identify underspecified areas in the current feature spec by asking up to 5 highly targeted clarification questions and encoding answers back into the spec.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiplan",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaispecify",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxaispecify",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaipipelineagent",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-clarify.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs, which runs the clarify step itself."
+    },
+    {
+      "key": "wxaiconstitution",
+      "id": "cmd-wxaiconstitution",
+      "name": "/wxAI-constitution",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-constitution"
+      ],
+      "purpose": "Create or update the project constitution from interactive or provided principle inputs, ensuring all dependent templates stay in sync",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-constitution.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "wxaihumantest",
+      "id": "cmd-wxaihumantest",
+      "name": "/wxAI-humantest",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-humantest"
+      ],
+      "purpose": "Run Phase 4 (Human Testing) — generate test scenarios, collect feedback, and track resolution",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaibeta",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiqa",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaispecify",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxaibeta",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiqa",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-humantest.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Does not run: needs a prerequisites script that does not exist. Human test sign-off happens in the web app."
+    },
+    {
+      "key": "wxaiimplement",
+      "id": "cmd-wxaiimplement",
+      "name": "/wxAI-implement",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-implement"
+      ],
+      "purpose": "Execute the implementation plan by processing and executing all tasks defined in tasks.md",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaitasks",
+          "label": "Likely"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "auditcheck",
+          "label": "Confirmed"
+        },
+        {
+          "target": "auditrun",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiimplementgate",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiimplementnormalizer",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaipipelineagent",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaianalyze",
+          "label": "Likely"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-implement.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /implement."
+    },
+    {
+      "key": "wxaiimplementgate",
+      "id": "cmd-wxaiimplementgate",
+      "name": "/wxAI-implement-gate",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-implement-gate"
+      ],
+      "purpose": "Implementation command with mandatory database verification gate",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiimplement",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-implement-gate.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /implement."
+    },
+    {
+      "key": "wxaiimplementnormalizer",
+      "id": "cmd-wxaiimplementnormalizer",
+      "name": "/wxAI-implement-normalizer",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-implement-normalizer"
+      ],
+      "purpose": "Translate short \"implement …\" chat commands into canonical /wxAI-implement invocations",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiimplement",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaitasks",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-implement-normalizer.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /implement."
+    },
+    {
+      "key": "wxailifecycle",
+      "id": "cmd-wxailifecycle",
+      "name": "/wxAI-lifecycle",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-lifecycle"
+      ],
+      "purpose": "Generate or update the project Lifecycle.md tracking document with spec pipeline status, and completion tracking",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaipipeline",
+          "label": "Likely"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxaipipelineagent",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-lifecycle.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: the lifecycle document has a deterministic generator."
+    },
+    {
+      "key": "wxaipipeline",
+      "id": "cmd-wxaipipeline",
+      "name": "/wxAI-pipeline",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-pipeline"
+      ],
+      "purpose": "Run the full spec pipeline: specify → clarify → plan → tasks.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "audittasks",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "scopeimport",
+          "label": "Confirmed"
+        },
+        {
+          "target": "validatescope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaipipelineagent",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaipipelinenormalizer",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxailifecycle",
+          "label": "Likely"
+        },
+        {
+          "target": "wxgod",
+          "label": "Likely"
+        },
+        {
+          "target": "wxaipipelinemandatorydatabase",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-pipeline.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs."
+    },
+    {
+      "key": "wxaipipelineagent",
+      "id": "cmd-wxaipipelineagent",
+      "name": "/wxAI-pipeline-agent",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-pipeline-agent"
+      ],
+      "purpose": "Pipeline orchestrator agent that manages and executes the full wxAI pipeline workflow with intelligent automation, state persistence, and error recovery",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiimplement",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaipipeline",
+          "label": "Confirmed"
+        },
+        {
+          "target": "taskpush",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaiclarify",
+          "label": "Mention"
+        },
+        {
+          "target": "wxailifecycle",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaipipelinenormalizer",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaiplan",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaispecify",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaitasks",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxaipipelinenormalizer",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-pipeline-agent.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs."
+    },
+    {
+      "key": "wxaipipelinemandatorydatabase",
+      "id": "cmd-wxaipipelinemandatorydatabase",
+      "name": "/wxAI-pipeline-mandatory-database",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-pipeline-mandatory-database"
+      ],
+      "purpose": "MANDATORY - Database insertion requirements for wxAI pipeline",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaipipeline",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-pipeline-mandatory-database.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs."
+    },
+    {
+      "key": "wxaipipelinenormalizer",
+      "id": "cmd-wxaipipelinenormalizer",
+      "name": "/wxAI-pipeline-normalizer",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-pipeline-normalizer"
+      ],
+      "purpose": "Translate short \"pipeline …\" chat commands into canonical /wxAI-pipeline invocations",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaipipeline",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaipipelineagent",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxaipipelineagent",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-pipeline-normalizer.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs."
+    },
+    {
+      "key": "wxaiplan",
+      "id": "cmd-wxaiplan",
+      "name": "/wxAI-plan",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-plan"
+      ],
+      "purpose": "Execute the implementation planning workflow using the plan template to generate design artifacts.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "auditcheck",
+          "label": "Confirmed"
+        },
+        {
+          "target": "scopeimport",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiclarify",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaispecify",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaianalyze",
+          "label": "Likely"
+        },
+        {
+          "target": "audittasks",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaipipelineagent",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-plan.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs, which runs the plan step itself."
+    },
+    {
+      "key": "wxaiprojectinit",
+      "id": "cmd-wxaiprojectinit",
+      "name": "/wxAI-project-init",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-project-init"
+      ],
+      "purpose": "Sets up a local directory structure for a wxKanban project by fetching scaffold data",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "analyzescope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "createspecs",
+          "label": "Confirmed"
+        },
+        {
+          "target": "cwconversion",
+          "label": "Confirmed"
+        },
+        {
+          "target": "research",
+          "label": "Confirmed"
+        },
+        {
+          "target": "validatescope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "vbconversion",
+          "label": "Confirmed"
+        },
+        {
+          "target": "vbconversionscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaisessionstart",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxconversionparity",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxuiuxcodereview",
+          "label": "Confirmed"
+        },
+        {
+          "target": "cwconversionscope",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversionscope",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.currentphase",
+        "project.description",
+        "project.id",
+        "project.init",
+        "project.json",
+        "project.name"
+      ],
+      "sources": [
+        "_wxAI/commands/wxAI-project-init.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxaiqa",
+      "id": "cmd-wxaiqa",
+      "name": "/wxAI-qa",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-qa"
+      ],
+      "purpose": "Run Phase 3 (QA Testing) — execute tests mapped to Phase 1 specs and generate coverage report",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaihumantest",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxaihumantest",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-qa.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Does not run: needs a prerequisites script that does not exist. QA gates come from /wxCreateTestPlan."
+    },
+    {
+      "key": "wxairelease",
+      "id": "cmd-wxairelease",
+      "name": "/wxAI-release",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-release"
+      ],
+      "purpose": "Run Phase 6 (Release) — validate all phases complete, select deployment method, generate release notes",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "compliancescan",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxaibeta",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.get_audit_config"
+      ],
+      "sources": [
+        "_wxAI/commands/wxAI-release.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Does not run: needs a prerequisites script that does not exist. Scopes advance on their own."
+    },
+    {
+      "key": "wxaiscopecheck",
+      "id": "cmd-wxaiscopecheck",
+      "name": "/wxAI-scope-check",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-scope-check"
+      ],
+      "purpose": "Pre-implementation scope verification gate — checks that a scope exists in the wxKanban database before any code changes are allowed",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-scope-check.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "wxaisessionstart",
+      "id": "cmd-wxaisessionstart",
+      "name": "/wxAI-session-start",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-session-start"
+      ],
+      "purpose": "Run at the start of every AI session — checks governance version, scope context, and unlinked TODOs",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [
+        "project.get_command_prompt",
+        "project.mcp_health"
+      ],
+      "sources": [
+        "_wxAI/commands/wxAI-session-start.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "wxaispecify",
+      "id": "cmd-wxaispecify",
+      "name": "/wxAI-specify",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-specify"
+      ],
+      "purpose": "Create or update the feature specification from a natural language feature description.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiclarify",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiplan",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxaiclarify",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaihumantest",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaianalyze",
+          "label": "Likely"
+        },
+        {
+          "target": "wxaipipelineagent",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-specify.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs, which runs the specify step itself."
+    },
+    {
+      "key": "wxaisyncglobal",
+      "id": "cmd-wxaisyncglobal",
+      "name": "/wxAI-sync-global",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-sync-global"
+      ],
+      "purpose": "Sync governance rules from wxKanban source to consumer projects, or check version status",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-sync-global.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired kit-sync tool: no live caller."
+    },
+    {
+      "key": "wxaitasks",
+      "id": "cmd-wxaitasks",
+      "name": "/wxAI-tasks",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-tasks"
+      ],
+      "purpose": "Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "scopeimport",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaianalyze",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiimplement",
+          "label": "Likely"
+        },
+        {
+          "target": "audittasks",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaiimplementnormalizer",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaipipelineagent",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-tasks.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Replaced by /createSpecs, which runs the tasks step itself."
+    },
+    {
+      "key": "wxaitodoimport",
+      "id": "cmd-wxaitodoimport",
+      "name": "/wxAI-todo-import",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-todo-import"
+      ],
+      "purpose": "Scan project for TODO files, link each item to a wxKanban scope and task, and insert into the database",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-todo-import.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: no live caller."
+    },
+    {
+      "key": "wxaitraining",
+      "id": "cmd-wxaitraining",
+      "name": "/wxAI-training",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxAI-training"
+      ],
+      "purpose": "Guided onboarding for untrained developers — explains the 6-phase lifecycle, scope-first rule, and walks through scope creation step by step",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxAI-training.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Retired: its lessons are folded into Part 2, The Process."
+    },
+    {
+      "key": "wxbrainstorm",
+      "id": "cmd-wxbrainstorm",
+      "name": "/wxBrainstorm",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxBrainstorm"
+      ],
+      "purpose": "talk through a customer suggestion, feature request, or idea with a panel of the eleven wxG-O-D agent roles.",
+      "usage": "/wxBrainstorm customers keep asking to export the board to Excel\n/wxBrainstorm --level=amateur                             # explains every idea in plain terms\n/wxBrainstorm --resume                                    # continue an open brainstorm or analyze sitting (analyzers are not re-run)\n/wxBrainstorm --analyze [--dir <app folder>]              # review one built app in one sitting: feature groups, approved analyzer plan (30-minute limit each), item-by-item review; saves a report and data file in docs/brainstorms/analyze/ of that app. A missing folder stops with one error line. Asks once about an optional read-only database check (default no; names and counts only)\n/wxBrainstorm --analyze --conversion                      # same, and adds wxConversionParity for a conversion\n/wxBrainstorm --analyze --cross-app --dir <app>,<app>     # run in wxKanban only: reads each app's saved data file, never writes into them; a gap in 2+ apps becomes one converter scope proposal",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "buildscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "validatescope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "createspecs",
+          "label": "Likely"
+        },
+        {
+          "target": "wxgod",
+          "label": "Likely"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [
+        "project.search_capabilities"
+      ],
+      "sources": [
+        ".claude/skills/wxBrainstorm/SKILL.md",
+        "_wxAI/commands/wxBrainstorm.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxbrand",
+      "id": "cmd-wxbrand",
+      "name": "/wxBrand",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxBrand"
+      ],
+      "purpose": "capture a product you have already built into a brand instruction document, ingest a completed one, or start from a blank template; validate it and report every failure with its measurement; then execute it into real…",
+      "usage": "",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxBrand.md",
+        "_wxAI/skills/wxBrand/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxconversion",
+      "id": "cmd-wxconversion",
+      "name": "/wxConversion",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/wxConversion",
+        "wxkanban-agent wxconversion"
+      ],
+      "purpose": "Convert a legacy PCSoft WinDev / WebDev app into a modern React + Tailwind + shadcn/ui rebuild scaffold by working FROM its generated technical-documentation PDF — per-element Markdown, regenerated stack-native pages…",
+      "usage": "/wxConversion <path-to-doc.pdf>     # e.g. conversion/docs/WW_Newsletter_Documentation.pdf",
+      "stage": "Conversion",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxconversionscope",
+          "label": "Likely"
+        },
+        {
+          "target": "buildstack",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaiprojectinit",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "vbconversion",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxconversionscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildscope",
+          "label": "Mention"
+        },
+        {
+          "target": "cwconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversionparity",
+          "label": "Mention"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.get_command_prompt"
+      ],
+      "sources": [
+        "_wxAI/commands/wxConversion.md",
+        "_wxAI/skills/wxConversion/SKILL.md",
+        "mcp-server/src/prompts/wxconversion.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxconversionparity",
+      "id": "cmd-wxconversionparity",
+      "name": "/wxConversionParity",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxConversionParity"
+      ],
+      "purpose": "Audit a BUILT conversion against the original legacy app — what did the rebuild lose?",
+      "usage": "/wxConversionParity            # resume or start the parity audit over the built conversion\n/wxConversionParity --restart  # discard saved progress and rebuild the element queue\n/wxConversionParity --collect-only [--out <file>]  # unattended single pass; writes a findings file (default docs/brainstorms/analyze/findings/wxConversionParity.json); no questions, no edits",
+      "stage": "Implementation",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxconversionscope",
+          "label": "Likely"
+        },
+        {
+          "target": "cwconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "vbconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "wxuiuxcodereview",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "implement",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [
+        "project.create_specs",
+        "project.get_command_prompt",
+        "project.help"
+      ],
+      "sources": [
+        "_wxAI/commands/wxConversionParity.md",
+        "mcp-server/src/prompts/wxconversionparity.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxconversionscope",
+      "id": "cmd-wxconversionscope",
+      "name": "/wxConversionScope",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command",
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "/wxConversionScope",
+        "wxkanban-agent wxconversionscope"
+      ],
+      "purpose": "Generate Scope-of-Project documents from a PCSoft app already converted by /wxConversion — acting as a Systems & Business Analyst, one scope per page/report plus overall Program, Database, and Backend/API scopes, Buil…",
+      "usage": "/wxConversionScope            # resume or start scope generation over the converted artifacts\n/wxConversionScope --restart  # discard saved progress and rebuild the scope queue",
+      "stage": "Conversion",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxconversion",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiprojectinit",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxconversion",
+          "label": "Likely"
+        },
+        {
+          "target": "wxconversionparity",
+          "label": "Likely"
+        },
+        {
+          "target": "cwconversionscope",
+          "label": "Mention"
+        },
+        {
+          "target": "vbconversionscope",
+          "label": "Mention"
+        },
+        {
+          "target": "wxgod",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.get_command_prompt"
+      ],
+      "sources": [
+        "_wxAI/commands/wxConversionScope.md",
+        "_wxAI/skills/wxConversionScope/SKILL.md",
+        "mcp-server/src/prompts/wxconversionscope.md",
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxcreatetestplan",
+      "id": "cmd-wxcreatetestplan",
+      "name": "/wxCreateTestPlan",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxCreateTestPlan"
+      ],
+      "purpose": "Build a requirement-traceable test plan for the stack declared in stack.md (routes/services/commands, data tables, UI page-to-page flows, and any tool surface) — then optionally --Execute it through three signoff gate…",
+      "usage": "/wxCreateTestPlan                        # whole app: <path> (+ <path> UI lens)\n/wxCreateTestPlan SPEC-051               # requirement-driven: derive from specs/051-*/spec.md FR-###\n/wxCreateTestPlan SCOPE-047              # a scope umbrella → its implementing spec(s)\n/wxCreateTestPlan <path>      # path subtree filter\n/wxCreateTestPlan SPEC-051 --Execute     # plan (or reuse plan), then run the three signoff gates",
+      "stage": "QA",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "buildstack",
+          "label": "Confirmed"
+        },
+        {
+          "target": "pretest",
+          "label": "Confirmed"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "implement",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [
+        "project.complete_test_run",
+        "project.report_change_impact",
+        "project.report_test_progress",
+        "project.sign_off_test",
+        "project.start_test_run",
+        "project.test_gate_status"
+      ],
+      "sources": [
+        "_wxAI/commands/wxCreateTestPlan.md",
+        "_wxAI/skills/wxCreateTestPlan/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxdbanalyze",
+      "id": "cmd-wxdbanalyze",
+      "name": "/wxDBAnalyze",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxDBAnalyze"
+      ],
+      "purpose": "Senior-DBA review of a project's database — schema integrity, referential integrity, data health, performance/index strategy, and maintenance/bloat today (Phase 2 Batch A), with conventions, security, availability and…",
+      "usage": "/wxDBAnalyze                          # full audit of every implemented dimension, read-only\n/wxDBAnalyze --dimension performance,integrity   # run a subset of the five implemented dimensions\n/wxDBAnalyze --impact                 # Batch B — not yet implemented\n/wxDBAnalyze --apply                  # guarded additive apply, per-statement approval\n/wxDBAnalyze --dry-run                # plan only, touches nothing\n/wxDBAnalyze --engine mssql --url …   # Batch B — non-postgres engines still refuse",
+      "stage": "Implementation",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxDBAnalyze.md",
+        "_wxAI/skills/wxDBAnalyze/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxdesigner",
+      "id": "cmd-wxdesigner",
+      "name": "/wxDesigner",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxDesigner"
+      ],
+      "purpose": "read a scope/spec, design the screen it calls for using the project's existing theme tokens, preview it in the browser, iterate, then SAVE to a page.md carrying the design spec plus ready-to-use TSX.",
+      "usage": "/wxDesigner 106                       # SCOPE-106 + every spec that implements it\n/wxDesigner 084 \"plan comparison\"     # a named screen within SCOPE-084\n/wxDesigner specs/072-user-home       # start at a spec; walks back to its scope\n/wxDesigner 106                       # already designed? reopens that page.md and edits it",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "implement",
+          "label": "Likely"
+        },
+        {
+          "target": "wxuiuxcodereview",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxDesigner.md",
+        "_wxAI/skills/wxDesigner/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxgod",
+      "id": "cmd-wxgod",
+      "name": "/wxG-O-D",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxG-O-D"
+      ],
+      "purpose": "Guru of Development: reads your project tree or named folders (plus ProjectOverview.md, stack.md, and any WinDev/VB6/Clarion conversion output), goes over the findings with you section by section at your level (--leve…",
+      "usage": "/wxG-O-D                                                   # whole project tree\n/wxG-O-D --customer=\"Acme Freight\"\n/wxG-O-D --dir=legacy/src,legacy/docs,db/scripts           # only these folders\n/wxG-O-D --dir=\"customer files/specs\",\"customer files/screens\"\n/wxG-O-D --level=amateur                                   # explain every idea in plain terms\n/wxG-O-D ProjectOverview.md                                # review it; new project → design, then build",
+      "stage": "Design",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "autofixtests",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildscope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildstack",
+          "label": "Confirmed"
+        },
+        {
+          "target": "createspecs",
+          "label": "Confirmed"
+        },
+        {
+          "target": "devplan",
+          "label": "Confirmed"
+        },
+        {
+          "target": "implement",
+          "label": "Confirmed"
+        },
+        {
+          "target": "pretest",
+          "label": "Confirmed"
+        },
+        {
+          "target": "scopeflowmap",
+          "label": "Confirmed"
+        },
+        {
+          "target": "validatescope",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxconversionparity",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxcreatetestplan",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxdbanalyze",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxhelpgenerate",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxledger",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxuiuxcodereview",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxaipipeline",
+          "label": "Likely"
+        },
+        {
+          "target": "compliancescan",
+          "label": "Mention"
+        },
+        {
+          "target": "cwconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "cwconversionscope",
+          "label": "Mention"
+        },
+        {
+          "target": "vbconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "vbconversionscope",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaibeta",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaihumantest",
+          "label": "Mention"
+        },
+        {
+          "target": "wxaiqa",
+          "label": "Mention"
+        },
+        {
+          "target": "wxairelease",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversion",
+          "label": "Mention"
+        },
+        {
+          "target": "wxconversionscope",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "implement",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxbrainstorm",
+          "label": "Likely"
+        },
+        {
+          "target": "devplan",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.create_specs",
+        "project.create_task",
+        "project.get_command_prompt",
+        "project.get_compliance_context",
+        "project.help",
+        "project.json",
+        "project.list_open_items",
+        "project.md",
+        "project.scope_stage",
+        "project.submit_feedback",
+        "project.test_gate_status",
+        "project.update_task_status"
+      ],
+      "sources": [
+        ".claude/skills/wxG-O-D/SKILL.md",
+        "_wxAI/commands/wxG-O-D.md",
+        "mcp-server/src/prompts/wxgod.md",
+        "mcp-server/src/prompts/wxgod/references/business-rules.md",
+        "mcp-server/src/prompts/wxgod/references/data-integrity.md",
+        "mcp-server/src/prompts/wxgod/references/database-options.md",
+        "mcp-server/src/prompts/wxgod/references/document-templates.md",
+        "mcp-server/src/prompts/wxgod/references/flow-diagrams.md",
+        "mcp-server/src/prompts/wxgod/references/god-persona.md",
+        "mcp-server/src/prompts/wxgod/references/interview.md",
+        "mcp-server/src/prompts/wxgod/references/new-project.md",
+        "mcp-server/src/prompts/wxgod/references/review-and-brainstorm.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxhelp",
+      "id": "cmd-wxhelp",
+      "name": "/wxHelp",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxHelp"
+      ],
+      "purpose": "flowchart TD",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxHelp.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Stale command list; replaced by this Command Reference."
+    },
+    {
+      "key": "wxhelpgenerate",
+      "id": "cmd-wxhelpgenerate",
+      "name": "/wxHelpGenerate",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxHelpGenerate"
+      ],
+      "purpose": "turn a live web app into end-user help by walking it screen by screen, then publish a linked HTML help site + a PDF manual; with --teach, also one AI-agnostic lesson per process for users to learn the app in their own…",
+      "usage": "",
+      "stage": "Human Testing → Release",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "helpcatalog",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxrefreshhelp",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxregenhelp",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxHelpGenerate.md",
+        "_wxAI/skills/wxHelpGenerate/SKILL.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxledger",
+      "id": "cmd-wxledger",
+      "name": "/wxLedger",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxLedger"
+      ],
+      "purpose": "the decision ledger. check validates decisions/ledger.yaml, check --global scans the shared learnings for project names, paths and customer data, search finds the approved decision that answers a question, import prop…",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxLedger.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "wxrefreshhelp",
+      "id": "cmd-wxrefreshhelp",
+      "name": "/wxRefreshHelp",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxRefreshHelp"
+      ],
+      "purpose": "refresh BOTH help surfaces after a feature lands: author the gaps, recapture the English manual (site + PDF), and rebuild the in-app Help in all 6 languages.",
+      "usage": "/wxRefreshHelp                          # reads the marker, then walks all seven steps\n/wxRefreshHelp \"SCOPE-111 test suite\"   # names the feature up front\n/wxRefreshHelp --no-capture             # prose changed but the UI did not; skip re-screenshotting",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxhelpgenerate",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxregenhelp",
+          "label": "Confirmed"
+        },
+        {
+          "target": "help",
+          "label": "Mention"
+        },
+        {
+          "target": "helpcatalog",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxRefreshHelp.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Maintains wxKanban's own help; not part of the customer kit."
+    },
+    {
+      "key": "wxregenhelp",
+      "id": "cmd-wxregenhelp",
+      "name": "/wxRegenHelp",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxRegenHelp"
+      ],
+      "purpose": "regenerate the end-user help (HTML site + PDF manual) in one of the 6 supported languages.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "helpcatalog",
+          "label": "Mention"
+        },
+        {
+          "target": "wxhelpgenerate",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "wxrefreshhelp",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "_wxAI/commands/wxRegenHelp.md"
+      ],
+      "excluded": true,
+      "excludedReason": "Maintains wxKanban's own help; not part of the customer kit."
+    },
+    {
+      "key": "wxuiuxcodereview",
+      "id": "cmd-wxuiuxcodereview",
+      "name": "/wxUIUXCodeReview",
+      "kind": "slash",
+      "runsIn": [
+        "AI slash command"
+      ],
+      "invoke": [
+        "/wxUIUXCodeReview"
+      ],
+      "purpose": "Combined code + UI/UX review of a diff, PR, branch, the current changes, or a whole codebase (--audit) — targeted at the stack declared in stack.md, not wxKanban's defaults.",
+      "usage": "/wxUIUXCodeReview --audit                                   # review a whole codebase one surface at a time\n/wxUIUXCodeReview --audit --collect-only [--out <file>]     # unattended single pass; writes a findings file (default docs/brainstorms/analyze/findings/wxUIUXCodeReview.json); no questions, no edits",
+      "stage": "Implementation",
+      "stageConfidence": "Likely",
+      "calls": [
+        {
+          "target": "wxaiprojectinit",
+          "label": "Confirmed"
+        },
+        {
+          "target": "buildstack",
+          "label": "Mention"
+        }
+      ],
+      "calledBy": [
+        {
+          "target": "implement",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxgod",
+          "label": "Confirmed"
+        },
+        {
+          "target": "wxconversionparity",
+          "label": "Mention"
+        },
+        {
+          "target": "wxdesigner",
+          "label": "Mention"
+        }
+      ],
+      "mcpTools": [
+        "project.create_specs",
+        "project.get_command_prompt",
+        "project.help"
+      ],
+      "sources": [
+        ".claude/skills/wxUIUXCodeReview/SKILL.md",
+        "_wxAI/commands/wxUIUXCodeReview.md",
+        "mcp-server/src/prompts/wxuiuxcodereview.md"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitcheckinscope",
+      "id": "cmd-cockpit-wxkanbancockpitcheckinscope",
+      "name": "Check In Scope",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Check In Scope"
+      ],
+      "purpose": "Check In Scope.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitcheckoutscope",
+      "id": "cmd-cockpit-wxkanbancockpitcheckoutscope",
+      "name": "Check Out Scope",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Check Out Scope"
+      ],
+      "purpose": "Check Out Scope.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitopenchat",
+      "id": "cmd-cockpit-wxkanbancockpitopenchat",
+      "name": "Community Help (live chat)",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Community Help (live chat)"
+      ],
+      "purpose": "Community Help (live chat).",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitinstallkit",
+      "id": "cmd-cockpit-wxkanbancockpitinstallkit",
+      "name": "Install Kit in This Folder",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Install Kit in This Folder"
+      ],
+      "purpose": "Install Kit in This Folder.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitupgradekit",
+      "id": "cmd-cockpit-wxkanbancockpitupgradekit",
+      "name": "Install Kit Update",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Install Kit Update"
+      ],
+      "purpose": "Install Kit Update.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitinstallcommands",
+      "id": "cmd-cockpit-wxkanbancockpitinstallcommands",
+      "name": "Install Slash Commands (.claude/commands)",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Install Slash Commands (.claude/commands)"
+      ],
+      "purpose": "Install Slash Commands (.claude/commands).",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbanimpactinstallhook",
+      "id": "cmd-cockpit-wxkanbanimpactinstallhook",
+      "name": "Install the Change Impact hook for Claude Code",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → Install the Change Impact hook for Claude Code"
+      ],
+      "purpose": "Install the Change Impact hook for Claude Code.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitmyfeedback",
+      "id": "cmd-cockpit-wxkanbancockpitmyfeedback",
+      "name": "My Feedback",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: My Feedback"
+      ],
+      "purpose": "My Feedback.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitopenspec",
+      "id": "cmd-cockpit-wxkanbancockpitopenspec",
+      "name": "Open Related Spec / File",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Open Related Spec / File"
+      ],
+      "purpose": "Open Related Spec / File.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitopenmanual",
+      "id": "cmd-cockpit-wxkanbancockpitopenmanual",
+      "name": "Open the Manual",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Open the Manual"
+      ],
+      "purpose": "Open the Manual.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitpushfeedbacktochat",
+      "id": "cmd-cockpit-wxkanbancockpitpushfeedbacktochat",
+      "name": "Push Feedback to Claude Chat",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Push Feedback to Claude Chat"
+      ],
+      "purpose": "Push Feedback to Claude Chat.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitrecheckkit",
+      "id": "cmd-cockpit-wxkanbancockpitrecheckkit",
+      "name": "Re-run the Kit Version Check",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Re-run the Kit Version Check"
+      ],
+      "purpose": "Re-run the Kit Version Check.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbanautopilotrefresh",
+      "id": "cmd-cockpit-wxkanbanautopilotrefresh",
+      "name": "Refresh Autopilot",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Refresh Autopilot"
+      ],
+      "purpose": "Refresh Autopilot.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitrefresh",
+      "id": "cmd-cockpit-wxkanbancockpitrefresh",
+      "name": "Refresh Cockpit",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Refresh Cockpit"
+      ],
+      "purpose": "Refresh Cockpit.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbanimpactuninstallhook",
+      "id": "cmd-cockpit-wxkanbanimpactuninstallhook",
+      "name": "Remove the Change Impact hook for Claude Code",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → Remove the Change Impact hook for Claude Code"
+      ],
+      "purpose": "Remove the Change Impact hook for Claude Code.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitsubmitfeedback",
+      "id": "cmd-cockpit-wxkanbancockpitsubmitfeedback",
+      "name": "Report a Bug / Suggest a Feature",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Report a Bug / Suggest a Feature"
+      ],
+      "purpose": "Report a Bug / Suggest a Feature.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbanimpactshowpanel",
+      "id": "cmd-cockpit-wxkanbanimpactshowpanel",
+      "name": "Show Change Impact",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → Show Change Impact"
+      ],
+      "purpose": "Show Change Impact.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitshowprojectagentoutput",
+      "id": "cmd-cockpit-wxkanbancockpitshowprojectagentoutput",
+      "name": "Show Project Agent Output",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Show Project Agent Output"
+      ],
+      "purpose": "Show Project Agent Output.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitsignin",
+      "id": "cmd-cockpit-wxkanbancockpitsignin",
+      "name": "Sign In / Relink Project",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Sign In / Relink Project"
+      ],
+      "purpose": "Sign In / Relink Project.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitstartprojectagent",
+      "id": "cmd-cockpit-wxkanbancockpitstartprojectagent",
+      "name": "Start Project Agent",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Start Project Agent"
+      ],
+      "purpose": "Start Project Agent.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitstopprojectagent",
+      "id": "cmd-cockpit-wxkanbancockpitstopprojectagent",
+      "name": "Stop Project Agent",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Stop Project Agent"
+      ],
+      "purpose": "Stop Project Agent.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpittoggletheme",
+      "id": "cmd-cockpit-wxkanbancockpittoggletheme",
+      "name": "Toggle Recording Theme (wxLight / wxDark)",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: Toggle Recording Theme (wxLight / wxDark)"
+      ],
+      "purpose": "Toggle Recording Theme (wxLight / wxDark).",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cockpit:wxkanbancockpitshowfeedbackdetail",
+      "id": "cmd-cockpit-wxkanbancockpitshowfeedbackdetail",
+      "name": "View Feedback Detail",
+      "kind": "cockpit",
+      "runsIn": [
+        "Dev Cockpit (Command Palette)"
+      ],
+      "invoke": [
+        "Command Palette → wxKanban: View Feedback Detail"
+      ],
+      "purpose": "View Feedback Detail.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "vscode-extension/package.json"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cli:archive:files",
+      "id": "cmd-cli-archive-files",
+      "name": "wxkanban-agent archive:files",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent archive:files"
+      ],
+      "purpose": "Moves files to the project archive instead of deleting them.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cli:auditfences",
+      "id": "cmd-cli-auditfences",
+      "name": "wxkanban-agent auditfences",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent auditfences"
+      ],
+      "purpose": "Checks that every code unit carries its scope and task fence.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [
+        {
+          "target": "implement",
+          "label": "Confirmed"
+        }
+      ],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cli:createtesttasks",
+      "id": "cmd-cli-createtesttasks",
+      "name": "wxkanban-agent createtesttasks",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent createtesttasks"
+      ],
+      "purpose": "",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": true,
+      "excludedReason": "Listed by the CLI but has no handler, so it does not run."
+    },
+    {
+      "key": "cli:finalizerelease",
+      "id": "cmd-cli-finalizerelease",
+      "name": "wxkanban-agent finalizeRelease",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent finalizeRelease"
+      ],
+      "purpose": "",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": true,
+      "excludedReason": "Listed by the CLI but has no handler, so it does not run."
+    },
+    {
+      "key": "cli:kit:configure",
+      "id": "cmd-cli-kit-configure",
+      "name": "wxkanban-agent kit:configure",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent kit:configure"
+      ],
+      "purpose": "Sets the kit's connection to your wxKanban project.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cli:kit:status",
+      "id": "cmd-cli-kit-status",
+      "name": "wxkanban-agent kit:status",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent kit:status"
+      ],
+      "purpose": "Shows the installed kit version and whether an update is waiting.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    },
+    {
+      "key": "cli:pipelineagent",
+      "id": "cmd-cli-pipelineagent",
+      "name": "wxkanban-agent pipeline-agent",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent pipeline-agent"
+      ],
+      "purpose": "",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": true,
+      "excludedReason": "Listed by the CLI but has no handler, so it does not run."
+    },
+    {
+      "key": "cli:preparerelease",
+      "id": "cmd-cli-preparerelease",
+      "name": "wxkanban-agent prepareRelease",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent prepareRelease"
+      ],
+      "purpose": "",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": true,
+      "excludedReason": "Listed by the CLI but has no handler, so it does not run."
+    },
+    {
+      "key": "cli:runhuman",
+      "id": "cmd-cli-runhuman",
+      "name": "wxkanban-agent runhuman",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent runhuman"
+      ],
+      "purpose": "",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": true,
+      "excludedReason": "Listed by the CLI but has no handler, so it does not run."
+    },
+    {
+      "key": "cli:runqa",
+      "id": "cmd-cli-runqa",
+      "name": "wxkanban-agent runqa",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent runqa"
+      ],
+      "purpose": "",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": true,
+      "excludedReason": "Listed by the CLI but has no handler, so it does not run."
+    },
+    {
+      "key": "cli:scaffold:frontend",
+      "id": "cmd-cli-scaffold-frontend",
+      "name": "wxkanban-agent scaffold:frontend",
+      "kind": "cli",
+      "runsIn": [
+        "Terminal (wxkanban-agent)"
+      ],
+      "invoke": [
+        "wxkanban-agent scaffold:frontend"
+      ],
+      "purpose": "Scaffolds the frontend from the project's Stack & Style choices.",
+      "usage": "",
+      "stage": "Any stage",
+      "stageConfidence": "Likely",
+      "calls": [],
+      "calledBy": [],
+      "mcpTools": [],
+      "sources": [
+        "wxkanban-agent/core/policy/adapters/cli-adapter.ts"
+      ],
+      "excluded": false,
+      "excludedReason": null
+    }
+  ],
+  "drift": [
+    {
+      "kind": "missing-command",
+      "from": "/buildscope",
+      "target": "/scope-validate",
+      "label": "Confirmed",
+      "detail": "Referenced as a step or next step, but no such command exists."
+    },
+    {
+      "kind": "missing-command",
+      "from": "/validateScope",
+      "target": "/scope-builder",
+      "label": "Confirmed",
+      "detail": "Referenced as a step or next step, but no such command exists."
+    },
+    {
+      "kind": "missing-command",
+      "from": "/validateScope",
+      "target": "/scope-validate",
+      "label": "Confirmed",
+      "detail": "Referenced as a step or next step, but no such command exists."
+    },
+    {
+      "kind": "missing-command",
+      "from": "/wxG-O-D",
+      "target": "/scope-validate",
+      "label": "Likely",
+      "detail": "Referenced as a step or next step, but no such command exists."
+    },
+    {
+      "kind": "no-handler",
+      "from": "wxkanban-agent createtesttasks",
+      "target": "wxkanban-agent createtesttasks",
+      "label": null,
+      "detail": "Registered in the CLI but the workflow engine has no handler for it."
+    },
+    {
+      "kind": "no-handler",
+      "from": "wxkanban-agent finalizeRelease",
+      "target": "wxkanban-agent finalizeRelease",
+      "label": null,
+      "detail": "Registered in the CLI but the workflow engine has no handler for it."
+    },
+    {
+      "kind": "no-handler",
+      "from": "wxkanban-agent pipeline-agent",
+      "target": "wxkanban-agent pipeline-agent",
+      "label": null,
+      "detail": "Registered in the CLI but the workflow engine has no handler for it."
+    },
+    {
+      "kind": "no-handler",
+      "from": "wxkanban-agent prepareRelease",
+      "target": "wxkanban-agent prepareRelease",
+      "label": null,
+      "detail": "Registered in the CLI but the workflow engine has no handler for it."
+    },
+    {
+      "kind": "no-handler",
+      "from": "wxkanban-agent runhuman",
+      "target": "wxkanban-agent runhuman",
+      "label": null,
+      "detail": "Registered in the CLI but the workflow engine has no handler for it."
+    },
+    {
+      "kind": "no-handler",
+      "from": "wxkanban-agent runqa",
+      "target": "wxkanban-agent runqa",
+      "label": null,
+      "detail": "Registered in the CLI but the workflow engine has no handler for it."
+    },
+    {
+      "kind": "references-retired",
+      "from": "/buildscope",
+      "target": "/wxAI-pipeline",
+      "label": "Confirmed",
+      "detail": "Replaced by /createSpecs."
+    },
+    {
+      "kind": "references-retired",
+      "from": "/validateScope",
+      "target": "/wxAI-pipeline",
+      "label": "Confirmed",
+      "detail": "Replaced by /createSpecs."
+    },
+    {
+      "kind": "references-retired",
+      "from": "/wxG-O-D",
+      "target": "/dev-plan",
+      "label": "Confirmed",
+      "detail": "Replaced by /wxG-O-D --roadmap."
+    },
+    {
+      "kind": "references-retired",
+      "from": "/wxG-O-D",
+      "target": "/wxAI-pipeline",
+      "label": "Likely",
+      "detail": "Replaced by /createSpecs."
+    }
+  ]
+}

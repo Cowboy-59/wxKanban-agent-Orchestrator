@@ -1,0 +1,55 @@
+{
+  "mode": "local server on deployed commit 8068fb63 (app 1.5.352), production database",
+  "startedAt": "2026-10-25T20:49:43.289Z",
+  "originalPhone": null,
+  "patch1": 200,
+  "patch2": 200,
+  "phoneRestored": true,
+  "auditRows": [],
+  "auditRowCount": 0,
+  "adminGetsAudit": 403,
+  "auditRowsViaApi": [
+    {
+      "timestamp": "2026-10-25T20:49:38.720Z",
+      "actor": "admin@wxkanban.com",
+      "before": {
+        "phone": "555-0147"
+      },
+      "after": {
+        "phone": null
+      },
+      "target": {
+        "id": "019c777f-a918-774a-80ae-821c3310eb0a",
+        "name": "Wxperts LLC",
+        "type": "company"
+      }
+    },
+    {
+      "timestamp": "2026-10-25T20:49:38.062Z",
+      "actor": "admin@wxkanban.com",
+      "before": {
+        "phone": null
+      },
+      "after": {
+        "phone": "555-0147"
+      },
+      "target": {
+        "id": "019c777f-a918-774a-80ae-821c3310eb0a",
+        "name": "Wxperts LLC",
+        "type": "company"
+      }
+    }
+  ],
+  "auditRowCountViaApi": 2,
+  "note": "The first read used the test machine's clock as the from filter (about 5 s ahead of the database), so it matched nothing; the rows were written at 20:49:38 and 20:49:38.7 UTC. Re-read without the client-clock filter.",
+  "deployedApp": {
+    "commit": "8068fb63",
+    "appVersion": "1.5.352",
+    "appRunner": {
+      "app": "SUCCEEDED",
+      "mcp": "SUCCEEDED"
+    },
+    "liveBundle": "assets/index-aDNM5Pq-.js carries 1.5.352 and the Audit trail page",
+    "anonymousAudit": 401
+  }
+}

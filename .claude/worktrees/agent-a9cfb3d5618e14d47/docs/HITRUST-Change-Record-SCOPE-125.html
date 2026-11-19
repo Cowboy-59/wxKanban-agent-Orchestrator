@@ -1,0 +1,771 @@
+<title>HITRUST Change Record — SCOPE-125 Conversion Credential Redaction</title>
+<style>
+  :root {
+    --ink:      #14161c;
+    --paper:    #f5f6f8;
+    --surface:  #ffffff;
+    --muted:    #5e6472;
+    --rule:     #d6dae1;
+    --rule-soft:#e6e9ee;
+    --accent:   #3c39c9;
+    --crit:     #9d2f3a;
+    --crit-bg:  #f7e9ea;
+    --warn:     #8a5c16;
+    --warn-bg:  #f9f0dd;
+    --ok:       #1c6350;
+    --ok-bg:    #e2f0eb;
+    --bar:      #14161c;
+
+    --measure: 74ch;
+    --s1: 0.35rem; --s2: 0.7rem; --s3: 1.1rem;
+    --s4: 1.9rem; --s5: 3rem;   --s6: 4.6rem;
+
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono:  ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink:      #e6e9ef;
+      --paper:    #0f1116;
+      --surface:  #161920;
+      --muted:    #98a0b0;
+      --rule:     #272c36;
+      --rule-soft:#1e222a;
+      --accent:   #8f8cff;
+      --crit:     #e2707b;
+      --crit-bg:  #2a161a;
+      --warn:     #d9a441;
+      --warn-bg:  #2a2113;
+      --ok:       #4fb392;
+      --ok-bg:    #12261f;
+      --bar:      #e6e9ef;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink:      #e6e9ef;
+    --paper:    #0f1116;
+    --surface:  #161920;
+    --muted:    #98a0b0;
+    --rule:     #272c36;
+    --rule-soft:#1e222a;
+    --accent:   #8f8cff;
+    --crit:     #e2707b;
+    --crit-bg:  #2a161a;
+    --warn:     #d9a441;
+    --warn-bg:  #2a2113;
+    --ok:       #4fb392;
+    --ok-bg:    #12261f;
+    --bar:      #e6e9ef;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    margin: 0;
+    padding: var(--s5) var(--s3) var(--s6);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .doc {
+    max-width: var(--measure);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s5);
+  }
+
+  /* ---- masthead ---- */
+  .masthead { display: flex; flex-direction: column; gap: var(--s3); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.71rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2);
+    align-items: center;
+  }
+  .eyebrow .sep { color: var(--rule); }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(1.65rem, 4.2vw, 2.35rem);
+    font-weight: 600;
+    line-height: 1.18;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .standfirst {
+    font-family: var(--serif);
+    font-size: 1.09rem;
+    line-height: 1.6;
+    color: var(--muted);
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  .accent-rule { height: 3px; background: var(--accent); width: 68px; border: 0; margin: 0; }
+
+  /* ---- document control grid ---- */
+  .control-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    border-left: 1px solid var(--rule);
+    background: var(--surface);
+  }
+  .field {
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: var(--s2) var(--s3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+  }
+  .field dt {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .field dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    font-variant-numeric: tabular-nums;
+    word-break: break-word;
+  }
+
+  /* ---- chips ---- */
+  .chip {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.16em 0.6em;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .chip-crit { color: var(--crit); background: var(--crit-bg); }
+  .chip-warn { color: var(--warn); background: var(--warn-bg); }
+  .chip-ok   { color: var(--ok);   background: var(--ok-bg); }
+
+  /* ---- notice ---- */
+  .notice {
+    background: var(--warn-bg);
+    border-left: 3px solid var(--warn);
+    padding: var(--s3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+  }
+  .notice .notice-head {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--warn);
+  }
+  .notice p { margin: 0; font-size: 0.94rem; }
+
+  /* ---- sections ---- */
+  section { display: flex; flex-direction: column; gap: var(--s3); }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 1.34rem;
+    font-weight: 600;
+    letter-spacing: -0.008em;
+    line-height: 1.28;
+    text-wrap: balance;
+    margin: 0;
+    padding-bottom: var(--s2);
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    gap: var(--s3);
+    align-items: baseline;
+  }
+  h2 .num {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    flex: none;
+  }
+
+  h3 {
+    font-family: var(--sans);
+    font-size: 0.79rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: var(--s2) 0 0;
+  }
+
+  p { margin: 0; text-wrap: pretty; }
+
+  ul, ol { margin: 0; padding-left: 1.35rem; display: flex; flex-direction: column; gap: var(--s2); }
+  li::marker { color: var(--muted); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.87em;
+    background: var(--rule-soft);
+    padding: 0.1em 0.34em;
+    word-break: break-word;
+  }
+
+  strong { font-weight: 650; }
+
+  /* ---- tables ---- */
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+  caption {
+    caption-side: top;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: var(--s2);
+  }
+  th, td { padding: 0.58rem 0.8rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  thead th {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.ref { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--accent); }
+  td.id  { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+  /* ---- redaction figure ---- */
+  figure { margin: 0; display: flex; flex-direction: column; gap: var(--s2); }
+  .specimen {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: var(--s3);
+    font-family: var(--mono);
+    font-size: 0.84rem;
+    line-height: 2;
+    overflow-x: auto;
+  }
+  .specimen .lbl {
+    display: block;
+    font-size: 0.66rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: var(--s1);
+  }
+  .specimen .row { white-space: pre; }
+  .bar {
+    display: inline-block;
+    background: var(--bar);
+    color: transparent;
+    user-select: none;
+    vertical-align: baseline;
+    border-radius: 1px;
+  }
+  .tok { color: var(--accent); }
+  figcaption { font-size: 0.86rem; color: var(--muted); text-wrap: pretty; }
+
+  /* ---- evidence log ---- */
+  .log { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--rule); background: var(--surface); }
+  .log-item { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3); border-bottom: 1px solid var(--rule); }
+  .log-item:last-child { border-bottom: 0; }
+  .log-what { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); letter-spacing: 0.04em; }
+  .log-result { font-size: 0.93rem; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: var(--s3);
+    font-size: 0.84rem;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+  }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  @media (max-width: 34rem) {
+    body { padding: var(--s4) var(--s2) var(--s5); }
+    h2 { flex-direction: column; gap: var(--s1); }
+  }
+</style>
+
+<div class="doc">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Change Record</span><span class="sep">/</span>
+      <span>HITRUST SDLC</span><span class="sep">/</span>
+      <span>SCOPE-125</span><span class="sep">/</span>
+      <span>Rev A &middot; 2026-08-10</span>
+    </div>
+    <h1>Conversion Credential Redaction</h1>
+    <hr class="accent-rule">
+    <p class="standfirst">
+      Legacy-application conversion tooling copies source text verbatim into artifacts that are
+      committed as project data and read into AI context on every subsequent session. Where the
+      legacy source hardcodes database credentials, those values are reproduced and disclosed. This
+      record documents the defect, its risk, the control being implemented, and what the control
+      cannot remedy.
+    </p>
+  </header>
+
+  <dl class="control-grid">
+    <div class="field"><dt>Record ID</dt><dd>CR-SCOPE-125</dd></div>
+    <div class="field"><dt>Change class</dt><dd>Standard &mdash; security</dd></div>
+    <div class="field"><dt>Severity</dt><dd><span class="chip chip-crit">High</span></dd></div>
+    <div class="field"><dt>Status</dt><dd><span class="chip chip-warn">Scoped &mdash; not implemented</span></dd></div>
+    <div class="field"><dt>Source finding</dt><dd>f99e80aa</dd></div>
+    <div class="field"><dt>Origin project</dt><dd>b9f9cbc7</dd></div>
+    <div class="field"><dt>Affected component</dt><dd>Conversion skills &mdash; wx / vb / cw</dd></div>
+    <div class="field"><dt>Affected version</dt><dd>Kit v1.7.49 and earlier</dd></div>
+    <div class="field"><dt>Remediation vehicle</dt><dd>Kit release (FR-015)</dd></div>
+    <div class="field"><dt>Data classification</dt><dd>Authentication credentials</dd></div>
+    <div class="field"><dt>Scope preflight</dt><dd>100 / 100 &middot; 0 blocking</dd></div>
+    <div class="field"><dt>Authority</dt><dd>Product owner, verbal, 2026-08-10</dd></div>
+  </dl>
+
+  <div class="notice">
+    <span class="notice-head">Framework applicability &mdash; read first</span>
+    <p>
+      <strong>HITRUST is not currently an enabled framework for this project.</strong> The active
+      compliance context returns SOC&nbsp;2 only. This record is therefore prepared as
+      <em>advance documentation</em> against the HITRUST SDLC rules held in the repository, not as
+      evidence drawn from an active HITRUST assessment programme.
+    </p>
+    <p>
+      Control references below are taken from the repository's own
+      <code>HITRUST_SDLC_Compliance_Rules.md</code>, which uses a local category taxonomy
+      (<code>01</code>&ndash;<code>17</code>). An external assessor working from HITRUST CSF v9.x or
+      v11 reference numbering will need a crosswalk; these references should not be presented to an
+      assessor as CSF control identifiers without one.
+    </p>
+  </div>
+
+  <section>
+    <h2><span class="num">01</span><span>Change summary</span></h2>
+    <p>
+      A credential-redaction boundary is introduced into all three legacy-conversion families. Credential
+      <strong>values</strong> are replaced with stable placeholder tokens at the point of extraction. The
+      <strong>fact and location</strong> of each hardcoded credential is preserved and reported, because
+      an inventory of which legacy procedures hardcode credentials is required output for both the
+      migration and the rotation that must follow.
+    </p>
+    <p>
+      The change covers both producers of conversion artifacts &mdash; the Python extraction scripts and
+      the AI session itself &mdash; introduces the shared write boundary the emitters never had, adds a
+      read-only scan mode so already-converted projects can determine their existing exposure, and guards
+      the deployed module copies against divergence.
+    </p>
+    <h3>Scale</h3>
+    <div class="scroll">
+      <table>
+        <caption>Change footprint</caption>
+        <thead>
+          <tr><th>Artifact</th><th>Action</th><th class="num">Count</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Conversion scripts (3 families &times; 3 trees)</td><td>Modified</td><td class="num">54</td></tr>
+          <tr><td>Redaction module copies</td><td>New</td><td class="num">9</td></tr>
+          <tr><td><code>SKILL.md</code> instruction files</td><td>Modified</td><td class="num">9</td></tr>
+          <tr><td>Fence/parity audit check</td><td>New</td><td class="num">1</td></tr>
+          <tr><td>Kit release</td><td>Cut and verified</td><td class="num">1</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span><span>Trigger &mdash; reported security event</span></h2>
+    <p>
+      Finding <code>f99e80aa</code> was raised on an AI session performing a secrets-egress review of a
+      consuming project. It reported that credential literals extracted from WEBDEV source were present
+      as quoted string assignments in two git-tracked conversion artifacts, committed since
+      <code>1ab3d5c</code>, neither gitignored. The 2.4&nbsp;MB source documentation PDF was also tracked
+      at repository root.
+    </p>
+    <p>
+      The report disclosed paths and line numbers only. No credential value appears in the report, in the
+      scope document, or in this record.
+    </p>
+    <h3>Root cause</h3>
+    <p>
+      No redaction stage exists at any point in any conversion family. Verified 2026-08-10 by search
+      across all eighteen conversion scripts: the single match is an unrelated SQL-identifier sanitiser.
+      In the reported family the path is direct and unbroken &mdash; page text is cleaned for character
+      encoding only, becomes the page body, and every emitted file is assembled from those bodies.
+    </p>
+    <p>
+      The deeper cause is architectural rather than a missing pattern: credential handling has no owner.
+      Eighteen scripts per tree each emit independently, several through unmediated file writes, and one
+      artifact class has no producer script at all.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span><span>Risk assessment</span></h2>
+    <h3>Why standard controls did not catch this</h3>
+    <p>
+      Conversion output is <strong>project data, not configuration</strong>. It is committed deliberately,
+      because it is the rebuild source material. Every filename-based protection &mdash; environment-file
+      deny rules, key-file patterns, gitignore convention &mdash; is keyed on files nobody intends to
+      commit. This exposure arrives in files everybody intends to commit.
+    </p>
+
+    <figure>
+      <div class="specimen">
+        <span class="lbl">Artifact content today</span>
+        <span class="row">"connection": { "uid": "<span class="bar">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>", "password": "<span class="bar">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>" }</span>
+      </div>
+      <div class="specimen">
+        <span class="lbl">Artifact content after this change</span>
+        <span class="row">"connection": { "uid": "<span class="tok">[[CRED-01]]</span>", "password": "<span class="tok">[[CRED-02]]</span>" }</span>
+      </div>
+      <figcaption>
+        The two bars carry different meanings and the distinction matters for evidence. In the upper
+        specimen the bar denotes a value withheld <em>from this document</em> &mdash; the artifact itself
+        holds the literal in clear. In the lower specimen the token is what the artifact actually
+        contains once the control is in force.
+      </figcaption>
+    </figure>
+
+    <h3>Exposure paths</h3>
+    <div class="scroll">
+      <table>
+        <caption>Three compounding disclosures</caption>
+        <thead>
+          <tr><th>Path</th><th>Recipient</th><th>Reversible</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Committed to version control</td>
+            <td>Anyone with repository access, now and retrospectively</td>
+            <td>No &mdash; history rewrite does not remove the credential from the legacy source</td>
+          </tr>
+          <tr>
+            <td>Read into AI context during implementation</td>
+            <td>Model provider, on every session touching a conversion artifact</td>
+            <td>No &mdash; already transmitted</td>
+          </tr>
+          <tr>
+            <td>Present in the tracked source documentation export</td>
+            <td>Same as version control</td>
+            <td>No</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Assessment</h3>
+    <p>
+      <strong>Likelihood: high.</strong> Hardcoded connection credentials are idiomatic in all three
+      legacy platforms. WinDev HFSQL blocks assign user and password literals directly; VB6 forms carry
+      inline connection strings; the third platform's data dictionaries place the full connection
+      string, credentials included, in the file owner attribute. A conversion of a credential-bearing application leaks by
+      default, not by mistake.
+    </p>
+    <p>
+      <strong>Impact: high.</strong> Disclosure of live database authentication credentials, with no
+      detection signal at any point and no record that disclosure occurred.
+    </p>
+    <p>
+      <strong>Detectability before this change: none.</strong> There is no warning, no summary, and no
+      log. The reporting project discovered the exposure only through a dedicated review.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span><span>Control implemented</span></h2>
+    <div class="scroll">
+      <table>
+        <caption>Requirements &mdash; SCOPE-125</caption>
+        <thead>
+          <tr><th>Ref</th><th>Requirement</th><th>Control intent</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="id">FR-001</td><td>Shared redaction module</td><td>Single implementation; no per-script divergence</td></tr>
+          <tr><td class="id">FR-002</td><td>Platform-aware pattern set</td><td>Covers keyed literals, data-dictionary owner attributes, and positional credential arguments</td></tr>
+          <tr><td class="id">FR-003</td><td>Stable token allocation</td><td>Preserves credential-reuse signal; map never written to disk</td></tr>
+          <tr><td class="id">FR-004</td><td>wxConversion wiring</td><td>Redaction upstream of grouping, plus defence in depth at the write boundary</td></tr>
+          <tr><td class="id">FR-005</td><td>vbConversion wiring</td><td>Redaction at the file-read boundary</td></tr>
+          <tr><td class="id">FR-006</td><td>Third-platform converter wiring</td><td>Owner-attribute pattern; the dominant leak on that platform</td></tr>
+          <tr><td class="id">FR-007</td><td>Shared write boundary</td><td>No emitter writes a file outside the funnel &mdash; prevents recurrence</td></tr>
+          <tr><td class="id">FR-008</td><td>Findings sidecar</td><td>Token, file, line, key &mdash; never a value, not even masked</td></tr>
+          <tr><td class="id">FR-009</td><td>Console summary and fail gate</td><td>Removes the silence; optional non-zero exit for pipelines</td></tr>
+          <tr><td class="id">FR-010</td><td>Read-only scan mode</td><td>Exposure discovery for already-converted projects</td></tr>
+          <tr><td class="id">FR-011</td><td>AI-authored artifact rule</td><td>Binds the producer that caused the confirmed leak</td></tr>
+          <tr><td class="id">FR-012</td><td>Copy parity guard</td><td>Divergence across deployed copies fails the build</td></tr>
+          <tr><td class="id">FR-013</td><td>Fidelity regression guard</td><td>Redaction must not alter conversion output</td></tr>
+          <tr><td class="id">FR-014</td><td>Repository hygiene guidance</td><td>Ad-hoc analysis output and source exports</td></tr>
+          <tr><td class="id">FR-015</td><td>Release and verified reach</td><td>Control has no effect until consumers receive it</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Design constraint of note</h3>
+    <p>
+      Only quoted literals are redacted. Parameter passing and variable references &mdash; a password
+      assigned from an argument or a configuration variable &mdash; are deliberately left intact, so the
+      analytical record of <em>which</em> procedures handle credentials survives the control. A redaction
+      stage that removed credential-bearing code entirely would satisfy a naive reading of the
+      requirement while destroying the evidence the migration and the rotation both depend on.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span><span>Control mapping</span></h2>
+    <div class="scroll">
+      <table>
+        <caption>Repository HITRUST SDLC rules &mdash; local taxonomy</caption>
+        <thead>
+          <tr><th>Ref</th><th>Control</th><th>Relationship to this change</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="ref">14.a.1</td><td>Security Requirements Analysis</td>
+            <td>Security and privacy requirements specified before implementation; the scope document is the specification artifact and passed its quality gate at 100.</td>
+          </tr>
+          <tr>
+            <td class="ref">14.b.1</td><td>Secure Development Policy</td>
+            <td>Primary control. The development toolchain itself was producing credential disclosure. FR-007's single write boundary is the structural remedy; FR-013 is the security test requirement.</td>
+          </tr>
+          <tr>
+            <td class="ref">14.b.2</td><td>System Change Control Procedures</td>
+            <td>This record is the change authorisation artifact. Change testing is FR-013; the release path and verification are FR-015.</td>
+          </tr>
+          <tr>
+            <td class="ref">14.c.1</td><td>Protection of Test Data</td>
+            <td>Directly satisfied by constraint C-9: fixtures are synthetic, no production data and no real credential enters the repository as test data. Committing a real source export to test the fix would reproduce the defect.</td>
+          </tr>
+          <tr>
+            <td class="ref">13.b.1</td><td>Information Transfer Policies</td>
+            <td>Third-party transfer control. The material exposure is credential transmission to the model provider on every session reading a conversion artifact. This is the control the defect most directly violated.</td>
+          </tr>
+          <tr>
+            <td class="ref">15.a.1</td><td>Supplier Relationship Security</td>
+            <td>Supplier risk assessment. The model provider is a supplier receiving data it was never intended to receive; disclosure occurred outside any assessed transfer channel.</td>
+          </tr>
+          <tr>
+            <td class="ref">09.a.1</td><td>Incident Reporting</td>
+            <td>Finding <code>f99e80aa</code> is the incident report, classified high and triaged. Reported through the standard feedback channel.</td>
+          </tr>
+          <tr>
+            <td class="ref">09.b.2</td><td>Incident Analysis and Containment</td>
+            <td>Root cause established and verified in source. Evidence preserved: the report withheld values, disclosing paths and line numbers only. Containment is FR-010 for existing artifacts and rotation for the accounts.</td>
+          </tr>
+          <tr>
+            <td class="ref">09.c.1</td><td>Post-Incident Review</td>
+            <td>Control improvement recorded in section 07. Two errors in the original report were identified during verification and corrected before scoping.</td>
+          </tr>
+          <tr>
+            <td class="ref">12.d.1</td><td>Event Logging</td>
+            <td>FR-008's sidecar and FR-009's console summary create the detection record whose complete absence is the defect's most serious property.</td>
+          </tr>
+          <tr>
+            <td class="ref">08.b.1</td><td>Information Classification</td>
+            <td>Establishes that conversion output must be handled as a class capable of carrying authentication credentials, not as inert project documentation.</td>
+          </tr>
+          <tr>
+            <td class="ref">02.d.1</td><td>Password Management</td>
+            <td>Out of scope for the change but in scope for the finding: the disclosed credentials require rotation, which this control governs and this change cannot perform.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span><span>Verification criteria</span></h2>
+    <p>
+      Acceptance evidence required before this change may be recorded as effective. Each criterion is
+      measurable and none is satisfied by inspection alone.
+    </p>
+    <div class="scroll">
+      <table>
+        <caption>Acceptance evidence</caption>
+        <thead>
+          <tr><th class="num">#</th><th>Criterion</th><th>Threshold</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">1</td><td>No credential value survives a conversion, across every emitted artifact type</td><td class="id">0 matches</td></tr>
+          <tr><td class="num">2</td><td>No conversion script writes a file outside the shared boundary</td><td class="id">0 occurrences</td></tr>
+          <tr><td class="num">3</td><td>Deployed module copies byte-identical</td><td class="id">exit 0</td></tr>
+          <tr><td class="num">4</td><td>Conversion output otherwise unchanged, redaction on versus off</td><td class="id">byte-identical</td></tr>
+          <tr><td class="num">5</td><td>Analytical signal survives: findings, distinct tokens, procedures retained, unquoted values untouched</td><td class="id">N / K / M / 0</td></tr>
+          <tr><td class="num">6</td><td>Runs with findings emit both summary and sidecar; neither discloses a value</td><td class="id">100% / 0%</td></tr>
+          <tr><td class="num">7</td><td>Scan mode reports every literal in an artifact reproducing the reported leak shape</td><td class="id">complete</td></tr>
+          <tr><td class="num">8</td><td>Release cut, assets explicitly verified present, consumer upgrade delivers the module</td><td class="id">3 directories</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Criterion&nbsp;5 exists because criteria&nbsp;1 and&nbsp;6 are both satisfiable by an
+      over-aggressive implementation that deletes credential-bearing content outright. Criterion&nbsp;5
+      is the only one such an implementation fails, and it is therefore the criterion an assessor should
+      weight most heavily.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">07</span><span>Residual risk and limitations</span></h2>
+    <p>
+      These limitations are stated in the artifacts developers actually read &mdash; the findings sidecar
+      and scan output &mdash; not only in this record. Overstating coverage would convert an unknown risk
+      into a false assurance, which is a worse position than the current state.
+    </p>
+    <div class="scroll">
+      <table>
+        <caption>Accepted residual risk</caption>
+        <thead>
+          <tr><th>Limitation</th><th>Consequence</th><th>Disposition</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Pattern matching is a mitigation, not a guarantee</td>
+            <td>Concatenated values, unconventionally named variables and encoded literals will not match</td>
+            <td><span class="chip chip-warn">Accepted &mdash; disclosed</span></td>
+          </tr>
+          <tr>
+            <td>Prior disclosure is irreversible</td>
+            <td>Redaction is forward-looking only; anything already committed and read is already disclosed</td>
+            <td><span class="chip chip-crit">Rotation required</span></td>
+          </tr>
+          <tr>
+            <td>Deployed copies have no canonical source</td>
+            <td>Nine copies may diverge</td>
+            <td><span class="chip chip-ok">Guarded &mdash; FR-012</span></td>
+          </tr>
+          <tr>
+            <td>Character-encoding hazard in the primary target file</td>
+            <td>A lossy rewrite of the encoding-repair table fails silently; output degrades weeks later</td>
+            <td><span class="chip chip-warn">Constraint C-1</span></td>
+          </tr>
+          <tr>
+            <td>Scope-generation skills not audited</td>
+            <td>Downstream scope generators inherit conversion output but were not reviewed</td>
+            <td><span class="chip chip-warn">Open question 05</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">08</span><span>Required actions outside this change</span></h2>
+    <p>
+      The following are necessary to close the finding and cannot be delivered by the change. Recording
+      them here prevents the change from being read as full remediation.
+    </p>
+    <ol>
+      <li>
+        <strong>Rotate the affected legacy accounts.</strong> Owner: the reporting project's development
+        team. This is the only remedy for credentials already disclosed, and it remains necessary
+        whatever is shipped here. Governed by <code>02.d.1</code>.
+      </li>
+      <li>
+        <strong>Untrack the affected artifacts and the source export</strong> in the reporting
+        repository, and decide whether the source documentation belongs in version control or in a
+        controlled store the conversion reads from.
+      </li>
+      <li>
+        <strong>Determine whether HITRUST should be enabled</strong> as an active framework for this
+        project. It is not currently, and this record is advance documentation rather than assessment
+        evidence until it is.
+      </li>
+      <li>
+        <strong>Produce a CSF crosswalk</strong> if these references are to be presented to an external
+        assessor, since the repository taxonomy is local.
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="num">09</span><span>Verification log</span></h2>
+    <p>
+      Checks performed against the kit source on 2026-08-10 while scoping this change. Recorded because
+      two claims in the original report did not survive verification, and the corrections materially
+      changed the control design.
+    </p>
+    <div class="log">
+      <div class="log-item">
+        <span class="log-what">Search for any redaction stage &mdash; all 18 conversion scripts</span>
+        <span class="log-result"><span class="chip chip-crit">Confirmed</span> &nbsp; No redaction exists in any family. The sole match is an unrelated SQL-identifier sanitiser.</span>
+      </div>
+      <div class="log-item">
+        <span class="log-what">Verbatim-copy path in the reported script</span>
+        <span class="log-result"><span class="chip chip-crit">Confirmed</span> &nbsp; Line references in the report are exact. Page text reaches every emitted file unmodified apart from encoding repair.</span>
+      </div>
+      <div class="log-item">
+        <span class="log-what">Producer of the two artifacts named in the finding</span>
+        <span class="log-result"><span class="chip chip-warn">Report corrected</span> &nbsp; Neither filename exists anywhere in the kit. No script produces them and no instruction file names them &mdash; they were authored ad hoc by an AI session. A script-only fix would have been declared complete without preventing the one confirmed leak. FR-011 exists because of this.</span>
+      </div>
+      <div class="log-item">
+        <span class="log-what">Write-boundary availability across the nine files named for change</span>
+        <span class="log-result"><span class="chip chip-warn">Report corrected</span> &nbsp; Six of nine have no write funnel; they emit through unmediated writes. The proposed remedy had nothing to attach to in those files. FR-007 is work the report priced at zero.</span>
+      </div>
+      <div class="log-item">
+        <span class="log-what">Pattern coverage against WinDev connection idiom</span>
+        <span class="log-result"><span class="chip chip-warn">Gap found</span> &nbsp; The proposed pattern omitted the bare user key, so the username half of the most common WinDev pattern would have passed through. Added, along with positional-argument forms the original pattern could not match at all.</span>
+      </div>
+      <div class="log-item">
+        <span class="log-what">Deployed copy inventory</span>
+        <span class="log-result"><span class="chip chip-warn">Scope widened</span> &nbsp; Scripts exist in three byte-identical trees, plus one divergent fourth copy outside all three. Change footprint is 54 files, not the 9 the report implies.</span>
+      </div>
+      <div class="log-item">
+        <span class="log-what">Encoding integrity of the primary target file</span>
+        <span class="log-result"><span class="chip chip-crit">Hazard identified</span> &nbsp; The encoding-repair table holds raw multi-byte sequences, verified at byte level. A lossy rewrite destroys it without raising an error. Recorded as constraint C-1.</span>
+      </div>
+      <div class="log-item">
+        <span class="log-what">Scope quality gate</span>
+        <span class="log-result"><span class="chip chip-ok">Passed</span> &nbsp; 100 / 100. Seven of seven checks, zero blocking issues, zero unresolved placeholders.</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <strong>Status of this record.</strong> The change is scoped and authorised; it is not implemented.
+      No verification criterion in section 06 has yet been met, and the finding remains open. This record
+      is evidence of analysis and authorisation only.
+    </p>
+    <p>
+      Authoritative source: <code>specs/Project-Scope/125-conversion-credential-redaction.md</code>.
+      Control references: <code>HITRUST_SDLC_Compliance_Rules.md</code>. No credential value appears in
+      this document, in the source finding, or in the scope.
+    </p>
+  </footer>
+
+</div>

@@ -1,0 +1,48 @@
+{
+  "specNumber": "137",
+  "specId": "3460f991-9583-49e0-98ec-e13ac836d18a",
+  "featureName": "Change Impact Check",
+  "projectId": "ba924193-0335-4080-9fa6-33cd6b81300a",
+  "currentPhase": "design",
+  "status": "planned",
+  "priority": "high",
+  "createdAt": "2026-10-17T10:53:17.504Z",
+  "progress": {
+    "totalTasks": 17,
+    "completed": 0,
+    "inProgress": 0,
+    "blocked": 0,
+    "todo": 17,
+    "percentComplete": 0
+  },
+  "phases": [
+    {
+      "name": "scoping",
+      "status": "complete"
+    },
+    {
+      "name": "design",
+      "status": "in_progress"
+    },
+    {
+      "name": "implementation",
+      "status": "pending"
+    },
+    {
+      "name": "qa",
+      "status": "pending"
+    },
+    {
+      "name": "human_testing",
+      "status": "pending"
+    },
+    {
+      "name": "beta",
+      "status": "pending"
+    },
+    {
+      "name": "released",
+      "status": "pending"
+    }
+  ]
+}

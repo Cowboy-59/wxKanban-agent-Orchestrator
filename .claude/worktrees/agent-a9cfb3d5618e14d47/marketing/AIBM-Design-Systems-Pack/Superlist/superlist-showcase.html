@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Superlist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#7577e0;
+    --primary-active:#5d5fd0;
+    --cta-bg:linear-gradient(0deg,#d70000 0%,#ff5231 100%);
+    --on-primary:#ffffff;
+    --dark:#181824;
+    --dark-surface:#26253b;
+    --canvas:#ffffff;
+    --canvas-soft:#f7f7ff;
+    --surface:#ffffff;
+    --surface-alt:#f0f0f7;
+    --ink:#000000;
+    --ink-secondary:#535676;
+    --ink-faint:#8e8da0;
+    --ink-placeholder:#8e8da0;
+    --hairline:#eeeeee;
+    --hairline-soft:#f0f0f5;
+    --accent-pink:#f866db;
+    --accent-purple:#9087ff;
+    --r-xs:4px;--r-sm:8px;--r-md:10px;--r-lg:20px;--r-xl:38px;--r-xxl:200px;--r-full:100px;
+    --e1:0 10px 15px rgba(0,0,0,0.08);
+    --e2:0 24px 48px rgba(24,24,36,0.18);
+    --font:'Inter','Inter Placeholder',sans-serif;
+    --display-font:'Space Grotesk',sans-serif;
+    --display-size:88px;
+    --display-weight:600;
+    --section-size:48px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:10px;}
+  h1.display{font-family:var(--display-font);font-size:var(--display-size);font-weight:var(--display-weight);line-height:0.95;letter-spacing:-1.76px;}
+  h2.sec{font-family:var(--display-font);font-size:var(--section-size);font-weight:600;line-height:1.1;letter-spacing:-.96px;margin-bottom:14px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;}
+  .hero{padding:80px 40px 64px;background:var(--dark);border-radius:var(--r-lg);margin:32px auto 0;color:#fff;}
+  .hero .eyebrow{color:var(--accent-purple);}
+  .hero h1.display{color:#fff;}
+  .hero h1.display em{font-style:normal;color:var(--accent-pink);}
+  .hero .lede{color:#f7f7ff;opacity:.85;}
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-size:16px;font-weight:600;border:none;cursor:pointer;border-radius:var(--r-sm);padding:14px 22px;line-height:1.2;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);box-shadow:var(--e2);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-periwinkle{background:var(--primary);color:#fff;}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--ink);padding:13px 21px;}
+  .hero .btn-secondary{background:transparent;color:#fff;border-color:rgba(255,255,255,.5);}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:11px 18px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:240px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:600;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:600;}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px 16px;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--primary);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);overflow:hidden;}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-lg);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:1/1;border-radius:var(--r-lg);background:linear-gradient(135deg,var(--accent-purple),var(--accent-pink));position:relative;overflow:hidden;}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:var(--r-full);font-size:12px;font-weight:600;padding:5px 10px;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+  .listing .l-title{font-weight:600;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:15px;margin-top:2px;}
+  .listing .l-price{margin-top:6px;font-size:15px;}
+  .listing .l-price b{font-weight:600;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--accent-pink);}
+  .plan .price{font-family:var(--display-font);font-size:48px;font-weight:600;margin:14px 0 4px;line-height:1;letter-spacing:-1px;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);font-family:var(--font);letter-spacing:0;}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:var(--r-full);}
+  .s-ok{background:var(--surface-alt);color:var(--primary);}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-lg);padding:36px;box-shadow:var(--e1);}
+  .auth h3{font-family:var(--display-font);font-size:28px;font-weight:600;margin:4px 0 24px;letter-spacing:-.6px;}
+  .auth label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:var(--r-sm);background:#fff;padding:13px;font-size:14px;font-weight:600;cursor:pointer;}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:48px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<div class="hero">
+  <div class="eyebrow">Superlist · Design System</div>
+  <h1 class="display">Tasks, notes, and plans.<br>Finally in <em>one place.</em></h1>
+  <p class="lede" style="margin-top:28px;">A confident dark-first productivity brand — near-black indigo, crisp white grotesque type, and a playful spectrum of periwinkle, pink and a coral-to-red CTA gradient.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Sign up for free</button>
+    <button class="btn btn-secondary">Download for macOS</button>
+  </div>
+</div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Headlines in Haffer XH (proprietary) — shown here in its Google substitute, <b>Space Grotesk</b>. Body copy in <b>Inter</b>, the site's genuine body face. Hierarchy is built from size and negative tracking, not weight.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-cta (gradient)</div><button class="btn btn-primary">Sign up for free</button><div class="desc">The hero call-to-action. A warm vertical red→coral gradient with a soft layered shadow — the one warm note in a cool palette.</div></div>
+    <div class="ccard"><div class="lbl">button-periwinkle</div><button class="btn btn-periwinkle">Start a list</button><div class="desc">Solid periwinkle brand fill (#7577e0) for in-product primary actions.</div></div>
+    <div class="ccard"><div class="lbl">button-dark</div><button class="btn btn-dark">Download</button><div class="desc">Indigo-black fill matching the dark canvas, for high-contrast actions on light sections.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">Watch the demo</button><div class="desc">Outlined on a 1px ink border — quiet companion to the CTA.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Features</a><a href="#">Use Cases</a><div class="desc">Inline nav links — 12px Inter, underlined on emphasis.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Cards use a generous 20px radius and sit flat until hover, when they lift on a soft 10px/15px shadow. Vivid purple→pink fills stand in for Superlist's illustrative thumbnails.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Name your list…"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Add a note or description…"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">An 8px base unit drives a 4–48px scale, with generous 40px side gutters around a centred 1200px column.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">Rounding is generous and tiered — 8px on controls, a prominent 20px on cards, 100px pills, and a dramatic 200px "arch" on illustration frames.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The default resting state for cards and sections.</div>
+    <div class="e l1">Level 1 — soft <code>0 10px 15px rgba(0,0,0,.08)</code> card-hover lift.</div>
+    <div class="e l2">Level 2 — deeper <code>0 24px 48px rgba(24,24,36,.18)</code> for the floating CTA and modals.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Single-column grids; hero display drops to ~48px; gutters tighten to 22px.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>4-up card grids collapse to 2-up; pricing and auth stack to one column.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Full multi-column grids return; hero scales back up toward full display size.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Centred 1200px column with 40px gutters; full alternating dark/light bands.</td></tr>
+  </table>
+  <p class="note">The page is strongly sectioned, alternating <b>dark indigo</b> and <b>lavender-white</b> full-bleed bands with a consistent vertical rhythm of ~72px.</p>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Pricing Tiers</h2>
+  <p class="lede">Sample pricing built from the system — the featured plan inverts to the signature dark canvas. (Illustrative; not Superlist's actual pricing.)</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Free</span></div><div class="price">$0<span>/mo</span></div><div class="blurb">For getting your lists out of your head.</div><ul><li>Unlimited personal lists</li><li>Notes &amp; reminders</li><li>Cross-device sync</li><li>Light &amp; dark themes</li></ul><button class="btn btn-block-dark">Get started</button></div>
+    <div class="plan feat"><div class="tier"><span>Pro</span><span class="pop">● Most popular</span></div><div class="price">$10<span>/mo</span></div><div class="blurb">For people running their work and life in one place.</div><ul><li>Everything in Free</li><li>Shared lists &amp; teamspaces</li><li>Real-time collaboration</li><li>Integrations &amp; automations</li></ul><button class="btn btn-block-dark">Start free trial</button></div>
+    <div class="plan"><div class="tier"><span>Team</span></div><div class="price">$24<span>/mo</span></div><div class="blurb">For teams that plan together.</div><ul><li>Everything in Pro</li><li>Admin &amp; permissions</li><li>SSO &amp; SCIM</li><li>Priority support</li></ul><button class="btn btn-block-dark">Contact sales</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Data Table</h2>
+  <p class="lede">A task list rendered in the system's surfaces, hairlines and pill status chips.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>ID</th><th>Task</th><th>Assignee</th><th>Status</th><th>When</th></tr>
+      <tr><td>#412</td><td>Finalize Q3 roadmap</td><td>Mara K.</td><td><span class="status s-ok">Done</span></td><td>Today</td></tr>
+      <tr><td>#411</td><td>Review onboarding copy</td><td>Devin O.</td><td><span class="status s-pend">In progress</span></td><td>Tomorrow</td></tr>
+      <tr><td>#410</td><td>Sync with design on icons</td><td>Priya S.</td><td><span class="status s-ok">Done</span></td><td>Mon</td></tr>
+      <tr><td>#409</td><td>Draft launch announcement</td><td>You</td><td><span class="status s-pend">To do</span></td><td>Thu</td></tr>
+      <tr><td>#408</td><td>Migrate legacy lists</td><td>Sam L.</td><td><span class="status s-pend">To do</span></td><td>Next week</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Auth Forms</h2>
+  <p class="lede">Sign-in and sign-up cards demonstrating the input, label, button and SSO patterns.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@company.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Google</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Start your first list</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@company.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Google</button></div>
+  </div>
+</div></section>
+
+<script>
+const colors = [
+  ["dark","#181824","Signature dark canvas & inverted bands"],
+  ["dark-surface","#26253b","Elevated panel on the dark canvas"],
+  ["primary","#7577e0","Periwinkle brand fill — solid CTAs"],
+  ["accent-purple","#9087ff","Vivid lavender — highlighted words"],
+  ["cta-gradient","#ff5231","Hero CTA: red→coral","linear-gradient(0deg,#d70000,#ff5231)"],
+  ["accent-pink","#f866db","Hot pink accent"],
+  ["accent-yellow","#fbe74e","Yellow accent"],
+  ["accent-blue","#2590f1","Blue accent"],
+  ["success","#22c55e","Success / green accent"],
+  ["canvas","#ffffff","Default page background"],
+  ["canvas-soft","#f7f7ff","Lavender-tinted section band"],
+  ["surface-alt","#f0f0f7","Chip / sunken fill"],
+  ["ink","#000000","Headings & body text (light)"],
+  ["ink-secondary","#535676","Secondary slate text"],
+  ["ink-faint","#8e8da0","Captions / placeholder"],
+  ["hairline","#eeeeee","1px borders & dividers"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","Space Grotesk · 88px / 600 / 0.95 / -1.76px","Finally in one place","font-family:'Space Grotesk',sans-serif;font-size:64px;font-weight:600;line-height:0.95;letter-spacing:-1.76px"],
+  ["display-2","Space Grotesk · 70px / 600 / 0.95 / -1.4px","Tasks, notes, plans","font-family:'Space Grotesk',sans-serif;font-size:54px;font-weight:600;line-height:0.95;letter-spacing:-1.4px"],
+  ["heading-1","Space Grotesk · 48px / 600 / 1.1 / -0.96px","Stop juggling five apps","font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:600;line-height:1.1;letter-spacing:-0.96px"],
+  ["heading-2","Space Grotesk · 30px / 600 / 1.2 / -0.6px","Organize less, do more","font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:600;line-height:1.2;letter-spacing:-0.6px"],
+  ["heading-3","Space Grotesk · 24px / 600 / 1.2 / -0.4px","Built for the way you work","font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:600;line-height:1.2;letter-spacing:-0.4px"],
+  ["title","Inter · 18px / 500 / 1.4","Shared lists, real-time","font-size:18px;font-weight:500;line-height:1.4"],
+  ["body-lg","Inter · 18px / 400 / 1.5","Superlist brings your tasks, notes and plans together in one fast, calm space.","font-size:18px;font-weight:400;line-height:1.5"],
+  ["body-md","Inter · 16px / 400 / 1.5","The dominant body tier — used for paragraphs and most descriptive copy across the site.","font-size:16px;font-weight:400;line-height:1.5"],
+  ["body-sm","Inter · 14px / 400 / 1.45","Secondary supporting copy and dense UI text.","font-size:14px;font-weight:400;line-height:1.45"],
+  ["button","Inter · 16px / 600","Sign up for free","font-size:16px;font-weight:600"],
+  ["caption","Inter · 12px / 400 / 1.4","Nav links and metadata","font-size:12px;font-weight:400;line-height:1.4;color:#535676"],
+  ["eyebrow","Inter · 12px / 600 / uppercase / .4px","FOUNDATIONS","font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#535676"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",10],["xs","8px",18],["sm","12px",26],["md","16px",36],["lg","24px",52],["xl","32px",70],["xxl","48px",100]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs","4px","4"],["sm","8px","8"],["md","10px","10"],["lg","20px","20"],["xl","38px","38"],["full","100px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["My Day","12 tasks · 3 done","<b>Today</b>","","Personal"],
+  ["Product Roadmap","Shared · 5 members","<b>Teamspace</b>","","Shared"],
+  ["Trip to Lisbon","Notes &amp; checklist","<b>Planning</b>","","Notes"],
+  ["Reading List","28 saved items","<b>Backlog</b>","",""]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

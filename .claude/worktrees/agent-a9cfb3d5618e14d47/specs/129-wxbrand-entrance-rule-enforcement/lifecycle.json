@@ -1,0 +1,36 @@
+{
+  "specNumber": "129",
+  "featureName": "wxBrand Entrance and Rule Enforcement",
+  "parentScope": "SCOPE-129",
+  "phase": "design",
+  "status": "draft",
+  "createdAt": "2026-09-18",
+  "tasksTotal": 11,
+  "tasksCompleted": 0,
+  "percentage": 0,
+  "phases": {
+    "scoping": {
+      "status": "complete",
+      "completedAt": "2026-09-18"
+    },
+    "design": {
+      "status": "in_progress",
+      "startedAt": "2026-09-18"
+    },
+    "implementation": {
+      "status": "pending"
+    },
+    "qa": {
+      "status": "pending"
+    },
+    "human_testing": {
+      "status": "pending"
+    },
+    "beta": {
+      "status": "pending"
+    },
+    "released": {
+      "status": "pending"
+    }
+  }
+}

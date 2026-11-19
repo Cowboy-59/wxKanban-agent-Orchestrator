@@ -1,0 +1,102 @@
+{
+  "feature": "006-settings",
+  "spec": "specs/006-settings/spec.md",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Design",
+      "status": "complete",
+      "enteredAt": "2025-01-12T00:00:00Z",
+      "completedAt": "2025-01-12T00:00:00Z",
+      "artifacts": [
+        "specs/006-settings/spec.md",
+        "specs/006-settings/plan.md",
+        "specs/006-settings/data-model.md",
+        "specs/006-settings/research.md",
+        "specs/006-settings/quickstart.md",
+        "specs/006-settings/tasks.md",
+        "specs/006-settings/checklists/requirements.md",
+        "specs/006-settings/contracts/settings.openapi.json"
+      ],
+      "notes": "Settings Management feature. Complete documentation with spec, plan, data-model, research, quickstart, tasks, and OpenAPI contract. 24 tasks total."
+    },
+    {
+      "phase": 2,
+      "name": "Implementation",
+      "status": "complete",
+      "enteredAt": "2025-01-12T00:00:00Z",
+      "completedAt": "2025-01-18T00:00:00Z",
+      "notes": "All 24 tasks implemented. Settings API with OpenAPI contract complete."
+    },
+    {
+      "phase": 3,
+      "name": "QA Testing",
+      "status": "complete",
+      "enteredAt": "2025-01-18T00:00:00Z",
+      "completedAt": "2025-01-20T00:00:00Z",
+      "notes": "QA testing completed with >90% coverage."
+    },
+    {
+      "phase": 4,
+      "name": "Human Testing",
+      "status": "complete",
+      "enteredAt": "2025-01-20T00:00:00Z",
+      "completedAt": "2025-01-22T00:00:00Z",
+      "notes": "UAT completed successfully."
+    },
+    {
+      "phase": 5,
+      "name": "Beta Release",
+      "status": "complete",
+      "enteredAt": "2025-01-22T00:00:00Z",
+      "completedAt": "2025-01-24T00:00:00Z",
+      "notes": "Beta release stable."
+    },
+    {
+      "phase": 6,
+      "name": "Release",
+      "status": "released",
+      "enteredAt": "2025-01-24T00:00:00Z",
+      "completedAt": "2025-01-24T00:00:00Z",
+      "notes": "Settings Management released to general availability."
+    }
+  ],
+  "transitionHistory": [
+    {
+      "from": null,
+      "to": "Design",
+      "timestamp": "2025-01-12T00:00:00Z",
+      "reason": "Feature initiated — Settings Management specification created"
+    },
+    {
+      "from": "Design",
+      "to": "Implementation",
+      "timestamp": "2025-01-12T00:00:00Z",
+      "reason": "tasks.md generated with 24 tasks"
+    },
+    {
+      "from": "Implementation",
+      "to": "QA Testing",
+      "timestamp": "2025-01-18T00:00:00Z",
+      "reason": "Implementation complete"
+    },
+    {
+      "from": "QA Testing",
+      "to": "Human Testing",
+      "timestamp": "2025-01-20T00:00:00Z",
+      "reason": "QA passed"
+    },
+    {
+      "from": "Human Testing",
+      "to": "Beta Release",
+      "timestamp": "2025-01-22T00:00:00Z",
+      "reason": "UAT passed"
+    },
+    {
+      "from": "Beta Release",
+      "to": "Release",
+      "timestamp": "2025-01-24T00:00:00Z",
+      "reason": "Beta stable, ready for GA"
+    }
+  ]
+}

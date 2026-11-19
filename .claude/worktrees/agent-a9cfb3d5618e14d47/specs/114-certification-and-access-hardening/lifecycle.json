@@ -1,0 +1,15 @@
+{
+  "specNumber": "114",
+  "featureName": "Certification and Access Hardening",
+  "phase": "design",
+  "priority": "critical",
+  "progress": {
+    "tasksTotal": 12,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-07-27T00:00:00.000Z",
+    "phaseStarted": "2026-07-27T00:00:00.000Z"
+  }
+}

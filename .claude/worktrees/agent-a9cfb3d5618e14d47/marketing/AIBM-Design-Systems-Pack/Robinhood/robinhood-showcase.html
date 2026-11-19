@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Robinhood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#ccff00;
+    --primary-active:#bce800;
+    --cta-bg:#ccff00;
+    --on-primary:#110e08;
+    --dark:#110e08;
+    --black:#000000;
+    --canvas:#eae7e0;
+    --canvas-soft:#d4d0c9;
+    --surface:#ffffff;
+    --surface-alt:#d4d0c9;
+    --ink:#110e08;
+    --ink-secondary:#35322d;
+    --ink-faint:#4d4a46;
+    --ink-placeholder:#807d78;
+    --hairline:#cbc7bf;
+    --hairline-soft:#ddd9d2;
+    --r-xs:3px;--r-sm:5px;--r-md:12px;--r-lg:20px;--r-xl:36px;--r-xxl:36px;--r-full:9999px;
+    --e1:0 1px 2px rgba(17,14,8,0.10);
+    --e2:0 8px 24px rgba(17,14,8,0.12);
+    --font:"Hanken Grotesk","Capsule Sans Text",Inter,sans-serif;
+    --display-size:74px;
+    --display-weight:400;
+    --section-size:34px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:13px;font-weight:400;letter-spacing:-1.4px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:10px;}
+  h1.display{font-size:var(--display-size);font-weight:var(--display-weight);line-height:1.05;letter-spacing:-1px;}
+  h2.sec{font-size:var(--section-size);font-weight:400;line-height:1.18;letter-spacing:-0.5px;margin-bottom:14px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;letter-spacing:-0.25px;}
+  .hero{padding:80px 0 64px;}
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-size:16px;font-weight:400;border:none;cursor:pointer;border-radius:var(--r-xl);padding:16px 32px;line-height:1.0;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);border:1px solid var(--primary);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-secondary{background:transparent;color:var(--ink);border:1px solid var(--ink);padding:15px 31px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:11px 18px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:500;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:500;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:500;letter-spacing:-0.5px;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:500;}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px 16px;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--surface);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--ink);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:500;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:500;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:1/1;border-radius:var(--r-lg);background:var(--dark);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+  .listing .photo .tick{color:var(--primary);font-size:34px;font-weight:400;letter-spacing:-1.4px;}
+  .listing .badge{position:absolute;top:12px;left:12px;background:var(--primary);border-radius:var(--r-full);font-size:12px;font-weight:400;padding:5px 12px;color:var(--on-primary);}
+  .listing .l-title{font-weight:500;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;letter-spacing:-0.25px;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:15px;margin-top:2px;}
+  .listing .l-price{margin-top:6px;font-size:15px;}
+  .listing .l-price b{font-weight:500;}
+  .inverted{background:var(--black);color:#fff;border-radius:var(--r-lg);padding:56px 40px;margin-top:36px;}
+  .inverted h3{font-size:58px;font-weight:400;line-height:0.95;letter-spacing:-1.5px;}
+  .inverted p{color:rgba(255,255,255,.7);font-size:17px;margin-top:18px;max-width:520px;letter-spacing:-0.1px;}
+  .inverted .cta-row{margin-top:28px;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-size:11px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--on-primary);background:var(--primary);padding:2px 10px;border-radius:var(--r-full);}
+  .plan .price{font-size:48px;font-weight:400;margin:14px 0 4px;line-height:1;letter-spacing:-1px;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:var(--primary);color:var(--on-primary);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;margin-top:32px;background:var(--surface);}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:500;letter-spacing:.3px;padding:4px 10px;border-radius:var(--r-full);}
+  .s-ok{background:var(--primary);color:var(--on-primary);}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-lg);padding:36px;background:var(--surface);}
+  .auth h3{font-size:32px;font-weight:400;margin:4px 0 24px;letter-spacing:-1.4px;line-height:1.31;}
+  .auth label{font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:var(--r-xl);background:transparent;padding:15px;font-size:14px;font-weight:400;cursor:pointer;color:var(--ink);}
+  .fontnote{margin-top:16px;font-size:13px;color:var(--ink-faint);}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:48px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Robinhood</h1>
+  <p class="lede" style="margin-top:28px;">A confident, flat, dark-first system where acid-lime detonates against warm near-black and parchment neutrals — one proprietary grotesque held at weight 400, set with aggressive negative tracking, on full-pill buttons and shadowless surfaces.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Get started</button>
+    <button class="btn btn-secondary">Learn more</button>
+  </div>
+  <p class="fontnote">Type rendered in <b>Hanken Grotesk</b> as the nearest-Google substitute for Robinhood's proprietary <b>Capsule Sans Text</b>.</p>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Hierarchy is built from size and negative tracking, not weight — nearly every tier sits at 400. Display tiers tighten to -1 to -1.5px; small labels track tighter still.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Get started</button><div class="desc">Acid-lime fill, near-black text, full 36px capsule. The brand's one saturated color, used only on primary actions.</div></div>
+    <div class="ccard"><div class="lbl">button-dark</div><button class="btn btn-dark">Learn more</button><div class="desc">Near-black #110e08 fill with white text — the inverse CTA used on light/parchment bands.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">See plans</button><div class="desc">Transparent with a 1px ink outline; same 36px pill geometry as the primary.</div></div>
+    <div class="ccard"><div class="lbl">badge-pill</div><button class="btn btn-pill">Markets open</button><div class="desc">Fully-round chip on a warm sunken fill for status and metadata.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Disclosures</a><a href="#">Pricing</a><div class="desc">Underlined, ink-colored, medium weight — restrained and utilitarian.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Surfaces separate by flat color blocks and 1px hairlines rather than elevation. Asset tiles invert to black with a lime ticker mark.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Inverted Band</h2>
+  <p class="lede">The signature layout move: full-bleed black sections with white display type and a single lime CTA, alternating with parchment and white bands to pace the scroll.</p>
+  <div class="inverted">
+    <h3>Send your agent<br>to the market.</h3>
+    <p>Commission-free trading, 24/5 markets, and a brand that trusts one color to carry the whole story.</p>
+    <div class="cta-row"><button class="btn btn-primary">Start investing</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Search a stock or ETF"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Add a note to your watchlist"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">A 4 / 8 base, with 16px and 32px doing most of the work — note the 0 32px padding on every pill button.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">The page is dominated by the 36px pill applied to all buttons; minor insets use 3–5px and larger cards round to 20px.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The brand default: Robinhood is essentially flat and uses no shadows in its page UI.</div>
+    <div class="e l1">Level 1 — a barely-there 1px lift, reserved for the rare overlay or floating control.</div>
+    <div class="e l2">Level 2 — a deeper drop for modals/popovers only; off-brand for the marketing surfaces.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">10 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Bands collapse to a single column; display type steps down toward ~48px; pill CTAs stretch toward full width.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Multi-column tiles reduce to two columns; hero headline reduces; section padding tightens.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Full multi-column grids return within the centered max-width column.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Content caps at ~1200px and centers; full-bleed color bands run edge to edge behind it.</td></tr>
+  </table>
+  <p class="note"><b>Layout logic:</b> a wide centered column of full-bleed, alternating-tone bands — black, then parchment or white — stacked vertically, with the lime accent appearing only on CTAs and key marks.</p>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;letter-spacing:-1px;">Pricing Tiers</h2>
+  <p class="lede">Illustrative tiers shown in the Robinhood idiom — flat cards, a dark "featured" plan, lime accents on the highlight. (Sample content; Robinhood's homepage has no pricing table.)</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Basic</span></div><div class="price">$0<span>/mo</span></div><div class="blurb">Commission-free stocks &amp; ETFs.</div><ul><li>Unlimited trades</li><li>Fractional shares</li><li>Standard market hours</li></ul><button class="btn btn-block-dark">Get started</button></div>
+    <div class="plan feat"><div class="tier"><span>Gold</span><span class="pop">Most popular</span></div><div class="price">$5<span>/mo</span></div><div class="blurb">Higher rates and pro tools.</div><ul><li>Boosted cash yield</li><li>Level II market data</li><li>Bigger instant deposits</li><li>24/5 trading</li></ul><button class="btn btn-block-dark">Try Gold</button></div>
+    <div class="plan"><div class="tier"><span>Advisory</span></div><div class="price">0.25%<span>/yr</span></div><div class="blurb">Managed portfolios on autopilot.</div><ul><li>Expert-built portfolios</li><li>Automatic rebalancing</li><li>Tax-aware investing</li></ul><button class="btn btn-block-dark">Learn more</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;letter-spacing:-1px;">Data Table</h2>
+  <p class="lede">A watchlist-style table in the system's flat idiom — hairline rows, lime status pills, dark pager. (Sample content.)</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>Symbol</th><th>Name</th><th>Price</th><th>Status</th><th>Today</th></tr>
+      <tr><td>AAPL</td><td>Apple Inc.</td><td>$214.30</td><td><span class="status s-ok">Up</span></td><td>+1.8%</td></tr>
+      <tr><td>TSLA</td><td>Tesla, Inc.</td><td>$249.10</td><td><span class="status s-pend">Flat</span></td><td>+0.1%</td></tr>
+      <tr><td>NVDA</td><td>NVIDIA Corp.</td><td>$126.40</td><td><span class="status s-ok">Up</span></td><td>+3.2%</td></tr>
+      <tr><td>BTC</td><td>Bitcoin</td><td>$61,820</td><td><span class="status s-ok">Up</span></td><td>+2.4%</td></tr>
+      <tr><td>SPY</td><td>S&amp;P 500 ETF</td><td>$548.90</td><td><span class="status s-pend">Flat</span></td><td>+0.3%</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;letter-spacing:-1px;">Auth Forms</h2>
+  <p class="lede">Sign-in patterns rendered with the system's pill buttons, hairline inputs, and ink labels. (Sample content.)</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@email.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Apple</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Start investing</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@email.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Apple</button></div>
+  </div>
+</div></section>
+
+<script>
+const colors = [
+  ["primary","#ccff00","Acid-lime — CTAs, accents, brand marks"],
+  ["on-primary","#110e08","Near-black text on the lime"],
+  ["dark","#110e08","Dark buttons & inverted bands"],
+  ["black","#000000","True-black page background (dark-first)"],
+  ["canvas-soft","#d4d0c9","Warm parchment section band"],
+  ["surface","#ffffff","White panels"],
+  ["surface-alt","#1c180d","Warm near-black sunken fill"],
+  ["ink","#110e08","Headings & body on light"],
+  ["ink-secondary","#35322d","Secondary text"],
+  ["ink-faint","#4d4a46","Muted text"],
+  ["ink-placeholder","#807d78","Placeholder / faint UI"],
+  ["hairline","#cbc7bf","1px borders & dividers"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","74px / 400 / 1.05 / -1px","The World is Flat","font-size:74px;font-weight:400;line-height:1.05;letter-spacing:-1px;"],
+  ["display-2","58px / 400 / 0.95 / -1.5px","Send your agent","font-size:58px;font-weight:400;line-height:0.95;letter-spacing:-1.5px;"],
+  ["heading-1","48px / 400 / 1.2 / -1px","Commission-free","font-size:48px;font-weight:400;line-height:1.2;letter-spacing:-1px;"],
+  ["heading-2","34px / 400 / 1.18 / -0.5px","Built for investors","font-size:34px;font-weight:400;line-height:1.18;letter-spacing:-0.5px;"],
+  ["heading-3","32px / 400 / 1.31 / -1.4px","Agentic Trading","font-size:32px;font-weight:400;line-height:1.31;letter-spacing:-1.4px;"],
+  ["title","22px / 400 / 1.45 / -0.25px","Your portfolio, simplified","font-size:22px;font-weight:400;line-height:1.45;letter-spacing:-0.25px;"],
+  ["body-lg","17px / 400 / 1.59 / -0.1px","Trade stocks, options, and crypto in one app with no commission fees.","font-size:17px;font-weight:400;line-height:1.59;letter-spacing:-0.1px;"],
+  ["body-md","16px / 400 / 1.5 / -0.25px","The dominant body tier — used across paragraphs, lists, and most UI text.","font-size:16px;font-weight:400;line-height:1.5;letter-spacing:-0.25px;"],
+  ["body-sm","13px / 400 / 1.4 / -1px","Disclosures and dense metadata, tracked tight.","font-size:13px;font-weight:400;line-height:1.4;letter-spacing:-1px;"],
+  ["button","16px / 400 / 1.0","Get started","font-size:16px;font-weight:400;line-height:1.0;"],
+  ["caption","12px / 400 / 1.58 / -0.1px","Past performance does not guarantee future results.","font-size:12px;font-weight:400;line-height:1.58;letter-spacing:-0.1px;"],
+  ["eyebrow","13px / 400 / -1.4px","WHAT WE OFFER","font-size:13px;font-weight:400;letter-spacing:-1.4px;text-transform:uppercase;"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",8],["xs","8px",16],["sm","12px",24],["md","16px",32],["lg","24px",48],["xl","32px",64],["xxl","48px",96]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs","3px","3"],["sm","5px","5"],["md","12px","12"],["lg","20px","20"],["xl","36px","36"],["full","9999px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["Apple Inc.","AAPL · +1.8%","<b>$214.30</b>","","Up"],
+  ["Tesla, Inc.","TSLA · +0.1%","<b>$249.10</b>","",""],
+  ["NVIDIA","NVDA · +3.2%","<b>$126.40</b>","","Up"],
+  ["Bitcoin","BTC · +2.4%","<b>$61,820</b>","","24/5"]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}<span class="tick">${l[1].split(' ')[0]}</span></div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "specNumber": "140",
+  "specId": "91d5e439-efa1-4a33-9744-308ff44095b9",
+  "featureName": "Nightly Testing",
+  "projectId": "ba924193-0335-4080-9fa6-33cd6b81300a",
+  "currentPhase": "design",
+  "status": "planned",
+  "priority": "high",
+  "createdAt": "2026-10-17T10:57:41.194Z",
+  "progress": {
+    "totalTasks": 16,
+    "completed": 0,
+    "inProgress": 0,
+    "blocked": 0,
+    "todo": 16,
+    "percentComplete": 0
+  },
+  "phases": [
+    {
+      "name": "scoping",
+      "status": "complete"
+    },
+    {
+      "name": "design",
+      "status": "in_progress"
+    },
+    {
+      "name": "implementation",
+      "status": "pending"
+    },
+    {
+      "name": "qa",
+      "status": "pending"
+    },
+    {
+      "name": "human_testing",
+      "status": "pending"
+    },
+    {
+      "name": "beta",
+      "status": "pending"
+    },
+    {
+      "name": "released",
+      "status": "pending"
+    }
+  ]
+}

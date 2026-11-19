@@ -1,0 +1,1516 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "wxKanban API",
+    "description": "Multi-Platform Task Management & Time Tracking System",
+    "version": "1.0.0",
+    "contact": {
+      "name": "wxKanban Development",
+      "url": "https://wxkanban.dev"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.wxkanban.dev",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "User registration, login, password management"
+    },
+    {
+      "name": "PM Systems",
+      "description": "External PM system connections (Jira, Monday, Asana, Trello)"
+    },
+    {
+      "name": "Tasks",
+      "description": "Task aggregation, creation, and management"
+    },
+    {
+      "name": "Projects",
+      "description": "Project and client management"
+    },
+    {
+      "name": "Time Tracking",
+      "description": "Time entry creation and management"
+    },
+    {
+      "name": "Phases",
+      "description": "6-phase project lifecycle management"
+    },
+    {
+      "name": "Invoicing",
+      "description": "Invoice and timesheet generation"
+    },
+    {
+      "name": "Feedback",
+      "description": "Phase 4/5 feedback capture and management"
+    }
+  ],
+  "paths": {
+    "/consultant-hub/tasks": {
+      "get": {
+        "tags": ["Consultant Hub"],
+        "summary": "Unified consultant task queue (Spec 020 FR-001/002/003)",
+        "parameters": [
+          {
+            "name": "projectid",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Project UUID to filter by, or 'all' (default)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task queue with workload counters and de-duplicated source badges",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "counters": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                        "pastDue": { "type": "integer" },
+                        "aging30Plus": { "type": "integer" },
+                        "complianceAttention": { "type": "integer" }
+                      }
+                    },
+                    "tasks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "sources": { "type": "array", "items": { "type": "string" } },
+                          "externalid": { "type": "string", "nullable": true },
+                          "complianceattention": { "type": "boolean" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/consultant-hub/tasks/{taskid}": {
+      "get": {
+        "tags": ["Consultant Hub"],
+        "summary": "Task detail with sync state, override history, and timelogs (Spec 020 FR-007)",
+        "parameters": [
+          { "name": "taskid", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Task detail bundle" }, "404": { "description": "Task not found" } }
+      }
+    },
+    "/consultant-hub/tasks/{taskid}/state": {
+      "patch": {
+        "tags": ["Consultant Hub"],
+        "summary": "Update task state with required reason; writes taskstateoverrides + queues PM sync (Spec 020 FR-006/007)",
+        "parameters": [
+          { "name": "taskid", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["active", "blocked", "suspended"] },
+                  "reason": { "type": "string", "description": "Required when status is blocked or suspended" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated task" } }
+      }
+    },
+    "/consultant-hub/compliance-flags": {
+      "get": {
+        "tags": ["Consultant Hub"],
+        "summary": "Open compliance flags on assigned tasks (Spec 020 FR-008)",
+        "responses": { "200": { "description": "Flag list" } }
+      }
+    },
+    "/consultant-hub/invoice-preview": {
+      "get": {
+        "tags": ["Consultant Hub"],
+        "summary": "Billable hours preview by project + date range (Spec 020 FR-009)",
+        "parameters": [
+          { "name": "projectid", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "startDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "endDate", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "Billable preview totals + entries" } }
+      }
+    },
+    "/consultant-hub/ai-session/start": {
+      "post": {
+        "tags": ["AI Session"],
+        "summary": "Open or resume an AI spec session (idempotent) (Spec 020 FR-005)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["specid", "projectid"],
+                "properties": {
+                  "specid": { "type": "string" },
+                  "projectid": { "type": "string", "format": "uuid" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Session created or existing returned" } }
+      }
+    },
+    "/consultant-hub/ai-session/active": {
+      "get": {
+        "tags": ["AI Session"],
+        "summary": "Resume active session for spec + user across conversations",
+        "parameters": [
+          { "name": "specid", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Active session or null" } }
+      }
+    },
+    "/consultant-hub/ai-session/{id}": {
+      "get": {
+        "tags": ["AI Session"],
+        "summary": "Session detail with per-task entries",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Session + entries" } }
+      }
+    },
+    "/consultant-hub/ai-session/{id}/task-switch": {
+      "post": {
+        "tags": ["AI Session"],
+        "summary": "Close prior open AI entry; open new one for taskid (Spec 020 FR-005)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["taskid"],
+                "properties": { "taskid": { "type": "string", "format": "uuid" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "New open entry" } }
+      }
+    },
+    "/consultant-hub/ai-session/{id}/overhead": {
+      "post": {
+        "tags": ["AI Session"],
+        "summary": "Add Q&A / non-task overhead minutes to session (Spec 020 FR-005)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["minutes"],
+                "properties": { "minutes": { "type": "number", "minimum": 1 } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Updated session" } }
+      }
+    },
+    "/consultant-hub/ai-session/{id}/close": {
+      "post": {
+        "tags": ["AI Session"],
+        "summary": "Close session with per-task + rollup summaries (Spec 020 FR-005)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "taskSummaries": { "type": "object", "additionalProperties": { "type": "string" } },
+                  "sessionSummary": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Closed session with totalduration" } }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register new user account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User email address"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "description": "Password (8+ chars, uppercase, lowercase, number, special)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "token": {
+                      "type": "string",
+                      "description": "JWT token (exp: 24 hours)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or password requirements not met"
+          },
+          "409": {
+            "description": "Email already registered"
+          }
+        }
+      }
+    },
+    "/auth/signin": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Sign in user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password"
+          },
+          "429": {
+            "description": "Too many login attempts (rate limited: 5 per minute per IP)"
+          }
+        }
+      }
+    },
+    "/auth/signout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Sign out user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout successful"
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Request password reset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset email sent (if account exists)"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get current user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        }
+      }
+    },
+    "/api/pm-systems": {
+      "get": {
+        "tags": ["PM Systems"],
+        "summary": "List connected PM systems",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of connected PM systems",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "connectionid": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "pmsystem": {
+                        "type": "string",
+                        "enum": ["jira", "monday", "asana", "trello"]
+                      },
+                      "syncstatus": {
+                        "type": "string",
+                        "enum": ["active", "expired", "failed"]
+                      },
+                      "lastsyncsat": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["PM Systems"],
+        "summary": "Connect to PM system via OAuth2",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["pmsystem", "authorizationCode"],
+                "properties": {
+                  "pmsystem": {
+                    "type": "string",
+                    "enum": ["jira", "monday", "asana", "trello"]
+                  },
+                  "authorizationCode": {
+                    "type": "string",
+                    "description": "OAuth2 authorization code from PM system"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "PM connection established",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "connectionid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "pmsystem": {
+                      "type": "string"
+                    },
+                    "syncstatus": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid authorization code"
+          }
+        }
+      }
+    },
+    "/api/pm-systems/{connectionid}": {
+      "delete": {
+        "tags": ["PM Systems"],
+        "summary": "Disconnect PM system",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connectionid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Disconnected successfully"
+          },
+          "404": {
+            "description": "Connection not found"
+          }
+        }
+      }
+    },
+    "/api/pm-systems/{connectionid}/sync": {
+      "post": {
+        "tags": ["PM Systems"],
+        "summary": "Manually sync PM system tasks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connectionid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sync initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "syncstatus": {
+                      "type": "string"
+                    },
+                    "lastsyncsat": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "tasksSynced": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "Get aggregated task list",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectid",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by project ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["open", "in_progress", "completed", "orphaned"]
+            },
+            "description": "Filter by status"
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["low", "medium", "high", "critical"]
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["dueDate", "priority", "createdAt"]
+            },
+            "description": "Sort order"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "taskid": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "projectid": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "priority": {
+                        "type": "string"
+                      },
+                      "sourceoforigin": {
+                        "type": "string",
+                        "enum": ["external", "internal", "ai_proposed"]
+                      },
+                      "sourcepmssystem": {
+                        "type": "string"
+                      },
+                      "duedate": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Tasks"],
+        "summary": "Create internal task",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["projectid", "title"],
+                "properties": {
+                  "projectid": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high", "critical"],
+                    "default": "medium"
+                  },
+                  "duedate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "effort": {
+                    "type": "string",
+                    "enum": ["small", "medium", "large"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Task created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "taskid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "projectid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "sourceoforigin": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/{taskid}": {
+      "patch": {
+        "tags": ["Tasks"],
+        "summary": "Update task",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "taskid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["open", "in_progress", "completed"]
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high", "critical"]
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task updated"
+          }
+        }
+      }
+    },
+    "/api/tasks/{taskid}/start-timer": {
+      "post": {
+        "tags": ["Time Tracking"],
+        "summary": "Start timer on task",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "taskid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Timer started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entryid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "taskid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "starttime": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/{taskid}/stop-timer": {
+      "post": {
+        "tags": ["Time Tracking"],
+        "summary": "Stop timer on task",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "taskid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "billable": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Timer stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entryid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "duration": {
+                      "type": "integer",
+                      "description": "Duration in minutes"
+                    },
+                    "endtime": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "List projects",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "projectid": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "currentphase": {
+                        "type": "string"
+                      },
+                      "hourlyrate": {
+                        "type": "number"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Create project",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "hourlyrate": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "pmsystems": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["jira", "monday", "asana", "trello"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project created with 6-phase lifecycle initialized"
+          }
+        }
+      }
+    },
+    "/api/projects/{projectid}/phases": {
+      "get": {
+        "tags": ["Phases"],
+        "summary": "Get project phases (6-phase lifecycle state)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of 6 project phases with status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "phaseid": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "phasename": {
+                        "type": "string",
+                        "enum": [
+                          "Design",
+                          "Implementation",
+                          "QA",
+                          "HumanTesting",
+                          "Beta",
+                          "Release"
+                        ]
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "pending",
+                          "in_progress",
+                          "complete",
+                          "reopened"
+                        ]
+                      },
+                      "enteredat": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "completedat": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{projectid}/phases/{phasename}/complete": {
+      "post": {
+        "tags": ["Phases"],
+        "summary": "Mark phase complete and advance to next phase",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "phasename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Design",
+                "Implementation",
+                "QA",
+                "HumanTesting",
+                "Beta",
+                "Release"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Phase completed, project advanced to next phase"
+          },
+          "400": {
+            "description": "Phase completion criteria not met"
+          }
+        }
+      }
+    },
+    "/api/projects/{projectid}/phases/{phasename}/reopen": {
+      "post": {
+        "tags": ["Phases"],
+        "summary": "Reopen completed phase",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "phasename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "description": "Reason for reopening"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Phase reopened"
+          }
+        }
+      }
+    },
+    "/api/invoices/generate": {
+      "post": {
+        "tags": ["Invoicing"],
+        "summary": "Generate invoice/timesheet",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["projectid", "startdate", "enddate"],
+                "properties": {
+                  "projectid": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "startdate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "enddate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": ["pdf", "csv"],
+                    "default": "pdf"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Invoice generated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "invoiceid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "downloadurl": {
+                      "type": "string"
+                    },
+                    "totalamount": {
+                      "type": "number"
+                    },
+                    "hoursworked": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{invoiceid}/send": {
+      "post": {
+        "tags": ["Invoicing"],
+        "summary": "Send invoice via email",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoiceid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Invoice sent"
+          }
+        }
+      }
+    },
+    "/api/feedback": {
+      "post": {
+        "tags": ["Feedback"],
+        "summary": "Submit feedback (Phase 4 or 5)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["projectid", "category", "description"],
+                "properties": {
+                  "projectid": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": ["bug", "enhancement", "usability"]
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 5000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Feedback submitted"
+          }
+        }
+      }
+    },
+    "/api/feedback/{feedbackid}/resolve": {
+      "patch": {
+        "tags": ["Feedback"],
+        "summary": "Resolve feedback (accept/reject/defer)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "feedbackid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["accepted", "rejected", "resolved"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Feedback resolved"
+          }
+        }
+      }
+    },
+    "/api/feedback/{feedbackid}/create-spec": {
+      "post": {
+        "tags": ["Feedback"],
+        "summary": "Convert feedback to new Phase 1 specification",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "feedbackid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title"],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Specification created from feedback",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "specid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "specnumber": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

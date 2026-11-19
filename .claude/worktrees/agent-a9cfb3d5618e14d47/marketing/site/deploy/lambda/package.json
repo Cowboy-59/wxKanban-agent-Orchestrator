@@ -1,0 +1,14 @@
+{
+  "name": "wxkanban-marketing-intake",
+  "version": "2.0.0",
+  "description": "Landing-page signup intake Lambda — writes to Postgres (marketingcontacts) + SES notify.",
+  "type": "module",
+  "private": true,
+  "main": "index.mjs",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.700.0",
+    "@aws-sdk/client-ses": "^3.700.0",
+    "@aws-sdk/util-dynamodb": "^3.700.0",
+    "pg": "^8.13.1"
+  }
+}

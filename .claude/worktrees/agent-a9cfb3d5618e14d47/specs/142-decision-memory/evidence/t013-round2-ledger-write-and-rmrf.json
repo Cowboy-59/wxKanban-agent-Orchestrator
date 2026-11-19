@@ -1,0 +1,161 @@
+[
+  {
+    "mode": "default",
+    "steps": [
+      {
+        "tool": "Read",
+        "target": "<scratch>\\mode2-default\\decisions\\ledger.yaml",
+        "hooks": [],
+        "result": "1 # Decision ledger (SPEC-142). Append-only: written only by `node _wxAI/askgate/ledger.mj"
+      },
+      {
+        "tool": "Write",
+        "target": "<scratch>\\mode2-default\\decisions\\ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Write denied this tool"
+      },
+      {
+        "tool": "Bash",
+        "target": "rm -rf decisions",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger",
+          "hook_success:PreToolUse:Bash:",
+          "hook_additional_context:PreToolUse:Bash:Change Impact (notify): the edit to decisions (by a Bash command) affe",
+          "hook_cancelled:PreToolUse:Bash:"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  },
+  {
+    "mode": "acceptEdits",
+    "steps": [
+      {
+        "tool": "Read",
+        "target": "<scratch>/mode2-acceptEdits/decisions/ledger.yaml",
+        "hooks": [],
+        "result": "1 # Decision ledger (SPEC-142). Append-only: written only by `node _wxAI/askgate/ledger.mj"
+      },
+      {
+        "tool": "Write",
+        "target": "<scratch>/mode2-acceptEdits/decisions/ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Write denied this tool"
+      },
+      {
+        "tool": "Bash",
+        "target": "rm -rf decisions",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger",
+          "hook_success:PreToolUse:Bash:",
+          "hook_additional_context:PreToolUse:Bash:Change Impact (notify): the edit to decisions (by a Bash command) affe"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  },
+  {
+    "mode": "plan",
+    "steps": [
+      {
+        "tool": "Read",
+        "target": "<scratch>/mode2-plan/decisions/ledger.yaml",
+        "hooks": [],
+        "result": "1 # Decision ledger (SPEC-142). Append-only: written only by `node _wxAI/askgate/ledger.mj"
+      }
+    ]
+  },
+  {
+    "mode": "auto",
+    "steps": [
+      {
+        "tool": "Read",
+        "target": "<scratch>/mode2-auto/decisions/ledger.yaml",
+        "hooks": [],
+        "result": "1 # Decision ledger (SPEC-142). Append-only: written only by `node _wxAI/askgate/ledger.mj"
+      },
+      {
+        "tool": "Write",
+        "target": "<scratch>/mode2-auto/decisions/ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Write denied this tool"
+      },
+      {
+        "tool": "Bash",
+        "target": "rm -rf decisions",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger",
+          "hook_success:PreToolUse:Bash:",
+          "hook_additional_context:PreToolUse:Bash:Change Impact (notify): the edit to decisions (by a Bash command) affe",
+          "hook_cancelled:PreToolUse:Bash:"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  },
+  {
+    "mode": "dontAsk",
+    "steps": [
+      {
+        "tool": "Read",
+        "target": "<scratch>\\mode2-dontAsk\\decisions\\ledger.yaml",
+        "hooks": [],
+        "result": "1 # Decision ledger (SPEC-142). Append-only: written only by `node _wxAI/askgate/ledger.mj"
+      },
+      {
+        "tool": "Write",
+        "target": "<scratch>\\mode2-dontAsk\\decisions\\ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Write denied this tool"
+      },
+      {
+        "tool": "Bash",
+        "target": "rm -rf decisions",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger",
+          "hook_success:PreToolUse:Bash:",
+          "hook_additional_context:PreToolUse:Bash:Change Impact (notify): the edit to decisions (by a Bash command) affe",
+          "hook_cancelled:PreToolUse:Bash:"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  },
+  {
+    "mode": "bypassPermissions",
+    "steps": [
+      {
+        "tool": "Read",
+        "target": "<scratch>\\mode2-bypassPermissions\\decisions\\ledger.yaml",
+        "hooks": [],
+        "result": "1 # Decision ledger (SPEC-142). Append-only: written only by `node _wxAI/askgate/ledger.mj"
+      },
+      {
+        "tool": "Write",
+        "target": "<scratch>\\mode2-bypassPermissions\\decisions\\ledger.yaml",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Write:decisions/ledger.yaml is append-only and is written only by the ledger"
+        ],
+        "result": "Hook PreToolUse:Write denied this tool"
+      },
+      {
+        "tool": "Bash",
+        "target": "rm -rf decisions",
+        "hooks": [
+          "hook_blocking_error:PreToolUse:Bash:decisions/ledger.yaml is append-only and is written only by the ledger",
+          "hook_success:PreToolUse:Bash:",
+          "hook_additional_context:PreToolUse:Bash:Change Impact (notify): the edit to decisions (by a Bash command) affe"
+        ],
+        "result": "Hook PreToolUse:Bash denied this tool"
+      }
+    ]
+  }
+]

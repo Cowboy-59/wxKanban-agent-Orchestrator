@@ -1,0 +1,108 @@
+#!/bin/sh
+# wxKanban Pre-Commit Hook — HOOK-Level Enforcement
+#
+# This hook enforces rules that must pass before code can be committed.
+# It is part of the wxKanban commercial enforcement guarantee.
+#
+# Rules enforced:
+#   1. No console.log in production code (Constitution IV)
+#   2. No TypeScript `any` type in staged files (Constitution III)
+#   3. No @ts-ignore in staged files (Constitution III)
+#   4. No hardcoded secrets patterns (Constitution VI)
+#
+# This hook runs on ALL staged .ts/.tsx files (not the entire codebase).
+#
+# 2026-07-28 — THIS HOOK HAD NEVER BLOCKED ANYTHING. Two basic-regex bugs:
+#
+#   1. `grep -v '^\+\+\+'`, intended to drop the diff's `+++ b/file` header, was a BRE
+#      where `\+` means "one or more of the preceding atom" — so it matched any line
+#      starting with one or more `+` and ate EVERY added line. All four rules therefore
+#      received an empty stream and passed unconditionally. Now `-E`, where `\+` is a
+#      literal plus and only the real header is dropped.
+#   2. `grep -v 'describe\('` was a BRE with an unclosed group, so grep aborted with
+#      "Unmatched ( or \(" once per staged file. The `|| true` swallowed it. That error
+#      was the only visible symptom of a hook that was otherwise failing silently.
+#      Now `-F`, a literal string.
+#   3. The secrets pattern used `["\x27]` to mean quote-or-apostrophe, but grep does not
+#      interpret `\x27` — the class became the literal chars " \ x 2 7, so `[^"\x27]`
+#      excluded x, 2 and 7 and any secret containing one of them stopped matching early.
+#      Now a double-quoted shell string carrying a real `["']` class.
+#
+# Both are verified by tests/unit/preCommitHook.test.ts, which runs the hook against
+# planted violations and asserts it blocks.
+
+# Get list of staged TypeScript files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' | grep -v 'node_modules' | grep -v '\.test\.' | grep -v '\.spec\.' | grep -v '__mocks__')
+
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+ERRORS=""
+
+# Rule 1: No console.log in production code
+# Exclude test files, scripts, and config files.
+#
+# `tests/` is excluded by DIRECTORY, not just by the `.test.`/`.spec.` filename patterns
+# in STAGED_FILES above. Test *support* code — seed fixtures, harnesses, the
+# `tests/seeds/run.ts` CLI runner — carries neither suffix, so it was getting the full
+# production ruleset. A seed runner whose entire job is printing `[seed] ...` progress to
+# stdout for the operator is not production code, and Pino JSON would make it less useful.
+# /implement is instructed to write a `tests/seeds/<NNN-name>/seed.ts` per scope, so this
+# would otherwise block every future scope seed.
+CONSOLE_LOG_FILES=$(echo "$STAGED_FILES" | grep -v 'scripts/' | grep -v 'tests/' | grep -v 'mcp-server/src/utils/logger' | grep -v 'setup-mcp')
+if [ -n "$CONSOLE_LOG_FILES" ]; then
+  for file in $CONSOLE_LOG_FILES; do
+    # Check only the staged content (not the working tree)
+    MATCHES=$(git diff --cached -- "$file" | grep '^\+' | grep -vE '^\+\+\+' | grep 'console\.log' || true)
+    if [ -n "$MATCHES" ]; then
+      ERRORS="$ERRORS\n  BLOCKED [Constitution IV]: console.log found in $file — use Pino logger instead"
+    fi
+  done
+fi
+
+# Rule 2: No `any` type annotations (but allow legitimate uses like catch(e: any))
+for file in $STAGED_FILES; do
+  MATCHES=$(git diff --cached -- "$file" | grep '^\+' | grep -vE '^\+\+\+' | grep -E ':\s*any\b|as\s+any\b' | grep -v '// eslint-disable' | grep -v 'catch' || true)
+  if [ -n "$MATCHES" ]; then
+    ERRORS="$ERRORS\n  BLOCKED [Constitution III]: TypeScript 'any' type found in $file — use proper types"
+  fi
+done
+
+# Rule 3: No @ts-ignore
+for file in $STAGED_FILES; do
+  MATCHES=$(git diff --cached -- "$file" | grep '^\+' | grep -vE '^\+\+\+' | grep '@ts-ignore' || true)
+  if [ -n "$MATCHES" ]; then
+    ERRORS="$ERRORS\n  BLOCKED [Constitution III]: @ts-ignore found in $file — fix the type error instead"
+  fi
+done
+
+# Rule 4: No hardcoded secrets patterns
+for file in $STAGED_FILES; do
+  # `grep -v 'describe\('` was a BRE with an unclosed group: \( opens a group in basic
+  # regex, so grep aborted with "Unmatched ( or \(" once per staged file and the `|| true`
+  # swallowed it — leaving MATCHES empty and this rule silently passing everything. The
+  # secrets check has therefore never actually run. -F makes it a literal string.
+  MATCHES=$(git diff --cached -- "$file" | grep '^\+' | grep -vE '^\+\+\+' | grep -iE "(password|secret|api_key|apikey)[[:space:]]*[:=][[:space:]]*[\"'][^\"']{8,}" | grep -v 'process\.env' | grep -v 'example' | grep -v 'placeholder' | grep -vF 'describe(' || true)
+  if [ -n "$MATCHES" ]; then
+    ERRORS="$ERRORS\n  BLOCKED [Constitution VI]: Possible hardcoded secret in $file — use environment variables"
+  fi
+done
+
+if [ -n "$ERRORS" ]; then
+  echo ""
+  echo "╔════════════════════════════════════════════════════════════════╗"
+  echo "║  wxKanban Pre-Commit: COMMIT BLOCKED                          ║"
+  echo "╚════════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "The following rule violations were found in staged files:"
+  echo ""
+  printf "$ERRORS\n"
+  echo ""
+  echo "Fix these issues and try again. These rules are enforced by the"
+  echo "wxKanban commercial enforcement guarantee and cannot be bypassed."
+  echo ""
+  exit 1
+fi
+
+exit 0

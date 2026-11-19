@@ -1,0 +1,15 @@
+{
+  "specNumber": "141",
+  "featureName": "wxKanban Manual",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 26,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-18T16:50:56.029Z",
+    "phaseStarted": "2026-10-18T16:50:56.029Z"
+  }
+}

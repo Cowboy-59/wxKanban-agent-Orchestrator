@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "Node16",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    /*"baseUrl": ".",*/
+    "composite": false,
+    "removeComments": true,
+    "noEmit": false,
+    "importHelpers": true,
+    "isolatedModules": true,
+    "moduleResolution": "node16",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "~/*": ["./src/*"],
+      "@/*": ["./src/*"],
+      "@server/*": ["./src/server/*"],
+      "@client/*": ["./src/client/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@db/*": ["./src/db/*"]
+    }
+  },
+  "include": [
+    "src/client/**/*",
+    "src/server/**/*",
+    "src/db/**/*",
+    "src/shared/**/*",
+    "src/lib/**/*",
+    "src/types/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "build", ".vite", "src/services/**/*"]
+}

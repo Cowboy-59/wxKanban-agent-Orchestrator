@@ -1,0 +1,15 @@
+{
+  "specNumber": "144",
+  "featureName": "Company YappChatt Account",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 15,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-24T14:26:49.798Z",
+    "phaseStarted": "2026-10-24T14:26:49.798Z"
+  }
+}

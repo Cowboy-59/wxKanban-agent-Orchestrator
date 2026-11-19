@@ -1,0 +1,28 @@
+# Spec 028 — App Runner service shape for mcp.wxperts.com (production + staging).
+# Sibling to apprunner.yaml (which deploys wxkanban.wxperts.com).
+#
+# Per project memory `reference_apprunner_env_vars`:
+#   The App Runner service is ConfigurationSource:API. Runtime env vars
+#   listed in this `env:` block are IGNORED. The real values are set in
+#   the App Runner console (or, in our case, by Terraform via the
+#   aws_apprunner_service resource — see infra/apprunner.tf).
+#
+# This yaml only declares the build + run shape: runtime, build commands,
+# run command, port. Identical pattern to apprunner.yaml (Node 22,
+# source-code mode, no Dockerfile, no ECR).
+
+version: 1.0
+runtime: nodejs22
+build:
+  commands:
+    build:
+      - npm install
+      - npm --prefix mcp-server install
+      - npm --prefix mcp-server run build
+run:
+  command: node mcp-server/dist/index-http.js
+  network:
+    port: 8080
+  env:
+    - name: NODE_ENV
+      value: production

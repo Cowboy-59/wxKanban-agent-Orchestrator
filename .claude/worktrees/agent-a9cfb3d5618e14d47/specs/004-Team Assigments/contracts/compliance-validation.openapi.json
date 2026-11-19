@@ -1,0 +1,461 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Compliance Validation API",
+    "description": "Endpoints for validating duty assignments against SOC 2 and HiTrust compliance rules",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/compliance/validate": {
+      "post": {
+        "summary": "Validate a proposed duty assignment",
+        "description": "Check if a proposed duty assignment violates SOC 2 or HiTrust compliance rules. Returns warnings if violations exist.",
+        "operationId": "validateDutyAssignment",
+        "tags": ["Compliance"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Project ID (determines security standard)"
+                  },
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Team member to assign duty to"
+                  },
+                  "dutyName": {
+                    "type": "string",
+                    "description": "Duty being assigned"
+                  }
+                },
+                "required": ["projectId", "userId", "dutyName"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validation result (may indicate violations)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "isValid": {
+                      "type": "boolean",
+                      "description": "True if assignment complies with all rules"
+                    },
+                    "violations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ruleId": {
+                            "type": "string",
+                            "description": "Identifier for the violated rule"
+                          },
+                          "ruleName": {
+                            "type": "string",
+                            "description": "Human-readable rule name"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Explanation of violation"
+                          },
+                          "conflictingDuties": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Other duties assigned that conflict with proposed duty"
+                          },
+                          "standard": {
+                            "type": "string",
+                            "enum": ["SOC2", "HITRUST"],
+                            "description": "Which compliance standard was violated"
+                          }
+                        }
+                      },
+                      "description": "Empty if isValid is true"
+                    },
+                    "currentDuties": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Duties currently assigned to user on this project"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters"
+          },
+          "404": {
+            "description": "Project, user, or duty not found"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/compliance/overrides": {
+      "get": {
+        "summary": "List compliance override history",
+        "description": "Get audit trail of all compliance overrides. Supports filtering by project, user, date range.",
+        "operationId": "listComplianceOverrides",
+        "tags": ["Compliance"],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by project"
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by team member"
+          },
+          {
+            "name": "overriddenBy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Filter by approver"
+          },
+          {
+            "name": "standard",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["SOC2", "HITRUST"]
+            },
+            "description": "Filter by compliance standard"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Filter overrides created after this date"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Filter overrides created before this date"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 500
+            },
+            "description": "Maximum number of results"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Pagination offset"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of compliance overrides",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "description": "Total count of matching overrides"
+                    },
+                    "overrides": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "complianceOverrideId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "projectName": {
+                            "type": "string"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userName": {
+                            "type": "string"
+                          },
+                          "dutyName": {
+                            "type": "string"
+                          },
+                          "violatedRules": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "standard": {
+                            "type": "string",
+                            "enum": ["SOC2", "HITRUST"]
+                          },
+                          "overriddenBy": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "overriddenByName": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter parameters"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/compliance/overrides/{overrideId}": {
+      "get": {
+        "summary": "Get details of a compliance override",
+        "description": "Retrieve full details of a specific compliance override record",
+        "operationId": "getComplianceOverride",
+        "tags": ["Compliance"],
+        "parameters": [
+          {
+            "name": "overrideId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compliance override details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "complianceOverrideId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "projectName": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "userName": {
+                      "type": "string"
+                    },
+                    "dutyName": {
+                      "type": "string"
+                    },
+                    "violatedRules": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ruleId": {
+                            "type": "string"
+                          },
+                          "ruleName": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "standard": {
+                      "type": "string",
+                      "enum": ["SOC2", "HITRUST"]
+                    },
+                    "overriddenBy": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "overriddenByName": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "description": "Full documented justification"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Override not found"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token from Clerk authentication"
+      }
+    },
+    "schemas": {
+      "ComplianceViolation": {
+        "type": "object",
+        "properties": {
+          "ruleId": {
+            "type": "string",
+            "description": "Machine-readable identifier for the rule"
+          },
+          "ruleName": {
+            "type": "string",
+            "description": "Human-readable rule name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Explanation of what the rule prevents"
+          },
+          "conflictingDuties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Other duties that conflict with the proposed duty"
+          },
+          "standard": {
+            "type": "string",
+            "enum": ["SOC2", "HITRUST"]
+          }
+        }
+      },
+      "ComplianceOverride": {
+        "type": "object",
+        "properties": {
+          "complianceOverrideId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dutyName": {
+            "type": "string"
+          },
+          "violatedRules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "standard": {
+            "type": "string",
+            "enum": ["SOC2", "HITRUST"]
+          },
+          "overriddenBy": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

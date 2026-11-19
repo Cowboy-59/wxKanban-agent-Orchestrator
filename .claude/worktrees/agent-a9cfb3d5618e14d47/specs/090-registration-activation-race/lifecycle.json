@@ -1,0 +1,31 @@
+{
+  "specNumber": "090",
+  "specId": "e336c37c-d60a-4e5a-a1c4-4e6428c7bc4f",
+  "featureName": "Registration Activation Race",
+  "scope": "SCOPE-090",
+  "phase": "qa",
+  "priority": "high",
+  "status": "implemented",
+  "createdAt": "2026-07-06T11:30:26.233Z",
+  "dependsOn": ["SCOPE-085", "SCOPE-023"],
+  "progress": {
+    "totalTasks": 4,
+    "completedTasks": 4,
+    "percentComplete": 100
+  },
+  "tasks": [
+    { "id": "5389c3fb-5591-44ff-aee6-9f11ddc3164b", "code": "T001", "title": "Inline fail-open reconcile after registration subscription insert", "priority": "high", "status": "done", "frs": ["FR-001", "FR-002"] },
+    { "id": "d9f8b54e-407e-4461-b9a7-43ab2024bed8", "code": "T002", "title": "Verify idempotency + audit on inline reconcile path", "priority": "high", "status": "done", "frs": ["FR-003", "FR-004"] },
+    { "id": "b783bba0-3630-4906-87a6-a6fd37c566ee", "code": "T003", "title": "Enrich webhook unknown-subscription warn record for activation events", "priority": "medium", "status": "done", "frs": ["FR-005"] },
+    { "id": "f9644ad6-37ef-486e-b38b-f37c694b23db", "code": "T004", "title": "Tests: registration activation, fail-open, idempotency, no-false-activate, dropped-event log", "priority": "high", "status": "done", "frs": ["FR-001", "FR-002", "FR-003", "FR-004", "FR-005"] }
+  ],
+  "phaseTimeline": {
+    "scoping": { "startedAt": "2026-07-06", "completedAt": "2026-07-06" },
+    "design": { "startedAt": "2026-07-06", "completedAt": "2026-07-06" },
+    "implementation": { "startedAt": "2026-07-06", "completedAt": "2026-07-06" },
+    "qa": { "startedAt": "2026-07-10", "completedAt": null },
+    "human_testing": { "startedAt": null, "completedAt": null },
+    "beta": { "startedAt": null, "completedAt": null },
+    "released": { "startedAt": null, "completedAt": null }
+  }
+}

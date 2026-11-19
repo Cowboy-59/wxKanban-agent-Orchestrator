@@ -18,6 +18,7 @@ import { AutopilotSchedule } from "./autopilot-schedule"; // [SCOPE 154 / T003]
 import { fetchScopeStage } from "./autopilot-startup"; // [SCOPE 154 / T004]
 import { buildHeartbeat, buildFullSummary } from "./autopilot-heartbeat"; // [SCOPE 154 / T008]
 import { isHeartbeatMissed, stepOutage, formatHeartbeatMissed, formatHeartbeatBack } from "./autopilot-outage"; // [SCOPE 154 / T009]
+import { redactSecrets } from "./redact"; // [SCOPE 155 / T004]
 import {
   runPipeline,
   nodeDependentsResolver,
@@ -342,6 +343,28 @@ export class RemoteBridge {
     if (this.turnActive || this.triage?.isRunning) return "working";
     return "idle";
   }
+
+  // [SCOPE 155 / T004] BEGIN — the one pending question the connection-record heartbeat reports (FR-105)
+  // Same precedence as connectionState()'s own check, so the two never disagree about *why* it is
+  // waiting. Masked and capped the same way the server would re-mask it (defense in depth).
+  waitingQuestion(): string | null {
+    let text: string | undefined;
+    if (this.pendingPush) {
+      text = `Push ${this.pendingPush.branch} to ${this.pendingPush.remote}?`;
+    } else if (this.pendingApproval) {
+      const { action, toolName, detail } = this.pendingApproval.request;
+      text = `${action} via ${toolName}: ${detail}`;
+    } else if (this.pendingAutopilotGate) {
+      text = this.pendingAutopilotGate.question;
+    } else if (this.autopilot?.isAwaitingGo) {
+      const n = this.autopilot.pendingScopes?.length ?? 0;
+      text = `Autopilot startup list awaiting "go" (${n} scope${n === 1 ? "" : "s"})`;
+    }
+    if (!text) return null;
+    const masked = redactSecrets(text).text;
+    return masked.length > 300 ? masked.slice(0, 300) : masked;
+  }
+  // [SCOPE 155 / T004] END
 
   // [SCOPE 149 / T007] One handoff logger per bridge, shared by the guard, queue and watcher.
   private handoffLog(): ReturnType<typeof createHandoffLogger> {

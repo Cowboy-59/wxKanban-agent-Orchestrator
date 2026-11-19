@@ -1,0 +1,345 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "wxKanban Payment & Subscription API",
+    "description": "Stripe integration for subscription billing, payment processing, and subscription management",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/payment/validate": {
+      "post": {
+        "summary": "Validate subscription tier selection and return pricing",
+        "description": "Client calls before payment form to confirm tier availability and pricing details",
+        "operationId": "validateSubscription",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["subscriptionTier", "estimatedUsers"],
+                "properties": {
+                  "subscriptionTier": {
+                    "type": "string",
+                    "enum": ["FREE", "CONSULTANT", "ENTERPRISE"],
+                    "description": "Selected pricing tier"
+                  },
+                  "estimatedUsers": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000,
+                    "description": "Current or estimated number of team members (for overage calculation on ENTERPRISE)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tier validation successful with pricing details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "tier": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "enum": ["FREE", "CONSULTANT", "ENTERPRISE"]
+                        },
+                        "monthlyPrice": {
+                          "type": "number",
+                          "example": 19.95,
+                          "description": "Base monthly price (FREE = 0)"
+                        },
+                        "maxUsers": {
+                          "type": "integer",
+                          "example": 5,
+                          "description": "User limit (null = unlimited)"
+                        },
+                        "features": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "example": ["Basic task management", "Single project"]
+                        },
+                        "overagePrice": {
+                          "type": "number",
+                          "nullable": true,
+                          "example": 5.0,
+                          "description": "Price per additional user (ENTERPRISE only, after 25 users)"
+                        }
+                      }
+                    },
+                    "estimatedCost": {
+                      "type": "number",
+                      "example": 24.95,
+                      "description": "Estimated monthly cost for given user count"
+                    },
+                    "costBreakdown": {
+                      "type": "object",
+                      "properties": {
+                        "baseCost": {
+                          "type": "number",
+                          "example": 19.95
+                        },
+                        "overageCost": {
+                          "type": "number",
+                          "example": 5.0,
+                          "description": "Only for ENTERPRISE with users > 25"
+                        },
+                        "users": {
+                          "type": "integer",
+                          "example": 5
+                        }
+                      }
+                    },
+                    "requiresPayment": {
+                      "type": "boolean",
+                      "example": true,
+                      "description": "false for FREE tier, true for others"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid tier or user count"
+          }
+        }
+      }
+    },
+    "/payment/setup-intent": {
+      "post": {
+        "summary": "Create Stripe SetupIntent for payment method collection",
+        "description": "Called before card form to get client secret for Stripe.js confirmation",
+        "operationId": "createSetupIntent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["companyId"],
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Company being registered"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SetupIntent created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "clientSecret": {
+                      "type": "string",
+                      "description": "Stripe client secret for frontend confirmation"
+                    },
+                    "publishableKey": {
+                      "type": "string",
+                      "description": "Stripe publishable key (if not already available to client)"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment/process": {
+      "post": {
+        "summary": "Process subscription payment and activate billing",
+        "description": "Called after successful SetupIntent confirmation to create Stripe subscription and charge first payment",
+        "operationId": "processSubscriptionPayment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["companyId", "subscriptionTier", "paymentMethodId"],
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "subscriptionTier": {
+                    "type": "string",
+                    "enum": ["CONSULTANT", "ENTERPRISE"]
+                  },
+                  "paymentMethodId": {
+                    "type": "string",
+                    "description": "Stripe PaymentMethod ID from SetupIntent confirmation"
+                  },
+                  "estimatedUsers": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "For overage calculation (ENTERPRISE)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription created, payment processed or pending confirmation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "subscription": {
+                      "type": "object",
+                      "properties": {
+                        "subscriptionId": {
+                          "type": "string",
+                          "description": "Stripe subscription ID"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["active", "incomplete"],
+                          "description": "active = paid, incomplete = awaiting 3D Secure"
+                        }
+                      }
+                    },
+                    "paymentConfirmation": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "requiresAction": {
+                          "type": "boolean",
+                          "example": false,
+                          "description": "true if 3D Secure required"
+                        },
+                        "clientSecret": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "PaymentIntent client secret for 3D Secure confirmation"
+                        }
+                      }
+                    },
+                    "nextStep": {
+                      "type": "string",
+                      "enum": ["complete_onboarding", "confirm_3d_secure"],
+                      "description": "What to do next"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payment method or subscription tier"
+          },
+          "402": {
+            "description": "Payment declined",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "stripeErrorCode": {
+                      "type": "string",
+                      "example": "card_declined"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Your card was declined. Please try another payment method."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payment/confirm-3d-secure": {
+      "post": {
+        "summary": "Confirm 3D Secure authentication for payment",
+        "description": "Called after user completes 3D Secure challenge in payment flow",
+        "operationId": "confirm3DSecure",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["subscriptionId", "clientSecret"],
+                "properties": {
+                  "subscriptionId": {
+                    "type": "string",
+                    "description": "Stripe subscription ID"
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "description": "PaymentIntent client secret"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "3D Secure confirmed, subscription activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "subscriptionStatus": {
+                      "type": "string",
+                      "enum": ["active"]
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Payment confirmed. Your subscription is now active."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+#!/bin/sh
+# [SCOPE 058 / T019] post-merge — release a merged scope/NNN-* branch's claim in wxKanban.
+# Best-effort and NON-BLOCKING: delegates to the node helper, never fails the merge.
+command -v node >/dev/null 2>&1 || exit 0
+node "$(git rev-parse --show-toplevel)/scripts/wxkanban-scope-hook.mjs" merge || true
+exit 0

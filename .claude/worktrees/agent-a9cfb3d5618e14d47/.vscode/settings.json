@@ -1,0 +1,26 @@
+{
+  "folder-colors.settings": [
+    { "name": "specs", "color": "terminal.ansiBrightGreen", "badge": "" },
+    { "name": "src", "color": "terminal.ansiBrightGreen", "badge": "" }
+  ],
+  "DockerRun.DisableAutoGenerateConfig": true,
+  "files.readonlyInclude": {
+    "specs/**/*.md": true
+  },
+  "files.readonlyExclude": {},
+  "//local-history.exclude": "Never snapshot secret-bearing env files into .history/ (they hold DATABASE_URL, API keys, PATs). Keeps the extension defaults + adds .env patterns.",
+  "local-history.exclude": [
+    "**/.history/**",
+    "**/.vscode/**",
+    "**/node_modules/**",
+    "**/typings/**",
+    "**/out/**",
+    "**/Code/User/**",
+    "**/.env",
+    "**/.env.*"
+  ],
+  "cSpell.words": [
+    "inbetween"
+  ],
+  "python-envs.defaultEnvManager": "ms-python.python:system"
+}

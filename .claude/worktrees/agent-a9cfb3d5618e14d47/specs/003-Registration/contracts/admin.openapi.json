@@ -1,0 +1,300 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "wxKanban Admin API",
+    "description": "Admin dashboard, company settings, and onboarding",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/admin/dashboard": {
+      "get": {
+        "summary": "Get admin dashboard metrics and company overview",
+        "description": "Returns metrics for company dashboard (active users, projects, tasks, subscription info)",
+        "operationId": "getDashboard",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard data retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "company": {
+                      "type": "object",
+                      "properties": {
+                        "companyId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "companyName": {
+                          "type": "string"
+                        },
+                        "subscriptionTier": {
+                          "type": "string",
+                          "enum": ["FREE", "CONSULTANT", "ENTERPRISE"]
+                        },
+                        "subscriptionStatus": {
+                          "type": "string",
+                          "enum": ["ACTIVE", "PAYMENT_REQUIRED", "CANCELLED"]
+                        },
+                        "subscriptionRenewDate": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        }
+                      }
+                    },
+                    "metrics": {
+                      "type": "object",
+                      "properties": {
+                        "activeUsers": {
+                          "type": "integer",
+                          "example": 5,
+                          "description": "Number of ACTIVE user accounts"
+                        },
+                        "activeProjects": {
+                          "type": "integer",
+                          "example": 3
+                        },
+                        "totalTasks": {
+                          "type": "integer",
+                          "example": 47
+                        },
+                        "tasksInProgress": {
+                          "type": "integer",
+                          "example": 12
+                        },
+                        "usersActiveThisWeek": {
+                          "type": "integer",
+                          "example": 5,
+                          "description": "Users who logged in or created tasks this week"
+                        }
+                      }
+                    },
+                    "teamMembers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email"
+                          },
+                          "firstName": {
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": ["ADMIN", "MANAGER", "DEVELOPER"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["PENDING", "ACTIVE", "SUSPENDED", "DEACTIVATED"]
+                          },
+                          "lastLoginAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          }
+                        }
+                      },
+                      "description": "List of all team members"
+                    },
+                    "onboardingStatus": {
+                      "type": "object",
+                      "properties": {
+                        "emailVerified": {
+                          "type": "boolean"
+                        },
+                        "teamInvited": {
+                          "type": "boolean"
+                        },
+                        "projectCreated": {
+                          "type": "boolean"
+                        }
+                      },
+                      "description": "Onboarding progress checklist"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "User is not ADMIN"
+          }
+        }
+      }
+    },
+    "/admin/onboarding-complete": {
+      "post": {
+        "summary": "Mark initial onboarding as complete",
+        "description": "Called when admin completes first setup steps (invite team, create project, etc.)",
+        "operationId": "completeOnboarding",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["companyId"],
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Onboarding marked complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Onboarding complete. Your team is ready to start collaborating!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/settings": {
+      "get": {
+        "summary": "Get company settings",
+        "description": "Retrieve current company configuration",
+        "operationId": "getCompanySettings",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Company settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "company": {
+                      "type": "object",
+                      "properties": {
+                        "companyName": {
+                          "type": "string"
+                        },
+                        "billingEmail": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "billingAddress": {
+                          "type": "string"
+                        },
+                        "billingCountry": {
+                          "type": "string"
+                        },
+                        "billingPhone": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update company settings",
+        "description": "Modify company name, billing address, or contact info",
+        "operationId": "updateCompanySettings",
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 255
+                  },
+                  "billingEmail": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "billingAddress": {
+                    "type": "string"
+                  },
+                  "billingPhone": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settings updated"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT access token"
+      }
+    }
+  }
+}

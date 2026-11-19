@@ -1,0 +1,175 @@
+name: auditfences
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  auditfences:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # [SCOPE 118 / T006] Fence gate — ADVISORY until the flip trigger below.
+      #
+      # Reports findings and records whether it WOULD have blocked, but does not
+      # fail the build. The advisory period exists to confirm the restored gate
+      # behaves before it can stop a merge; it must produce evidence, not silence.
+      #
+      # [SCOPE 118 / T007] FLIP TRIGGER — do not leave this advisory indefinitely.
+      #   Condition : one full release cycle with zero false positives
+      #   Opened    : 2026-07-31 (kit 1.7.43 / app 1.5.289)
+      #   Review by : 2026-08-14
+      #   To flip   : delete the `|| true` and the WOULD-BLOCK wrapper below so
+      #               the step's own exit code fails the job again.
+      # A warning-only gate is still a check nobody must act on. Without this
+      # trigger the advisory state becomes permanent, which is the exact
+      # pathology SCOPE-118 exists to correct.
+      - name: Run auditfences (strict, advisory)
+        run: |
+          cd wxkanban-agent
+          set +e
+          npx ts-node --transpile-only -e "
+            const { handleAuditFencesCommand } = require('./core/orchestrator/command-handlers/auditfences');
+            (async () => {
+              const r = await handleAuditFencesCommand({
+                path: '..',
+                specsRoot: '../specs',
+                legacyFile: '../.wxai/auditfences-legacy.json',
+                strict: true,
+                format: 'text',
+              });
+              console.log(r.output);
+              process.exit(r.exitCode);
+            })().catch((e) => { console.error(e); process.exit(1); });
+          "
+          FENCE_EXIT=$?
+          set -e
+          if [ "$FENCE_EXIT" -eq 0 ]; then
+            echo "FENCE GATE: WOULD PASS (exit 0)"
+            echo "- fence gate: **WOULD PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "FENCE GATE: WOULD BLOCK (exit $FENCE_EXIT) — advisory, not failing the build"
+            echo "- fence gate: **WOULD BLOCK** (exit $FENCE_EXIT) — advisory until 2026-08-14" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit 0
+
+  # [SCOPE 117 / T016] Schema drift gate.
+  #
+  # A table declared in src/db/schema/ but absent from the database is invisible
+  # until a user hits the route that queries it and gets a 500 — that is how
+  # complianceflags broke the Consultant Hub on 2026-07-30. This blocks a merge
+  # that would reintroduce the same class of defect.
+  #
+  # Requires the SCHEMA_DRIFT_DATABASE_URL secret. Use a READ-ONLY credential:
+  # this check only reads information_schema and must never be able to write.
+  schema-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check declared schema against deployed schema
+        env:
+          DATABASE_URL: ${{ secrets.SCHEMA_DRIFT_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "SCHEMA_DRIFT_DATABASE_URL is not set."
+            echo "This gate cannot verify anything without it, and a check that"
+            echo "silently passes is worse than no check at all. Add a READ-ONLY"
+            echo "connection string as a repository secret."
+            exit 1
+          fi
+          cd wxkanban-agent
+          npx ts-node --transpile-only -e "
+            const { handleAuditFencesCommand } = require('./core/orchestrator/command-handlers/auditfences');
+            (async () => {
+              const r = await handleAuditFencesCommand({
+                schema: true,
+                format: 'text',
+                appSchema: '../src/db/schema',
+                mcpSchema: '../mcp-server/src/db/schema.ts',
+              });
+              console.log(r.output);
+              process.exit(r.exitCode);
+            })().catch((e) => { console.error(e); process.exit(1); });
+          "
+
+  # [SCOPE 122 / T010] BEGIN — mcp-server test gate.
+  #
+  # WHY THIS EXISTS: until now NO CI job ran any mcp-server test. The root
+  # vitest.config.ts includes only repo-root `tests/`, and the auditfences job above
+  # touches mcp-server solely as a schema PATH. So every unit test in mcp-server —
+  # including the vocabulary drift guards added by SCOPE-043 and SCOPE-122 — ran only
+  # when a developer happened to run vitest by hand. SCOPE-043 FR-020 recorded that as
+  # a known gap and it was corrected in the spec text after the claim "fails the build"
+  # turned out to be false. This closes it: a guard nobody runs is not a guard.
+  mcp-server-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # NO npm cache here, and NO `npm ci` below. `mcp-server/package-lock.json` is
+          # gitignored (mcp-server/.gitignore), so it does not exist in a CI checkout:
+          # `cache-dependency-path` cannot resolve it and `npm ci` requires it. The first
+          # version of this job used both and failed on arrival — caught because the job
+          # was watched on the very push that introduced it, rather than assumed green.
+          # If the lockfile is ever committed, restore `cache: 'npm'` with
+          # `cache-dependency-path: mcp-server/package-lock.json` and switch back to
+          # `npm ci` for reproducible installs.
+
+      - name: Install dependencies
+        working-directory: mcp-server
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        working-directory: mcp-server
+        run: npx tsc --noEmit
+
+      # THREE suites are excluded, deliberately and by name:
+      #   tests/integration.test.ts          — needs a live database
+      #   tests/server.test.ts               — needs a live database
+      #   tests/project-kit-scope-flow.test.ts — needs on-disk scope fixtures
+      #
+      # They fail locally too (14 tests) and long predate this job. Excluding them is
+      # what makes the remaining 287 tests enforceable TODAY, rather than leaving the
+      # whole suite ungated for want of a database. They are named here rather than
+      # hidden in a config file because a silently-skipped suite is precisely the
+      # failure mode this gate exists to remove — the same disease as a status that
+      # renders nowhere, or a fence label that never matched the parser.
+      #
+      # If you give CI a read-only database, delete the first two exclusions.
+      - name: Run tests (excluding suites that need live infrastructure)
+        working-directory: mcp-server
+        run: |
+          npx vitest run \
+            --exclude 'tests/integration.test.ts' \
+            --exclude 'tests/server.test.ts' \
+            --exclude 'tests/project-kit-scope-flow.test.ts'
+  # [SCOPE 122 / T010] END

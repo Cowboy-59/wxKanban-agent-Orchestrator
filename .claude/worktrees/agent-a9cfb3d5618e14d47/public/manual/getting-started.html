@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting Started — wxKanban Manual</title>
+<style>
+:root { --accent: #2563eb; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1f2328; line-height: 1.6; margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1,h2,h3 { line-height: 1.25; }
+h1 { font-size: 1.9rem; border-bottom: 2px solid var(--accent); padding-bottom: .3em; }
+h2 { font-size: 1.35rem; margin-top: 1.8em; }
+img { max-width: 100%; border: 1px solid #d0d7de; border-radius: 6px; margin: .5em 0; }
+code { background: #f6f8fa; padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th,td { border: 1px solid #d0d7de; padding: .5em .7em; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; }
+.layout { display: flex; align-items: flex-start; }
+.sidebar { width: 250px; min-width: 250px; padding: 1.2em; border-right: 1px solid #d0d7de;
+  height: 100vh; position: sticky; top: 0; overflow-y: auto; background: #fafbfc; }
+.sidebar h3 { margin: 0 0 .3em; font-size: .8rem; text-transform: uppercase; color: #57606a; }
+.sidebar a { display: block; padding: .25em 0; color: #1f2328; }
+.sidebar a.active { color: var(--accent); font-weight: 600; }
+.content { padding: 2em 3em; max-width: 900px; }
+.brand { font-weight: 700; font-size: 1.1rem; margin-bottom: 1em; color: var(--accent); }
+.search { width: 100%; padding: .5em; margin-bottom: 1em; border: 1px solid #d0d7de; border-radius: 6px; }
+.card { border: 1px solid #d0d7de; border-radius: 8px; padding: 1em 1.2em; margin: .6em 0; }
+.card a { font-weight: 600; font-size: 1.1rem; }
+@media print { .sidebar, .search { display: none; } }
+</style></head>
+<body><div class="layout">
+<nav class="sidebar">
+<div class="brand"><a href="index.html">wxKanban Manual</a></div>
+<input class="search" id="q" placeholder="Search…" onkeyup="flt()">
+<h3>Sections</h3>
+<a data-t="part 1 — getting started" href="part-getting-started.html">Part 1 — Getting Started</a>
+<a class="active" data-t="getting started" href="getting-started.html">Getting Started</a>
+<a data-t="part 2 — the process" href="part-the-process.html">Part 2 — The Process</a>
+<a data-t="the road at a glance" href="process-overview.html">The road at a glance</a>
+<a data-t="scopes and specs" href="process-scopes-specs.html">Scopes and specs</a>
+<a data-t="design" href="process-design.html">Design</a>
+<a data-t="decision memory: the ledger and the ask gate" href="process-decision-memory.html">Decision memory: the ledger and the Ask Gate</a>
+<a data-t="implementation" href="process-implementation.html">Implementation</a>
+<a data-t="qa" href="process-qa.html">QA</a>
+<a data-t="human testing" href="process-human-testing.html">Human Testing</a>
+<a data-t="beta" href="process-beta.html">Beta</a>
+<a data-t="release" href="process-release.html">Release</a>
+<a data-t="converting an existing app" href="process-conversions.html">Converting an existing app</a>
+<a data-t="when something goes wrong" href="process-when-things-go-wrong.html">When something goes wrong</a>
+<a data-t="who does what" href="process-who-does-what.html">Who does what</a>
+<a data-t="part 3 — the web app" href="part-web-app.html">Part 3 — The Web App</a>
+<a data-t="signing in" href="login.html">Signing in</a>
+<a data-t="the dashboard" href="dashboard.html">The Dashboard</a>
+<a data-t="projects" href="projects.html">Projects</a>
+<a data-t="inside a project" href="project-detail.html">Inside a project</a>
+<a data-t="my tasks" href="tasks.html">My Tasks</a>
+<a data-t="automated tests (qa)" href="testing-qa.html">Automated tests (QA)</a>
+<a data-t="user tests" href="testing-user.html">User tests</a>
+<a data-t="work hub" href="work-hub.html">Work Hub</a>
+<a data-t="faq" href="faq.html">FAQ</a>
+<a data-t="help & plan features" href="help.html">Help & plan features</a>
+<a data-t="settings" href="settings.html">Settings</a>
+<a data-t="team members" href="team.html">Team Members</a>
+<a data-t="team chat (yappchatt)" href="team-chat.html">Team chat (YappChatt)</a>
+<a data-t="signing k.a.i.n. in" href="kain-signin.html">Signing K.A.I.N. in</a>
+<a data-t="pm integrations" href="integrations.html">PM Integrations</a>
+<a data-t="invoices" href="invoices.html">Invoices</a>
+<a data-t="reports" href="reports.html">Reports</a>
+<a data-t="stack profiles" href="stack-profiles.html">Stack Profiles</a>
+<a data-t="theme profiles" href="theme-profiles.html">Theme Profiles</a>
+<a data-t="part 4 — the dev cockpit" href="part-dev-cockpit.html">Part 4 — The Dev Cockpit</a>
+<a data-t="installing and linking the cockpit" href="cockpit-install.html">Installing and linking the Cockpit</a>
+<a data-t="the cockpit at a glance" href="cockpit-at-a-glance.html">The Cockpit at a glance</a>
+<a data-t="system health" href="cockpit-system-health.html">System Health</a>
+<a data-t="scopes" href="cockpit-scopes.html">Scopes</a>
+<a data-t="development plan" href="cockpit-dev-plan.html">Development Plan</a>
+<a data-t="git" href="cockpit-git.html">Git</a>
+<a data-t="kit updates" href="cockpit-kit-updates.html">Kit updates</a>
+<a data-t="change impact" href="cockpit-change-impact.html">Change Impact</a>
+<a data-t="feedback" href="cockpit-feedback.html">Feedback</a>
+<a data-t="help inside the cockpit" href="cockpit-help.html">Help inside the Cockpit</a>
+<a data-t="part 5 — command reference" href="part-command-reference.html">Part 5 — Command Reference</a>
+<a data-t="commands by stage" href="commands-by-stage.html">Commands by stage</a>
+<a data-t="commands by where they run" href="commands-by-where.html">Commands by where they run</a>
+<a data-t="commands a–z" href="commands-a-z.html">Commands A–Z</a>
+<a data-t="/ai-session" href="cmd-aisession.html">/ai-session</a>
+<a data-t="/analyzecode" href="cmd-analyzecode.html">/analyzecode</a>
+<a data-t="/analyzescope" href="cmd-analyzescope.html">/analyzescope</a>
+<a data-t="/autofix-tests" href="cmd-autofixtests.html">/autofix-tests</a>
+<a data-t="/buildscope" href="cmd-buildscope.html">/buildscope</a>
+<a data-t="/buildstack" href="cmd-buildstack.html">/buildstack</a>
+<a data-t="wxkanban-agent archive:files" href="cmd-cli-archive-files.html">wxkanban-agent archive:files</a>
+<a data-t="wxkanban-agent auditfences" href="cmd-cli-auditfences.html">wxkanban-agent auditfences</a>
+<a data-t="wxkanban-agent kit:configure" href="cmd-cli-kit-configure.html">wxkanban-agent kit:configure</a>
+<a data-t="wxkanban-agent kit:status" href="cmd-cli-kit-status.html">wxkanban-agent kit:status</a>
+<a data-t="wxkanban-agent scaffold:frontend" href="cmd-cli-scaffold-frontend.html">wxkanban-agent scaffold:frontend</a>
+<a data-t="refresh autopilot" href="cmd-cockpit-wxkanbanautopilotrefresh.html">Refresh Autopilot</a>
+<a data-t="check in scope" href="cmd-cockpit-wxkanbancockpitcheckinscope.html">Check In Scope</a>
+<a data-t="check out scope" href="cmd-cockpit-wxkanbancockpitcheckoutscope.html">Check Out Scope</a>
+<a data-t="install slash commands (.claude/commands)" href="cmd-cockpit-wxkanbancockpitinstallcommands.html">Install Slash Commands (.claude/commands)</a>
+<a data-t="install kit in this folder" href="cmd-cockpit-wxkanbancockpitinstallkit.html">Install Kit in This Folder</a>
+<a data-t="my feedback" href="cmd-cockpit-wxkanbancockpitmyfeedback.html">My Feedback</a>
+<a data-t="community help (live chat)" href="cmd-cockpit-wxkanbancockpitopenchat.html">Community Help (live chat)</a>
+<a data-t="open the manual" href="cmd-cockpit-wxkanbancockpitopenmanual.html">Open the Manual</a>
+<a data-t="open related spec / file" href="cmd-cockpit-wxkanbancockpitopenspec.html">Open Related Spec / File</a>
+<a data-t="push feedback to claude chat" href="cmd-cockpit-wxkanbancockpitpushfeedbacktochat.html">Push Feedback to Claude Chat</a>
+<a data-t="re-run the kit version check" href="cmd-cockpit-wxkanbancockpitrecheckkit.html">Re-run the Kit Version Check</a>
+<a data-t="refresh cockpit" href="cmd-cockpit-wxkanbancockpitrefresh.html">Refresh Cockpit</a>
+<a data-t="view feedback detail" href="cmd-cockpit-wxkanbancockpitshowfeedbackdetail.html">View Feedback Detail</a>
+<a data-t="show project agent output" href="cmd-cockpit-wxkanbancockpitshowprojectagentoutput.html">Show Project Agent Output</a>
+<a data-t="sign in / relink project" href="cmd-cockpit-wxkanbancockpitsignin.html">Sign In / Relink Project</a>
+<a data-t="start project agent" href="cmd-cockpit-wxkanbancockpitstartprojectagent.html">Start Project Agent</a>
+<a data-t="stop project agent" href="cmd-cockpit-wxkanbancockpitstopprojectagent.html">Stop Project Agent</a>
+<a data-t="report a bug / suggest a feature" href="cmd-cockpit-wxkanbancockpitsubmitfeedback.html">Report a Bug / Suggest a Feature</a>
+<a data-t="toggle recording theme (wxlight / wxdark)" href="cmd-cockpit-wxkanbancockpittoggletheme.html">Toggle Recording Theme (wxLight / wxDark)</a>
+<a data-t="install kit update" href="cmd-cockpit-wxkanbancockpitupgradekit.html">Install Kit Update</a>
+<a data-t="install the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactinstallhook.html">Install the Change Impact hook for Claude Code</a>
+<a data-t="show change impact" href="cmd-cockpit-wxkanbanimpactshowpanel.html">Show Change Impact</a>
+<a data-t="remove the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactuninstallhook.html">Remove the Change Impact hook for Claude Code</a>
+<a data-t="/compliance-scan" href="cmd-compliancescan.html">/compliance-scan</a>
+<a data-t="/consultant-hub" href="cmd-consultanthub.html">/consultant-hub</a>
+<a data-t="/createspecs" href="cmd-createspecs.html">/createSpecs</a>
+<a data-t="/cwconversion" href="cmd-cwconversion.html">/cwConversion</a>
+<a data-t="/cwconversionscope" href="cmd-cwconversionscope.html">/cwConversionScope</a>
+<a data-t="/dbpush" href="cmd-dbpush.html">/dbpush</a>
+<a data-t="/implement" href="cmd-implement.html">/implement</a>
+<a data-t="/pretest" href="cmd-pretest.html">/preTest</a>
+<a data-t="/remote" href="cmd-remote.html">/remote</a>
+<a data-t="/rescue-tokens" href="cmd-rescuetokens.html">/rescue-tokens</a>
+<a data-t="/research" href="cmd-research.html">/research</a>
+<a data-t="/scope-flow-map" href="cmd-scopeflowmap.html">/scope-flow-map</a>
+<a data-t="/test-sweep" href="cmd-testsweep.html">/test-sweep</a>
+<a data-t="/track-time" href="cmd-tracktime.html">/track-time</a>
+<a data-t="/validatescope" href="cmd-validatescope.html">/validateScope</a>
+<a data-t="/vbconversion" href="cmd-vbconversion.html">/vbConversion</a>
+<a data-t="/vbconversionscope" href="cmd-vbconversionscope.html">/vbConversionScope</a>
+<a data-t="/watermark" href="cmd-watermark.html">/watermark</a>
+<a data-t="/web-artifacts-builder" href="cmd-webartifactsbuilder.html">/web-artifacts-builder</a>
+<a data-t="/wxai-project-init" href="cmd-wxaiprojectinit.html">/wxAI-project-init</a>
+<a data-t="/wxbrainstorm" href="cmd-wxbrainstorm.html">/wxBrainstorm</a>
+<a data-t="/wxbrand" href="cmd-wxbrand.html">/wxBrand</a>
+<a data-t="/wxconversion" href="cmd-wxconversion.html">/wxConversion</a>
+<a data-t="/wxconversionparity" href="cmd-wxconversionparity.html">/wxConversionParity</a>
+<a data-t="/wxconversionscope" href="cmd-wxconversionscope.html">/wxConversionScope</a>
+<a data-t="/wxcreatetestplan" href="cmd-wxcreatetestplan.html">/wxCreateTestPlan</a>
+<a data-t="/wxdbanalyze" href="cmd-wxdbanalyze.html">/wxDBAnalyze</a>
+<a data-t="/wxdesigner" href="cmd-wxdesigner.html">/wxDesigner</a>
+<a data-t="/wxg-o-d" href="cmd-wxgod.html">/wxG-O-D</a>
+<a data-t="/wxhelpgenerate" href="cmd-wxhelpgenerate.html">/wxHelpGenerate</a>
+<a data-t="/wxledger" href="cmd-wxledger.html">/wxLedger</a>
+<a data-t="/wxuiuxcodereview" href="cmd-wxuiuxcodereview.html">/wxUIUXCodeReview</a>
+<a data-t="appendix" href="part-appendix.html">Appendix</a>
+<a data-t="glossary" href="glossary.html">Glossary</a>
+<a data-t="troubleshooting" href="troubleshooting.html">Troubleshooting</a>
+<a data-t="where to get help" href="get-help.html">Where to get help</a>
+<h3>Reference</h3>
+<a data-t="fields index" href="fields-index.html">A–Z field index</a>
+</nav>
+<main class="content"><h1 id="getting-started">Getting Started</h1>
+<p>This guide takes you from a new computer to a working wxKanban setup inside VS Code, even if you have never installed a developer tool before. Follow it from top to bottom. Each step tells you <em>why</em> it exists, not just <em>what to click</em>, so you build the habit and not just the setup.</p>
+<blockquote>
+<p><strong>Time needed:</strong> about 30 to 45 minutes the first time.
+<strong>You do not need to be a programmer to finish this.</strong> You need to be able to follow steps and copy and paste a few commands.</p>
+</blockquote>
+<hr />
+<h2 id="1-what-is-wxkanban-and-why-these-tools">1. What is wxKanban, and why these tools?</h2>
+<p>wxKanban is not a "click a button and get an app" generator. It is an <strong>orchestration kit</strong> that walks your project through a disciplined <strong>6-phase lifecycle</strong>: Design, Implementation, QA, Human Testing, Beta, and Release. It only lets you take the <em>right</em> action at the <em>right</em> time. Specs get followed. Tests do not get skipped. Releases do not happen without QA. And there is always one source of truth for exactly where your project stands.</p>
+<p>The goal is not to hand you code. It is to build your <strong>judgment</strong>, so you learn <em>how</em> to ship tested, audited software on a repeatable process.</p>
+<p>Four tools work together to do that:</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Role</th>
+<th>Think of it as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>VS Code</strong></td>
+<td>The editor where all your work happens</td>
+<td>Your workshop</td>
+</tr>
+<tr>
+<td><strong>Claude Code</strong> <em>(or your preferred AI development agent)</em></td>
+<td>The AI assistant that lives inside VS Code</td>
+<td>Your AI dev agent</td>
+</tr>
+<tr>
+<td><strong>wxKanban Dev Cockpit</strong></td>
+<td>A sidebar that shows what is built and what is next</td>
+<td>Your dashboard</td>
+</tr>
+<tr>
+<td><strong>wxKanban hosted service</strong></td>
+<td>The service that enforces the lifecycle and stores your project</td>
+<td>Your project's memory</td>
+</tr>
+</tbody>
+</table>
+<p>You install all four below.</p>
+<hr />
+<h2 id="2-install-the-prerequisites">2. Install the prerequisites</h2>
+<p>Install these three first. On Windows, do each install, then <strong>close and reopen</strong> VS Code and your terminal so they pick up the changes.</p>
+<h3 id="2a-nodejs-20-lts">2a. Node.js 20 LTS</h3>
+<p>wxKanban runs on Node.js. Get the <strong>LTS</strong> version (20 or newer).</p>
+<ul>
+<li>Download: <strong>https://nodejs.org</strong>, then click the <strong>LTS</strong> button.</li>
+<li>Accept all defaults in the installer.</li>
+<li><strong>Check it:</strong> open a terminal (see below) and run:
+  <code>node --version</code>
+  You should see something like <code>v20.x.x</code>.</li>
+</ul>
+<h3 id="2b-git">2b. Git</h3>
+<p>Git tracks changes to your project and lets Claude Code run scripts properly.</p>
+<ul>
+<li><strong>Windows:</strong> https://git-scm.com/downloads/win (accept the defaults).</li>
+<li><strong>Mac:</strong> run <code>git --version</code> in Terminal. If Git is missing, macOS offers to install it.</li>
+</ul>
+<blockquote>
+<p><strong>Why it matters on Windows:</strong> without Git installed, Claude Code falls back to PowerShell, and some scripts behave differently.</p>
+</blockquote>
+<h3 id="2c-visual-studio-code">2c. Visual Studio Code</h3>
+<p>This is the editor everything runs inside.</p>
+<ul>
+<li>Download: <strong>https://code.visualstudio.com</strong> and install it for your operating system.</li>
+<li>In the Windows installer, check the <strong>"Add to PATH"</strong> and <strong>"Open with Code"</strong> options if they are offered.</li>
+</ul>
+<p><strong>Opening a terminal inside VS Code:</strong> press <code>Ctrl+`</code> (the backtick key, top left of your keyboard). On a Mac, press <code>Cmd+`</code>. On Windows this opens a <strong>PowerShell</strong> terminal by default. You type commands here.</p>
+<hr />
+<h2 id="3-install-claude-code-if-you-use-it-or-want-to">3. Install Claude Code (if you use it, or want to)</h2>
+<p>This is the piece to get right. Claude Code is how you actually <em>do</em> the work.</p>
+<h3 id="3a-install-the-vs-code-extension">3a. Install the VS Code extension</h3>
+<ol>
+<li>In VS Code, open the Extensions panel: <code>Ctrl+Shift+X</code> (Mac: <code>Cmd+Shift+X</code>).</li>
+<li>Search for <strong>Claude Code</strong>.</li>
+<li>Install the one published by <strong>Anthropic</strong> (id: <code>anthropic.claude-code</code>).</li>
+<li>Restart VS Code if it asks.</li>
+</ol>
+<h3 id="3b-install-the-claude-code-command-line-tool">3b. Install the Claude Code command-line tool</h3>
+<p>The extension's chat panel works on its own, but the wxKanban kit also needs the <code>claude</code> command in the terminal.</p>
+<p>In the VS Code terminal:</p>
+<ul>
+<li><strong>Windows (PowerShell):</strong>
+  <code>irm https://claude.ai/install.ps1 | iex</code></li>
+<li><strong>Mac or Linux:</strong>
+  <code>curl -fsSL https://claude.ai/install.sh | bash</code></li>
+</ul>
+<p>Then <strong>close and reopen</strong> the terminal and check it:</p>
+<pre><code>claude --version
+</code></pre>
+<h3 id="3c-sign-in">3c. Sign in</h3>
+<p>Run <code>claude</code> in the terminal (or click the <strong>Claude</strong> icon at the top right of VS Code) and choose one:</p>
+<ul>
+<li><strong>Claude Pro or Max subscription</strong> (easiest for individuals). A browser opens; sign in with your Claude.ai account.</li>
+<li><strong>Anthropic API key</strong> (for teams or billing control). Create one at https://console.anthropic.com and paste it when asked.</li>
+</ul>
+<p>Your login is saved securely. You only do this once.</p>
+<hr />
+<h2 id="4-recommended-vs-code-extensions">4. Recommended VS Code extensions</h2>
+<p>Beyond Claude Code, these are the extensions we use day to day. To install one, search for its <strong>id</strong> in the Extensions panel (<code>Ctrl+Shift+X</code>). The <strong>top two are required</strong> for wxKanban. The rest make daily work easier.</p>
+<p><strong>Required for wxKanban</strong></p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>id</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Code</td>
+<td><code>anthropic.claude-code</code></td>
+<td>The AI assistant (from step 3)</td>
+</tr>
+<tr>
+<td>wxKanban Dev Cockpit</td>
+<td><code>wxperts.wxkanban-dev-cockpit</code></td>
+<td>Your project dashboard. It installs with the kit.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Highly recommended for this stack (React, TypeScript, Node, Postgres)</strong></p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>id</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESLint</td>
+<td><code>dbaeumer.vscode-eslint</code></td>
+<td>Flags code problems as you type</td>
+</tr>
+<tr>
+<td>Prettier ESLint</td>
+<td><code>rvest.vs-code-prettier-eslint</code></td>
+<td>Formats your code when you save</td>
+</tr>
+<tr>
+<td>ES7+ React snippets</td>
+<td><code>rodrigovallades.es7-react-js-snippets</code></td>
+<td>Fast React boilerplate</td>
+</tr>
+<tr>
+<td>npm Intellisense</td>
+<td><code>christian-kohler.npm-intellisense</code></td>
+<td>Completes package imports</td>
+</tr>
+<tr>
+<td>DotENV</td>
+<td><code>mikestead.dotenv</code></td>
+<td>Highlights environment settings files</td>
+</tr>
+<tr>
+<td>Git Graph</td>
+<td><code>mhutchie.git-graph</code></td>
+<td>Shows the history of your commits</td>
+</tr>
+<tr>
+<td>GitHub Pull Requests</td>
+<td><code>github.vscode-pull-request-github</code></td>
+<td>Review and manage pull requests in the editor</td>
+</tr>
+<tr>
+<td>Code Spell Checker</td>
+<td><code>streetsidesoftware.code-spell-checker</code></td>
+<td>Catches typos in code and docs</td>
+</tr>
+<tr>
+<td>markdownlint</td>
+<td><code>davidanson.vscode-markdownlint</code></td>
+<td>Keeps Markdown docs clean</td>
+</tr>
+<tr>
+<td>Thunder Client</td>
+<td><code>rangav.vscode-thunder-client</code></td>
+<td>Test your API endpoints without leaving VS Code</td>
+</tr>
+<tr>
+<td>Docker</td>
+<td><code>ms-azuretools.vscode-docker</code></td>
+<td>Manage containers (for a local Postgres, for example)</td>
+</tr>
+<tr>
+<td>Python + Pylance</td>
+<td><code>ms-python.python</code>, <code>ms-python.vscode-pylance</code></td>
+<td>Needed by the conversion commands' Python helpers</td>
+</tr>
+<tr>
+<td>Markdown PDF</td>
+<td><code>yzane.markdown-pdf</code></td>
+<td>Export any Markdown document to PDF</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Tip:</strong> when you open your project folder, VS Code also offers the project's own recommended extensions. Click <strong>Install</strong> on that prompt.</p>
+</blockquote>
+<hr />
+<h2 id="5-get-your-wxkanban-project">5. Get your wxKanban project</h2>
+<p><strong>Sign up first, if you need to.</strong> If your company does not have a wxKanban account yet, click <strong>Register here</strong> on the sign-in page. It opens the sign-up wizard for a new company. If your company already uses wxKanban, do not register again; ask your administrator to invite you. See <a href="login.html">Signing in</a>. The kit, the six-stage process, and the Dev Cockpit are included on every plan, starting with Single User. See <a href="help.html">Help &amp; plan features</a>.</p>
+<ol>
+<li>Sign in to the <strong>wxKanban web app</strong> (your account URL, for example <strong>wxkanban.com</strong>).</li>
+<li><strong>Create a project</strong>, or open the one that was created for you. This registers your project with the hosted service and gives it a unique <strong>Project ID</strong>.</li>
+<li>In the project, click the <strong>Kit</strong> tab. Only a company administrator, or a user assigned to the project, sees the kit buttons.</li>
+<li>Click <strong>Generate Kit</strong>. Wait until the status reads <strong>Ready for download</strong>.</li>
+<li>Click <strong>Download Kit</strong>. wxKanban checks its own prerequisites first, then downloads a <strong>zip file</strong>.</li>
+<li><strong>Copy your API token now.</strong> Every download creates a new API token for this project and writes it into the kit, so the kit and the Cockpit normally find it on their own. The <strong>Kit</strong> tab shows the token once:</li>
+<li>If you generated the kit during this visit, the green message shows the token with a <strong>Copy Token</strong> button.</li>
+<li>The <strong>Environment Setup</strong> box shows it on the line that starts with <code>WXKANBAN_API_TOKEN=</code>.</li>
+</ol>
+<p>The page warns: "Save this token - it won't be shown again!" Keep it somewhere private. You need it if the Cockpit ever asks you to sign in, or if you install the kit from the Cockpit. If you lose it, click <strong>Download Kit</strong> again. Each download creates a fresh token.
+7. Create the folder you will develop in, and unzip the file into it. The zip contains:
+   - <code>.wxkanban-project.json</code>, which holds your Project ID and kit version
+   - the kit itself: its commands, scripts, and orchestrator
+   - the kit's settings, which hold your API token and the connection between Claude Code and wxKanban</p>
+<p>The Dev Cockpit is not in the zip. The kit setup installs it from the VS Code Marketplace (section 6).
+8. In VS Code, choose <strong>File &gt; Open Folder...</strong> and open that project folder.</p>
+<blockquote>
+<p>The kit is generated <strong>per project</strong>. It is stamped with that project's ID, so a kit downloaded for one project does not work for another. If you create a second project later, generate a new kit for it. Do not copy this folder.</p>
+</blockquote>
+<hr />
+<h2 id="6-connect-wxkanban-to-your-project">6. Connect wxKanban to your project</h2>
+<p>Do these steps in order, in VS Code, with your project folder open.</p>
+<blockquote>
+<p><strong>Every project needs its own new kit.</strong> Do not reuse a kit from another project.</p>
+</blockquote>
+<h3 id="step-1-allow-the-automatic-tasks">Step 1: Allow the automatic tasks</h3>
+<p>When the folder opens, VS Code may ask <em>"This workspace has tasks configured to run on folder open. Allow?"</em> Click <strong>Allow</strong> (or <strong>Allow and Remember</strong>).</p>
+<blockquote>
+<p><strong>On a Mac:</strong> the kit's own Mac notes say VS Code does not start the kit for you there. Skip to Step 3 and run the setup by hand.</p>
+</blockquote>
+<h3 id="step-2-let-the-kit-setup-run">Step 2: Let the kit setup run</h3>
+<p>Once you allow them, VS Code runs two tasks every time the folder opens:</p>
+<ul>
+<li><strong>wxKanban Kit — Install &amp; Connect</strong> sets up the kit. In order, it:</li>
+<li>installs the kit's dependencies, the first time only (this can take a few minutes);</li>
+<li>checks that it can reach the wxKanban hosted service;</li>
+<li>checks your API token;</li>
+<li>connects Claude Code to wxKanban by registering a server named <strong>wxkanban</strong> (see Step 6);</li>
+<li>installs the Change Impact hook (see <a href="cockpit-change-impact.html">Change Impact</a>);</li>
+<li>starts the orchestrator;</li>
+<li>installs the Dev Cockpit from the VS Code Marketplace;</li>
+<li>runs a health check.</li>
+<li><strong>Check kit version</strong> checks whether a newer kit is available.</li>
+</ul>
+<p>The tasks run in their own terminal tabs, which VS Code does not bring to the front unless a task fails. To watch, open the terminal panel (<code>Ctrl+`</code>) and pick the <strong>wxKanban Kit — Install &amp; Connect</strong> terminal. When the setup worked, its last line reads <code>[init] ✓ kit ready</code>. If it ends with "health check failed", read the lines above it for the reason.</p>
+<p>If the setup just installed the Cockpit, it tells you to reload the window: open the Command Palette (<code>Ctrl+Shift+P</code>, Mac: <code>Cmd+Shift+P</code>) and run <strong>Developer: Reload Window</strong>. If VS Code's <code>code</code> command is not available, the setup cannot install the Cockpit. It prints the manual steps instead and saves them in a file named <code>INSTALL-DEV-COCKPIT.txt</code> in your project folder.</p>
+<h3 id="step-3-run-the-setup-by-hand-if-it-did-not-run">Step 3: Run the setup by hand, if it did not run</h3>
+<p>If you never saw the prompt, clicked something other than <strong>Allow</strong>, or are on a Mac, run the same setup yourself. Open the terminal (<code>Ctrl+`</code>) in your project folder and run:</p>
+<pre><code>node scripts/init.mjs
+</code></pre>
+<p>It does the same work as the automatic task and ends the same way. If it reports missing dependencies, run <code>npm install</code>, then run it again. To turn the automatic tasks on later, see <a href="troubleshooting.html">Troubleshooting</a>.</p>
+<p>To check the connection at any time, run:</p>
+<pre><code>npm run kit:health
+</code></pre>
+<p>A healthy result ends with <strong>✓ All services healthy.</strong> In the Design stage it can instead end with <strong>✓ Hosted MCP healthy.</strong> and say the orchestrator is not required yet.</p>
+<h3 id="step-4-check-the-dev-cockpit">Step 4: Check the Dev Cockpit</h3>
+<p>The <strong>Dev Cockpit</strong> is the wxKanban sidebar inside VS Code. You open it from the <strong>wxKanban</strong> icon in the activity bar, the column of icons on the far left of the VS Code window. Click the icon and the <strong>Dev Cockpit</strong> view opens. It shows what is built, what is next, and whether your project is connected.</p>
+<p>If the Cockpit shows <strong>Sign in to wxKanban</strong>, click it and paste the API token you copied in section 5.</p>
+<p><strong>Check that it is healthy.</strong> The first line at the top of the Cockpit is <strong>System Health</strong>. On a healthy setup it reads <strong>System Health — OK</strong>, with the hosted service's version (or "connected") next to it. Click it to see each check:</p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Healthy value</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Orchestrator</strong></td>
+<td>linked</td>
+<td>Your folder has a valid project file that links it to your wxKanban project</td>
+</tr>
+<tr>
+<td><strong>MCP connection</strong></td>
+<td>reachable</td>
+<td>VS Code can reach the wxKanban hosted service</td>
+</tr>
+<tr>
+<td><strong>Database</strong></td>
+<td>connected</td>
+<td>The hosted service reports that its database is up</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Orchestrator</strong> and <strong>MCP connection</strong> are the two that matter most: both must show their healthy value. When something is wrong, the header changes to <strong>System Health — degraded</strong> or <strong>System Health — offline</strong>, opens by itself, and is colored so you cannot miss it. To learn what each line means and how to fix it, see <a href="cockpit-system-health.html">System Health</a>.</p>
+<p><strong>If the wxKanban icon does not appear:</strong></p>
+<ol>
+<li>Open the Extensions panel (<code>Ctrl+Shift+X</code>, Mac: <code>Cmd+Shift+X</code>).</li>
+<li>Search for <strong>wxKanban Dev Cockpit</strong> (id: <code>wxperts.wxkanban-dev-cockpit</code>) and install it.</li>
+<li>Restart VS Code if it asks.</li>
+<li>If the icon appears but the Cockpit is empty, make sure you opened the folder that holds <code>.wxkanban-project.json</code> (section 5). Then open the Command Palette (<code>Ctrl+Shift+P</code>, Mac: <code>Cmd+Shift+P</code>) and run <strong>wxKanban: Sign In / Relink Project</strong>, then <strong>wxKanban: Refresh Cockpit</strong>.</li>
+</ol>
+<p>For a full tour of the sidebar, see <a href="part-dev-cockpit.html">The Dev Cockpit</a>.</p>
+<h3 id="step-5-install-the-slash-commands">Step 5: Install the slash commands</h3>
+<p>The kit's slash commands, such as <a href="cmd-buildscope.html"><code>/buildscope</code></a>, must be copied into Claude Code's command folder before Claude Code can run them. The Cockpit does this for you with one click.</p>
+<p>When commands are missing, the Cockpit shows the message "N wxKanban slash commands aren't installed for Claude Code." (N is the number missing) with an <strong>Install</strong> button, and a row near the top of the sidebar: <strong>Install wxKanban slash commands</strong>, "N not installed — click to install".</p>
+<ol>
+<li>Click <strong>Install</strong> on the message, or click the row. You can also run <strong>wxKanban: Install Slash Commands (.claude/commands)</strong> from the Command Palette.</li>
+<li>The Cockpit reports how many commands it installed and updated.</li>
+<li>Reload VS Code: run <strong>Developer: Reload Window</strong> from the Command Palette.</li>
+</ol>
+<p><strong>When it worked:</strong> the row is gone from the Cockpit, and running the install command again says the slash commands are already up to date. After a kit update the row can come back as <strong>Update wxKanban slash commands</strong>; click it the same way. See <a href="cockpit-install.html">Installing and linking the Cockpit</a>.</p>
+<h3 id="step-6-approve-the-wxkanban-server-in-claude-code">Step 6: Approve the wxkanban server in Claude Code</h3>
+<p>The kit setup (Step 2) registers wxKanban with Claude Code as a project server named <strong>wxkanban</strong>. Claude Code connects to servers only when it starts, and asks you once before it uses a project's server.</p>
+<ol>
+<li>Close and reopen VS Code after the kit setup has run.</li>
+<li>Open Claude Code. When it asks about the <strong>wxkanban</strong> server, approve it.</li>
+<li>If you missed the prompt, open Claude Code's list of MCP servers and approve <strong>wxkanban</strong> there. You only approve it once.</li>
+</ol>
+<p><strong>When it worked:</strong> <a href="cmd-buildscope.html"><code>/buildscope</code></a> starts its interview. If the server is not connected, the kit's commands tell you the wxKanban connection is not set up in your AI client. Run <code>node scripts/init.mjs</code>, restart VS Code, and approve <strong>wxkanban</strong> again.</p>
+<p>The Cockpit's <strong>MCP connection</strong> line checks that VS Code can reach the hosted service. It does not tell you whether Claude Code has approved the server, so check both.</p>
+<p>You are set up.</p>
+<h3 id="running-terminal-commands">Running terminal commands</h3>
+<p>A few commands run in the terminal instead of in Claude Code. In the <a href="part-command-reference.html">Command Reference</a> their page says <strong>Terminal (wxkanban-agent)</strong>, for example <code>wxkanban-agent kit:status</code>. Run them from your project folder through the launcher in the kit's <code>bin</code> folder:</p>
+<ul>
+<li><strong>Windows (PowerShell):</strong> <code>.\bin\wxkanban-agent.cmd kit:status</code></li>
+<li><strong>Mac or Linux:</strong> <code>bin/wxkanban-agent kit:status</code></li>
+</ul>
+<p>To list the terminal commands for your project's current stage, run the launcher with <code>--help</code>.</p>
+<hr />
+<h2 id="7-your-first-workflow">7. Your first workflow</h2>
+<p>Open Claude Code and describe what you want <strong>in plain language</strong>. The kit handles the specs, tasks, code fencing, and audit trail. Keep the <strong>Dev Cockpit</strong> open while you work. It shows the remaining work for each scope and updates as work gets built.</p>
+<ol>
+<li><strong>Design first.</strong> Before any code is written, you define a <em>scope</em>. In Claude Code, run <a href="cmd-buildscope.html"><code>/buildscope</code></a>. It interviews you section by section, and you approve each section, to produce a Scope of Project document. Nothing gets built that is not scoped first.</li>
+<li><strong>Check the scope.</strong> Run <a href="cmd-validatescope.html"><code>/validateScope</code></a>. It checks your scope document against the wxKanban quality criteria, so gaps are found before they become code.</li>
+<li><strong>Turn the scope into specs and tasks.</strong> Run <a href="cmd-createspecs.html"><code>/createSpecs</code></a>. It produces the specification, the plan, and a task breakdown for the scope.</li>
+<li><strong>Build it.</strong> Run <a href="cmd-implement.html"><code>/implement</code></a>. It works through the tasks and keeps the audit trail intact. When the tasks are done, it also runs a code and UI review of the changes and files the scope's test plan.</li>
+</ol>
+<p><strong>After that, stages advance on their own, but two of them need you.</strong> Each scope moves through <strong>QA</strong>, <strong>Human Testing</strong>, <strong>Beta</strong>, and <strong>Release</strong> by itself as soon as the gate for the stage it is in is clear. Nobody presses an Advance button. What clears the gates is work that people do:</p>
+<ul>
+<li><strong>QA</strong> needs the scope's machine tests to pass and be signed off. Run the scope's test plan with <a href="cmd-wxcreatetestplan.html"><code>/wxCreateTestPlan</code></a> <code>SCOPE-NNN --Execute</code>, and verify its final gate yourself; the AI shows you the evidence and stops. Each test it proves is signed off as it runs, so this one command is enough; the nightly run is optional. The scope leaves QA when no task is open, it has at least one machine test, and none of its machine tests is unsigned or failing.</li>
+<li><strong>Human Testing</strong> needs your testers. They run the human tests in the web app and sign each one off. The scope leaves when no task is open and every human test has a tester's sign-off.</li>
+</ul>
+<p>Your part is to clear what blocks each gate: run the tests, fix failures, and have your testers sign off. A sign-off is always a person's, never the AI's. Deploying the release is also yours; wxKanban never deploys.</p>
+<p>For what each stage needs and what blocks it, see <a href="part-the-process.html">The Process</a>.</p>
+<blockquote>
+<p><strong>Golden rule:</strong> <em>If it is not in the spec, stop and add it to the spec first.</em> This one habit prevents most of the surprises that derail projects.</p>
+</blockquote>
+<hr />
+<h2 id="7b-two-ways-to-start">7b. Two ways to start</h2>
+<p><strong>A new project.</strong> Start from an idea:</p>
+<ul>
+<li>Run <a href="cmd-buildscope.html"><code>/buildscope</code></a> to scope one feature, then follow the steps in section 7.</li>
+<li>Run <a href="cmd-wxgod.html"><code>/wxG-O-D</code></a> to plan a whole project. It reviews your project and its documents with you section by section, then writes a development plan.</li>
+</ul>
+<p><strong>Converting an existing app.</strong> Start from software you already have:</p>
+<ul>
+<li><a href="cmd-wxconversion.html"><code>/wxConversion</code></a> for a WinDev or WebDev app</li>
+<li><a href="cmd-cwconversion.html"><code>/cwConversion</code></a> for a Clarion app</li>
+<li><a href="cmd-vbconversion.html"><code>/vbConversion</code></a> for a Visual Basic 6 app</li>
+</ul>
+<p>Each one turns the legacy app into a modern rebuild scaffold. For the full path, see <a href="process-conversions.html">Converting an existing app</a>.</p>
+<hr />
+<h2 id="8-troubleshooting">8. Troubleshooting</h2>
+<p>If something does not work, see <a href="troubleshooting.html">Troubleshooting</a>.</p>
+<hr />
+<h2 id="9-where-to-get-help">9. Where to get help</h2>
+<ul>
+<li><strong>Report a bug or suggest a feature:</strong> open the Command Palette and run <strong>wxKanban: Report a Bug / Suggest a Feature</strong>. Your report goes straight to the wxKanban team's queue.</li>
+<li><strong>Claude Code docs:</strong> https://code.claude.com/docs</li>
+</ul>
+<p>For every way to get help, see <a href="get-help.html">Where to get help</a>.</p><footer style="margin-top:3em;color:#57606a;font-size:.8rem;border-top:1px solid #d0d7de;padding-top:.6em">wxKanban 1.5.371 · built 2026-11-09</footer></main>
+</div>
+<script>
+function flt(){var v=document.getElementById('q').value.toLowerCase();
+document.querySelectorAll('.sidebar a[data-t]').forEach(function(a){
+a.style.display=a.getAttribute('data-t').indexOf(v)>-1?'block':'none';});}
+</script></body></html>

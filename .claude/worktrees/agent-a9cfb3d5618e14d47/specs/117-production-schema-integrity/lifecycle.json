@@ -1,0 +1,60 @@
+{
+  "specNumber": "117",
+  "specId": "6efd7140-b345-4fe1-9654-b8cb93c763c7",
+  "title": "Production Schema Integrity",
+  "status": "implementing",
+  "currentPhase": "implementation",
+  "priority": "critical",
+  "createdAt": "2026-07-31T00:45:11.048Z",
+  "scopeRef": "specs/Project-Scope/117-schema-integrity-eliminate-schema-drift.md",
+  "progress": {
+    "totalTasks": 18,
+    "completed": 0,
+    "inProgress": 0,
+    "blocked": 0,
+    "percentComplete": 0
+  },
+  "phases": [
+    {
+      "name": "design",
+      "status": "complete",
+      "startedAt": "2026-07-31T00:00:00.000Z",
+      "completedAt": "2026-07-31T00:45:11.048Z",
+      "note": "Scope built interactively and approved section by section; preflight score 100."
+    },
+    {
+      "name": "implementation",
+      "status": "in_progress",
+      "startedAt": "2026-07-31T00:45:11.048Z",
+      "completedAt": null,
+      "taskGroups": [
+        { "name": "Phase 1 — Restore service", "tasks": ["T001", "T002", "T003", "T004", "T005"], "shippableIndependently": true },
+        { "name": "Phase 2 — Tooling and detection", "tasks": ["T006", "T007", "T008"], "shippableIndependently": false },
+        { "name": "Phase 3 — Ledger and tables", "tasks": ["T009", "T010", "T011", "T012", "T013", "T014"], "shippableIndependently": false, "gate": "T010 rehearsal must pass before T011" },
+        { "name": "Phase 4 — Gate and verify", "tasks": ["T015", "T016", "T017", "T018"], "shippableIndependently": false }
+      ]
+    },
+    { "name": "qa", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "human_testing", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "beta", "status": "pending", "startedAt": null, "completedAt": null },
+    { "name": "released", "status": "pending", "startedAt": null, "completedAt": null }
+  ],
+  "compliance": {
+    "frameworks": ["SOC2"],
+    "controls": ["CC7.1", "CC8.1", "CC6.1", "CC7.2"]
+  },
+  "verificationBaseline": {
+    "capturedAt": "2026-07-30",
+    "productionTables": 125,
+    "expectedAfter": 131,
+    "marketingcontactsRows": 1006,
+    "capabilityindexRows": 4002,
+    "orphanTables": 27,
+    "migrationLedgerPresent": false
+  },
+  "openQuestions": [
+    "Cause of the 2 unexplained timer failures of 2026-07-30 — tracked, not solved.",
+    "PPE conversion completion date — blocks orphan-table cleanup.",
+    "Whether projecttasknotes (958) and projecttasktimelog (1211) hold unmigrated pre-conversion billing history."
+  ]
+}

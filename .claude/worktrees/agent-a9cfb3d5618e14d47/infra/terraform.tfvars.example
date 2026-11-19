@@ -1,0 +1,73 @@
+# Spec 028 — Hosted MCP Deployment — example tfvars
+#
+# Copy this to terraform.tfvars and fill in the real values.
+# terraform.tfvars is gitignored — never commit secrets.
+
+# ── Region ──────────────────────────────────────────────────────────────
+
+# Matches existing wxkanban.wxperts.com service. Override only if you know why.
+aws_region = "us-east-2"
+
+# ── DNS ─────────────────────────────────────────────────────────────────
+
+# Find via: aws route53 list-hosted-zones-by-name --dns-name wxperts.com \
+#   --query 'HostedZones[0].Id' --output text
+# Strip the `/hostedzone/` prefix if present.
+route53_zone_id = "Z1234567890ABCDEFG"
+
+# ── GitHub source connection (existing, same one wxkanban.wxperts.com uses) ──
+
+# Find via: aws apprunner list-connections --region us-east-2 \
+#   --query 'ConnectionSummaryList[*].[ConnectionName,ConnectionArn,Status]' --output table
+# Copy the ARN of the AVAILABLE connection.
+github_connection_arn = "arn:aws:apprunner:us-east-2:000000000000:connection/your-connection/abcdef..."
+
+github_repo_url = "https://github.com/Cowboy-59/wxKanban"
+github_branch   = "main"
+
+# ── Required runtime secrets ────────────────────────────────────────────
+
+# Generate with: openssl rand -hex 32
+api_key = "<32+ byte hex string>"
+
+# Pull both from the existing wxkanban.wxperts.com App Runner service env vars
+# (App Runner console → wxkanban service → Configuration → Environment).
+# Must match so MCP can decrypt at-rest secrets the main app encrypted.
+jwt_secret     = "<wxkanban JWT_SECRET value>"
+encryption_key = "<wxkanban ENCRYPTION_KEY value>"
+
+# ── DB connection — pick ONE of these two approaches (see README.md "Secrets") ──
+
+# Option A (simplest, lowest security): plain DATABASE_URL in tfvars.
+# Pull from wxkanban service env vars (same DB).
+database_url = "postgresql://USER:PASSWORD@HOST:5432/wxKanban?sslmode=require"
+
+# Option C (recommended for production): AWS Secrets Manager ARN.
+# Pre-provision with:
+#   aws secretsmanager create-secret --name wxkanban/mcp/database-url \
+#     --secret-string "postgresql://..."
+# Then set this and leave database_url empty.
+# database_url_secret_arn = "arn:aws:secretsmanager:us-east-2:000000000000:secret:wxkanban/mcp/database-url-AbCdEf"
+
+# ── Auth + rate limit (defaults are spec-correct) ───────────────────────
+
+# Production MUST be "true" — Terraform validates this.
+# mcp_auth_required_prod    = "true"
+# mcp_auth_required_staging = "true"
+# mcp_rate_limit_per_minute = "60"
+
+# ── App Runner instance shape ───────────────────────────────────────────
+
+# Defaults: 1 vCPU / 2 GB / min 1 / max 5 (spec FR-002).
+# instance_cpu    = "1024"
+# instance_memory = "2048"
+# min_instances   = 1
+# max_instances   = 5
+
+# ── Deployment modes ────────────────────────────────────────────────────
+
+# Production: tag-gated (false). Use `make deploy-mcp-prod TAG=v0.4.0`.
+# prod_auto_deployments = false
+
+# Staging: auto-deploy on every push to var.github_branch.
+# staging_auto_deployments = true

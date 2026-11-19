@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossary — wxKanban Manual</title>
+<style>
+:root { --accent: #2563eb; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1f2328; line-height: 1.6; margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1,h2,h3 { line-height: 1.25; }
+h1 { font-size: 1.9rem; border-bottom: 2px solid var(--accent); padding-bottom: .3em; }
+h2 { font-size: 1.35rem; margin-top: 1.8em; }
+img { max-width: 100%; border: 1px solid #d0d7de; border-radius: 6px; margin: .5em 0; }
+code { background: #f6f8fa; padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th,td { border: 1px solid #d0d7de; padding: .5em .7em; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; }
+.layout { display: flex; align-items: flex-start; }
+.sidebar { width: 250px; min-width: 250px; padding: 1.2em; border-right: 1px solid #d0d7de;
+  height: 100vh; position: sticky; top: 0; overflow-y: auto; background: #fafbfc; }
+.sidebar h3 { margin: 0 0 .3em; font-size: .8rem; text-transform: uppercase; color: #57606a; }
+.sidebar a { display: block; padding: .25em 0; color: #1f2328; }
+.sidebar a.active { color: var(--accent); font-weight: 600; }
+.content { padding: 2em 3em; max-width: 900px; }
+.brand { font-weight: 700; font-size: 1.1rem; margin-bottom: 1em; color: var(--accent); }
+.search { width: 100%; padding: .5em; margin-bottom: 1em; border: 1px solid #d0d7de; border-radius: 6px; }
+.card { border: 1px solid #d0d7de; border-radius: 8px; padding: 1em 1.2em; margin: .6em 0; }
+.card a { font-weight: 600; font-size: 1.1rem; }
+@media print { .sidebar, .search { display: none; } }
+</style></head>
+<body><div class="layout">
+<nav class="sidebar">
+<div class="brand"><a href="index.html">wxKanban Manual</a></div>
+<input class="search" id="q" placeholder="Search…" onkeyup="flt()">
+<h3>Sections</h3>
+<a data-t="part 1 — getting started" href="part-getting-started.html">Part 1 — Getting Started</a>
+<a data-t="getting started" href="getting-started.html">Getting Started</a>
+<a data-t="part 2 — the process" href="part-the-process.html">Part 2 — The Process</a>
+<a data-t="the road at a glance" href="process-overview.html">The road at a glance</a>
+<a data-t="scopes and specs" href="process-scopes-specs.html">Scopes and specs</a>
+<a data-t="design" href="process-design.html">Design</a>
+<a data-t="decision memory: the ledger and the ask gate" href="process-decision-memory.html">Decision memory: the ledger and the Ask Gate</a>
+<a data-t="implementation" href="process-implementation.html">Implementation</a>
+<a data-t="qa" href="process-qa.html">QA</a>
+<a data-t="human testing" href="process-human-testing.html">Human Testing</a>
+<a data-t="beta" href="process-beta.html">Beta</a>
+<a data-t="release" href="process-release.html">Release</a>
+<a data-t="converting an existing app" href="process-conversions.html">Converting an existing app</a>
+<a data-t="when something goes wrong" href="process-when-things-go-wrong.html">When something goes wrong</a>
+<a data-t="who does what" href="process-who-does-what.html">Who does what</a>
+<a data-t="part 3 — the web app" href="part-web-app.html">Part 3 — The Web App</a>
+<a data-t="signing in" href="login.html">Signing in</a>
+<a data-t="the dashboard" href="dashboard.html">The Dashboard</a>
+<a data-t="projects" href="projects.html">Projects</a>
+<a data-t="inside a project" href="project-detail.html">Inside a project</a>
+<a data-t="my tasks" href="tasks.html">My Tasks</a>
+<a data-t="automated tests (qa)" href="testing-qa.html">Automated tests (QA)</a>
+<a data-t="user tests" href="testing-user.html">User tests</a>
+<a data-t="work hub" href="work-hub.html">Work Hub</a>
+<a data-t="faq" href="faq.html">FAQ</a>
+<a data-t="help & plan features" href="help.html">Help & plan features</a>
+<a data-t="settings" href="settings.html">Settings</a>
+<a data-t="team members" href="team.html">Team Members</a>
+<a data-t="team chat (yappchatt)" href="team-chat.html">Team chat (YappChatt)</a>
+<a data-t="signing k.a.i.n. in" href="kain-signin.html">Signing K.A.I.N. in</a>
+<a data-t="pm integrations" href="integrations.html">PM Integrations</a>
+<a data-t="invoices" href="invoices.html">Invoices</a>
+<a data-t="reports" href="reports.html">Reports</a>
+<a data-t="stack profiles" href="stack-profiles.html">Stack Profiles</a>
+<a data-t="theme profiles" href="theme-profiles.html">Theme Profiles</a>
+<a data-t="part 4 — the dev cockpit" href="part-dev-cockpit.html">Part 4 — The Dev Cockpit</a>
+<a data-t="installing and linking the cockpit" href="cockpit-install.html">Installing and linking the Cockpit</a>
+<a data-t="the cockpit at a glance" href="cockpit-at-a-glance.html">The Cockpit at a glance</a>
+<a data-t="system health" href="cockpit-system-health.html">System Health</a>
+<a data-t="scopes" href="cockpit-scopes.html">Scopes</a>
+<a data-t="development plan" href="cockpit-dev-plan.html">Development Plan</a>
+<a data-t="git" href="cockpit-git.html">Git</a>
+<a data-t="kit updates" href="cockpit-kit-updates.html">Kit updates</a>
+<a data-t="change impact" href="cockpit-change-impact.html">Change Impact</a>
+<a data-t="feedback" href="cockpit-feedback.html">Feedback</a>
+<a data-t="help inside the cockpit" href="cockpit-help.html">Help inside the Cockpit</a>
+<a data-t="part 5 — command reference" href="part-command-reference.html">Part 5 — Command Reference</a>
+<a data-t="commands by stage" href="commands-by-stage.html">Commands by stage</a>
+<a data-t="commands by where they run" href="commands-by-where.html">Commands by where they run</a>
+<a data-t="commands a–z" href="commands-a-z.html">Commands A–Z</a>
+<a data-t="/ai-session" href="cmd-aisession.html">/ai-session</a>
+<a data-t="/analyzecode" href="cmd-analyzecode.html">/analyzecode</a>
+<a data-t="/analyzescope" href="cmd-analyzescope.html">/analyzescope</a>
+<a data-t="/autofix-tests" href="cmd-autofixtests.html">/autofix-tests</a>
+<a data-t="/buildscope" href="cmd-buildscope.html">/buildscope</a>
+<a data-t="/buildstack" href="cmd-buildstack.html">/buildstack</a>
+<a data-t="wxkanban-agent archive:files" href="cmd-cli-archive-files.html">wxkanban-agent archive:files</a>
+<a data-t="wxkanban-agent auditfences" href="cmd-cli-auditfences.html">wxkanban-agent auditfences</a>
+<a data-t="wxkanban-agent kit:configure" href="cmd-cli-kit-configure.html">wxkanban-agent kit:configure</a>
+<a data-t="wxkanban-agent kit:status" href="cmd-cli-kit-status.html">wxkanban-agent kit:status</a>
+<a data-t="wxkanban-agent scaffold:frontend" href="cmd-cli-scaffold-frontend.html">wxkanban-agent scaffold:frontend</a>
+<a data-t="refresh autopilot" href="cmd-cockpit-wxkanbanautopilotrefresh.html">Refresh Autopilot</a>
+<a data-t="check in scope" href="cmd-cockpit-wxkanbancockpitcheckinscope.html">Check In Scope</a>
+<a data-t="check out scope" href="cmd-cockpit-wxkanbancockpitcheckoutscope.html">Check Out Scope</a>
+<a data-t="install slash commands (.claude/commands)" href="cmd-cockpit-wxkanbancockpitinstallcommands.html">Install Slash Commands (.claude/commands)</a>
+<a data-t="install kit in this folder" href="cmd-cockpit-wxkanbancockpitinstallkit.html">Install Kit in This Folder</a>
+<a data-t="my feedback" href="cmd-cockpit-wxkanbancockpitmyfeedback.html">My Feedback</a>
+<a data-t="community help (live chat)" href="cmd-cockpit-wxkanbancockpitopenchat.html">Community Help (live chat)</a>
+<a data-t="open the manual" href="cmd-cockpit-wxkanbancockpitopenmanual.html">Open the Manual</a>
+<a data-t="open related spec / file" href="cmd-cockpit-wxkanbancockpitopenspec.html">Open Related Spec / File</a>
+<a data-t="push feedback to claude chat" href="cmd-cockpit-wxkanbancockpitpushfeedbacktochat.html">Push Feedback to Claude Chat</a>
+<a data-t="re-run the kit version check" href="cmd-cockpit-wxkanbancockpitrecheckkit.html">Re-run the Kit Version Check</a>
+<a data-t="refresh cockpit" href="cmd-cockpit-wxkanbancockpitrefresh.html">Refresh Cockpit</a>
+<a data-t="view feedback detail" href="cmd-cockpit-wxkanbancockpitshowfeedbackdetail.html">View Feedback Detail</a>
+<a data-t="show project agent output" href="cmd-cockpit-wxkanbancockpitshowprojectagentoutput.html">Show Project Agent Output</a>
+<a data-t="sign in / relink project" href="cmd-cockpit-wxkanbancockpitsignin.html">Sign In / Relink Project</a>
+<a data-t="start project agent" href="cmd-cockpit-wxkanbancockpitstartprojectagent.html">Start Project Agent</a>
+<a data-t="stop project agent" href="cmd-cockpit-wxkanbancockpitstopprojectagent.html">Stop Project Agent</a>
+<a data-t="report a bug / suggest a feature" href="cmd-cockpit-wxkanbancockpitsubmitfeedback.html">Report a Bug / Suggest a Feature</a>
+<a data-t="toggle recording theme (wxlight / wxdark)" href="cmd-cockpit-wxkanbancockpittoggletheme.html">Toggle Recording Theme (wxLight / wxDark)</a>
+<a data-t="install kit update" href="cmd-cockpit-wxkanbancockpitupgradekit.html">Install Kit Update</a>
+<a data-t="install the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactinstallhook.html">Install the Change Impact hook for Claude Code</a>
+<a data-t="show change impact" href="cmd-cockpit-wxkanbanimpactshowpanel.html">Show Change Impact</a>
+<a data-t="remove the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactuninstallhook.html">Remove the Change Impact hook for Claude Code</a>
+<a data-t="/compliance-scan" href="cmd-compliancescan.html">/compliance-scan</a>
+<a data-t="/consultant-hub" href="cmd-consultanthub.html">/consultant-hub</a>
+<a data-t="/createspecs" href="cmd-createspecs.html">/createSpecs</a>
+<a data-t="/cwconversion" href="cmd-cwconversion.html">/cwConversion</a>
+<a data-t="/cwconversionscope" href="cmd-cwconversionscope.html">/cwConversionScope</a>
+<a data-t="/dbpush" href="cmd-dbpush.html">/dbpush</a>
+<a data-t="/implement" href="cmd-implement.html">/implement</a>
+<a data-t="/pretest" href="cmd-pretest.html">/preTest</a>
+<a data-t="/remote" href="cmd-remote.html">/remote</a>
+<a data-t="/rescue-tokens" href="cmd-rescuetokens.html">/rescue-tokens</a>
+<a data-t="/research" href="cmd-research.html">/research</a>
+<a data-t="/scope-flow-map" href="cmd-scopeflowmap.html">/scope-flow-map</a>
+<a data-t="/test-sweep" href="cmd-testsweep.html">/test-sweep</a>
+<a data-t="/track-time" href="cmd-tracktime.html">/track-time</a>
+<a data-t="/validatescope" href="cmd-validatescope.html">/validateScope</a>
+<a data-t="/vbconversion" href="cmd-vbconversion.html">/vbConversion</a>
+<a data-t="/vbconversionscope" href="cmd-vbconversionscope.html">/vbConversionScope</a>
+<a data-t="/watermark" href="cmd-watermark.html">/watermark</a>
+<a data-t="/web-artifacts-builder" href="cmd-webartifactsbuilder.html">/web-artifacts-builder</a>
+<a data-t="/wxai-project-init" href="cmd-wxaiprojectinit.html">/wxAI-project-init</a>
+<a data-t="/wxbrainstorm" href="cmd-wxbrainstorm.html">/wxBrainstorm</a>
+<a data-t="/wxbrand" href="cmd-wxbrand.html">/wxBrand</a>
+<a data-t="/wxconversion" href="cmd-wxconversion.html">/wxConversion</a>
+<a data-t="/wxconversionparity" href="cmd-wxconversionparity.html">/wxConversionParity</a>
+<a data-t="/wxconversionscope" href="cmd-wxconversionscope.html">/wxConversionScope</a>
+<a data-t="/wxcreatetestplan" href="cmd-wxcreatetestplan.html">/wxCreateTestPlan</a>
+<a data-t="/wxdbanalyze" href="cmd-wxdbanalyze.html">/wxDBAnalyze</a>
+<a data-t="/wxdesigner" href="cmd-wxdesigner.html">/wxDesigner</a>
+<a data-t="/wxg-o-d" href="cmd-wxgod.html">/wxG-O-D</a>
+<a data-t="/wxhelpgenerate" href="cmd-wxhelpgenerate.html">/wxHelpGenerate</a>
+<a data-t="/wxledger" href="cmd-wxledger.html">/wxLedger</a>
+<a data-t="/wxuiuxcodereview" href="cmd-wxuiuxcodereview.html">/wxUIUXCodeReview</a>
+<a data-t="appendix" href="part-appendix.html">Appendix</a>
+<a class="active" data-t="glossary" href="glossary.html">Glossary</a>
+<a data-t="troubleshooting" href="troubleshooting.html">Troubleshooting</a>
+<a data-t="where to get help" href="get-help.html">Where to get help</a>
+<h3>Reference</h3>
+<a data-t="fields index" href="fields-index.html">A–Z field index</a>
+</nav>
+<main class="content"><h1 id="glossary">Glossary</h1>
+<p>These are the words you meet most often in wxKanban. Each one links to the section that explains it best.</p>
+<p><strong>Change Impact</strong> — Everything a change reaches: other code, other scopes, shared database tables, and human test sign-offs. Each link is labeled with how sure the kit is, and you see it at the moment of change. See <a href="cockpit-change-impact.html">Change Impact</a>.</p>
+<p><strong>Code fence</strong> — A pair of one-line comments, BEGIN and END, that the kit puts around each piece of code it writes. The fence names the scope and task that produced the code, so every line traces back to its spec. See <a href="process-implementation.html">Implementation</a>.</p>
+<p><strong>Consultant</strong> — A company on the Consultant plan that does scoped work for other companies. Its members see only the projects and work assigned to them, and they do not count against the client's seats. See <a href="team.html">Team Members</a>.</p>
+<p><strong>Dev Cockpit</strong> — The wxKanban sidebar in VS Code. It shows your project's remaining work by scope, with the active scope pinned first, plus System Health, kit updates, feedback, and help. See <a href="part-dev-cockpit.html">The Dev Cockpit</a>.</p>
+<p><strong>Engagement</strong> — The working relationship between a client company and a consulting company. It can be active, paused, disabled, or ended, and it controls what the consultants can see. See <a href="team.html">Team Members</a>.</p>
+<p><strong>Feedback report</strong> — A bug report or a suggestion you send from VS Code with <strong>wxKanban: Report a Bug / Suggest a Feature</strong>. You follow it, and answer the team's questions about it, in <strong>My Feedback</strong>. See <a href="cockpit-feedback.html">Feedback</a>.</p>
+<p><strong>Forced test</strong> — A test whose force-test setting is on. An administrator sets it for a scope and can change it for a single test. The project-wide release check waits on every forced test, machine or human, anywhere in the project. A scope's own stages wait on every test the scope owns, forced or not. See <a href="process-release.html">Release</a>.</p>
+<p><strong>Human test</strong> — A test a person runs by hand in the web app, such as checking that a screen does what the spec says. It counts only when a tester signs it off. See <a href="testing-user.html">User tests</a>.</p>
+<p><strong>Kit</strong> — The commands, scripts, and orchestrator that wxKanban generates for one project. You download it from the project's <strong>KIT</strong> link in the web app and unzip it into your project folder. Every project needs its own kit. See <a href="getting-started.html">Getting Started</a>.</p>
+<p><strong>Machine test</strong> — A test the computer runs and checks by itself, with no person involved. A scope cannot leave QA while any of its machine tests is unsigned or failing. See <a href="testing-qa.html">Automated tests (QA)</a>.</p>
+<p><strong>Manual</strong> — This book. It covers the web app, the Dev Cockpit, the process from scope to release, and every command the kit ships. It is separate from the short Help cards in the app and from the videos on the Help &amp; Tutorials page. See <a href="get-help.html">Where to get help</a>.</p>
+<p><strong>MCP</strong> — The connection between your AI assistant and wxKanban. Through it, the AI reads and updates your project: its scopes, specs, tasks, and tests. The Cockpit's <strong>MCP connection</strong> line shows whether it is working. MCP stands for Model Context Protocol. See <a href="cockpit-system-health.html">System Health</a>.</p>
+<p><strong>Nightly run</strong> — A test run that happens overnight, with nobody watching, against a test copy of your app and never production. It tests what the day's changes reached first, and you read its morning summary in the Cockpit. You set it up with <a href="cmd-pretest.html"><code>/preTest</code></a>. See <a href="process-qa.html">QA</a>.</p>
+<p><strong>Orchestrator</strong> — The part of the kit that runs your commands in the right order and enforces the stage rules. In the Cockpit, <strong>Orchestrator: linked</strong> means your folder is connected to your wxKanban project. See <a href="process-overview.html">How the process works</a>.</p>
+<p><strong>Plan (subscription)</strong> — Your company's wxKanban subscription: Single User, Small/Medium Business, Consultant, or Enterprise. Your plan decides which features you can use. See <a href="help.html">Help &amp; plan features</a>.</p>
+<p><strong>Project Overview</strong> — The document that describes your project as a whole: what it is and what it is for. You can draft it in the web app with help from an AI interview, and the planning commands read it as background. See <a href="projects.html">Projects</a>.</p>
+<p><strong>Released test</strong> — A human test your testers can open. A scope's human tests are released when the scope enters Human Testing, which happens once its machine tests pass. Until then, testers see "Not ready for you yet". See <a href="testing-user.html">User tests</a>.</p>
+<p><strong>Scope</strong> — A Scope of Project document that describes one feature: what it must do and why. You write it with <a href="cmd-buildscope.html"><code>/buildscope</code></a>. Nothing gets built until it is scoped. See <a href="process-scopes-specs.html">Scopes and specs</a>.</p>
+<p><strong>SCOPE-NNN and SPEC-NNN</strong> — Two separate number series. SCOPE-NNN names a scope, and SPEC-NNN names a spec built from a scope. A large scope can split into several specs, each taking the next spec number, so SCOPE-047 and SPEC-047 can be two unrelated things. Always write the prefix. See <a href="process-scopes-specs.html">Scopes and specs</a>.</p>
+<p><strong>Sign-off</strong> — The record that a test passed for one version. A human test's sign-off is always a person's, in their name. The AI never signs off a human test. See <a href="testing-user.html">User tests</a>.</p>
+<p><strong>Smoke test</strong> — The first of the three gates when a scope's test plan runs: every part responds without crashing, and nothing is written. You run the plan with <a href="cmd-wxcreatetestplan.html"><code>/wxCreateTestPlan</code></a> and its <code>--Execute</code> option, and the run stops after each gate. <code>/preTest</code> runs the same gate for one scope. See <a href="process-qa.html">QA</a>.</p>
+<p><strong>Spec</strong> — The implementation specification built from a scope by <a href="cmd-createspecs.html"><code>/createSpecs</code></a>, with its plan and task list. If something is not in the spec, add it to the spec before you build it. See <a href="process-scopes-specs.html">Scopes and specs</a>.</p>
+<p><strong>Stack &amp; Style</strong> — Your project's chosen technology stack and look and feel. The kit feeds it into generated scopes, specs, and code so they match your stack. You set it when you create a project and change it later with <a href="cmd-buildstack.html"><code>/buildstack</code></a>. See <a href="stack-profiles.html">Stack Profiles</a>.</p>
+<p><strong>Stage</strong> — One of the six steps every scope goes through: Design, Implementation, QA, Human Testing, Beta, and Release. Each scope moves to its next stage on its own as soon as the stage it is in is clear. See <a href="process-overview.html">How the process works</a>.</p>
+<p><strong>Stage gate</strong> — The check that keeps a scope in its stage until that stage's conditions are met, such as every task complete and every test passed. Whatever stops the gate from clearing is a blocker. See <a href="process-overview.html">How the process works</a>.</p>
+<p><strong>Task</strong> — One unit of work inside a spec, with a status, an assignee, and optional time tracking. Tasks can also come from a connected tool such as Jira, Monday.com, Asana, or Trello. See <a href="tasks.html">My Tasks</a>.</p>
+<p><strong>Test plan</strong> — The list of a scope's tests, both machine and human, filed by <code>/wxCreateTestPlan</code>. <a href="cmd-implement.html"><code>/implement</code></a> files it for you when a scope's tasks are done. See <a href="process-qa.html">QA</a>.</p>
+<p><strong>UAT</strong> — User acceptance testing: people checking that the work does what its users need. In wxKanban this is the Human Testing stage. A test version marked <strong>In UAT</strong> is the one your testers are working on. See <a href="process-human-testing.html">Human Testing</a>.</p>
+<p><strong>Version (of the tests)</strong> — The version of your application that a round of testing belongs to. Every test run, result, and sign-off is recorded against one version, and a new version starts a new round on its own. Machine tests are run again for every version. A tester's sign-off carries forward to the next version, unless the change reaches the code that test covers; then the test is marked "Please test this again". The QA view shows each version's state: <strong>In build</strong>, <strong>In UAT</strong>, <strong>In production</strong>, or <strong>Superseded</strong>. See <a href="testing-qa.html">Automated tests (QA)</a>.</p><footer style="margin-top:3em;color:#57606a;font-size:.8rem;border-top:1px solid #d0d7de;padding-top:.6em">wxKanban 1.5.371 · built 2026-11-09</footer></main>
+</div>
+<script>
+function flt(){var v=document.getElementById('q').value.toLowerCase();
+document.querySelectorAll('.sidebar a[data-t]').forEach(function(a){
+a.style.display=a.getAttribute('data-t').indexOf(v)>-1?'block':'none';});}
+</script></body></html>

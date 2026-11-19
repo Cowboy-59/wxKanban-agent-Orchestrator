@@ -1,0 +1,4 @@
+-- 0000_baseline: empty baseline snapshot.
+-- The tables captured in meta/0000_snapshot.json were already present in the
+-- live DB when drizzle-kit tracking began. No DDL is executed for this entry;
+-- it exists so drizzle's journal has an SQL file to hash against.

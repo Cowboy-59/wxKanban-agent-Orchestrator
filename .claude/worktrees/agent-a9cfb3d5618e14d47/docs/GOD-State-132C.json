@@ -1,0 +1,117 @@
+{
+  "mode": "new-project",
+  "note": "Existing-project amendment run: G.O.D. drives /implement for SCOPE-132 Amendment C (SPEC-148) only. No --create, so every gate goes to Andy and G.O.D. runs no git. G.O.D. has no amendment mode yet (feedback e04c7ed1).",
+  "customer": "wxKanban",
+  "level": "senior",
+  "buildFor": "internal",
+  "limit": 1,
+  "phase": "implement",
+  "position": {
+    "planPhase": 1,
+    "unit": "SPEC-148",
+    "gate": "implement T012-T014 — new files written and tested (26 tests); waiting on Andy: Change Impact approval for agent-mode.ts, bridge.ts, main.ts"
+  },
+  "nextAction": "Continue /implement 148 at T012 (bridge triggers, sink gate, one-run lock, TRIAGE command), then T013, T014, T015, T016. T011 runner is apps/remote-bridge/src/triage-run.ts: runTriage({repoRoot, trigger, mcpUrl, mcpToken, notify, fingerprint?}) returns {ok, reportPath, report, blocks} or {ok:false, cause}; it already tells the room on failure. Read only specs/148/{spec,tasks}.md, triage-run.ts, bridge.ts / main.ts / agent-mode.ts, and the designDecisions.",
+  "stageAdvanced": true,
+  "stoppedAt": null,
+  "scopes": [
+    {
+      "key": "SCOPE-132-C",
+      "title": "KAIN Autonomous Driver — Amendment C: project agent triages the feedback queue",
+      "planPhase": 1,
+      "dependsOn": [],
+      "scopeNumber": "132",
+      "scopeFile": "specs/Project-Scope/132-kain-autonomous-driver.md",
+      "validation": {
+        "isValid": true,
+        "score": 100,
+        "grade": "A+",
+        "at": "2026-10-26"
+      },
+      "requirementsReal": true,
+      "specs": [
+        "148"
+      ],
+      "screen": "none",
+      "implement": "running",
+      "tasksDone": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008",
+        "T009",
+        "T010",
+        "T011"
+      ],
+      "tasksOpen": [
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016"
+      ],
+      "testPlan": null,
+      "helper": null
+    }
+  ],
+  "designDecisions": [
+    "T001: code trace recorded in specs/148/tests.md; the LIVE project-agent token call is the first step of T016 (Andy, 2026-10-26).",
+    "Messages: Andy chose 'Prefix with the report' — triaged and all three resolved templates open with: Your report \"<title>\" (<ref>): …  (spec FR-009/FR-010 and SCOPE-132 FR-050/FR-051 updated; reportLead() in mcp-server/src/utils/feedback-status.ts).",
+    "T002: McpScope gained optional tokenName (auth middleware only); via = statusChangeVia(tokenName). Status update + companyauditlogs row in sink.raw.transaction; audit company = caller's company (as SPEC-147).",
+    "T006: SINK_PROJECT_ID exported from src/server/services/FeedbackTriageService.ts and reused by the settings route.",
+    "T010: triage-hook.ts — reads stay INSIDE the repo (narrower than the spec's 'any path except secrets', deliberately); Grep must name a non-root folder because .wxai/project.json is TRACKED; rg hidden/ignore-lifting flags and --pre refused; git limited to log/show/diff without -c/--output/--no-index.",
+    "T011 design (follow it): the session writes its report to docs/triage/.pending-<runId>.md (path given in the prompt); on success the bridge validates it, inserts the FR-003 fingerprint line, and renames it to BUG-Triage-YYYY-MM-DD[-N].md; on failure it deletes the pending file (no partial report). The MCP server for the session is named 'wxkanban' so tool names are mcp__wxkanban__project_*; hook registered with NO matcher. Model: opus (heavy); log one line via _wxAI/routing/log.mjs logEvent.",
+    "T014 design (follow it): the agent ends its report with one ```json triage-summary block {counts, severity, top[≤5]{severity,members,key,label}, changes}; the bridge builds the room post ONLY from that block, replacing any label over 8 words or equal to a listed report title (the bridge has the titles from the T013 list calls) with the group key.",
+    "After bridge edits: npm run build in wxkanban-agent (stale dist/remote-bridge.cjs shadows source).",
+    "T011 built: isolated session (settingSources [], strictMcpConfig, persistSession false, only the wxkanban http MCP server with the bound token), systemPrompt preset claude_code + the agent body; bridge stamps the real hook-block count and the T013 fingerprint line under the title; stale .pending-*.md cleared at run start; report must have the Feedback Triage title and a parseable triage-summary block or the run fails. Routing log is fail-open. extractTriageSummary() is exported for T014.",
+    "T012-T014 built: mcp-token.ts (McpTokenHolder, 15 min margin, 3 h before a run), triage-schedule.ts (1-min wall-clock tick; catch-up only from 06:00; TRIAGE answered when busy), triage-fingerprint.ts (list_my_feedback has no updatedAt: fp1 hash of ids+answer flag per status/list, taken AFTER the run; spec FR-003 clarified), triage-summary.ts (labels give way to the key if >8 words, odd chars, or inside/containing any title; null titles = keys only). triage-run fingerprint may be a function. Tests: tests/unit/triage-schedule.test.ts."
+  ],
+  "pendingOutsideCode": [
+    "Re-push specs/148 spec.md to the DB (wording change) and SCOPE-132 doc via push-scope-doc.ts — dbpush only with --dry-run first; never an unrecognised flag."
+  ],
+  "approvals": "Change Impact approvals recorded for the T002-T007 server/Cockpit edits under Andy's 'yes' (batch) and 'approved' (FeedbackTriageService.ts, feedback.ts, kitUpdate.ts).",
+  "outOfRun": [
+    "SPEC-145 T011 (docs) and T012 (live acceptance) — left separate by Andy, 2026-10-26",
+    "SPEC-144 — built and released (653585dd, Cockpit 0.2.45 / kit 1.7.84) but all 15 DB tasks still open; reconcile separately"
+  ],
+  "checkpoints": [
+    {
+      "id": "CP4",
+      "at": "2026-10-26T14:40:00Z"
+    },
+    {
+      "id": "CP5a",
+      "at": "2026-10-26T15:12:00Z",
+      "note": "T001-T010 done; ~/.claude/agents/feedback-triage.md deleted with Andy OK"
+    },
+    {
+      "id": "CP5b",
+      "at": "2026-10-26T15:42:00Z",
+      "note": "T011 done; 21 runner tests; dist rebuilt"
+    },
+    {
+      "id": "CP6",
+      "at": "2026-10-26T22:38:48.963Z",
+      "note": "FR-016 spec+scope written; T012-T014 new files + tests green; boundary edits pending"
+    }
+  ],
+  "openQuestion": {
+    "task": "T012",
+    "question": "The bound MCP token lives 12 h (AgentConnectService MCP_TOKEN_TTL_MS) and each new mint revokes the previous one. A 06:00 run on a bridge started yesterday would use an expired token; T013 fingerprint calls need it too. Same latent gap for recordOverride (SPEC-134). Recommended: one token holder in the bridge that re-calls POST /api/project-agent/room when the held token is within 15 min of expiry, shared by recordOverride and triage; add as SPEC-148 FR-016 + SCOPE-132 FR-057 before building.",
+    "askedAt": "2026-10-26",
+    "answer": "Andy 2026-10-26: \"it should be automatic\" — token holder taken as SPEC-148 FR-016 / SCOPE-132 FR-057 (written)",
+    "answeredAt": "2026-10-26"
+  },
+  "commits": [
+    {
+      "unit": "SPEC-148 T001-T011",
+      "sha": "10aa67a3",
+      "at": "2026-10-26T17:45:00Z",
+      "by": "Andy asked: commit"
+    }
+  ]
+}

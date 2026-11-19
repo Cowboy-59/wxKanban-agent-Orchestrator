@@ -1,0 +1,83 @@
+<mjml>
+  <mj-head>
+    <mj-title>Welcome to wxKanban!</mj-title>
+    <mj-font name="Inter" href="https://fonts.googleapis.com/css?family=Inter:400,600,700" />
+    <mj-attributes>
+      <mj-all font-family="Inter, Helvetica, Arial, sans-serif" />
+      <mj-text font-size="16px" line-height="24px" color="#1e293b" />
+      <mj-button background-color="#3b82f6" color="#ffffff" font-size="16px" font-weight="600" border-radius="8px" padding="16px 32px" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f1f5f9">
+    <mj-section padding="40px 20px">
+      <mj-column>
+        <mj-image src="https://wxkanban.com/logo.png" alt="wxKanban" width="200px" align="center" />
+      </mj-column>
+    </mj-section>
+    
+    <mj-section background-color="#ffffff" border-radius="12px" padding="40px 30px">
+      <mj-column>
+        <mj-text font-size="28px" font-weight="700" color="#0f172a" align="center" padding-bottom="20px">
+          Welcome to wxKanban! 🎉
+        </mj-text>
+        
+        <mj-text padding-bottom="20px">
+          Hi {{firstName}},
+        </mj-text>
+        
+        <mj-text padding-bottom="20px">
+          Your email has been verified and your wxKanban account is now active. We're excited to have you on board!
+        </mj-text>
+        
+        <mj-text font-size="20px" font-weight="600" color="#0f172a" padding-top="20px" padding-bottom="10px">
+          Quick Start Guide
+        </mj-text>
+        
+        <mj-text padding-bottom="10px">
+          1. <strong>Explore your dashboard</strong> - Get an overview of your projects and tasks
+        </mj-text>
+        
+        <mj-text padding-bottom="10px">
+          2. <strong>Invite your team</strong> - Add team members to collaborate on projects
+        </mj-text>
+        
+        <mj-text padding-bottom="10px">
+          3. <strong>Create your first project</strong> - Start organizing your work with our Kanban boards
+        </mj-text>
+        
+        <mj-text padding-bottom="10px">
+          4. <strong>Connect PM systems</strong> - Integrate with Monday.com, Jira, or other tools
+        </mj-text>
+        
+        <mj-button href="{{dashboardLink}}" padding="30px 0">
+          Go to Dashboard
+        </mj-button>
+        
+        <mj-divider border-color="#e2e8f0" padding="20px 0" />
+        
+        <mj-text font-size="14px" color="#64748b" padding-bottom="10px">
+          <strong>Need help getting started?</strong>
+        </mj-text>
+        
+        <mj-text font-size="14px" color="#64748b" padding-bottom="10px">
+          • Check out our <a href="{{helpLink}}" style="color: #3b82f6;">Help Center</a> for guides and tutorials
+        </mj-text>
+        
+        <mj-text font-size="14px" color="#64748b" padding-bottom="10px">
+          • Contact our support team at <a href="mailto:support@wxkanban.com" style="color: #3b82f6;">support@wxkanban.com</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    
+    <mj-section padding="30px 20px">
+      <mj-column>
+        <mj-text font-size="12px" color="#64748b" align="center">
+          © 2026 wxKanban. All rights reserved.
+        </mj-text>
+        <mj-text font-size="12px" color="#64748b" align="center">
+          You're receiving this because you created an account on wxKanban.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

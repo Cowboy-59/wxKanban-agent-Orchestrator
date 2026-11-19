@@ -1,0 +1,277 @@
+{
+  "name": "wxkanban-dev-cockpit",
+  "displayName": "wxKanban Dev Cockpit",
+  "description": "See the current wxKanban project's remaining work per scope, without leaving the editor.",
+  "version": "0.3.2",
+  "publisher": "wxperts",
+  "icon": "media/wxPerts_icon.png",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cowboy-59/wxKanban.git",
+    "directory": "vscode-extension"
+  },
+  "bugs": {
+    "url": "https://www.wxperts.com"
+  },
+  "homepage": "https://www.wxperts.com",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "wxKanban",
+    "wxperts",
+    "project management",
+    "kanban",
+    "spec-driven"
+  ],
+  "activationEvents": [
+    "workspaceContains:.wxkanban-project.json"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "themes": [
+      {
+        "label": "wxDark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/wxDark-color-theme.json"
+      },
+      {
+        "label": "wxLight",
+        "uiTheme": "vs",
+        "path": "./themes/wxLight-color-theme.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "wxkanban",
+          "title": "wxKanban",
+          "icon": "media/cockpit.svg"
+        }
+      ]
+    },
+    "views": {
+      "wxkanban": [
+        {
+          "id": "wxkanban.cockpit",
+          "name": "Dev Cockpit",
+          "type": "tree"
+        },
+        {
+          "id": "wxkanban.autopilot",
+          "name": "Autopilot",
+          "type": "tree"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "wxkanban.autopilot.refresh",
+        "title": "wxKanban: Refresh Autopilot",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "wxkanban.cockpit.refresh",
+        "title": "wxKanban: Refresh Cockpit",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "wxkanban.cockpit.openSpec",
+        "title": "wxKanban: Open Related Spec / File"
+      },
+      {
+        "command": "wxkanban.cockpit.signIn",
+        "title": "wxKanban: Sign In / Relink Project"
+      },
+      {
+        "command": "wxkanban.cockpit.submitFeedback",
+        "title": "wxKanban: Report a Bug / Suggest a Feature",
+        "icon": "$(comment)"
+      },
+      {
+        "command": "wxkanban.cockpit.myFeedback",
+        "title": "wxKanban: My Feedback"
+      },
+      {
+        "command": "wxkanban.cockpit.checkoutScope",
+        "title": "wxKanban: Check Out Scope",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "wxkanban.cockpit.checkinScope",
+        "title": "wxKanban: Check In Scope",
+        "icon": "$(check)"
+      },
+      {
+        "command": "wxkanban.cockpit.installCommands",
+        "title": "wxKanban: Install Slash Commands (.claude/commands)",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "wxkanban.cockpit.upgradeKit",
+        "title": "wxKanban: Install Kit Update",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "wxkanban.cockpit.recheckKit",
+        "title": "wxKanban: Re-run the Kit Version Check",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "wxkanban.cockpit.installKit",
+        "title": "wxKanban: Install Kit in This Folder",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "wxkanban.cockpit.pushFeedbackToChat",
+        "title": "wxKanban: Push Feedback to Claude Chat",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "wxkanban.cockpit.showFeedbackDetail",
+        "title": "wxKanban: View Feedback Detail",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "wxkanban.cockpit.openChat",
+        "title": "wxKanban: Community Help (live chat)",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "wxkanban.cockpit.openManual",
+        "title": "wxKanban: Open the Manual"
+      },
+      {
+        "command": "wxkanban.cockpit.toggleTheme",
+        "title": "wxKanban: Toggle Recording Theme (wxLight / wxDark)"
+      },
+      {
+        "command": "wxkanban.cockpit.startProjectAgent",
+        "title": "wxKanban: Start Project Agent"
+      },
+      {
+        "command": "wxkanban.cockpit.stopProjectAgent",
+        "title": "wxKanban: Stop Project Agent"
+      },
+      {
+        "command": "wxkanban.cockpit.showProjectAgentOutput",
+        "title": "wxKanban: Show Project Agent Output"
+      },
+      {
+        "command": "wxkanban.impact.showPanel",
+        "title": "Show Change Impact",
+        "category": "wxKanban"
+      },
+      {
+        "command": "wxkanban.impact.installHook",
+        "title": "Install the Change Impact hook for Claude Code",
+        "category": "wxKanban"
+      },
+      {
+        "command": "wxkanban.impact.uninstallHook",
+        "title": "Remove the Change Impact hook for Claude Code",
+        "category": "wxKanban"
+      }
+    ],
+    "configuration": {
+      "title": "wxKanban Dev Cockpit",
+      "properties": {
+        "wxkanban.cockpit.apiUrl": {
+          "type": "string",
+          "default": "https://wxkanban.wxperts.com",
+          "markdownDescription": "Base URL of the wxKanban **application** server used to download the kit. This is not the MCP host. Overridden by the `WXKANBAN_API_URL` environment variable when set."
+        },
+        "wxkanban.projectAgent.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Start this project's **project agent** (the remote) automatically when VS Code opens a wxKanban project — **only where the project allows remote** (a company ADMIN or the project's TEAM_MANAGER turns on **Allow remote** in the project's Kit tab). The agent joins the project's YappChatt room and takes direction from KAIN. Turn this off to never start it automatically; you can always start it with **wxKanban: Start Project Agent**."
+        },
+        "wxkanban.projectAgent.readyTimeoutSeconds": {
+          "type": "number",
+          "default": 90,
+          "minimum": 10,
+          "markdownDescription": "How long to wait for the project agent to report that it is connected before the Cockpit shows **Remote: failed** with the reason."
+        },
+        "wxkanban.projectAgent.shareStatus": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Share this project's session summary, last entry, and blockers with K.A.I.N. devices that reach this project. Off hides that content but the connection/liveness state is always visible."
+        }
+      }
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "wxkanban.cockpit.openChat",
+          "when": "view == wxkanban.cockpit",
+          "group": "navigation"
+        },
+        {
+          "command": "wxkanban.cockpit.submitFeedback",
+          "when": "view == wxkanban.cockpit",
+          "group": "navigation"
+        },
+        {
+          "command": "wxkanban.cockpit.refresh",
+          "when": "view == wxkanban.cockpit",
+          "group": "navigation"
+        },
+        {
+          "command": "wxkanban.autopilot.refresh",
+          "when": "view == wxkanban.autopilot",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "wxkanban.cockpit.openSpec",
+          "when": "view == wxkanban.cockpit && viewItem =~ /^wxkanban\\.scope/",
+          "group": "inline"
+        },
+        {
+          "command": "wxkanban.cockpit.checkoutScope",
+          "when": "view == wxkanban.cockpit && (viewItem == wxkanban.scope.free || viewItem == wxkanban.scope.held)",
+          "group": "1_wxkanban@1"
+        },
+        {
+          "command": "wxkanban.cockpit.checkinScope",
+          "when": "view == wxkanban.cockpit && (viewItem == wxkanban.scope.mine || viewItem == wxkanban.scope.held)",
+          "group": "1_wxkanban@2"
+        },
+        {
+          "command": "wxkanban.cockpit.pushFeedbackToChat",
+          "when": "view == wxkanban.cockpit && viewItem == wxkanban.feedback",
+          "group": "inline"
+        },
+        {
+          "command": "wxkanban.cockpit.showFeedbackDetail",
+          "when": "view == wxkanban.cockpit && viewItem == wxkanban.feedback",
+          "group": "1_wxkanban@1"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "package": "node esbuild.mjs && vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@types/ws": "^8.18.1",
+    "@vscode/vsce": "^2.32.0",
+    "esbuild": "^0.21.5",
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.0"
+  }
+}

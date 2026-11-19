@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Help & plan features — wxKanban Manual</title>
+<style>
+:root { --accent: #2563eb; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color: #1f2328; line-height: 1.6; margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1,h2,h3 { line-height: 1.25; }
+h1 { font-size: 1.9rem; border-bottom: 2px solid var(--accent); padding-bottom: .3em; }
+h2 { font-size: 1.35rem; margin-top: 1.8em; }
+img { max-width: 100%; border: 1px solid #d0d7de; border-radius: 6px; margin: .5em 0; }
+code { background: #f6f8fa; padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th,td { border: 1px solid #d0d7de; padding: .5em .7em; text-align: left; vertical-align: top; }
+th { background: #f6f8fa; }
+.layout { display: flex; align-items: flex-start; }
+.sidebar { width: 250px; min-width: 250px; padding: 1.2em; border-right: 1px solid #d0d7de;
+  height: 100vh; position: sticky; top: 0; overflow-y: auto; background: #fafbfc; }
+.sidebar h3 { margin: 0 0 .3em; font-size: .8rem; text-transform: uppercase; color: #57606a; }
+.sidebar a { display: block; padding: .25em 0; color: #1f2328; }
+.sidebar a.active { color: var(--accent); font-weight: 600; }
+.content { padding: 2em 3em; max-width: 900px; }
+.brand { font-weight: 700; font-size: 1.1rem; margin-bottom: 1em; color: var(--accent); }
+.search { width: 100%; padding: .5em; margin-bottom: 1em; border: 1px solid #d0d7de; border-radius: 6px; }
+.card { border: 1px solid #d0d7de; border-radius: 8px; padding: 1em 1.2em; margin: .6em 0; }
+.card a { font-weight: 600; font-size: 1.1rem; }
+@media print { .sidebar, .search { display: none; } }
+</style></head>
+<body><div class="layout">
+<nav class="sidebar">
+<div class="brand"><a href="index.html">wxKanban Manual</a></div>
+<input class="search" id="q" placeholder="Search…" onkeyup="flt()">
+<h3>Sections</h3>
+<a data-t="part 1 — getting started" href="part-getting-started.html">Part 1 — Getting Started</a>
+<a data-t="getting started" href="getting-started.html">Getting Started</a>
+<a data-t="part 2 — the process" href="part-the-process.html">Part 2 — The Process</a>
+<a data-t="the road at a glance" href="process-overview.html">The road at a glance</a>
+<a data-t="scopes and specs" href="process-scopes-specs.html">Scopes and specs</a>
+<a data-t="design" href="process-design.html">Design</a>
+<a data-t="decision memory: the ledger and the ask gate" href="process-decision-memory.html">Decision memory: the ledger and the Ask Gate</a>
+<a data-t="implementation" href="process-implementation.html">Implementation</a>
+<a data-t="qa" href="process-qa.html">QA</a>
+<a data-t="human testing" href="process-human-testing.html">Human Testing</a>
+<a data-t="beta" href="process-beta.html">Beta</a>
+<a data-t="release" href="process-release.html">Release</a>
+<a data-t="converting an existing app" href="process-conversions.html">Converting an existing app</a>
+<a data-t="when something goes wrong" href="process-when-things-go-wrong.html">When something goes wrong</a>
+<a data-t="who does what" href="process-who-does-what.html">Who does what</a>
+<a data-t="part 3 — the web app" href="part-web-app.html">Part 3 — The Web App</a>
+<a data-t="signing in" href="login.html">Signing in</a>
+<a data-t="the dashboard" href="dashboard.html">The Dashboard</a>
+<a data-t="projects" href="projects.html">Projects</a>
+<a data-t="inside a project" href="project-detail.html">Inside a project</a>
+<a data-t="my tasks" href="tasks.html">My Tasks</a>
+<a data-t="automated tests (qa)" href="testing-qa.html">Automated tests (QA)</a>
+<a data-t="user tests" href="testing-user.html">User tests</a>
+<a data-t="work hub" href="work-hub.html">Work Hub</a>
+<a data-t="faq" href="faq.html">FAQ</a>
+<a class="active" data-t="help & plan features" href="help.html">Help & plan features</a>
+<a data-t="settings" href="settings.html">Settings</a>
+<a data-t="team members" href="team.html">Team Members</a>
+<a data-t="team chat (yappchatt)" href="team-chat.html">Team chat (YappChatt)</a>
+<a data-t="signing k.a.i.n. in" href="kain-signin.html">Signing K.A.I.N. in</a>
+<a data-t="pm integrations" href="integrations.html">PM Integrations</a>
+<a data-t="invoices" href="invoices.html">Invoices</a>
+<a data-t="reports" href="reports.html">Reports</a>
+<a data-t="stack profiles" href="stack-profiles.html">Stack Profiles</a>
+<a data-t="theme profiles" href="theme-profiles.html">Theme Profiles</a>
+<a data-t="part 4 — the dev cockpit" href="part-dev-cockpit.html">Part 4 — The Dev Cockpit</a>
+<a data-t="installing and linking the cockpit" href="cockpit-install.html">Installing and linking the Cockpit</a>
+<a data-t="the cockpit at a glance" href="cockpit-at-a-glance.html">The Cockpit at a glance</a>
+<a data-t="system health" href="cockpit-system-health.html">System Health</a>
+<a data-t="scopes" href="cockpit-scopes.html">Scopes</a>
+<a data-t="development plan" href="cockpit-dev-plan.html">Development Plan</a>
+<a data-t="git" href="cockpit-git.html">Git</a>
+<a data-t="kit updates" href="cockpit-kit-updates.html">Kit updates</a>
+<a data-t="change impact" href="cockpit-change-impact.html">Change Impact</a>
+<a data-t="feedback" href="cockpit-feedback.html">Feedback</a>
+<a data-t="help inside the cockpit" href="cockpit-help.html">Help inside the Cockpit</a>
+<a data-t="part 5 — command reference" href="part-command-reference.html">Part 5 — Command Reference</a>
+<a data-t="commands by stage" href="commands-by-stage.html">Commands by stage</a>
+<a data-t="commands by where they run" href="commands-by-where.html">Commands by where they run</a>
+<a data-t="commands a–z" href="commands-a-z.html">Commands A–Z</a>
+<a data-t="/ai-session" href="cmd-aisession.html">/ai-session</a>
+<a data-t="/analyzecode" href="cmd-analyzecode.html">/analyzecode</a>
+<a data-t="/analyzescope" href="cmd-analyzescope.html">/analyzescope</a>
+<a data-t="/autofix-tests" href="cmd-autofixtests.html">/autofix-tests</a>
+<a data-t="/buildscope" href="cmd-buildscope.html">/buildscope</a>
+<a data-t="/buildstack" href="cmd-buildstack.html">/buildstack</a>
+<a data-t="wxkanban-agent archive:files" href="cmd-cli-archive-files.html">wxkanban-agent archive:files</a>
+<a data-t="wxkanban-agent auditfences" href="cmd-cli-auditfences.html">wxkanban-agent auditfences</a>
+<a data-t="wxkanban-agent kit:configure" href="cmd-cli-kit-configure.html">wxkanban-agent kit:configure</a>
+<a data-t="wxkanban-agent kit:status" href="cmd-cli-kit-status.html">wxkanban-agent kit:status</a>
+<a data-t="wxkanban-agent scaffold:frontend" href="cmd-cli-scaffold-frontend.html">wxkanban-agent scaffold:frontend</a>
+<a data-t="refresh autopilot" href="cmd-cockpit-wxkanbanautopilotrefresh.html">Refresh Autopilot</a>
+<a data-t="check in scope" href="cmd-cockpit-wxkanbancockpitcheckinscope.html">Check In Scope</a>
+<a data-t="check out scope" href="cmd-cockpit-wxkanbancockpitcheckoutscope.html">Check Out Scope</a>
+<a data-t="install slash commands (.claude/commands)" href="cmd-cockpit-wxkanbancockpitinstallcommands.html">Install Slash Commands (.claude/commands)</a>
+<a data-t="install kit in this folder" href="cmd-cockpit-wxkanbancockpitinstallkit.html">Install Kit in This Folder</a>
+<a data-t="my feedback" href="cmd-cockpit-wxkanbancockpitmyfeedback.html">My Feedback</a>
+<a data-t="community help (live chat)" href="cmd-cockpit-wxkanbancockpitopenchat.html">Community Help (live chat)</a>
+<a data-t="open the manual" href="cmd-cockpit-wxkanbancockpitopenmanual.html">Open the Manual</a>
+<a data-t="open related spec / file" href="cmd-cockpit-wxkanbancockpitopenspec.html">Open Related Spec / File</a>
+<a data-t="push feedback to claude chat" href="cmd-cockpit-wxkanbancockpitpushfeedbacktochat.html">Push Feedback to Claude Chat</a>
+<a data-t="re-run the kit version check" href="cmd-cockpit-wxkanbancockpitrecheckkit.html">Re-run the Kit Version Check</a>
+<a data-t="refresh cockpit" href="cmd-cockpit-wxkanbancockpitrefresh.html">Refresh Cockpit</a>
+<a data-t="view feedback detail" href="cmd-cockpit-wxkanbancockpitshowfeedbackdetail.html">View Feedback Detail</a>
+<a data-t="show project agent output" href="cmd-cockpit-wxkanbancockpitshowprojectagentoutput.html">Show Project Agent Output</a>
+<a data-t="sign in / relink project" href="cmd-cockpit-wxkanbancockpitsignin.html">Sign In / Relink Project</a>
+<a data-t="start project agent" href="cmd-cockpit-wxkanbancockpitstartprojectagent.html">Start Project Agent</a>
+<a data-t="stop project agent" href="cmd-cockpit-wxkanbancockpitstopprojectagent.html">Stop Project Agent</a>
+<a data-t="report a bug / suggest a feature" href="cmd-cockpit-wxkanbancockpitsubmitfeedback.html">Report a Bug / Suggest a Feature</a>
+<a data-t="toggle recording theme (wxlight / wxdark)" href="cmd-cockpit-wxkanbancockpittoggletheme.html">Toggle Recording Theme (wxLight / wxDark)</a>
+<a data-t="install kit update" href="cmd-cockpit-wxkanbancockpitupgradekit.html">Install Kit Update</a>
+<a data-t="install the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactinstallhook.html">Install the Change Impact hook for Claude Code</a>
+<a data-t="show change impact" href="cmd-cockpit-wxkanbanimpactshowpanel.html">Show Change Impact</a>
+<a data-t="remove the change impact hook for claude code" href="cmd-cockpit-wxkanbanimpactuninstallhook.html">Remove the Change Impact hook for Claude Code</a>
+<a data-t="/compliance-scan" href="cmd-compliancescan.html">/compliance-scan</a>
+<a data-t="/consultant-hub" href="cmd-consultanthub.html">/consultant-hub</a>
+<a data-t="/createspecs" href="cmd-createspecs.html">/createSpecs</a>
+<a data-t="/cwconversion" href="cmd-cwconversion.html">/cwConversion</a>
+<a data-t="/cwconversionscope" href="cmd-cwconversionscope.html">/cwConversionScope</a>
+<a data-t="/dbpush" href="cmd-dbpush.html">/dbpush</a>
+<a data-t="/implement" href="cmd-implement.html">/implement</a>
+<a data-t="/pretest" href="cmd-pretest.html">/preTest</a>
+<a data-t="/remote" href="cmd-remote.html">/remote</a>
+<a data-t="/rescue-tokens" href="cmd-rescuetokens.html">/rescue-tokens</a>
+<a data-t="/research" href="cmd-research.html">/research</a>
+<a data-t="/scope-flow-map" href="cmd-scopeflowmap.html">/scope-flow-map</a>
+<a data-t="/test-sweep" href="cmd-testsweep.html">/test-sweep</a>
+<a data-t="/track-time" href="cmd-tracktime.html">/track-time</a>
+<a data-t="/validatescope" href="cmd-validatescope.html">/validateScope</a>
+<a data-t="/vbconversion" href="cmd-vbconversion.html">/vbConversion</a>
+<a data-t="/vbconversionscope" href="cmd-vbconversionscope.html">/vbConversionScope</a>
+<a data-t="/watermark" href="cmd-watermark.html">/watermark</a>
+<a data-t="/web-artifacts-builder" href="cmd-webartifactsbuilder.html">/web-artifacts-builder</a>
+<a data-t="/wxai-project-init" href="cmd-wxaiprojectinit.html">/wxAI-project-init</a>
+<a data-t="/wxbrainstorm" href="cmd-wxbrainstorm.html">/wxBrainstorm</a>
+<a data-t="/wxbrand" href="cmd-wxbrand.html">/wxBrand</a>
+<a data-t="/wxconversion" href="cmd-wxconversion.html">/wxConversion</a>
+<a data-t="/wxconversionparity" href="cmd-wxconversionparity.html">/wxConversionParity</a>
+<a data-t="/wxconversionscope" href="cmd-wxconversionscope.html">/wxConversionScope</a>
+<a data-t="/wxcreatetestplan" href="cmd-wxcreatetestplan.html">/wxCreateTestPlan</a>
+<a data-t="/wxdbanalyze" href="cmd-wxdbanalyze.html">/wxDBAnalyze</a>
+<a data-t="/wxdesigner" href="cmd-wxdesigner.html">/wxDesigner</a>
+<a data-t="/wxg-o-d" href="cmd-wxgod.html">/wxG-O-D</a>
+<a data-t="/wxhelpgenerate" href="cmd-wxhelpgenerate.html">/wxHelpGenerate</a>
+<a data-t="/wxledger" href="cmd-wxledger.html">/wxLedger</a>
+<a data-t="/wxuiuxcodereview" href="cmd-wxuiuxcodereview.html">/wxUIUXCodeReview</a>
+<a data-t="appendix" href="part-appendix.html">Appendix</a>
+<a data-t="glossary" href="glossary.html">Glossary</a>
+<a data-t="troubleshooting" href="troubleshooting.html">Troubleshooting</a>
+<a data-t="where to get help" href="get-help.html">Where to get help</a>
+<h3>Reference</h3>
+<a data-t="fields index" href="fields-index.html">A–Z field index</a>
+</nav>
+<main class="content"><h1 id="help-plan-features">Help &amp; plan features</h1>
+<p>The Help page is a complete, area-by-area reference to what every part of wxKanban does — and, crucially, <strong>which plan includes it</strong>. Come here to understand a feature before using it, or to see what you'd gain by upgrading. It's available on every plan (the life-buoy icon in the sidebar). For short answers to specific questions, use the <a href="faq.html">FAQ</a>.</p>
+<h2 id="what-youre-looking-at">What you're looking at</h2>
+<p>At the top are the four <strong>public plans</strong> as selectable cards — <strong>Single User</strong> ($19.95/mo), <strong>Small/Medium Business</strong> ($29.95/mo), <strong>Consultant</strong> ($39.95/mo), and <strong>Enterprise</strong> ($59.95/mo) — each with its price and headline limit (users). Your current plan is marked <strong>YOUR PLAN</strong> and selected by default. A legend shows the two states: 🟢 <strong>Included</strong> and 🟠 <strong>Upgrade required</strong>.</p>
+<p>Below, features are grouped by area — <strong>Core Workspace</strong>, <strong>Development Lifecycle</strong>, and more — with one card per feature. Each card names the feature, explains what it does, gives a short <strong>How to:</strong> tip, and shows whether it's <strong>Included</strong> or <strong>Upgrade required</strong> for the plan selected at the top.</p>
+<h2 id="comparing-plans">Comparing plans</h2>
+<p>Click a different plan card at the top and every feature card updates its <strong>Included / Upgrade required</strong> badge to reflect that plan. This is the fastest way to answer "what would I get on Consultant?" — for example, <strong>Time Tracking &amp; Billing, Invoices, and Reports</strong> are included from the <strong>Consultant</strong> plan up, which is why they show a padlock on Small Business.</p>
+<h2 id="feature-areas-youll-find-here">Feature areas you'll find here</h2>
+<ul>
+<li><strong>Core Workspace</strong> — <a href="dashboard.html">Dashboard</a>, <a href="projects.html">Projects</a>, <a href="tasks.html">My Tasks</a>, <a href="settings.html">Settings</a>, <a href="faq.html">FAQ</a>.</li>
+<li><strong>Development Lifecycle</strong> — the 6-phase lifecycle &amp; orchestrator, specs &amp; scopes, audit reports, and related tooling.</li>
+<li>…and further groups covering integrations, billing, and administration.</li>
+</ul>
+<h2 id="common-tasks">Common tasks</h2>
+<ol>
+<li><strong>Learn what a feature does:</strong> find its card and read the description and <strong>How to:</strong> tip.</li>
+<li><strong>See if your plan includes something:</strong> check the badge on its card (your plan is selected by default).</li>
+<li><strong>Compare with another plan:</strong> click that plan's card at the top and watch the badges change.</li>
+</ol>
+<h2 id="fields-and-what-they-show">Fields and what they show</h2>
+<ul>
+<li><strong>Plan cards (Single User / Small-Medium Business / Consultant / Enterprise)</strong> — price, user limit, and which one is <strong>YOUR PLAN</strong>; selecting one sets the comparison.</li>
+<li><strong>Included 🟢 / Upgrade required 🟠</strong> — whether the selected plan includes that feature.</li>
+<li><strong>Feature card</strong> — a description plus a <strong>How to:</strong> tip for each app area.</li>
+</ul><footer style="margin-top:3em;color:#57606a;font-size:.8rem;border-top:1px solid #d0d7de;padding-top:.6em">wxKanban 1.5.371 · built 2026-11-09</footer></main>
+</div>
+<script>
+function flt(){var v=document.getElementById('q').value.toLowerCase();
+document.querySelectorAll('.sidebar a[data-t]').forEach(function(a){
+a.style.display=a.getAttribute('data-t').indexOf(v)>-1?'block':'none';});}
+</script></body></html>

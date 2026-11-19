@@ -1,0 +1,176 @@
+{
+  "mode": "new-project",
+  "note": "Single-scope amendment run: SCOPE-143 Amendment A (bill every AI agent run to whoever has billing). Owner asked 2026-11-02: 'ANY thing that the AI has to do to work with an application from brainstorming, god, buildscope and any other command or subagents running to build need time and billing sent to any application that has billing' and said yes to running it through SPEC-143 with /wxG-O-D. Separate state file so docs/GOD-State.json (SPEC-148 run) is untouched.",
+  "customer": "wxperts (internal)",
+  "level": "senior",
+  "phase": "implement",
+  "scopes": [
+    {
+      "key": "SCOPE-143-A",
+      "title": "Agent Model Routing and Metering - Amendment A (billing capture end to end)",
+      "scopeNumber": "143",
+      "scopeFile": "specs/Project-Scope/143-agent-model-routing-metering.md",
+      "specs": [
+        "143"
+      ],
+      "specFolder": "specs/143-agent-model-routing-metering",
+      "dependsOnOutside": [
+        "SPEC-005 FR-007 AgentRunPullService (built)",
+        "SPEC-005 FR-014 engaged client projects (built)"
+      ],
+      "validation": {
+        "isValid": true,
+        "score": 100,
+        "at": "2026-11-02"
+      },
+      "amendments": [
+        "A (2026-11-02): bill every AI run (FR-017 companyid, FR-018 kit install, FR-003/FR-014 rewired), OmniRoute removed (FR-008, US9 retired; FR-007/009/010 reworded), US11, US12"
+      ]
+    }
+  ],
+  "findings": [
+    "F1 Capture scripts built (commit a7288933): _wxAI/routing/capture-hook.mjs, capture-worker.mjs, log.mjs write decisions/agentrun-log.jsonl; install.mjs registers SubagentStop / PostToolUse(Agent) / Stop hooks. NOT installed in this repo (.claude/settings.json has no routing hook); nothing in the kit setup runs install.mjs, so no consumer app captures either.",
+    "F2 forward.mjs posts the local log to WXAI_AGENTRUNS_URL (POST /api/consultant-hub/agent-runs) with WXAI_AGENTRUNS_TOKEN; nothing calls it and neither env var is set anywhere.",
+    "F3 src/server/routes/agentRuns.ts (POST and GET) exists but is not mounted in src/server/app.ts: the endpoint forward.mjs targets is not live.",
+    "F4 agentruns table is in production (db:drift OK) with 0 rows. It has projectid but no company column, so a consultant's run on an engaged client project cannot be attributed (why SPEC-005 FR-014 excludes engaged projects from the pull).",
+    "F5 SPEC-005 AgentRunPullService turns agentruns into Resource entries, but only when POST /api/time-billing/agent-pull is called for a day; nothing calls it automatically.",
+    "F6 AgentRunBillingService (SPEC-143 FR-014 path) duplicates AgentRunPullService and reads activeminutes while the table has activeseconds (commit a7288933 notes 5 failing tests). Open owner item carried from GOD-State-005A: reconcile it.",
+    "F7 specs/143 tasks.md marks all 22 tasks todo although T001, T004, T007-T016, T019 code shipped in a7288933; the task list is stale. RESOLVED 2026-11-02: tasks.md now T001-T030 (15 done, 3 in_progress, 2 cancelled, 10 todo); dbpush's parser reads exactly 30.",
+    "F8 (kit gap) dbpush --spec 143 also runs the SCOPE-135 scope-document sync over ALL ~125 specs/Project-Scope/*.md: a real run upserts every scope doc and writes a sync marker into every scope file on disk. --spec does not limit it (wxkanban-agent/dbpush.ts ~line 951, core/orchestrator/sync-scope-docs.ts). Dry run 2026-11-02: 1 spec updated, 3 docs, 0 tasks created; T023-T030 need project.create_task (dbpush never creates tasks for an existing spec).",
+    "F9 Scope doc Data Requirements still says decisions/settings.yaml gains allowedProviders: (line ~295) although Amendment A retired it; small wording fix owed in scope + spec. RESOLVED 2026-11-02 on disk (spec.md + scope doc); the scope doc still needs pushing to the hub (push-scope-doc.ts).",
+    "F11 _wxAI/routing/*.mjs (SPEC-143, commit a7288933) carry no code fences: auditfences flags 46 UNFENCED_DECL across policy, tiers, compare, propose, hook-settings-guard, install. Pre-existing fencing debt, not introduced by T029.",
+    "F12 The Change Impact hook does not see writes made by a node script: the T029 tiers.mjs patch was applied that way; checked afterwards with change-impact.mjs --changed (Notify, no boundary). All later edits went through Edit/Write.",
+    "F10 T019: apply-command-tiers.mjs built, --write never run, so no kit command file carries model: (only the wxBrainstorm skill does).",
+    {
+      "id": "F13",
+      "status": "open",
+      "text": "App in-product Time & Billing help (src/shared/help/articles.ts timeTracking) predates SPEC-005: says no page exists; catalog minPlan CONSULTANT vs route guard SMALL_BUSINESS. SPEC-005 help debt."
+    },
+    {
+      "id": "F14",
+      "status": "open",
+      "text": "Consumers run the orchestrator-repo upgrade-kit.mjs; the post-upgrade hook install is done kit-side (routing-hooks-sync.ts from cli --help), not in that script."
+    },
+    {
+      "id": "F15",
+      "status": "info",
+      "text": "Pre-existing unit failures unrelated to this run: companyInvariants, engagementPermissionIsolation (hit prod DB), helpCatalog (missing test-suite guide), scope090 webhook (config process.exit)."
+    }
+  ],
+  "position": {
+    "step": "N8 implement",
+    "gate": "none — code complete; T030 live acceptance after deploy",
+    "task": "T030"
+  },
+  "decisionsNeeded": [],
+  "nextAction": "/implement 143: T019 and T021 to T029 done 2026-11-03 (0075 and 0076 applied and verified by the owner). Committed and pushed with SPEC-005 Amendment D. Left: T030 live acceptance after the App Runner deploy (probe POST /api/consultant-hub/agent-runs with a project token, then the Time & Billing page shows Resource time); T020; push the scope doc with push-scope-doc.ts; a kit release (and VSIX) to ship T025/T026/T019 and _wxAI/routing/README.md to consumers; implement Phases 4 and 5 (advisory review, test plan).",
+  "gateLog": [
+    {
+      "at": "2026-11-03T00:05:39.916Z",
+      "gate": "D1 run boundary",
+      "answer": "billing chain + remove OmniRoute entirely",
+      "source": "owner, verbatim: remove any omniroute"
+    },
+    {
+      "at": "2026-11-03T00:05:39.916Z",
+      "gate": "D2 company attribution",
+      "answer": "server-side from token, validated against billable projects",
+      "source": "owner, verbatim: ok on d2"
+    },
+    {
+      "at": "2026-11-03T00:07:12.645Z",
+      "gate": "D3 forward auth",
+      "answer": "recommendation",
+      "source": "owner, verbatim: yes"
+    },
+    {
+      "at": "2026-11-03T00:07:12.645Z",
+      "gate": "D4 when the pull runs",
+      "answer": "recommendation",
+      "source": "owner, verbatim: yes"
+    },
+    {
+      "at": "2026-11-03T00:07:12.645Z",
+      "gate": "D5 kit ships capture",
+      "answer": "recommendation",
+      "source": "owner, verbatim: yes"
+    },
+    {
+      "at": "2026-11-03T00:07:12.645Z",
+      "gate": "D6 retire AgentRunBillingService",
+      "answer": "recommendation",
+      "source": "owner, verbatim: yes"
+    },
+    {
+      "at": "2026-11-03T00:10:54.197Z",
+      "gate": "forward trigger (not covered by D1-D6)",
+      "answer": "forward.mjs runs from the Stop hook at session end and again at the next session start; unsent records stay in the log and retry",
+      "source": "G.O.D. assumption, low-risk, cost to undo: one hook entry"
+    },
+    {
+      "at": "2026-11-03T00:10:54.197Z",
+      "gate": "scope doc sync",
+      "answer": "pushed with wxkanban-agent/push-scope-doc.ts: HTTP 200, document 138a330a-1566-4bfd-8910-45b5251b5036",
+      "source": "G.O.D."
+    },
+    {
+      "at": "2026-11-03T00:31:00.000Z",
+      "gate": "DQ-A sync path for SPEC-143",
+      "answer": "(a) targeted: upsert_document 'Spec 143: Agent Model Routing and Metering' (doctype specs) ok; 16 tasks -> done, 3 -> in_progress; T023-T030 created on spec a83314d6-6297-421a-b345-4c455a4eecd8; hub shows 13 open, matching tasks.md",
+      "source": "owner, verbatim: A"
+    },
+    {
+      "at": "2026-11-03T00:10:54.197Z",
+      "gate": "/validateScope 143",
+      "answer": "valid, score 100, 0 blocking; warnings: 0 user scenarios parsed (heading contract, pre-existing), integration context not a heading",
+      "source": "project.validatescope (stored copy = just-pushed doc)"
+    },
+    {
+      "at": "2026-11-03",
+      "gate": "Change Impact",
+      "items": 11,
+      "answer": "approved",
+      "note": "T024/T027 edits; 0076 applied by owner (\"migration done\")"
+    },
+    {
+      "at": "2026-11-03",
+      "gate": "Change Impact",
+      "items": 4,
+      "answer": "approved",
+      "note": "timeBilling _res, release secret gate, kit-configure, kit-status"
+    }
+  ],
+  "repairs": [],
+  "preexistingChanges": [
+    "SPEC-005 Amendment D work, uncommitted, waiting on migration 0074 apply: specs/005-Time-and-Billing/spec.md, specs/005-Time-and-Billing/tasks.md, specs/117-production-schema-integrity/schema-change-log.md, src/db/migrations/0074_scope005_time_lines.sql, src/client/components/timeBilling/*, src/client/i18n/locales/*, src/client/pages/admin/TimeBillingPage.tsx, src/server/routes/timeBilling.ts, src/server/services/TimeBilling*.ts, src/shared/types/timeBilling.ts, tests/unit/timeBilling*.test.ts",
+    "E-issues/",
+    "docs/Facebook.pdf",
+    "docs/Facebook2.pdf",
+    "docs/GOD-State-005A.json",
+    "docs/GOD-State-132F.json",
+    "docs/GOD-State-135B.json",
+    "docs/GOD-State.json",
+    "specs/142-decision-memory/evidence/us3-live.ts",
+    "specs/142-decision-memory/evidence/us3-resume.ts"
+  ],
+  "stoppedAt": "2026-11-03T11:20:23.531Z",
+  "pendingOwner": [
+    "Apply migration 0074 (SPEC-005 Amendment D) before that work is committed and pushed",
+    "Apply migration 0075 (src/db/migrations/0075_scope143_agentruns_company.sql) with the owner connection, then run its verify queries; T024 and T027 wait on it"
+  ],
+  "ownerApprovals": [
+    {
+      "at": "2026-11-02",
+      "what": "run SPEC-143 billing capture through /wxG-O-D with a company-attribution amendment",
+      "quote": "yes"
+    }
+  ],
+  "designDecisions": [
+    "D1 (owner, verbatim: \"remove any omniroute\"): run covers the billing chain AND removes OmniRoute entirely — _wxAI/routing/omniroute/, the omniroute route value (policy.mjs, compare.mjs, agentRuns.ts zod enum, agentrun.ts, agentruns.route CHECK), SPEC-143 FR-008 and the OmniRoute parts of FR-007/FR-009, SCOPE-143 doc, tests (omniroute.test.ts, policy/compare cases), contracts. Route is always official.",
+    "D2 (owner, verbatim: \"ok on d2\"): agentruns gains companyid set server-side from the token that sent the run, never trusted from the record; the project must be one the company may bill (own, or engaged client project with a live assignment, as SPEC-005 FR-014). Hand-applied migration.",
+    "D3 (owner, verbatim: \"yes\" to recommendations): forward.mjs authenticates with the existing project API token (SPEC-097, bound to one project); stored per machine, never committed, never shipped in the public kit.",
+    "D4 (owner, \"yes\"): the agent-run pull runs automatically when the Time & Billing page loads its range and when a statement is generated; idempotent via idx_projecttimeentries_agentpull; manual /agent-pull kept; no background scheduler.",
+    "D5 (owner, \"yes\"): kit setup runs _wxAI/routing/install.mjs and asks for the project token so every consumer app records and forwards runs; runs recorded for every project, billed only where the project is Billable.",
+    "D6 (owner, \"yes\"): retire AgentRunBillingService and its failing tests; AgentRunPullService is the only agentruns -> time entry path."
+  ]
+}

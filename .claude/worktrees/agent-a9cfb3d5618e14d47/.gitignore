@@ -1,0 +1,314 @@
+# Sensitive files
+.env
+*.key
+*.pem
+.auth_token
+.mcp.json
+# Credential/session dumps (never commit — rotate if they ever land here)
+cookies.txt
+login.json
+login-test.json
+token_response.json
+
+# Customer data dumps (PII + password hashes + Stripe/card data — NEVER commit)
+marketing/site/email/customer.json
+customer*.json
+**/customer-export*.json
+
+# Large binaries / one-off dumps (keep out of the repo root)
+cloudflared.exe
+*.tgz
+db-query-output.txt
+ts-files.txt
+zip_list.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+/dist/
+/build/
+/out/
+/*.o
+/*.pyc
+/*.class
+
+# Compiled TypeScript artifacts in src/ (should only exist in dist/)
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
+
+# Compiled TypeScript artifacts in wxkanban-agent/ (kit ships .ts; .js/.d.ts
+# are local tsc output and should never be committed)
+wxkanban-agent/**/*.js
+wxkanban-agent/**/*.js.map
+wxkanban-agent/**/*.d.ts
+wxkanban-agent/**/*.d.ts.map
+!wxkanban-agent/**/templates/**
+!wxkanban-agent/**/node_modules/**
+
+# Dependency directories
+/node_modules/
+/vendor/
+
+/# Logs and runtime files
+*.log
+*.tmp
+/logs/
+
+# IDE/Editor folders
+_wxAI-global/plugins/cache/temp*
+server/public
+vite.config.ts.*
+*.tar.gz
+.vscode/*
+# …but share workspace-level config the team should get
+!.vscode/settings.json
+!.vscode/extensions.json
+.claude/master.txt
+.claude/scheduled_tasks.lock
+
+# CPL compiled binaries (built by sync-cpl.sh)
+_cpl/bin/cpl-picker
+_cpl/bin/cpl-close-zed
+
+# Local editor history
+.history/
+
+# Archived scope drafts
+specs/Project-Scope/archive/018/
+
+# Runtime / temp noise
+.mcp-server.pid
+temp_patch_note.txt
+temp_*.txt
+Dockerfile.mcp-test
+
+# Local scope scratch
+specs/Project-Scope/999-test.md
+specs/Project-Scope/1000-time-tracking-for.md
+
+# wxAI cache directories
+_wxAI-global/plugins/cache/
+_wxAI-global/plugins/cache/**
+
+# Terraform — spec 028 infra/ module. Per-developer state + secrets must not be committed.
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/*.tfstate
+infra/*.tfstate.*
+infra/*.tfstate.backup
+infra/terraform.tfvars
+infra/*.auto.tfvars
+infra/*.tfplan
+infra/crash.log
+infra/crash.*.log
+
+# Spec 027 runtime-state files (per-developer transient — recreated on kit:start).
+# Globbed to catch any subdir's .wxai/ (mcp-server, infra, consumer projects).
+**/.wxai/kit-runtime.json
+
+# Customer data dumps & packaged artifacts — never commit (PII / build outputs)
+marketing/site/deploy/lambda/clicks-*.csv
+marketing/site/deploy/lambda/welcome-backfill-*.json
+mailgun-automation.zip
+windev-facebook-outreach.zip
+
+# Build artifacts & dependencies (never commit)
+**/__pycache__/
+shared/watermark/dist/
+shared/watermark/node_modules/
+shared/watermark/tsconfig.tsbuildinfo
+**/*.tsbuildinfo
+# Packaged kit release zips (published via GitHub Releases, not git)
+wxkanban-agent-v*.zip
+# Kit self-update check cache (per-developer runtime state)
+**/.wxai/kit-update-check.json
+# SCOPE-093 token-footprint baseline snapshot (per-developer working artifact)
+.token-footprint-baseline.json
+# docs-workspace generated output — rebuilt from sections/ + inventory.json by
+# tooling/regen.mjs. The shipped copies live in public/ (help.*.html, the
+# conversion-guide PDFs); these are the working-directory originals.
+docs-workspace/screens/
+docs-workspace/site/
+docs-workspace/*.pdf
+# SCOPE-141 Manual build staging: both editions are rebuilt by
+# docs-workspace/tooling/manual/build-manual.mts. The Internal edition never leaves the repo
+# working tree; the Customer edition is published to public/manual/.
+docs-workspace/build/
+
+# Installed agent skills (`npx skills add`) — regenerable from skills-lock.json.
+# The lock file stays tracked; the bulky skill payloads and their Claude Code
+# symlinks do not (mirrors package-lock.json vs node_modules).
+#
+# `.claude/skills/` is MIXED: 25 of its 34 entries are symlinks into `.agents/skills/`
+# carrying absolute machine paths (`/e/AI_Development/...`) — worthless in git and broken
+# on any other clone. The rest are hand-authored PRODUCT skills that ship to customers via
+# the kit (CLAUDE_SKILLS_ALLOWLIST in scripts/sync-to-orchestrator.mjs) and do deserve
+# version history.
+#
+# So this is `/*` + explicit opt-in rather than a blanket directory ignore: a directory
+# excluded with a trailing slash is never descended into, and a negation for anything
+# beneath it cannot re-include it. Ignoring the entries individually keeps negation working.
+# Default is still "not tracked" — add a line below only for a skill that is genuinely
+# product, never for an installed one.
+.agents/
+.claude/skills/*
+!.claude/skills/wxUIUXCodeReview/
+!.claude/skills/wxBrand/
+!.claude/skills/wxG-O-D/
+!.claude/skills/wxBrainstorm/
+# SCOPE-138: wxHelpGenerate is shipped (CLAUDE_SKILLS_ALLOWLIST); without this line its new
+# files (scripts/teach.mjs) were ignored while the force-added older ones stayed tracked.
+!.claude/skills/wxHelpGenerate/
+# Repo-authored dev tooling (not shipped: absent from CLAUDE_SKILLS_ALLOWLIST) — /run-wxkanban
+!.claude/skills/run-wxkanban/
+
+# wxKanban kit — cached signed entitlement token (per-developer; never commit)
+.wxai/.entitlement
+
+# Help-staleness marker written by .husky/pre-push and cleared by /wxRefreshHelp.
+# Per-developer to-do; tracking it would conflict on nearly every push.
+.wxai/help-stale.json
+
+# [SCOPE 137] Change Impact engine output — per-developer, regenerated on every change.
+**/.wxai/impact.json
+**/.wxai/impact-summary.md
+**/.wxai/impact-index/
+**/.wxai/impact-queue.jsonl
+**/.wxai/impact-queue.rejected.jsonl
+# Per-developer, per-session state of the AI-edit hook and unattended runs. An approval or a
+# pending change must never travel in a commit: it would let someone else's edit through.
+**/.wxai/impact-pending.json
+**/.wxai/impact-approvals.json
+**/.wxai/impact-crossings.jsonl
+**/.wxai/impact-crossings.checkpoint
+**/.wxai/impact-unattended.json
+# [SCOPE 137 / T019] The owner-set impactMode as last fetched from wxKanban (a cache).
+**/.wxai/impact-mode.json
+**/.wxai/*.tmp
+
+# Generated report renders — reproducible from the committed .md (docs/db-analysis/README.md)
+docs/db-analysis/*.pdf
+
+# [SCOPE 118] Kit-author drivers. These live inside wxkanban-agent/ for module
+# resolution (the kit is CommonJS, the repo root is ESM) but are author tooling,
+# not consumer kit content. They cannot be committed as-is because they use
+# console.log, which Constitution IV forbids under wxkanban-agent/. Ignoring them
+# keeps them on disk, keeps the kit-sync untracked-guard quiet, and — together
+# with the copyFilter exclusion in scripts/sync-to-orchestrator.mjs — ensures
+# they never reach a public release.
+wxkanban-agent/mkproposal.ts
+wxkanban-agent/run-implement.ts
+
+# Large binary working material — ~30 MB, none of it consumer-facing.
+#
+# The kit ships only wxkanban-agent/, _wxAI/, shared/ and .claude/
+# (scripts/sync-to-orchestrator.mjs KIT_DIRS), so nothing here can reach a kit
+# release. These are local inputs and generated renders, kept on disk and out of
+# git rather than bloating every clone.
+#
+# Numbered marketing renders (01-04): generated output. Reproducible from source
+# — marketing/feature-set.pdf stays TRACKED as the published artifact.
+marketing/[0-9][0-9] *.pdf
+
+# The design-system reference pack is deliberately NOT ignored — it is wxKanban
+# source material (SCOPE-114 / SPEC-115), read by scripts/seed-design-systems.ts,
+# and 100 text files at 1.8 MB. Keeping it in git is what makes a fresh clone able
+# to re-seed the catalog.
+#
+# It must never reach a customer, and that is structural rather than a rule here:
+# the kit ships only wxkanban-agent/, _wxAI/, shared/ and .claude/ (KIT_DIRS in
+# scripts/sync-to-orchestrator.mjs), so nothing under marketing/ can enter a kit
+# release. Do not add marketing/ to KIT_DIRS.
+#
+# Only the zip is ignored — a redundant copy of the tracked directory.
+marketing/AIBM-Design-Systems-Pack.zip
+
+# Third-party WinDev technical documentation used as wxConversion input. Sample
+# customer material, referenced by nothing in the repo.
+resources/HourGlass2025_Documentation.pdf
+
+# [SCOPE 118] Kit-author drivers. These live inside wxkanban-agent/ for module
+# resolution (the kit is CommonJS, the repo root is ESM) but are author tooling,
+# not consumer kit content. They cannot be committed as-is because they use
+# console.log, which Constitution IV forbids under wxkanban-agent/. Ignoring them
+# keeps them on disk, keeps the kit-sync untracked-guard quiet, and — together
+# with the copyFilter exclusion in scripts/sync-to-orchestrator.mjs — ensures
+# they never reach a public release.
+wxkanban-agent/mkproposal.ts
+wxkanban-agent/run-implement.ts
+
+# ─── Local working material: marketing collateral, screen captures, drafts ────
+# Kept on disk, deliberately out of the repo. Listed file-by-file rather than as
+# docs/*.png or docs/*.gif so a future asset that IS meant to ship is not hidden
+# by a pattern nobody remembers writing. docs/ is not mirrored into the kit, so
+# none of this can reach a public release either way.
+Bugs/SKILLcreateTestPlan.md
+Bugs/SKILLuiuxcodereview.md
+Bugs/firma_collaboratori.png
+Bugs/reportHourglass2_EN.pdf
+Bugs/reportTests.md
+docs/Checkinout.gif
+docs/DefectMuiltipler.png
+docs/HITRUST-Change-Record-SCOPE-125.pdf
+docs/Kit.gif
+docs/StackChoice.gif
+docs/applifier.png
+docs/chartperceptiongap.png
+docs/localvsSystem.png
+docs/newProjectEdit.gif
+docs/syncdb-helm-chart-guide.md
+docs/syncdb-kubernetes-developer-guide.md
+docs/themechoice.gif
+docs/wxKanban-Data-Boundary.html
+docs/wxKanban-Data-Boundary.pdf
+docs/wxKanban_Positioning_Brief.pdf
+docs/wxKanban_Positioning_Brief_LinkedIn.txt
+docs/wxKanban_Structure_Is_The_Multiplier.pptx
+
+# Third-party WinDev application used as a conversion subject. 404 files, 5.5 MB,
+# with its own Backup/ and .remember/ logs. It is someone else's source and has no
+# reason to live in this repository's history.
+HFSQL/
+
+# Codeboarding tool droppings: an analysis lock file and wrapper logs.
+.codeboarding/
+
+# Output of the docs/i18n pipeline (extract -> prep -> inject -> render).
+# Regenerated from the .mjs scripts and the source guide; tracking it would version
+# the same content twice.
+docs/i18n/build/
+
+# Dated backups of guide revisions that git already versions.
+docs/archive/
+
+# [SCOPE 134] Agent-mode local state: the agent keeps its own yca_ room token (the
+# server stores none), and the one-agent-per-tree lock. Never commit either.
+**/.wxai/agent-room.json
+**/.wxai/remote-session.lock
+
+# SPEC-149 FR-005: HANDOFF REMOTE summaries and the Project Agent's recorded start refusal.
+# Short-lived, per-developer; never committed, never mirrored into the kit.
+**/.wxai/handoff/
+**/.wxai/project-agent-status.json
+# SPEC-150 FR-014: records that the retired room key notice was shown, so it never repeats.
+**/.wxai/retired-room-keys-notice.json
+
+# Kit update-check stamp (rewritten on every run)
+.last-update-check
+**/.last-update-check
+
+# SPEC-148 FR-015: feedback triage reports hold other companies' report text. Local only:
+# never committed, never mirrored into the kit.
+docs/triage/
+
+# Credential exports. These arrive from the AWS/console download flows with predictable
+# names and land wherever the browser put them; an unignored one is a single `git add -A`
+# away from a public repo. Ignored by shape, not by the one filename that caused the scare.
+*accessKeys*.csv
+*credentials*.csv
+*_accessKeys.csv
+**/andy-cli_accessKeys.csv

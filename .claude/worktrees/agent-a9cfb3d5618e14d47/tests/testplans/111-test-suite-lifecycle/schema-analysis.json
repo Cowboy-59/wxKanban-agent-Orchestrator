@@ -1,0 +1,3515 @@
+{
+  "generatedFor": "src/db/schema",
+  "scanned": {
+    "files": 98,
+    "tables": 100
+  },
+  "referentialIntegrity": {
+    "score": 7.3,
+    "band": "minor gaps",
+    "fkCandidates": 213,
+    "weighted": 171,
+    "components": {
+      "unenforcedFk": 16,
+      "fkNoOnDelete": 2,
+      "fkNoIndex": 121
+    }
+  },
+  "totals": {
+    "findings": 347,
+    "byDimension": {
+      "referentialIntegrity": 18,
+      "fieldMapping": 165,
+      "orphanTables": 7,
+      "missingIndexes": 145,
+      "excessiveIndexes": 12
+    }
+  },
+  "findings": {
+    "referentialIntegrity": [
+      {
+        "table": "appauditconfiguration",
+        "file": "src/db/schema/appauditconfiguration.ts",
+        "line": 18,
+        "severity": "high",
+        "issue": "column 'appid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "campaignposts",
+        "file": "src/db/schema/campaignposts.ts",
+        "line": 39,
+        "severity": "high",
+        "issue": "column 'createdbyid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "campaigns",
+        "file": "src/db/schema/campaigns.ts",
+        "line": 30,
+        "severity": "high",
+        "issue": "column 'createdbyid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "complianceoverride",
+        "file": "src/db/schema/complianceoverride.ts",
+        "line": 35,
+        "severity": "medium",
+        "issue": "FK 'overriddenby' → userprofiles.id has no onDelete rule",
+        "fix": "specify { onDelete: 'cascade' | 'set null' | 'restrict' }"
+      },
+      {
+        "table": "dutyassignment",
+        "file": "src/db/schema/dutyassignment.ts",
+        "line": 30,
+        "severity": "medium",
+        "issue": "FK 'assignedby' → userprofiles.id has no onDelete rule",
+        "fix": "specify { onDelete: 'cascade' | 'set null' | 'restrict' }"
+      },
+      {
+        "table": "feedbacks",
+        "file": "src/db/schema/feedback.ts",
+        "line": 11,
+        "severity": "high",
+        "issue": "column 'linkedspecid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "feedbacksubmissions",
+        "file": "src/db/schema/feedbacksubmissions.ts",
+        "line": 72,
+        "severity": "high",
+        "issue": "column 'dispositionedbyid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "feedbacksubmissions",
+        "file": "src/db/schema/feedbacksubmissions.ts",
+        "line": 86,
+        "severity": "high",
+        "issue": "column 'linkedtaskid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "feedbacksubmissions",
+        "file": "src/db/schema/feedbacksubmissions.ts",
+        "line": 91,
+        "severity": "high",
+        "issue": "column 'dismissedbyid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "marketingassets",
+        "file": "src/db/schema/marketingassets.ts",
+        "line": 39,
+        "severity": "high",
+        "issue": "column 'createdbyid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "marketingbanners",
+        "file": "src/db/schema/marketingbanners.ts",
+        "line": 70,
+        "severity": "high",
+        "issue": "column 'createdbyid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "marketinglinks",
+        "file": "src/db/schema/marketinglinks.ts",
+        "line": 43,
+        "severity": "high",
+        "issue": "column 'createdbyid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "mcprequestaudit",
+        "file": "src/db/schema/mcprequestaudit.ts",
+        "line": 17,
+        "severity": "high",
+        "issue": "column 'requestid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "mcprequestaudit",
+        "file": "src/db/schema/mcprequestaudit.ts",
+        "line": 19,
+        "severity": "high",
+        "issue": "column 'customerid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "mcprequestaudit",
+        "file": "src/db/schema/mcprequestaudit.ts",
+        "line": 20,
+        "severity": "high",
+        "issue": "column 'projectid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "newslettersends",
+        "file": "src/db/schema/newslettersends.ts",
+        "line": 24,
+        "severity": "high",
+        "issue": "column 'contactid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "newslettersends",
+        "file": "src/db/schema/newslettersends.ts",
+        "line": 28,
+        "severity": "high",
+        "issue": "column 'userid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      },
+      {
+        "table": "notifications",
+        "file": "src/db/schema/notification.ts",
+        "line": 22,
+        "severity": "high",
+        "issue": "column 'entityid' looks like a foreign key but has NO .references() — unenforced/implicit FK",
+        "fix": "add .references(() => <parent>.id, { onDelete: ... })"
+      }
+    ],
+    "fieldMapping": [
+      {
+        "table": "aiproposals",
+        "file": "src/db/schema/aiproposal.ts",
+        "line": 7,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "aispecsessions",
+        "file": "src/db/schema/aispecsession.ts",
+        "line": 18,
+        "issue": "advisory: 'specid' is named like a foreign key but is varchar, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "auditexecutions",
+        "file": "src/db/schema/auditexecutions.ts",
+        "line": 28,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "auditreportmetadata",
+        "file": "src/db/schema/auditreportmetadata.ts",
+        "line": 29,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "auditresults",
+        "file": "src/db/schema/auditresults.ts",
+        "line": 18,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 22,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 22,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 22,
+        "issue": "table name contains underscore (convention: concatenated lowercase)"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 23,
+        "issue": "field 'companyId' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 24,
+        "issue": "field 'previousStatus' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 27,
+        "issue": "field 'newStatus' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 28,
+        "issue": "field 'changedAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 30,
+        "issue": "field 'changedBy' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 31,
+        "issue": "field 'changedByType' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 42,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 42,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 42,
+        "issue": "table name contains underscore (convention: concatenated lowercase)"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 43,
+        "issue": "field 'companyId' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 45,
+        "issue": "field 'totalUsers' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 49,
+        "issue": "field 'activeUsers' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 50,
+        "issue": "field 'lastLoginAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 51,
+        "issue": "field 'totalProjects' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 54,
+        "issue": "field 'activeProjects' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 55,
+        "issue": "field 'completedProjects' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 56,
+        "issue": "field 'totalTasks' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 59,
+        "issue": "field 'completedTasks' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 60,
+        "issue": "field 'overdueTasks' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 61,
+        "issue": "field 'totalHoursLogged' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 64,
+        "issue": "field 'billableHours' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 68,
+        "issue": "field 'totalBilled' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 69,
+        "issue": "field 'totalPaid' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 70,
+        "issue": "field 'healthScore' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 73,
+        "issue": "field 'calculatedAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 76,
+        "issue": "field 'periodStart' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 77,
+        "issue": "field 'periodEnd' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 78,
+        "issue": "field 'rawData' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "companyauditlogs",
+        "file": "src/db/schema/companyauditlog.ts",
+        "line": 12,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "companyauditlogs",
+        "file": "src/db/schema/companyauditlog.ts",
+        "line": 12,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "companysubscriptions",
+        "file": "src/db/schema/companysubscription.ts",
+        "line": 14,
+        "issue": "advisory: 'stripesubscriptionid' is named like a foreign key but is text, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "companysubscriptions",
+        "file": "src/db/schema/companysubscription.ts",
+        "line": 16,
+        "issue": "advisory: 'stripecustomerid' is named like a foreign key but is text, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "complianceaudittasks",
+        "file": "src/db/schema/complianceaudittasks.ts",
+        "line": 25,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "complianceflags",
+        "file": "src/db/schema/complianceflag.ts",
+        "line": 11,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "complianceflags",
+        "file": "src/db/schema/complianceflag.ts",
+        "line": 11,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "complianceoverride",
+        "file": "src/db/schema/complianceoverride.ts",
+        "line": 17,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "dutyassignment",
+        "file": "src/db/schema/dutyassignment.ts",
+        "line": 17,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "emailverificationtokens",
+        "file": "src/db/schema/emailverificationtoken.ts",
+        "line": 10,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "engagements",
+        "file": "src/db/schema/engagement.ts",
+        "line": 31,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "engagementassignments",
+        "file": "src/db/schema/engagementassignment.ts",
+        "line": 35,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "engagementassignments",
+        "file": "src/db/schema/engagementassignment.ts",
+        "line": 35,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "engagementassignments",
+        "file": "src/db/schema/engagementassignment.ts",
+        "line": 39,
+        "issue": "advisory: 'scopeid' is named like a foreign key but is varchar, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "engagementinvitations",
+        "file": "src/db/schema/engagementinvitation.ts",
+        "line": 26,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "engagementinvitations",
+        "file": "src/db/schema/engagementinvitation.ts",
+        "line": 26,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "engagementmodifications",
+        "file": "src/db/schema/engagementmodification.ts",
+        "line": 29,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "engagementmodifications",
+        "file": "src/db/schema/engagementmodification.ts",
+        "line": 29,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 24,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 24,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 24,
+        "issue": "table name contains underscore (convention: concatenated lowercase)"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 27,
+        "issue": "field 'workingDirectory' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 29,
+        "issue": "field 'userId' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 32,
+        "issue": "field 'commitHash' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 36,
+        "issue": "field 'exitCode' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 37,
+        "issue": "field 'startTime' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 38,
+        "issue": "field 'endTime' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 39,
+        "issue": "field 'durationMs' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 40,
+        "issue": "field 'remoteUrl' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 42,
+        "issue": "field 'repositoryName' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 44,
+        "issue": "field 'sessionId' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 45,
+        "issue": "field 'parentCommandId' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 46,
+        "issue": "field 'errorMessage' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 49,
+        "issue": "field 'errorStack' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 50,
+        "issue": "field 'createdAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 67,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 67,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 67,
+        "issue": "table name contains underscore (convention: concatenated lowercase)"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 70,
+        "issue": "field 'repositoryName' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 71,
+        "issue": "field 'totalExecutions' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 74,
+        "issue": "field 'successfulExecutions' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 75,
+        "issue": "field 'failedExecutions' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 76,
+        "issue": "field 'avgDurationMs' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 77,
+        "issue": "field 'minDurationMs' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 78,
+        "issue": "field 'maxDurationMs' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 79,
+        "issue": "field 'periodStart' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 82,
+        "issue": "field 'periodEnd' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 83,
+        "issue": "field 'periodType' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 84,
+        "issue": "field 'lastUpdated' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 103,
+        "issue": "PK 'id' is varchar, expected uuid (UUID v7)"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 103,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 103,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 103,
+        "issue": "table name contains underscore (convention: concatenated lowercase)"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 104,
+        "issue": "field 'userId' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 106,
+        "issue": "field 'repositoryPath' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 108,
+        "issue": "field 'startedAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 109,
+        "issue": "field 'lastActivityAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 110,
+        "issue": "field 'isActive' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "importcache",
+        "file": "src/db/schema/importcache.ts",
+        "line": 11,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "importcache",
+        "file": "src/db/schema/importcache.ts",
+        "line": 11,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "infrahealthchecks",
+        "file": "src/db/schema/infrahealthchecks.ts",
+        "line": 17,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "invitationbatches",
+        "file": "src/db/schema/invitationbatch.ts",
+        "line": 31,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "invitationdlqs",
+        "file": "src/db/schema/invitationdlq.ts",
+        "line": 28,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "marketinglinkclicks",
+        "file": "src/db/schema/marketinglinkclicks.ts",
+        "line": 18,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "marketinglinkclicks",
+        "file": "src/db/schema/marketinglinkclicks.ts",
+        "line": 18,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "mcpapitokens",
+        "file": "src/db/schema/mcpapitokens.ts",
+        "line": 13,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "mcpdriftevents",
+        "file": "src/db/schema/mcpdriftevents.ts",
+        "line": 10,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "mcprequestaudit",
+        "file": "src/db/schema/mcprequestaudit.ts",
+        "line": 14,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "newslettersends",
+        "file": "src/db/schema/newslettersends.ts",
+        "line": 17,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "newslettersends",
+        "file": "src/db/schema/newslettersends.ts",
+        "line": 17,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "notifications",
+        "file": "src/db/schema/notification.ts",
+        "line": 12,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "overviewtranscripts",
+        "file": "src/db/schema/overviewtranscripts.ts",
+        "line": 5,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "passwordresettokens",
+        "file": "src/db/schema/passwordresettoken.ts",
+        "line": 4,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "phasetransitionlogs",
+        "file": "src/db/schema/phasetransitionlog.ts",
+        "line": 6,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "projectinvoices",
+        "file": "src/db/schema/projectinvoice.ts",
+        "line": 13,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "projectkitfiles",
+        "file": "src/db/schema/projectkitfile.ts",
+        "line": 11,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "projectphases",
+        "file": "src/db/schema/projectphase.ts",
+        "line": 5,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "projectphases",
+        "file": "src/db/schema/projectphase.ts",
+        "line": 13,
+        "issue": "advisory: 'assigneduserid' is named like a foreign key but is varchar, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "projecttasks",
+        "file": "src/db/schema/projecttask.ts",
+        "line": 30,
+        "issue": "advisory: 'externalid' is named like a foreign key but is varchar, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "projectusers",
+        "file": "src/db/schema/projectuser.ts",
+        "line": 5,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "projectusers",
+        "file": "src/db/schema/projectuser.ts",
+        "line": 5,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "scopeconversations",
+        "file": "src/db/schema/scopeconversation.ts",
+        "line": 5,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "specificationphases",
+        "file": "src/db/schema/specificationphase.ts",
+        "line": 4,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "subassignments",
+        "file": "src/db/schema/subassignment.ts",
+        "line": 27,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "subassignments",
+        "file": "src/db/schema/subassignment.ts",
+        "line": 27,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "subscriptionbillingevents",
+        "file": "src/db/schema/subscriptionbillingevent.ts",
+        "line": 12,
+        "issue": "advisory: 'stripeeventid' is named like a foreign key but is text, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "subscriptionbillinghistory",
+        "file": "src/db/schema/subscriptionbillinghistory.ts",
+        "line": 18,
+        "issue": "advisory: 'referencedocid' is named like a foreign key but is text, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "systemsettings",
+        "file": "src/db/schema/systemSettings.ts",
+        "line": 25,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "systemsettingshistory",
+        "file": "src/db/schema/systemSettings.ts",
+        "line": 41,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "systemsettingshistory",
+        "file": "src/db/schema/systemSettings.ts",
+        "line": 41,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "taskdependencies",
+        "file": "src/db/schema/taskdependency.ts",
+        "line": 5,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "taskfencehistory",
+        "file": "src/db/schema/taskfencehistory.ts",
+        "line": 11,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "taskfencehistory",
+        "file": "src/db/schema/taskfencehistory.ts",
+        "line": 11,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "taskfencemodifications",
+        "file": "src/db/schema/taskfencemodifications.ts",
+        "line": 11,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "taskfenceslegacy",
+        "file": "src/db/schema/taskfenceslegacy.ts",
+        "line": 12,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "taskfenceslegacy",
+        "file": "src/db/schema/taskfenceslegacy.ts",
+        "line": 12,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "taskstateoverrides",
+        "file": "src/db/schema/taskstateoverride.ts",
+        "line": 12,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "testitemsubjects",
+        "file": "src/db/schema/testitemsubjects.ts",
+        "line": 21,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "testitemsubjects",
+        "file": "src/db/schema/testitemsubjects.ts",
+        "line": 41,
+        "issue": "advisory: 'unitid' is named like a foreign key but is varchar, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "testplanitems",
+        "file": "src/db/schema/testplanitems.ts",
+        "line": 78,
+        "issue": "advisory: 'requirementid' is named like a foreign key but is varchar, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "testrunresults",
+        "file": "src/db/schema/testrunresults.ts",
+        "line": 24,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "userinvitations",
+        "file": "src/db/schema/userinvitation.ts",
+        "line": 4,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "userinvitations",
+        "file": "src/db/schema/userinvitation.ts",
+        "line": 4,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "userprofiles",
+        "file": "src/db/schema/userprofiles.ts",
+        "line": 23,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "userprofiles",
+        "file": "src/db/schema/userprofiles.ts",
+        "line": 23,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "userprofiles",
+        "file": "src/db/schema/userprofiles.ts",
+        "line": 24,
+        "issue": "advisory: 'profileid' is named like a foreign key but is bigint, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "userprofiles",
+        "file": "src/db/schema/userprofiles.ts",
+        "line": 39,
+        "issue": "varchar 'responsibility' has no length"
+      },
+      {
+        "table": "userprofiles",
+        "file": "src/db/schema/userprofiles.ts",
+        "line": 56,
+        "issue": "advisory: 'devcycleid' is named like a foreign key but is bigint, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "userprofiles",
+        "file": "src/db/schema/userprofiles.ts",
+        "line": 59,
+        "issue": "advisory: 'clientid' is named like a foreign key but is varchar, not uuid — treated as a text key, not scored against referential integrity"
+      },
+      {
+        "table": "welcomesends",
+        "file": "src/db/schema/welcomesends.ts",
+        "line": 24,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 16,
+        "issue": "missing createdat timestamp"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 16,
+        "issue": "missing updatedat timestamp"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 29,
+        "issue": "field 'contentType' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 33,
+        "issue": "field 'commandAlias' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 41,
+        "issue": "field 'relatedTopics' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 46,
+        "issue": "field 'minAppVersion' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 47,
+        "issue": "field 'maxAppVersion' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 52,
+        "issue": "field 'viewCount' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 55,
+        "issue": "field 'helpfulCount' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 56,
+        "issue": "field 'notHelpfulCount' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 57,
+        "issue": "field 'searchKeywords' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 60,
+        "issue": "field 'isSearchable' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 68,
+        "issue": "field 'createdAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 71,
+        "issue": "field 'updatedAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 72,
+        "issue": "field 'publishedAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 73,
+        "issue": "field 'deprecatedAt' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 74,
+        "issue": "field 'createdBy' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 77,
+        "issue": "field 'updatedBy' violates lowercase/no-underscore convention"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 78,
+        "issue": "field 'reviewedBy' violates lowercase/no-underscore convention"
+      }
+    ],
+    "orphanTables": [
+      {
+        "table": "appauditconfiguration",
+        "file": "src/db/schema/appauditconfiguration.ts",
+        "line": 17,
+        "severity": "low",
+        "issue": "island table: no incoming and no outgoing FK references",
+        "fix": "confirm it is intentionally standalone, else add the missing relationship or retire it"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 24,
+        "severity": "medium",
+        "issue": "island table: no incoming and no outgoing FK references and const not referenced by any other schema file",
+        "fix": "confirm it is intentionally standalone, else add the missing relationship or retire it"
+      },
+      {
+        "table": "git_command_stats",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 67,
+        "severity": "medium",
+        "issue": "island table: no incoming and no outgoing FK references and const not referenced by any other schema file",
+        "fix": "confirm it is intentionally standalone, else add the missing relationship or retire it"
+      },
+      {
+        "table": "git_command_sessions",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 103,
+        "severity": "medium",
+        "issue": "island table: no incoming and no outgoing FK references and const not referenced by any other schema file",
+        "fix": "confirm it is intentionally standalone, else add the missing relationship or retire it"
+      },
+      {
+        "table": "infrahealthchecks",
+        "file": "src/db/schema/infrahealthchecks.ts",
+        "line": 17,
+        "severity": "low",
+        "issue": "island table: no incoming and no outgoing FK references",
+        "fix": "confirm it is intentionally standalone, else add the missing relationship or retire it"
+      },
+      {
+        "table": "marketingfeaturesnippets",
+        "file": "src/db/schema/marketingfeaturesnippets.ts",
+        "line": 19,
+        "severity": "low",
+        "issue": "island table: no incoming and no outgoing FK references",
+        "fix": "confirm it is intentionally standalone, else add the missing relationship or retire it"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 16,
+        "severity": "low",
+        "issue": "island table: no incoming and no outgoing FK references",
+        "fix": "confirm it is intentionally standalone, else add the missing relationship or retire it"
+      }
+    ],
+    "missingIndexes": [
+      {
+        "table": "aiproposals",
+        "file": "src/db/schema/aiproposal.ts",
+        "line": 8,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_aiproposals_userid ON aiproposals(userid);"
+      },
+      {
+        "table": "aiproposals",
+        "file": "src/db/schema/aiproposal.ts",
+        "line": 11,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_aiproposals_projectid ON aiproposals(projectid);"
+      },
+      {
+        "table": "aiproposals",
+        "file": "src/db/schema/aiproposal.ts",
+        "line": 21,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_aiproposals_status ON aiproposals(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "aiproposals",
+        "file": "src/db/schema/aiproposal.ts",
+        "line": 23,
+        "severity": "medium",
+        "issue": "FK 'taskid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_aiproposals_taskid ON aiproposals(taskid);"
+      },
+      {
+        "table": "aispecsessions",
+        "file": "src/db/schema/aispecsession.ts",
+        "line": 19,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_aispecsessions_projectid ON aispecsessions(projectid);"
+      },
+      {
+        "table": "aispecsessions",
+        "file": "src/db/schema/aispecsession.ts",
+        "line": 22,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_aispecsessions_userid ON aispecsessions(userid);"
+      },
+      {
+        "table": "aispecsessions",
+        "file": "src/db/schema/aispecsession.ts",
+        "line": 25,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_aispecsessions_companyid ON aispecsessions(companyid);"
+      },
+      {
+        "table": "aispecsessions",
+        "file": "src/db/schema/aispecsession.ts",
+        "line": 28,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_aispecsessions_status ON aispecsessions(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "auditexecutions",
+        "file": "src/db/schema/auditexecutions.ts",
+        "line": 32,
+        "severity": "medium",
+        "issue": "FK 'triggeredby' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_auditexecutions_triggeredby ON auditexecutions(triggeredby);"
+      },
+      {
+        "table": "auditexecutions",
+        "file": "src/db/schema/auditexecutions.ts",
+        "line": 38,
+        "severity": "medium",
+        "issue": "FK 'specid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_auditexecutions_specid ON auditexecutions(specid);"
+      },
+      {
+        "table": "auditexecutions",
+        "file": "src/db/schema/auditexecutions.ts",
+        "line": 52,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_auditexecutions_status ON auditexecutions(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "auditexecutions",
+        "file": "src/db/schema/auditexecutions.ts",
+        "line": 62,
+        "severity": "medium",
+        "issue": "FK 'reportdocumentid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_auditexecutions_reportdocumentid ON auditexecutions(reportdocumentid);"
+      },
+      {
+        "table": "auditreportmetadata",
+        "file": "src/db/schema/auditreportmetadata.ts",
+        "line": 32,
+        "severity": "medium",
+        "issue": "FK 'documentid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_auditreportmetadata_documentid ON auditreportmetadata(documentid);"
+      },
+      {
+        "table": "auditreportmetadata",
+        "file": "src/db/schema/auditreportmetadata.ts",
+        "line": 37,
+        "severity": "medium",
+        "issue": "FK 'executionid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_auditreportmetadata_executionid ON auditreportmetadata(executionid);"
+      },
+      {
+        "table": "auditreportmetadata",
+        "file": "src/db/schema/auditreportmetadata.ts",
+        "line": 61,
+        "severity": "medium",
+        "issue": "FK 'reviewedby' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_auditreportmetadata_reviewedby ON auditreportmetadata(reviewedby);"
+      },
+      {
+        "table": "auditresults",
+        "file": "src/db/schema/auditresults.ts",
+        "line": 19,
+        "severity": "medium",
+        "issue": "FK 'executionid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_auditresults_executionid ON auditresults(executionid);"
+      },
+      {
+        "table": "auditresults",
+        "file": "src/db/schema/auditresults.ts",
+        "line": 26,
+        "severity": "medium",
+        "issue": "FK 'taskid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_auditresults_taskid ON auditresults(taskid);"
+      },
+      {
+        "table": "campaignposts",
+        "file": "src/db/schema/campaignposts.ts",
+        "line": 23,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_campaignposts_companyid ON campaignposts(companyid);"
+      },
+      {
+        "table": "campaignposts",
+        "file": "src/db/schema/campaignposts.ts",
+        "line": 29,
+        "severity": "medium",
+        "issue": "FK 'assetid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_campaignposts_assetid ON campaignposts(assetid);"
+      },
+      {
+        "table": "campaignposts",
+        "file": "src/db/schema/campaignposts.ts",
+        "line": 34,
+        "severity": "low",
+        "issue": "frequent filter column 'locale' has no index",
+        "fix": "CREATE INDEX idx_campaignposts_locale ON campaignposts(locale);  -- confirm query patterns first"
+      },
+      {
+        "table": "campaigns",
+        "file": "src/db/schema/campaigns.ts",
+        "line": 21,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_campaigns_companyid ON campaigns(companyid);"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 23,
+        "severity": "medium",
+        "issue": "FK 'companyId' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_company_status_history_companyid ON company_status_history(companyId);"
+      },
+      {
+        "table": "company_status_history",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 30,
+        "severity": "medium",
+        "issue": "FK 'changedBy' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_company_status_history_changedby ON company_status_history(changedBy);"
+      },
+      {
+        "table": "company_analytics",
+        "file": "src/db/schema/companyStatus.ts",
+        "line": 43,
+        "severity": "medium",
+        "issue": "FK 'companyId' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_company_analytics_companyid ON company_analytics(companyId);"
+      },
+      {
+        "table": "companyauditlogs",
+        "file": "src/db/schema/companyauditlog.ts",
+        "line": 13,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_companyauditlogs_companyid ON companyauditlogs(companyid);"
+      },
+      {
+        "table": "companyauditlogs",
+        "file": "src/db/schema/companyauditlog.ts",
+        "line": 17,
+        "severity": "medium",
+        "issue": "FK 'changedby' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_companyauditlogs_changedby ON companyauditlogs(changedby);"
+      },
+      {
+        "table": "companyprojects",
+        "file": "src/db/schema/companyproject.ts",
+        "line": 16,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_companyprojects_userid ON companyprojects(userid);"
+      },
+      {
+        "table": "companyprojects",
+        "file": "src/db/schema/companyproject.ts",
+        "line": 19,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_companyprojects_companyid ON companyprojects(companyid);"
+      },
+      {
+        "table": "companyprojects",
+        "file": "src/db/schema/companyproject.ts",
+        "line": 28,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_companyprojects_status ON companyprojects(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "companystackprofiles",
+        "file": "src/db/schema/companystackprofile.ts",
+        "line": 25,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_companystackprofiles_createdbyid ON companystackprofiles(createdbyid);"
+      },
+      {
+        "table": "companysubscriptions",
+        "file": "src/db/schema/companysubscription.ts",
+        "line": 12,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_companysubscriptions_companyid ON companysubscriptions(companyid);"
+      },
+      {
+        "table": "companysubscriptions",
+        "file": "src/db/schema/companysubscription.ts",
+        "line": 22,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_companysubscriptions_status ON companysubscriptions(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "companythemeprofiles",
+        "file": "src/db/schema/companythemeprofile.ts",
+        "line": 27,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_companythemeprofiles_createdbyid ON companythemeprofiles(createdbyid);"
+      },
+      {
+        "table": "complianceaudittasks",
+        "file": "src/db/schema/complianceaudittasks.ts",
+        "line": 26,
+        "severity": "medium",
+        "issue": "FK 'documentid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_complianceaudittasks_documentid ON complianceaudittasks(documentid);"
+      },
+      {
+        "table": "complianceflags",
+        "file": "src/db/schema/complianceflag.ts",
+        "line": 18,
+        "severity": "medium",
+        "issue": "FK 'triggeredbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_complianceflags_triggeredbyid ON complianceflags(triggeredbyid);"
+      },
+      {
+        "table": "complianceoverride",
+        "file": "src/db/schema/complianceoverride.ts",
+        "line": 28,
+        "severity": "medium",
+        "issue": "FK 'teamprojectdutyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_complianceoverride_teamprojectdutyid ON complianceoverride(teamprojectdutyid);"
+      },
+      {
+        "table": "dutyassignment",
+        "file": "src/db/schema/dutyassignment.ts",
+        "line": 26,
+        "severity": "medium",
+        "issue": "FK 'teamprojectdutyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_dutyassignment_teamprojectdutyid ON dutyassignment(teamprojectdutyid);"
+      },
+      {
+        "table": "emailverificationtokens",
+        "file": "src/db/schema/emailverificationtoken.ts",
+        "line": 11,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_emailverificationtokens_userid ON emailverificationtokens(userid);"
+      },
+      {
+        "table": "engagements",
+        "file": "src/db/schema/engagement.ts",
+        "line": 37,
+        "severity": "medium",
+        "issue": "composite FK (invitationid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_engagements_invitationid ON engagements(invitationid);"
+      },
+      {
+        "table": "engagements",
+        "file": "src/db/schema/engagement.ts",
+        "line": 39,
+        "severity": "medium",
+        "issue": "composite FK (createdbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_engagements_createdbyid ON engagements(createdbyid);"
+      },
+      {
+        "table": "engagements",
+        "file": "src/db/schema/engagement.ts",
+        "line": 41,
+        "severity": "medium",
+        "issue": "composite FK (acceptedbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_engagements_acceptedbyid ON engagements(acceptedbyid);"
+      },
+      {
+        "table": "engagements",
+        "file": "src/db/schema/engagement.ts",
+        "line": 45,
+        "severity": "medium",
+        "issue": "composite FK (endedbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_engagements_endedbyid ON engagements(endedbyid);"
+      },
+      {
+        "table": "engagementassignments",
+        "file": "src/db/schema/engagementassignment.ts",
+        "line": 43,
+        "severity": "medium",
+        "issue": "composite FK (addedbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_engagementassignments_addedbyid ON engagementassignments(addedbyid);"
+      },
+      {
+        "table": "engagementassignments",
+        "file": "src/db/schema/engagementassignment.ts",
+        "line": 44,
+        "severity": "medium",
+        "issue": "composite FK (removedbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_engagementassignments_removedbyid ON engagementassignments(removedbyid);"
+      },
+      {
+        "table": "engagementinvitations",
+        "file": "src/db/schema/engagementinvitation.ts",
+        "line": 31,
+        "severity": "medium",
+        "issue": "composite FK (invitedbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_engagementinvitations_invitedbyid ON engagementinvitations(invitedbyid);"
+      },
+      {
+        "table": "engagementmodifications",
+        "file": "src/db/schema/engagementmodification.ts",
+        "line": 36,
+        "severity": "medium",
+        "issue": "composite FK (queuedbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_engagementmodifications_queuedbyid ON engagementmodifications(queuedbyid);"
+      },
+      {
+        "table": "feedbacks",
+        "file": "src/db/schema/feedback.ts",
+        "line": 5,
+        "severity": "medium",
+        "issue": "FK 'phaseid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_feedbacks_phaseid ON feedbacks(phaseid);"
+      },
+      {
+        "table": "feedbacks",
+        "file": "src/db/schema/feedback.ts",
+        "line": 10,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_feedbacks_status ON feedbacks(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "feedbacksubmissions",
+        "file": "src/db/schema/feedbacksubmissions.ts",
+        "line": 33,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_feedbacksubmissions_companyid ON feedbacksubmissions(companyid);"
+      },
+      {
+        "table": "feedbacksubmissions",
+        "file": "src/db/schema/feedbacksubmissions.ts",
+        "line": 43,
+        "severity": "medium",
+        "issue": "FK 'duplicateofid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_feedbacksubmissions_duplicateofid ON feedbacksubmissions(duplicateofid);"
+      },
+      {
+        "table": "importcache",
+        "file": "src/db/schema/importcache.ts",
+        "line": 18,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_importcache_companyid ON importcache(companyid);"
+      },
+      {
+        "table": "marketingassets",
+        "file": "src/db/schema/marketingassets.ts",
+        "line": 24,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_marketingassets_companyid ON marketingassets(companyid);"
+      },
+      {
+        "table": "marketingassets",
+        "file": "src/db/schema/marketingassets.ts",
+        "line": 28,
+        "severity": "low",
+        "issue": "frequent filter column 'locale' has no index",
+        "fix": "CREATE INDEX idx_marketingassets_locale ON marketingassets(locale);  -- confirm query patterns first"
+      },
+      {
+        "table": "marketingbanners",
+        "file": "src/db/schema/marketingbanners.ts",
+        "line": 30,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_marketingbanners_companyid ON marketingbanners(companyid);"
+      },
+      {
+        "table": "marketingbanners",
+        "file": "src/db/schema/marketingbanners.ts",
+        "line": 35,
+        "severity": "medium",
+        "issue": "FK 'linkid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_marketingbanners_linkid ON marketingbanners(linkid);"
+      },
+      {
+        "table": "marketingleads",
+        "file": "src/db/schema/marketingleads.ts",
+        "line": 22,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_marketingleads_companyid ON marketingleads(companyid);"
+      },
+      {
+        "table": "marketingleads",
+        "file": "src/db/schema/marketingleads.ts",
+        "line": 32,
+        "severity": "low",
+        "issue": "frequent filter column 'locale' has no index",
+        "fix": "CREATE INDEX idx_marketingleads_locale ON marketingleads(locale);  -- confirm query patterns first"
+      },
+      {
+        "table": "marketinglinks",
+        "file": "src/db/schema/marketinglinks.ts",
+        "line": 39,
+        "severity": "medium",
+        "issue": "FK 'assetid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_marketinglinks_assetid ON marketinglinks(assetid);"
+      },
+      {
+        "table": "mcpapitokens",
+        "file": "src/db/schema/mcpapitokens.ts",
+        "line": 25,
+        "severity": "medium",
+        "issue": "FK 'issuedbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_mcpapitokens_issuedbyid ON mcpapitokens(issuedbyid);"
+      },
+      {
+        "table": "mcpapitokens",
+        "file": "src/db/schema/mcpapitokens.ts",
+        "line": 33,
+        "severity": "medium",
+        "issue": "FK 'revokedbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_mcpapitokens_revokedbyid ON mcpapitokens(revokedbyid);"
+      },
+      {
+        "table": "mcpdriftevents",
+        "file": "src/db/schema/mcpdriftevents.ts",
+        "line": 11,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_mcpdriftevents_projectid ON mcpdriftevents(projectid);"
+      },
+      {
+        "table": "mcpparityconfig",
+        "file": "src/db/schema/mcpparityconfig.ts",
+        "line": 16,
+        "severity": "medium",
+        "issue": "FK 'rollbackby' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_mcpparityconfig_rollbackby ON mcpparityconfig(rollbackby);"
+      },
+      {
+        "table": "mcpupdateadoptions",
+        "file": "src/db/schema/mcpupdateadoptions.ts",
+        "line": 15,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_mcpupdateadoptions_projectid ON mcpupdateadoptions(projectid);"
+      },
+      {
+        "table": "newsletterissues",
+        "file": "src/db/schema/newsletterissues.ts",
+        "line": 33,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_newsletterissues_createdbyid ON newsletterissues(createdbyid);"
+      },
+      {
+        "table": "newslettersends",
+        "file": "src/db/schema/newslettersends.ts",
+        "line": 30,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_newslettersends_status ON newslettersends(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "notes",
+        "file": "src/db/schema/note.ts",
+        "line": 5,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_notes_projectid ON notes(projectid);"
+      },
+      {
+        "table": "notifications",
+        "file": "src/db/schema/notification.ts",
+        "line": 13,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_notifications_userid ON notifications(userid);"
+      },
+      {
+        "table": "notificationsettings",
+        "file": "src/db/schema/notificationsettings.ts",
+        "line": 5,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_notificationsettings_companyid ON notificationsettings(companyid);"
+      },
+      {
+        "table": "overviewdrafts",
+        "file": "src/db/schema/overviewdrafts.ts",
+        "line": 10,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_overviewdrafts_projectid ON overviewdrafts(projectid);"
+      },
+      {
+        "table": "overviewdrafts",
+        "file": "src/db/schema/overviewdrafts.ts",
+        "line": 13,
+        "severity": "medium",
+        "issue": "FK 'proposalid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_overviewdrafts_proposalid ON overviewdrafts(proposalid);"
+      },
+      {
+        "table": "overviewdrafts",
+        "file": "src/db/schema/overviewdrafts.ts",
+        "line": 17,
+        "severity": "medium",
+        "issue": "FK 'authoruserid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_overviewdrafts_authoruserid ON overviewdrafts(authoruserid);"
+      },
+      {
+        "table": "overviewdrafts",
+        "file": "src/db/schema/overviewdrafts.ts",
+        "line": 23,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_overviewdrafts_companyid ON overviewdrafts(companyid);"
+      },
+      {
+        "table": "overviewdrafts",
+        "file": "src/db/schema/overviewdrafts.ts",
+        "line": 27,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_overviewdrafts_status ON overviewdrafts(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "overviewtranscripts",
+        "file": "src/db/schema/overviewtranscripts.ts",
+        "line": 7,
+        "severity": "medium",
+        "issue": "FK 'overviewdraftid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_overviewtranscripts_overviewdraftid ON overviewtranscripts(overviewdraftid);"
+      },
+      {
+        "table": "passwordresettokens",
+        "file": "src/db/schema/passwordresettoken.ts",
+        "line": 5,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_passwordresettokens_userid ON passwordresettokens(userid);"
+      },
+      {
+        "table": "phasetransitionlogs",
+        "file": "src/db/schema/phasetransitionlog.ts",
+        "line": 7,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_phasetransitionlogs_projectid ON phasetransitionlogs(projectid);"
+      },
+      {
+        "table": "phasetransitionlogs",
+        "file": "src/db/schema/phasetransitionlog.ts",
+        "line": 15,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_phasetransitionlogs_userid ON phasetransitionlogs(userid);"
+      },
+      {
+        "table": "pmsystemconnections",
+        "file": "src/db/schema/pmSystemConnection.ts",
+        "line": 5,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_pmsystemconnections_userid ON pmsystemconnections(userid);"
+      },
+      {
+        "table": "projectdocuments",
+        "file": "src/db/schema/projectdocuments.ts",
+        "line": 23,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectdocuments_projectid ON projectdocuments(projectid);"
+      },
+      {
+        "table": "projectdocuments",
+        "file": "src/db/schema/projectdocuments.ts",
+        "line": 31,
+        "severity": "medium",
+        "issue": "FK 'specid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectdocuments_specid ON projectdocuments(specid);"
+      },
+      {
+        "table": "projectdocuments",
+        "file": "src/db/schema/projectdocuments.ts",
+        "line": 56,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectdocuments_createdbyid ON projectdocuments(createdbyid);"
+      },
+      {
+        "table": "projectinvoices",
+        "file": "src/db/schema/projectinvoice.ts",
+        "line": 14,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectinvoices_projectid ON projectinvoices(projectid);"
+      },
+      {
+        "table": "projectinvoices",
+        "file": "src/db/schema/projectinvoice.ts",
+        "line": 15,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectinvoices_companyid ON projectinvoices(companyid);"
+      },
+      {
+        "table": "projectkits",
+        "file": "src/db/schema/projectkit.ts",
+        "line": 13,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectkits_projectid ON projectkits(projectid);"
+      },
+      {
+        "table": "projectkits",
+        "file": "src/db/schema/projectkit.ts",
+        "line": 16,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_projectkits_status ON projectkits(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "projectkitfiles",
+        "file": "src/db/schema/projectkitfile.ts",
+        "line": 12,
+        "severity": "medium",
+        "issue": "FK 'kitid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectkitfiles_kitid ON projectkitfiles(kitid);"
+      },
+      {
+        "table": "projectphases",
+        "file": "src/db/schema/projectphase.ts",
+        "line": 6,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectphases_projectid ON projectphases(projectid);"
+      },
+      {
+        "table": "projectphases",
+        "file": "src/db/schema/projectphase.ts",
+        "line": 11,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_projectphases_status ON projectphases(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "projectproposals",
+        "file": "src/db/schema/projectproposal.ts",
+        "line": 7,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectproposals_companyid ON projectproposals(companyid);"
+      },
+      {
+        "table": "projectproposals",
+        "file": "src/db/schema/projectproposal.ts",
+        "line": 14,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_projectproposals_status ON projectproposals(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "projectproposals",
+        "file": "src/db/schema/projectproposal.ts",
+        "line": 18,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectproposals_projectid ON projectproposals(projectid);"
+      },
+      {
+        "table": "projectproposals",
+        "file": "src/db/schema/projectproposal.ts",
+        "line": 21,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectproposals_createdbyid ON projectproposals(createdbyid);"
+      },
+      {
+        "table": "projectspecifications",
+        "file": "src/db/schema/projectspecification.ts",
+        "line": 22,
+        "severity": "medium",
+        "issue": "FK 'phaseid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectspecifications_phaseid ON projectspecifications(phaseid);"
+      },
+      {
+        "table": "projectspecifications",
+        "file": "src/db/schema/projectspecification.ts",
+        "line": 34,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_projectspecifications_status ON projectspecifications(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "projectspecifications",
+        "file": "src/db/schema/projectspecification.ts",
+        "line": 37,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectspecifications_createdbyid ON projectspecifications(createdbyid);"
+      },
+      {
+        "table": "projectspecifications",
+        "file": "src/db/schema/projectspecification.ts",
+        "line": 44,
+        "severity": "medium",
+        "issue": "FK 'claimedbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectspecifications_claimedbyid ON projectspecifications(claimedbyid);"
+      },
+      {
+        "table": "projecttasks",
+        "file": "src/db/schema/projecttask.ts",
+        "line": 17,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttasks_projectid ON projecttasks(projectid);"
+      },
+      {
+        "table": "projecttasks",
+        "file": "src/db/schema/projecttask.ts",
+        "line": 20,
+        "severity": "medium",
+        "issue": "FK 'phaseid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttasks_phaseid ON projecttasks(phaseid);"
+      },
+      {
+        "table": "projecttasks",
+        "file": "src/db/schema/projecttask.ts",
+        "line": 22,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttasks_createdbyid ON projecttasks(createdbyid);"
+      },
+      {
+        "table": "projecttasks",
+        "file": "src/db/schema/projecttask.ts",
+        "line": 25,
+        "severity": "medium",
+        "issue": "FK 'assignedtoid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttasks_assignedtoid ON projecttasks(assignedtoid);"
+      },
+      {
+        "table": "projecttasks",
+        "file": "src/db/schema/projecttask.ts",
+        "line": 37,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_projecttasks_status ON projecttasks(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "projecttasks",
+        "file": "src/db/schema/projecttask.ts",
+        "line": 44,
+        "severity": "medium",
+        "issue": "FK 'specid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttasks_specid ON projecttasks(specid);"
+      },
+      {
+        "table": "projectthemes",
+        "file": "src/db/schema/projecttheme.ts",
+        "line": 36,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectthemes_createdbyid ON projectthemes(createdbyid);"
+      },
+      {
+        "table": "projecttimeentries",
+        "file": "src/db/schema/projecttimeentry.ts",
+        "line": 23,
+        "severity": "medium",
+        "issue": "FK 'taskid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttimeentries_taskid ON projecttimeentries(taskid);"
+      },
+      {
+        "table": "projecttimeentries",
+        "file": "src/db/schema/projecttimeentry.ts",
+        "line": 26,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttimeentries_projectid ON projecttimeentries(projectid);"
+      },
+      {
+        "table": "projecttimeentries",
+        "file": "src/db/schema/projecttimeentry.ts",
+        "line": 29,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttimeentries_userid ON projecttimeentries(userid);"
+      },
+      {
+        "table": "projecttimeentries",
+        "file": "src/db/schema/projecttimeentry.ts",
+        "line": 32,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttimeentries_companyid ON projecttimeentries(companyid);"
+      },
+      {
+        "table": "projecttimeentries",
+        "file": "src/db/schema/projecttimeentry.ts",
+        "line": 35,
+        "severity": "medium",
+        "issue": "FK 'phaseid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projecttimeentries_phaseid ON projecttimeentries(phaseid);"
+      },
+      {
+        "table": "projectusers",
+        "file": "src/db/schema/projectuser.ts",
+        "line": 8,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectusers_projectid ON projectusers(projectid);"
+      },
+      {
+        "table": "projectusers",
+        "file": "src/db/schema/projectuser.ts",
+        "line": 11,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_projectusers_userid ON projectusers(userid);"
+      },
+      {
+        "table": "scopeconversations",
+        "file": "src/db/schema/scopeconversation.ts",
+        "line": 6,
+        "severity": "medium",
+        "issue": "FK 'scopeid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_scopeconversations_scopeid ON scopeconversations(scopeid);"
+      },
+      {
+        "table": "sessions",
+        "file": "src/db/schema/session.ts",
+        "line": 5,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_sessions_userid ON sessions(userid);"
+      },
+      {
+        "table": "signupinvitations",
+        "file": "src/db/schema/signupinvitation.ts",
+        "line": 63,
+        "severity": "medium",
+        "issue": "composite FK (invitedbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_signupinvitations_invitedbyid ON signupinvitations(invitedbyid);"
+      },
+      {
+        "table": "signupinvitations",
+        "file": "src/db/schema/signupinvitation.ts",
+        "line": 70,
+        "severity": "medium",
+        "issue": "composite FK (redeemedcompanyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_signupinvitations_redeemedcompanyid ON signupinvitations(redeemedcompanyid);"
+      },
+      {
+        "table": "specificationphases",
+        "file": "src/db/schema/specificationphase.ts",
+        "line": 5,
+        "severity": "medium",
+        "issue": "FK 'specificationid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_specificationphases_specificationid ON specificationphases(specificationid);"
+      },
+      {
+        "table": "subassignments",
+        "file": "src/db/schema/subassignment.ts",
+        "line": 33,
+        "severity": "medium",
+        "issue": "composite FK (assignedbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_subassignments_assignedbyid ON subassignments(assignedbyid);"
+      },
+      {
+        "table": "subassignments",
+        "file": "src/db/schema/subassignment.ts",
+        "line": 35,
+        "severity": "medium",
+        "issue": "composite FK (removedbyid) has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_subassignments_removedbyid ON subassignments(removedbyid);"
+      },
+      {
+        "table": "subscriptionbillingevents",
+        "file": "src/db/schema/subscriptionbillingevent.ts",
+        "line": 7,
+        "severity": "medium",
+        "issue": "FK 'companysubscriptionid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_subscriptionbillingevents_companysubscriptionid ON subscriptionbillingevents(companysubscriptionid);"
+      },
+      {
+        "table": "subscriptionbillinghistory",
+        "file": "src/db/schema/subscriptionbillinghistory.ts",
+        "line": 13,
+        "severity": "medium",
+        "issue": "FK 'companysubscriptionid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_subscriptionbillinghistory_companysubscriptionid ON subscriptionbillinghistory(companysubscriptionid);"
+      },
+      {
+        "table": "systemsettings",
+        "file": "src/db/schema/systemSettings.ts",
+        "line": 31,
+        "severity": "medium",
+        "issue": "FK 'updatedby' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_systemsettings_updatedby ON systemsettings(updatedby);"
+      },
+      {
+        "table": "systemsettingshistory",
+        "file": "src/db/schema/systemSettings.ts",
+        "line": 42,
+        "severity": "medium",
+        "issue": "FK 'settingid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_systemsettingshistory_settingid ON systemsettingshistory(settingid);"
+      },
+      {
+        "table": "systemsettingshistory",
+        "file": "src/db/schema/systemSettings.ts",
+        "line": 48,
+        "severity": "medium",
+        "issue": "FK 'changedby' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_systemsettingshistory_changedby ON systemsettingshistory(changedby);"
+      },
+      {
+        "table": "taskdependencies",
+        "file": "src/db/schema/taskdependency.ts",
+        "line": 8,
+        "severity": "medium",
+        "issue": "FK 'taskid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_taskdependencies_taskid ON taskdependencies(taskid);"
+      },
+      {
+        "table": "taskdependencies",
+        "file": "src/db/schema/taskdependency.ts",
+        "line": 11,
+        "severity": "medium",
+        "issue": "FK 'blockedbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_taskdependencies_blockedbyid ON taskdependencies(blockedbyid);"
+      },
+      {
+        "table": "taskfencehistory",
+        "file": "src/db/schema/taskfencehistory.ts",
+        "line": 16,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_taskfencehistory_projectid ON taskfencehistory(projectid);"
+      },
+      {
+        "table": "taskfencemodifications",
+        "file": "src/db/schema/taskfencemodifications.ts",
+        "line": 15,
+        "severity": "medium",
+        "issue": "FK 'taskfenceid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_taskfencemodifications_taskfenceid ON taskfencemodifications(taskfenceid);"
+      },
+      {
+        "table": "taskfences",
+        "file": "src/db/schema/taskfences.ts",
+        "line": 18,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_taskfences_projectid ON taskfences(projectid);"
+      },
+      {
+        "table": "taskfenceslegacy",
+        "file": "src/db/schema/taskfenceslegacy.ts",
+        "line": 17,
+        "severity": "medium",
+        "issue": "FK 'projectid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_taskfenceslegacy_projectid ON taskfenceslegacy(projectid);"
+      },
+      {
+        "table": "taskstateoverrides",
+        "file": "src/db/schema/taskstateoverride.ts",
+        "line": 18,
+        "severity": "medium",
+        "issue": "FK 'userid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_taskstateoverrides_userid ON taskstateoverrides(userid);"
+      },
+      {
+        "table": "taskstateoverrides",
+        "file": "src/db/schema/taskstateoverride.ts",
+        "line": 21,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_taskstateoverrides_status ON taskstateoverrides(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "tasksyncrecords",
+        "file": "src/db/schema/tasksyncrecord.ts",
+        "line": 17,
+        "severity": "medium",
+        "issue": "FK 'taskid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_tasksyncrecords_taskid ON tasksyncrecords(taskid);"
+      },
+      {
+        "table": "tasksyncrecords",
+        "file": "src/db/schema/tasksyncrecord.ts",
+        "line": 20,
+        "severity": "medium",
+        "issue": "FK 'pmconnectionid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_tasksyncrecords_pmconnectionid ON tasksyncrecords(pmconnectionid);"
+      },
+      {
+        "table": "testplans",
+        "file": "src/db/schema/testPlan.ts",
+        "line": 34,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_testplans_status ON testplans(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "testrunresults",
+        "file": "src/db/schema/testrunresults.ts",
+        "line": 43,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_testrunresults_status ON testrunresults(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "testsignoffs",
+        "file": "src/db/schema/testsignoffs.ts",
+        "line": 59,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_testsignoffs_status ON testsignoffs(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "themeblocks",
+        "file": "src/db/schema/themeblock.ts",
+        "line": 26,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_themeblocks_createdbyid ON themeblocks(createdbyid);"
+      },
+      {
+        "table": "themetemplates",
+        "file": "src/db/schema/themetemplate.ts",
+        "line": 33,
+        "severity": "medium",
+        "issue": "FK 'createdbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_themetemplates_createdbyid ON themetemplates(createdbyid);"
+      },
+      {
+        "table": "userinvitations",
+        "file": "src/db/schema/userinvitation.ts",
+        "line": 5,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_userinvitations_companyid ON userinvitations(companyid);"
+      },
+      {
+        "table": "userinvitations",
+        "file": "src/db/schema/userinvitation.ts",
+        "line": 10,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_userinvitations_status ON userinvitations(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "userprofiles",
+        "file": "src/db/schema/userprofiles.ts",
+        "line": 32,
+        "severity": "medium",
+        "issue": "FK 'companyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_userprofiles_companyid ON userprofiles(companyid);"
+      },
+      {
+        "table": "welcomemessages",
+        "file": "src/db/schema/welcomemessages.ts",
+        "line": 29,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_welcomemessages_status ON welcomemessages(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "welcomemessages",
+        "file": "src/db/schema/welcomemessages.ts",
+        "line": 36,
+        "severity": "medium",
+        "issue": "FK 'updatedbyid' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_welcomemessages_updatedbyid ON welcomemessages(updatedbyid);"
+      },
+      {
+        "table": "wxkanbandocuments",
+        "file": "src/db/schema/wxkanbandocuments.ts",
+        "line": 58,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_wxkanbandocuments_status ON wxkanbandocuments(status);  -- confirm query patterns first"
+      },
+      {
+        "table": "wxkanbandocuments",
+        "file": "src/db/schema/wxkanbandocuments.ts",
+        "line": 62,
+        "severity": "medium",
+        "issue": "FK 'createdby' has no covering index (Postgres does not auto-index FKs)",
+        "fix": "CREATE INDEX idx_wxkanbandocuments_createdby ON wxkanbandocuments(createdby);"
+      },
+      {
+        "table": "wxkanbanhelp",
+        "file": "src/db/schema/wxkanbanhelp.ts",
+        "line": 48,
+        "severity": "low",
+        "issue": "frequent filter column 'status' has no index",
+        "fix": "CREATE INDEX idx_wxkanbanhelp_status ON wxkanbanhelp(status);  -- confirm query patterns first"
+      }
+    ],
+    "excessiveIndexes": [
+      {
+        "table": "engagements",
+        "file": "src/db/schema/engagement.ts",
+        "line": 78,
+        "severity": "low",
+        "issue": "index 'idx_engagements_clientcompanyid' on (clientcompanyid) is a left-prefix of composite 'uk_engagements_open_pair' (clientcompanyid,consultingcompanyid) — likely redundant",
+        "fix": "consider DROP INDEX idx_engagements_clientcompanyid; -- verify no unique/ordering need"
+      },
+      {
+        "table": "engagementmodifications",
+        "file": "src/db/schema/engagementmodification.ts",
+        "line": 52,
+        "severity": "low",
+        "issue": "index 'idx_engagementmodifications_engagementid' on (engagementid) is a left-prefix of composite 'idx_engagementmodifications_pending' (engagementid,appliedat) — likely redundant",
+        "fix": "consider DROP INDEX idx_engagementmodifications_engagementid; -- verify no unique/ordering need"
+      },
+      {
+        "table": "feedbacksubmissions",
+        "file": "src/db/schema/feedbacksubmissions.ts",
+        "line": 97,
+        "severity": "low",
+        "issue": "index 'idx_feedbacksubmissions_projectid' on (projectid) is a left-prefix of composite 'idx_feedbacksubmissions_project_notdismissed' (projectid,dismissedat) — likely redundant",
+        "fix": "consider DROP INDEX idx_feedbacksubmissions_projectid; -- verify no unique/ordering need"
+      },
+      {
+        "table": "git_command_logs",
+        "file": "src/db/schema/gitCommands.ts",
+        "line": 53,
+        "severity": "low",
+        "issue": "index 'idx_git_command_logs_user_id' on (userId) is a left-prefix of composite 'idx_git_command_logs_user_time' (userId,startTime) — likely redundant",
+        "fix": "consider DROP INDEX idx_git_command_logs_user_id; -- verify no unique/ordering need"
+      },
+      {
+        "table": "invitationdlqs",
+        "file": "src/db/schema/invitationdlq.ts",
+        "line": 69,
+        "severity": "low",
+        "issue": "duplicate index 'idx_invitationdlqs_createdat_desc' on (createdat) — same columns as 'idx_invitationdlqs_createdat'",
+        "fix": "DROP INDEX idx_invitationdlqs_createdat_desc; -- confirm idx_scan=0 in pg_stat_user_indexes"
+      },
+      {
+        "table": "subscriptiondutytype",
+        "file": "src/db/schema/subscriptiondutytype.ts",
+        "line": 39,
+        "severity": "low",
+        "issue": "index 'subscriptiondutytype_company_id_idx' on (companyid) is a left-prefix of composite 'subscriptiondutytype_company_duty_unique' (companyid,dutyname) — likely redundant",
+        "fix": "consider DROP INDEX subscriptiondutytype_company_id_idx; -- verify no unique/ordering need"
+      },
+      {
+        "table": "taskfencehistory",
+        "file": "src/db/schema/taskfencehistory.ts",
+        "line": 34,
+        "severity": "low",
+        "issue": "duplicate index 'taskfencehistory_unit_idx' on () — same columns as 'taskfencehistory_projectid_idx'",
+        "fix": "DROP INDEX taskfencehistory_unit_idx; -- confirm idx_scan=0 in pg_stat_user_indexes"
+      },
+      {
+        "table": "taskfencemodifications",
+        "file": "src/db/schema/taskfencemodifications.ts",
+        "line": 32,
+        "severity": "low",
+        "issue": "duplicate index 'taskfencemodifications_chrono_idx' on () — same columns as 'taskfencemodifications_fence_idx'",
+        "fix": "DROP INDEX taskfencemodifications_chrono_idx; -- confirm idx_scan=0 in pg_stat_user_indexes"
+      },
+      {
+        "table": "taskfences",
+        "file": "src/db/schema/taskfences.ts",
+        "line": 44,
+        "severity": "low",
+        "issue": "duplicate index 'taskfences_projectid_idx' on () — same columns as 'taskfences_unique_unit'",
+        "fix": "DROP INDEX taskfences_projectid_idx; -- confirm idx_scan=0 in pg_stat_user_indexes"
+      },
+      {
+        "table": "taskfences",
+        "file": "src/db/schema/taskfences.ts",
+        "line": 46,
+        "severity": "low",
+        "issue": "duplicate index 'taskfences_owner_idx' on () — same columns as 'taskfences_unique_unit'",
+        "fix": "DROP INDEX taskfences_owner_idx; -- confirm idx_scan=0 in pg_stat_user_indexes"
+      },
+      {
+        "table": "taskfenceslegacy",
+        "file": "src/db/schema/taskfenceslegacy.ts",
+        "line": 31,
+        "severity": "low",
+        "issue": "duplicate index 'taskfenceslegacy_projectid_idx' on () — same columns as 'taskfenceslegacy_unique_file'",
+        "fix": "DROP INDEX taskfenceslegacy_projectid_idx; -- confirm idx_scan=0 in pg_stat_user_indexes"
+      },
+      {
+        "table": "teamprojectduty",
+        "file": "src/db/schema/teamprojectduty.ts",
+        "line": 45,
+        "severity": "low",
+        "issue": "index 'teamprojectduty_project_id_idx' on (projectid) is a left-prefix of composite 'teamprojectduty_project_duty_unique' (projectid,dutyname) — likely redundant",
+        "fix": "consider DROP INDEX teamprojectduty_project_id_idx; -- verify no unique/ordering need"
+      }
+    ]
+  },
+  "orphanDataSql": [
+    {
+      "child": "aiproposals",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM aiproposals c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "aiproposals",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM aiproposals c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "aiproposals",
+      "column": "taskid",
+      "parent": "projecttasks",
+      "sql": "SELECT COUNT(*) AS orphans FROM aiproposals c LEFT JOIN projecttasks p ON c.taskid = p.id WHERE c.taskid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "aispecsessions",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM aispecsessions c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "aispecsessions",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM aispecsessions c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "aispecsessions",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM aispecsessions c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "auditexecutions",
+      "column": "triggeredby",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM auditexecutions c LEFT JOIN userprofiles p ON c.triggeredby = p.id WHERE c.triggeredby IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "auditexecutions",
+      "column": "specid",
+      "parent": "projectspecifications",
+      "sql": "SELECT COUNT(*) AS orphans FROM auditexecutions c LEFT JOIN projectspecifications p ON c.specid = p.id WHERE c.specid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "auditexecutions",
+      "column": "reportdocumentid",
+      "parent": "wxkanbandocuments",
+      "sql": "SELECT COUNT(*) AS orphans FROM auditexecutions c LEFT JOIN wxkanbandocuments p ON c.reportdocumentid = p.id WHERE c.reportdocumentid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "auditreportmetadata",
+      "column": "documentid",
+      "parent": "wxkanbandocuments",
+      "sql": "SELECT COUNT(*) AS orphans FROM auditreportmetadata c LEFT JOIN wxkanbandocuments p ON c.documentid = p.id WHERE c.documentid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "auditreportmetadata",
+      "column": "executionid",
+      "parent": "auditexecutions",
+      "sql": "SELECT COUNT(*) AS orphans FROM auditreportmetadata c LEFT JOIN auditexecutions p ON c.executionid = p.id WHERE c.executionid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "auditreportmetadata",
+      "column": "reviewedby",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM auditreportmetadata c LEFT JOIN userprofiles p ON c.reviewedby = p.id WHERE c.reviewedby IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "auditresults",
+      "column": "executionid",
+      "parent": "auditexecutions",
+      "sql": "SELECT COUNT(*) AS orphans FROM auditresults c LEFT JOIN auditexecutions p ON c.executionid = p.id WHERE c.executionid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "auditresults",
+      "column": "taskid",
+      "parent": "complianceaudittasks",
+      "sql": "SELECT COUNT(*) AS orphans FROM auditresults c LEFT JOIN complianceaudittasks p ON c.taskid = p.id WHERE c.taskid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "campaignposts",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM campaignposts c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "campaignposts",
+      "column": "campaignid",
+      "parent": "campaigns",
+      "sql": "SELECT COUNT(*) AS orphans FROM campaignposts c LEFT JOIN campaigns p ON c.campaignid = p.id WHERE c.campaignid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "campaignposts",
+      "column": "assetid",
+      "parent": "marketingassets",
+      "sql": "SELECT COUNT(*) AS orphans FROM campaignposts c LEFT JOIN marketingassets p ON c.assetid = p.id WHERE c.assetid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "campaigns",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM campaigns c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "company_status_history",
+      "column": "companyId",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM company_status_history c LEFT JOIN companies p ON c.companyId = p.id WHERE c.companyId IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "company_status_history",
+      "column": "changedBy",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM company_status_history c LEFT JOIN userprofiles p ON c.changedBy = p.id WHERE c.changedBy IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "company_analytics",
+      "column": "companyId",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM company_analytics c LEFT JOIN companies p ON c.companyId = p.id WHERE c.companyId IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "companyauditlogs",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM companyauditlogs c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "companyauditlogs",
+      "column": "changedby",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM companyauditlogs c LEFT JOIN userprofiles p ON c.changedby = p.id WHERE c.changedby IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "companyprojects",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM companyprojects c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "companyprojects",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM companyprojects c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "companystackprofiles",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM companystackprofiles c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "companystackprofiles",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM companystackprofiles c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "companysubscriptions",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM companysubscriptions c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "companythemeprofiles",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM companythemeprofiles c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "companythemeprofiles",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM companythemeprofiles c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "complianceaudittasks",
+      "column": "documentid",
+      "parent": "wxkanbandocuments",
+      "sql": "SELECT COUNT(*) AS orphans FROM complianceaudittasks c LEFT JOIN wxkanbandocuments p ON c.documentid = p.id WHERE c.documentid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "complianceflags",
+      "column": "taskid",
+      "parent": "projecttasks",
+      "sql": "SELECT COUNT(*) AS orphans FROM complianceflags c LEFT JOIN projecttasks p ON c.taskid = p.id WHERE c.taskid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "complianceflags",
+      "column": "triggeredbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM complianceflags c LEFT JOIN userprofiles p ON c.triggeredbyid = p.id WHERE c.triggeredbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "complianceoverride",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM complianceoverride c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "complianceoverride",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM complianceoverride c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "complianceoverride",
+      "column": "teamprojectdutyid",
+      "parent": "teamprojectduty",
+      "sql": "SELECT COUNT(*) AS orphans FROM complianceoverride c LEFT JOIN teamprojectduty p ON c.teamprojectdutyid = p.teamprojectdutyid WHERE c.teamprojectdutyid IS NOT NULL AND p.teamprojectdutyid IS NULL;"
+    },
+    {
+      "child": "complianceoverride",
+      "column": "overriddenby",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM complianceoverride c LEFT JOIN userprofiles p ON c.overriddenby = p.id WHERE c.overriddenby IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "dutyassignment",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM dutyassignment c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "dutyassignment",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM dutyassignment c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "dutyassignment",
+      "column": "teamprojectdutyid",
+      "parent": "teamprojectduty",
+      "sql": "SELECT COUNT(*) AS orphans FROM dutyassignment c LEFT JOIN teamprojectduty p ON c.teamprojectdutyid = p.teamprojectdutyid WHERE c.teamprojectdutyid IS NOT NULL AND p.teamprojectdutyid IS NULL;"
+    },
+    {
+      "child": "dutyassignment",
+      "column": "assignedby",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM dutyassignment c LEFT JOIN userprofiles p ON c.assignedby = p.id WHERE c.assignedby IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "emailverificationtokens",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM emailverificationtokens c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "feedbacks",
+      "column": "phaseid",
+      "parent": "projectphases",
+      "sql": "SELECT COUNT(*) AS orphans FROM feedbacks c LEFT JOIN projectphases p ON c.phaseid = p.id WHERE c.phaseid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "feedbacksubmissions",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM feedbacksubmissions c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "feedbacksubmissions",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM feedbacksubmissions c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "feedbacksubmissions",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM feedbacksubmissions c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "feedbacksubmissions",
+      "column": "duplicateofid",
+      "parent": "feedbacksubmissions",
+      "sql": "SELECT COUNT(*) AS orphans FROM feedbacksubmissions c LEFT JOIN feedbacksubmissions p ON c.duplicateofid = p.id WHERE c.duplicateofid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "importcache",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM importcache c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketingassets",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketingassets c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketingassets",
+      "column": "campaignid",
+      "parent": "campaigns",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketingassets c LEFT JOIN campaigns p ON c.campaignid = p.id WHERE c.campaignid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketingbanners",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketingbanners c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketingbanners",
+      "column": "campaignid",
+      "parent": "campaigns",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketingbanners c LEFT JOIN campaigns p ON c.campaignid = p.id WHERE c.campaignid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketingbanners",
+      "column": "linkid",
+      "parent": "marketinglinks",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketingbanners c LEFT JOIN marketinglinks p ON c.linkid = p.id WHERE c.linkid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketingleads",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketingleads c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketingleads",
+      "column": "campaignid",
+      "parent": "campaigns",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketingleads c LEFT JOIN campaigns p ON c.campaignid = p.id WHERE c.campaignid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketinglinkclicks",
+      "column": "linkid",
+      "parent": "marketinglinks",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketinglinkclicks c LEFT JOIN marketinglinks p ON c.linkid = p.id WHERE c.linkid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketinglinks",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketinglinks c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketinglinks",
+      "column": "campaignid",
+      "parent": "campaigns",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketinglinks c LEFT JOIN campaigns p ON c.campaignid = p.id WHERE c.campaignid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "marketinglinks",
+      "column": "assetid",
+      "parent": "marketingassets",
+      "sql": "SELECT COUNT(*) AS orphans FROM marketinglinks c LEFT JOIN marketingassets p ON c.assetid = p.id WHERE c.assetid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "mcpapitokens",
+      "column": "customerid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM mcpapitokens c LEFT JOIN companies p ON c.customerid = p.id WHERE c.customerid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "mcpapitokens",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM mcpapitokens c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "mcpapitokens",
+      "column": "issuedbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM mcpapitokens c LEFT JOIN userprofiles p ON c.issuedbyid = p.id WHERE c.issuedbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "mcpapitokens",
+      "column": "revokedbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM mcpapitokens c LEFT JOIN userprofiles p ON c.revokedbyid = p.id WHERE c.revokedbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "mcpdriftevents",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM mcpdriftevents c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "mcpparityconfig",
+      "column": "rollbackby",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM mcpparityconfig c LEFT JOIN userprofiles p ON c.rollbackby = p.id WHERE c.rollbackby IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "mcprequestaudit",
+      "column": "tokenid",
+      "parent": "mcpapitokens",
+      "sql": "SELECT COUNT(*) AS orphans FROM mcprequestaudit c LEFT JOIN mcpapitokens p ON c.tokenid = p.id WHERE c.tokenid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "mcpupdateadoptions",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM mcpupdateadoptions c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "newsletterissues",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM newsletterissues c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "newslettersends",
+      "column": "issueid",
+      "parent": "newsletterissues",
+      "sql": "SELECT COUNT(*) AS orphans FROM newslettersends c LEFT JOIN newsletterissues p ON c.issueid = p.id WHERE c.issueid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "notes",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM notes c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "notifications",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM notifications c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "notificationsettings",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM notificationsettings c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "overviewdrafts",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM overviewdrafts c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "overviewdrafts",
+      "column": "proposalid",
+      "parent": "projectproposals",
+      "sql": "SELECT COUNT(*) AS orphans FROM overviewdrafts c LEFT JOIN projectproposals p ON c.proposalid = p.id WHERE c.proposalid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "overviewdrafts",
+      "column": "authoruserid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM overviewdrafts c LEFT JOIN userprofiles p ON c.authoruserid = p.id WHERE c.authoruserid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "overviewdrafts",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM overviewdrafts c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "overviewtranscripts",
+      "column": "overviewdraftid",
+      "parent": "overviewdrafts",
+      "sql": "SELECT COUNT(*) AS orphans FROM overviewtranscripts c LEFT JOIN overviewdrafts p ON c.overviewdraftid = p.id WHERE c.overviewdraftid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "passwordresettokens",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM passwordresettokens c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "phasetransitionlogs",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM phasetransitionlogs c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "phasetransitionlogs",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM phasetransitionlogs c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "pmsystemconnections",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM pmsystemconnections c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectdocuments",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectdocuments c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectdocuments",
+      "column": "specid",
+      "parent": "projectspecifications",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectdocuments c LEFT JOIN projectspecifications p ON c.specid = p.id WHERE c.specid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectdocuments",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectdocuments c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectinvoices",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectinvoices c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectinvoices",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectinvoices c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectkits",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectkits c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectkitfiles",
+      "column": "kitid",
+      "parent": "projectkits",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectkitfiles c LEFT JOIN projectkits p ON c.kitid = p.id WHERE c.kitid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectphases",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectphases c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectproposals",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectproposals c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectproposals",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectproposals c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectproposals",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectproposals c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectspecifications",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectspecifications c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectspecifications",
+      "column": "phaseid",
+      "parent": "projectphases",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectspecifications c LEFT JOIN projectphases p ON c.phaseid = p.id WHERE c.phaseid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectspecifications",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectspecifications c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectspecifications",
+      "column": "claimedbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectspecifications c LEFT JOIN userprofiles p ON c.claimedbyid = p.id WHERE c.claimedbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttasks",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttasks c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttasks",
+      "column": "phaseid",
+      "parent": "projectphases",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttasks c LEFT JOIN projectphases p ON c.phaseid = p.id WHERE c.phaseid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttasks",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttasks c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttasks",
+      "column": "assignedtoid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttasks c LEFT JOIN userprofiles p ON c.assignedtoid = p.id WHERE c.assignedtoid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttasks",
+      "column": "specid",
+      "parent": "projectspecifications",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttasks c LEFT JOIN projectspecifications p ON c.specid = p.id WHERE c.specid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectthemes",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectthemes c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectthemes",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectthemes c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttimeentries",
+      "column": "taskid",
+      "parent": "projecttasks",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttimeentries c LEFT JOIN projecttasks p ON c.taskid = p.id WHERE c.taskid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttimeentries",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttimeentries c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttimeentries",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttimeentries c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttimeentries",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttimeentries c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttimeentries",
+      "column": "phaseid",
+      "parent": "projectphases",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttimeentries c LEFT JOIN projectphases p ON c.phaseid = p.id WHERE c.phaseid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projecttimeentries",
+      "column": "aispecsessionid",
+      "parent": "aispecsessions",
+      "sql": "SELECT COUNT(*) AS orphans FROM projecttimeentries c LEFT JOIN aispecsessions p ON c.aispecsessionid = p.id WHERE c.aispecsessionid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectusers",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectusers c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "projectusers",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM projectusers c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "scopeconversations",
+      "column": "scopeid",
+      "parent": "projectspecifications",
+      "sql": "SELECT COUNT(*) AS orphans FROM scopeconversations c LEFT JOIN projectspecifications p ON c.scopeid = p.id WHERE c.scopeid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "sessions",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM sessions c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "specificationphases",
+      "column": "specificationid",
+      "parent": "projectspecifications",
+      "sql": "SELECT COUNT(*) AS orphans FROM specificationphases c LEFT JOIN projectspecifications p ON c.specificationid = p.id WHERE c.specificationid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "subscriptionbillingevents",
+      "column": "companysubscriptionid",
+      "parent": "companysubscriptions",
+      "sql": "SELECT COUNT(*) AS orphans FROM subscriptionbillingevents c LEFT JOIN companysubscriptions p ON c.companysubscriptionid = p.id WHERE c.companysubscriptionid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "subscriptionbillinghistory",
+      "column": "companysubscriptionid",
+      "parent": "companysubscriptions",
+      "sql": "SELECT COUNT(*) AS orphans FROM subscriptionbillinghistory c LEFT JOIN companysubscriptions p ON c.companysubscriptionid = p.id WHERE c.companysubscriptionid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "subscriptiondutytype",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM subscriptiondutytype c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "systemsettings",
+      "column": "updatedby",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM systemsettings c LEFT JOIN userprofiles p ON c.updatedby = p.id WHERE c.updatedby IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "systemsettingshistory",
+      "column": "settingid",
+      "parent": "systemsettings",
+      "sql": "SELECT COUNT(*) AS orphans FROM systemsettingshistory c LEFT JOIN systemsettings p ON c.settingid = p.id WHERE c.settingid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "systemsettingshistory",
+      "column": "changedby",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM systemsettingshistory c LEFT JOIN userprofiles p ON c.changedby = p.id WHERE c.changedby IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "taskdependencies",
+      "column": "taskid",
+      "parent": "projecttasks",
+      "sql": "SELECT COUNT(*) AS orphans FROM taskdependencies c LEFT JOIN projecttasks p ON c.taskid = p.id WHERE c.taskid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "taskdependencies",
+      "column": "blockedbyid",
+      "parent": "projecttasks",
+      "sql": "SELECT COUNT(*) AS orphans FROM taskdependencies c LEFT JOIN projecttasks p ON c.blockedbyid = p.id WHERE c.blockedbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "taskfencehistory",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM taskfencehistory c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "taskfencemodifications",
+      "column": "taskfenceid",
+      "parent": "taskfences",
+      "sql": "SELECT COUNT(*) AS orphans FROM taskfencemodifications c LEFT JOIN taskfences p ON c.taskfenceid = p.id WHERE c.taskfenceid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "taskfences",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM taskfences c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "taskfenceslegacy",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM taskfenceslegacy c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "taskstateoverrides",
+      "column": "taskid",
+      "parent": "projecttasks",
+      "sql": "SELECT COUNT(*) AS orphans FROM taskstateoverrides c LEFT JOIN projecttasks p ON c.taskid = p.id WHERE c.taskid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "taskstateoverrides",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM taskstateoverrides c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "tasksyncrecords",
+      "column": "taskid",
+      "parent": "projecttasks",
+      "sql": "SELECT COUNT(*) AS orphans FROM tasksyncrecords c LEFT JOIN projecttasks p ON c.taskid = p.id WHERE c.taskid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "tasksyncrecords",
+      "column": "pmconnectionid",
+      "parent": "pmsystemconnections",
+      "sql": "SELECT COUNT(*) AS orphans FROM tasksyncrecords c LEFT JOIN pmsystemconnections p ON c.pmconnectionid = p.id WHERE c.pmconnectionid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "teamprojectduty",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM teamprojectduty c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testplans",
+      "column": "specid",
+      "parent": "projectspecifications",
+      "sql": "SELECT COUNT(*) AS orphans FROM testplans c LEFT JOIN projectspecifications p ON c.specid = p.id WHERE c.specid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testplans",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM testplans c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testplans",
+      "column": "generatedbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM testplans c LEFT JOIN userprofiles p ON c.generatedbyid = p.id WHERE c.generatedbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testcycles",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM testcycles c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testcycles",
+      "column": "promotedbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM testcycles c LEFT JOIN userprofiles p ON c.promotedbyid = p.id WHERE c.promotedbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testitemsubjects",
+      "column": "itemid",
+      "parent": "testplanitems",
+      "sql": "SELECT COUNT(*) AS orphans FROM testitemsubjects c LEFT JOIN testplanitems p ON c.itemid = p.id WHERE c.itemid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testitemsubjects",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM testitemsubjects c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testplanitems",
+      "column": "testplanid",
+      "parent": "testplans",
+      "sql": "SELECT COUNT(*) AS orphans FROM testplanitems c LEFT JOIN testplans p ON c.testplanid = p.id WHERE c.testplanid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testplanitems",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM testplanitems c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testplanitems",
+      "column": "specid",
+      "parent": "projectspecifications",
+      "sql": "SELECT COUNT(*) AS orphans FROM testplanitems c LEFT JOIN projectspecifications p ON c.specid = p.id WHERE c.specid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testplanitems",
+      "column": "taskid",
+      "parent": "projecttasks",
+      "sql": "SELECT COUNT(*) AS orphans FROM testplanitems c LEFT JOIN projecttasks p ON c.taskid = p.id WHERE c.taskid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testplanitems",
+      "column": "parentitemid",
+      "parent": "testplanitems",
+      "sql": "SELECT COUNT(*) AS orphans FROM testplanitems c LEFT JOIN testplanitems p ON c.parentitemid = p.id WHERE c.parentitemid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testplanitems",
+      "column": "lastrunid",
+      "parent": "testruns",
+      "sql": "SELECT COUNT(*) AS orphans FROM testplanitems c LEFT JOIN testruns p ON c.lastrunid = p.id WHERE c.lastrunid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testretests",
+      "column": "cycleid",
+      "parent": "testcycles",
+      "sql": "SELECT COUNT(*) AS orphans FROM testretests c LEFT JOIN testcycles p ON c.cycleid = p.id WHERE c.cycleid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testretests",
+      "column": "itemid",
+      "parent": "testplanitems",
+      "sql": "SELECT COUNT(*) AS orphans FROM testretests c LEFT JOIN testplanitems p ON c.itemid = p.id WHERE c.itemid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testretests",
+      "column": "reachedsubjectid",
+      "parent": "testitemsubjects",
+      "sql": "SELECT COUNT(*) AS orphans FROM testretests c LEFT JOIN testitemsubjects p ON c.reachedsubjectid = p.id WHERE c.reachedsubjectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testretests",
+      "column": "dismissedbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM testretests c LEFT JOIN userprofiles p ON c.dismissedbyid = p.id WHERE c.dismissedbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testrunresults",
+      "column": "runid",
+      "parent": "testruns",
+      "sql": "SELECT COUNT(*) AS orphans FROM testrunresults c LEFT JOIN testruns p ON c.runid = p.id WHERE c.runid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testrunresults",
+      "column": "itemid",
+      "parent": "testplanitems",
+      "sql": "SELECT COUNT(*) AS orphans FROM testrunresults c LEFT JOIN testplanitems p ON c.itemid = p.id WHERE c.itemid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testrunresults",
+      "column": "cycleid",
+      "parent": "testcycles",
+      "sql": "SELECT COUNT(*) AS orphans FROM testrunresults c LEFT JOIN testcycles p ON c.cycleid = p.id WHERE c.cycleid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testrunresults",
+      "column": "bugreportid",
+      "parent": "feedbacksubmissions",
+      "sql": "SELECT COUNT(*) AS orphans FROM testrunresults c LEFT JOIN feedbacksubmissions p ON c.bugreportid = p.id WHERE c.bugreportid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testruns",
+      "column": "cycleid",
+      "parent": "testcycles",
+      "sql": "SELECT COUNT(*) AS orphans FROM testruns c LEFT JOIN testcycles p ON c.cycleid = p.id WHERE c.cycleid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testruns",
+      "column": "projectid",
+      "parent": "companyprojects",
+      "sql": "SELECT COUNT(*) AS orphans FROM testruns c LEFT JOIN companyprojects p ON c.projectid = p.id WHERE c.projectid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testruns",
+      "column": "testplanid",
+      "parent": "testplans",
+      "sql": "SELECT COUNT(*) AS orphans FROM testruns c LEFT JOIN testplans p ON c.testplanid = p.id WHERE c.testplanid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testruns",
+      "column": "specid",
+      "parent": "projectspecifications",
+      "sql": "SELECT COUNT(*) AS orphans FROM testruns c LEFT JOIN projectspecifications p ON c.specid = p.id WHERE c.specid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testruns",
+      "column": "currentitemid",
+      "parent": "testplanitems",
+      "sql": "SELECT COUNT(*) AS orphans FROM testruns c LEFT JOIN testplanitems p ON c.currentitemid = p.id WHERE c.currentitemid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testruns",
+      "column": "triggeredbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM testruns c LEFT JOIN userprofiles p ON c.triggeredbyid = p.id WHERE c.triggeredbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testsignoffs",
+      "column": "cycleid",
+      "parent": "testcycles",
+      "sql": "SELECT COUNT(*) AS orphans FROM testsignoffs c LEFT JOIN testcycles p ON c.cycleid = p.id WHERE c.cycleid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testsignoffs",
+      "column": "signedbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM testsignoffs c LEFT JOIN userprofiles p ON c.signedbyid = p.id WHERE c.signedbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "testsignoffs",
+      "column": "runid",
+      "parent": "testruns",
+      "sql": "SELECT COUNT(*) AS orphans FROM testsignoffs c LEFT JOIN testruns p ON c.runid = p.id WHERE c.runid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "themeblocks",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM themeblocks c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "themeblocks",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM themeblocks c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "themetemplates",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM themetemplates c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "themetemplates",
+      "column": "createdbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM themetemplates c LEFT JOIN userprofiles p ON c.createdbyid = p.id WHERE c.createdbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "userinvitations",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM userinvitations c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "userprofiles",
+      "column": "companyid",
+      "parent": "companies",
+      "sql": "SELECT COUNT(*) AS orphans FROM userprofiles c LEFT JOIN companies p ON c.companyid = p.id WHERE c.companyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "welcomemessages",
+      "column": "updatedbyid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM welcomemessages c LEFT JOIN userprofiles p ON c.updatedbyid = p.id WHERE c.updatedbyid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "welcomesends",
+      "column": "welcomemessageid",
+      "parent": "welcomemessages",
+      "sql": "SELECT COUNT(*) AS orphans FROM welcomesends c LEFT JOIN welcomemessages p ON c.welcomemessageid = p.id WHERE c.welcomemessageid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "welcomesends",
+      "column": "userid",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM welcomesends c LEFT JOIN userprofiles p ON c.userid = p.id WHERE c.userid IS NOT NULL AND p.id IS NULL;"
+    },
+    {
+      "child": "wxkanbandocuments",
+      "column": "createdby",
+      "parent": "userprofiles",
+      "sql": "SELECT COUNT(*) AS orphans FROM wxkanbandocuments c LEFT JOIN userprofiles p ON c.createdby = p.id WHERE c.createdby IS NOT NULL AND p.id IS NULL;"
+    }
+  ],
+  "liveResults": null
+}

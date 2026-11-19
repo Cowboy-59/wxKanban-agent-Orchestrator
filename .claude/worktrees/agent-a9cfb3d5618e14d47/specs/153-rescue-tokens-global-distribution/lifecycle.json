@@ -1,0 +1,15 @@
+{
+  "specNumber": "153",
+  "featureName": "Rescue-Tokens Global Distribution",
+  "phase": "qa",
+  "priority": "medium",
+  "progress": {
+    "tasksTotal": 8,
+    "tasksCompleted": 8,
+    "percentage": 100
+  },
+  "timeline": {
+    "created": "2026-11-05T00:00:00.000Z",
+    "phaseStarted": "2026-11-05T00:00:00.000Z"
+  }
+}

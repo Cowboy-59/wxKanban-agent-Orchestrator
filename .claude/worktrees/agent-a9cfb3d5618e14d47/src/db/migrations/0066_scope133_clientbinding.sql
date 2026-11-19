@@ -1,0 +1,82 @@
+-- [SCOPE 133 / T001] BEGIN — mcpapitokens.clientbinding, agent identity on a token
+--
+-- ============================================================================
+-- APPLIED BY HAND 2026-09-23. Recorded in
+-- specs/117-production-schema-integrity/schema-change-log.md.
+--
+-- Do NOT run `drizzle-kit push` against this database (SCOPE-117): it reconciles
+-- the database TO the declared schema and would propose dropping the ~19
+-- undeclared-but-live tables, including `marketingcontacts`.
+-- ============================================================================
+--
+-- WHAT THIS IS FOR
+--
+-- SCOPE-131 makes `project.session_start` answer only to a named agent — KAIN
+-- first, ALIS after it. A token carried no notion of WHAT KIND OF CLIENT held it,
+-- so an agent-only restriction was simply unexpressible: the server had exactly one
+-- verified fact about a caller, which project the token belonged to.
+--
+-- `clientbinding` holds `NAME:<sha256-of-token>`, e.g. `KAIN:8ec323c5...`. The gate
+-- rebuilds that string from the agent name the caller supplies and the `tokenhash`
+-- already stored on the row, then compares exact-as-typed.
+--
+-- WHY THE TOKEN HALF IS A HASH, NOT THE TOKEN
+--
+-- `mcpapitokens` today stores only a SHA-256; the raw `Bearer` value never persists.
+-- Writing the token back in plaintext beside its own hash would undo that property
+-- for no gain — the hash is already what the server compares, so the binding needs
+-- nothing more. It is also why the gate never needs the raw token at handler time.
+--
+-- WHY NULLABLE, AND WHY THAT IS LOAD-BEARING
+--
+-- 356 tokens existed when this was applied and none of them is an agent token. They
+-- are the orchestrator kit and the VS Code Cockpit, and they authenticate through
+-- this table on EVERY request. Null means "not an agent", which is the truth for all
+-- of them, and it is what lets SCOPE-131's FR-005 hold: existing tools behave
+-- identically for an unbound token.
+--
+-- NOT NULL without a default would have failed the ALTER outright. NOT NULL *with* a
+-- default would have been worse — it would have silently bound all 356 tokens to a
+-- name none of them owns.
+--
+-- SAFETY
+--
+-- Purely additive: one nullable column, no default, no constraint, no index. The
+-- gate reads it off a row already fetched by the token-hash lookup, so it is never a
+-- search key. ADD COLUMN with a NULL default does not rewrite the table. Idempotent;
+-- re-running is a no-op.
+--
+-- ORDERING — THIS TABLE HAS THE WORST BLAST RADIUS IN THE DATABASE
+--
+-- `mcpapitokens` is the authentication table: every MCP request reads it, and Drizzle
+-- names every declared column in its SELECTs. Declaring `clientbinding` before this
+-- statement is applied does not break one endpoint — it errors EVERY call from EVERY
+-- client, the kit and the Cockpit included, at the next request rather than at deploy
+-- time. Apply first, verify, then declare, in BOTH `src/db/schema/mcpapitokens.ts`
+-- and the `mcp-server/src/db/schema.ts` mirror. Declaring in one only yields a silent
+-- `undefined`, which is exactly how `companyprojects.currentphase` became a hardcoded
+-- literal.
+--
+-- VERIFY (do NOT rely on `npm run db:drift` — it compares TABLES and exits 0 whether
+-- or not this column exists; the same blind spot that hid `projecttimeentries.phaseid`):
+--
+--   select column_name, data_type, character_maximum_length, is_nullable
+--     from information_schema.columns
+--    where table_schema='public' and table_name='mcpapitokens'
+--      and column_name='clientbinding';
+--
+--   -- expect 1 row: character varying, 255, is_nullable = YES
+--
+--   -- and confirm no existing token was bound by accident:
+--   select count(*) - count(clientbinding) as unbound, count(*) as total
+--     from mcpapitokens;
+--   -- expect unbound = total at apply time (356 of 356 on 2026-09-23)
+-- ============================================================================
+
+ALTER TABLE "mcpapitokens"
+  ADD COLUMN IF NOT EXISTS "clientbinding" varchar(255);
+
+COMMENT ON COLUMN "mcpapitokens"."clientbinding" IS
+  'SCOPE-133 T001: agent identity as NAME:<sha256-of-token>, e.g. KAIN:8ec323c5... The token half is the same SHA-256 stored in tokenhash, so no plaintext credential is persisted beside its own hash. NULL means the token is not an agent token and is unaffected by the agent gate — it must stay nullable, or every kit and Cockpit token loses access.';
+
+-- [SCOPE 133 / T001] END

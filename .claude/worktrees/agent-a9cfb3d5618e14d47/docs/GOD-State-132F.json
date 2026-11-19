@@ -1,0 +1,105 @@
+{
+  "mode": "new-project",
+  "note": "Existing-project amendment run: G.O.D. drives SCOPE-132 Amendment F (FR-064 - FR-075, K.A.I.N. sign-in and shared agent reach) through createSpecs -> implement. No --create, so G.O.D. runs no git; Change Impact approvals are Andy's. Gates are answered from the approved scope (Andy, 2026-10-28: 'cut the crap and do it'). Own state file so GOD-State.json (SPEC-148) and GOD-State-135B.json are not overwritten. G.O.D. has no amendment mode yet (feedback e04c7ed1).",
+  "customer": "wxKanban",
+  "level": "senior",
+  "buildFor": "internal",
+  "limit": 1,
+  "phase": "implement",
+  "position": {
+    "planPhase": 1,
+    "unit": "SPEC-152",
+    "gate": "SHIPPED 2026-10-30: commit 504f03da + bump b0a6f9c8 (app 1.5.356), pushed by Andy's paste; app + MCP deploy SUCCEEDED and live-probed (bundle 1.5.356, /api/agent/signin 400/401, /api/agent/devices 401, MCP restarted 11:50Z, list_agent_connections ok). Test plan FILED (plan 25a7065e, 80 items; docs 510fa06e + fa126d17; task af903276); CRUD target = throwaway clone (Andy). Next: SpokAI SCOPE-002 Amendment A release -> T013 by hand -> /wxRefreshHelp; then review #5/#6 spec-first + 6 UI fixes (awaiting Andy)."
+  },
+  "nextAction": "UPDATED 2026-10-30 07:00 - see position.gate; items (1) filed, (2) not a blocker (all 8 files drifted at HEAD before SPEC-152; CI fence gate advisory), (4) app+MCP shipped. Original 2026-10-29 text follows. Saved 2026-10-29 16:25. Waiting on Andy: (1) file the Option A test plan (80 items, drafts in specs/152-kain-signin-agent-reach/testplan-draft/amendment-f, untracked, delete after filing; correct rate-limit items to 30/IP + 10/email per 15 min, 429 too_many_attempts, retryAfter 900) and name the CRUD target (suggested: clone-test-schema.mjs disposable clone); (2) auditfences legacy-baseline errors in rateLimit.ts, userService.ts, auth.ts, SysAdminUserService.ts: re-baseline or fence, before push; (3) open review items #5 (device revoke leaves yca_ room token + MCP tokens live) and #6 (no company active/subscription check on device tokens), spec first, plus 6 UI should-fix items; (4) release (Andy runs git): app+MCP together with SpokAI SCOPE-002 Amendment A, then T013 by hand, then /wxRefreshHelp. Recommended order: 2, 4, then 1 and 3. Phase 5b seed not done.",
+  "stageAdvanced": false,
+  "stoppedAt": null,
+  "scopes": [
+    {
+      "key": "SCOPE-132-F",
+      "title": "KAIN Autonomous Driver - Amendment F: K.A.I.N. signs in as the person; reach follows the company relationship",
+      "planPhase": 1,
+      "dependsOn": [],
+      "scopeNumber": "132",
+      "scopeFile": "specs/Project-Scope/132-kain-autonomous-driver.md",
+      "source": "docs/brainstorms/2026-10-28-consultant-company-connection-to-projects.md",
+      "validation": {
+        "isValid": true,
+        "score": 100,
+        "warnings": [
+          "0 user scenarios found - pre-existing; S-n format not matched by SCENARIO_HEADING"
+        ]
+      },
+      "specs": [
+        "152"
+      ],
+      "implement": "pending"
+    }
+  ],
+  "designDecisions": [
+    "Reach = own company (ADMIN all; others projectusers or in-progress phase lead; showAll ignored) + SCOPE-144 D2 consulting rule, whole-Project assignments only, active engagements only, Allow remote on, not archived.",
+    "Device token: no fixed expiry; ends on revoke (owner or company ADMIN), password change/reset, person deactivated or removed.",
+    "MFA out of scope; recorded as SOC 2 CC6.1 known gap.",
+    "Amendment letter F; E stays reserved for SpokAI's room protocol.",
+    "Ships whole; FR-075 tests 1, 3, 6 block release."
+  ],
+  "gateLog": [
+    {
+      "at": "2026-10-28",
+      "gate": "buildscope Change Impact (SCOPE-132)",
+      "answer": "approve",
+      "source": "Andy's words, recorded via scope-impact.mjs --record"
+    },
+    {
+      "at": "2026-10-28",
+      "gate": "buildscope hand-written amendment",
+      "answer": "approved",
+      "source": "edit parser rejects bold-paragraph FRs (completeness.ts FR_HEADING); Andy: 'do it'"
+    },
+    {
+      "at": "2026-10-28",
+      "gate": "createSpecs spec number",
+      "answer": "152",
+      "source": "DB max 150 + SPEC-151 on disk"
+    },
+    {
+      "at": "2026-10-28",
+      "gate": "OQ-1 MCP token tenancy",
+      "answer": "customerid = Project company; issuedbyid = person",
+      "source": "research.md"
+    },
+    {
+      "at": "2026-10-28",
+      "gate": "Impact: schema index + MCP mirror (T003)",
+      "answer": "approve",
+      "source": "Andy: go ahead"
+    },
+    {
+      "at": "2026-10-28",
+      "gate": "Impact: 8 edits T005/T006 (AgentConnectService, agentConnect route, auth.ts, SysAdminUserService)",
+      "answer": "approve",
+      "source": "Andy: go ahead; 3 re-hashed as earlier rows applied, recorded with the same words"
+    },
+    {
+      "at": "2026-10-28",
+      "gate": "Impact: 16 edits T007/T008/T009/T010",
+      "answer": "approve",
+      "source": "Andy: yes; re-hashed edits recorded with the same word"
+    },
+    {
+      "at": "2026-10-29",
+      "gate": "implement Phase 4 review fixes 1-4 + Change Impact",
+      "answer": "approved",
+      "source": "Andy: \"fix items 1-4 and use option A\", then \"approved\""
+    }
+  ],
+  "repairs": [
+    {
+      "at": "2026-10-28",
+      "command": "project.buildscope edit",
+      "failure": "Cannot add a FR: no FR items exist - FR_HEADING requires markdown heading FRs; SCOPE-132 uses bold-paragraph FRs",
+      "repair": "Amendment F hand-written in the file's own format, validated with runPreflight"
+    }
+  ],
+  "preexistingChanges": "see git status at session start (CONTEXT.md, decisions/ledger.yaml, registry.ts, sync-to-orchestrator.mjs, 019 scope, docs moves, many untracked) - never committed by this run"
+}

@@ -1,0 +1,15 @@
+{
+  "specNumber": "083",
+  "featureName": "Kit auto-update — notify + confirm-apply at session start",
+  "phase": "implementation",
+  "priority": "medium",
+  "progress": {
+    "tasksTotal": 5,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-07-01T12:53:22.480Z",
+    "phaseStarted": "2026-07-01T12:53:22.480Z"
+  }
+}

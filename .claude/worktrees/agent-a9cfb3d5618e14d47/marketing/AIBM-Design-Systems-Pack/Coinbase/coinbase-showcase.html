@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Coinbase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#0052ff;
+    --primary-active:#0667d0;
+    --cta-bg:#0052ff;
+    --on-primary:#ffffff;
+    --dark:#0a0b0d;
+    --canvas:#ffffff;
+    --canvas-soft:#eef0f3;
+    --surface:#ffffff;
+    --surface-alt:#eef0f3;
+    --ink:#0a0b0d;
+    --ink-secondary:#5b616e;
+    --ink-faint:rgba(91,97,110,0.66);
+    --ink-placeholder:rgba(91,97,110,0.6);
+    --hairline:rgba(91,97,110,0.2);
+    --hairline-soft:rgba(91,97,110,0.12);
+    --r-xs:4px;--r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:24px;--r-xxl:40px;--r-full:9999px;
+    --e1:0 8px 12px rgba(0,0,0,0.12);
+    --e2:0 0 18px rgba(0,0,0,0.20);
+    --font:'Inter',CoinbaseSans,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --display-size:80px;
+    --display-weight:700;
+    --section-size:36px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:10px;}
+  h1.display{font-size:var(--display-size);font-weight:var(--display-weight);line-height:1.0;letter-spacing:-1px;}
+  h2.sec{font-size:var(--section-size);font-weight:600;line-height:1.12;letter-spacing:-.5px;margin-bottom:14px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;}
+  .hero{padding:80px 0 64px;}
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-size:16px;font-weight:600;border:none;cursor:pointer;border-radius:var(--r-full);padding:16px 32px;line-height:1.15;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-secondary{background:var(--surface-alt);color:var(--ink);padding:16px 24px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:12px 24px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:600;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--primary);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:600;}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px 16px;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--primary);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:1/1;border-radius:var(--r-md);background:linear-gradient(135deg,var(--surface-alt),var(--hairline));position:relative;overflow:hidden;}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:var(--r-full);font-size:12px;font-weight:600;padding:5px 10px;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+  .listing .l-title{font-weight:600;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:15px;margin-top:2px;}
+  .listing .l-price{margin-top:6px;font-size:15px;}
+  .listing .l-price b{font-weight:600;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--primary);}
+  .plan .price{font-size:48px;font-weight:700;margin:14px 0 4px;line-height:1;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:600;letter-spacing:.3px;padding:4px 10px;border-radius:var(--r-full);}
+  .s-ok{background:#e9f7f0;color:#098551;}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .s-down{background:#fdecee;color:#d23f4c;}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-lg);padding:36px;box-shadow:var(--e1);}
+  .auth h3{font-size:28px;font-weight:600;margin:4px 0 24px;}
+  .auth label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--hairline);border-radius:var(--r-full);background:#fff;padding:15px;font-size:16px;font-weight:600;cursor:pointer;color:var(--ink);}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:48px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Coinbase</h1>
+  <p class="lede" style="margin-top:28px;">A crisp, near-monochrome fintech system on white with near-black ink, anchored by the unmistakable Coinbase electric blue on every CTA and link — flat, fully-rounded pill buttons and market green/coral reserved for signal.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Get started</button>
+    <button class="btn btn-secondary">Sign in</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Hierarchy is built by size, not weight — display headlines run enormous at a regular weight with tight negative tracking. Coinbase ships in proprietary CoinbaseSans; rendered here in Inter (nearest Google substitute). 16px/400 is the dominant body tier.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Get started</button><div class="desc">Brand blue #0052FF, white text, full pill. The single highest-emphasis action.</div></div>
+    <div class="ccard"><div class="lbl">button-dark</div><button class="btn btn-dark">Download the app</button><div class="desc">Near-black #0A0B0D fill for inverted bands and app-store CTAs.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">Sign in</button><div class="desc">Soft grey #EEF0F3 pill — lower-emphasis, used beside the primary CTA.</div></div>
+    <div class="ccard"><div class="lbl">button-pill / tab</div><button class="btn btn-pill">Individuals</button><div class="desc">Transparent nav pill that fills grey on the active tab.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Learn about staking</a><a href="#">Pricing</a><div class="desc">Inline links carry the brand blue with an underline.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Asset Tiles</h2>
+  <p class="lede">Asset tiles sit flat on white with a 1px hairline and 16px radius, lifting to a soft shadow only on hover. Price change uses market green (up) and coral (down).</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Email address"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Add a note for this transfer"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">A 4px base unit on an 8-step rhythm. 16px is the default component padding; 24–32px are the common section gaps.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">Generous and consistent: a 4 → 40px ladder topped by a true pill. Coinbase uses the full pill constantly — every button, tab and badge.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The default. Almost the entire site is flat, bordered surfaces with no shadow.</div>
+    <div class="e l1">Level 1 — 0 8px 12px rgba(0,0,0,0.12). The rare lifted card, shown on hover of asset tiles.</div>
+    <div class="e l2">Level 2 — 0 0 18px rgba(0,0,0,0.2). A diffuse glow reserved for overlays, popovers and modals.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Single column; hero display drops to ~48px; nav collapses to a menu; pills keep full radius.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Four-up product/feature grids fold to two columns; container gutters tighten.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Full multi-column marketing grids return; max-width container centered.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>1200px max content width with 40px gutters; oversized 80px display headlines.</td></tr>
+  </table>
+  <p class="note">Layout is a centered max-width container with predictable column collapse. <b>Pill buttons and CTAs hold their full-pill shape at every breakpoint.</b></p>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Plan Tiers</h2>
+  <p class="lede">Illustrative tiers in the Coinbase visual language — flat bordered cards, the featured plan inverted to near-black, brand-blue bullets and dark block CTAs.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Basic</span></div><div class="price">$0<span>/ month</span></div><div class="blurb">Buy, sell and hold crypto with the essentials.</div><ul><li>Spot trading</li><li>Standard fees</li><li>Mobile &amp; web access</li><li>Email support</li></ul><button class="btn btn-block-dark">Get started</button></div>
+    <div class="plan feat"><div class="tier"><span>One</span><span class="pop">● Most popular</span></div><div class="price">$29.99<span>/ month</span></div><div class="blurb">Zero trading fees and boosted rewards.</div><ul><li>No trading fees</li><li>Higher staking rewards</li><li>Priority support</li><li>Account protection</li></ul><button class="btn btn-block-dark">Try One free</button></div>
+    <div class="plan"><div class="tier"><span>Prime</span></div><div class="price">Custom<span></span></div><div class="blurb">Institutional-grade custody and execution.</div><ul><li>Cold storage custody</li><li>Advanced trading APIs</li><li>Dedicated coverage</li><li>OTC desk access</li></ul><button class="btn btn-block-dark">Contact sales</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Asset Table</h2>
+  <p class="lede">A dense data surface: grey uppercase headers, hairline row dividers, and pill status chips that borrow the market green/coral signal colours.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>Asset</th><th>Price</th><th>24h</th><th>Status</th><th>Market cap</th></tr>
+      <tr><td>Bitcoin · BTC</td><td>$61,240.18</td><td style="color:#098551;font-weight:600;">+2.4%</td><td><span class="status s-ok">Up</span></td><td>$1.21T</td></tr>
+      <tr><td>Ethereum · ETH</td><td>$3,388.02</td><td style="color:#098551;font-weight:600;">+1.1%</td><td><span class="status s-ok">Up</span></td><td>$407.6B</td></tr>
+      <tr><td>Solana · SOL</td><td>$146.77</td><td style="color:#d23f4c;font-weight:600;">−3.2%</td><td><span class="status s-down">Down</span></td><td>$68.2B</td></tr>
+      <tr><td>USD Coin · USDC</td><td>$1.00</td><td style="color:var(--ink-secondary);font-weight:600;">0.0%</td><td><span class="status s-pend">Flat</span></td><td>$32.9B</td></tr>
+      <tr><td>Chainlink · LINK</td><td>$14.05</td><td style="color:#098551;font-weight:600;">+0.8%</td><td><span class="status s-ok">Up</span></td><td>$8.7B</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Auth Forms</h2>
+  <p class="lede">Sign-in and create-account patterns: bordered card lifted on a soft shadow, uppercase micro-labels, brand-blue pill CTA, and a full-pill SSO ghost button below a divider.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@email.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with passkey</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Get started</h3>
+      <label>Full name</label><input class="field" placeholder="Alex Rivera">
+      <label>Email</label><input class="field" placeholder="you@email.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Apple</button></div>
+  </div>
+</div></section>
+
+<script>
+const colors = [
+  ["primary","#0052ff","CTAs, links, focus — brand blue"],
+  ["primary-active","#0667d0","Pressed / visited link state"],
+  ["primary-soft","#578bfa","Lighter blue accent / illustration tint"],
+  ["dark","#0a0b0d","Dark buttons, inverted bands, ink"],
+  ["canvas","#ffffff","Page background"],
+  ["canvas-soft","#eef0f3","Sunken sections, secondary pills"],
+  ["surface-alt","#eef0f3","Chips, table headers, secondary fill"],
+  ["ink","#0a0b0d","Headings & primary body text"],
+  ["ink-secondary","#5b616e","Supporting copy, labels, captions"],
+  ["hairline","rgba(91,97,110,0.2)","1px borders & dividers","rgba(91,97,110,0.2)"],
+  ["success","#27ad75","Price up / positive market signal"],
+  ["error","#f0616d","Price down / negative market signal"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","80px / 400 / 1.0","It’s time to take control","font-size:80px;font-weight:700;line-height:1.0;letter-spacing:-1px;"],
+  ["display-2","64px / 400 / 1.0","The future of money","font-size:64px;font-weight:700;line-height:1.0;letter-spacing:-1px;"],
+  ["heading-1","44px / 400 / 1.1","Explore crypto like Bitcoin","font-size:44px;font-weight:600;line-height:1.1;letter-spacing:-.5px;"],
+  ["heading-2","36px / 400 / 1.12","Buy, sell and hold","font-size:36px;font-weight:600;line-height:1.12;letter-spacing:-.5px;"],
+  ["heading-3","28px / 400 / 1.2","Everything you need to trade","font-size:28px;font-weight:400;line-height:1.2;"],
+  ["title","20px / 600 / 1.3","Get started in minutes","font-size:20px;font-weight:600;line-height:1.3;"],
+  ["body-lg","18px / 400 / 1.5","The easiest place to buy and sell crypto.","font-size:18px;font-weight:400;line-height:1.5;color:var(--ink-secondary);"],
+  ["body-md","16px / 400 / 1.5","Coinbase makes it simple to securely buy, store and trade hundreds of assets.","font-size:16px;font-weight:400;line-height:1.5;"],
+  ["body-sm","14px / 400 / 1.43","Fees and limits vary by region and payment method.","font-size:14px;font-weight:400;line-height:1.43;color:var(--ink-secondary);"],
+  ["button","16px / 600 / 1.15","Get started","font-size:16px;font-weight:600;line-height:1.15;"],
+  ["caption","13px / 400 / 1.4","Not investment advice.","font-size:13px;font-weight:400;line-height:1.4;color:var(--ink-secondary);"],
+  ["eyebrow","12px / 600 / uppercase","TRUSTED BY MILLIONS","font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",12],["xs","8px",20],["sm","12px",30],["md","16px",44],["lg","24px",64],["xl","32px",86],["xxl","48px",120]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs","4px","4"],["sm","8px","8"],["md","12px","12"],["lg","16px","16"],["xl","24px","24"],["xxl","40px","40"],["full","9999px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["Bitcoin","BTC","<b>$61,240.18</b>","+2.4%","Top"],
+  ["Ethereum","ETH","<b>$3,388.02</b>","+1.1%",""],
+  ["Solana","SOL","<b>$146.77</b>","−3.2%",""],
+  ["Chainlink","LINK","<b>$14.05</b>","+0.8%","New"]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

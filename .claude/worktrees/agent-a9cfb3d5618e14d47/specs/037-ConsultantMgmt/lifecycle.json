@@ -1,0 +1,16 @@
+{
+  "specNumber": "037",
+  "featureName": "Consultants Management (Engagement Core)",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 77,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-05-26T00:00:00.000Z",
+    "phaseStarted": "2026-05-26T00:00:00.000Z"
+  },
+  "notes": "Generated via createSpecs 037 in-conversation on 2026-05-26 (CLI bootstrap broken per feedback_orchestrator_cli_broken memory). 77 tasks across 15 phases; ~3-4 weeks focused effort. Critical path: T001 schema → T011 router mount unlocks all backend phases. Phase 2 is a standalone wiring step to neutralize the orphaned-route bug class (today's c18ee7a + c03c524 + 1c7f1a4 fixes). FR-021 (bidirectional PM sync) is stubbed pending spec 020 completion. The original trigger was the andy@ccscowboy.com cross-company bug — Howard at HAS Enterprises will be inviteable as a Consulting Company once 037 ships."
+}

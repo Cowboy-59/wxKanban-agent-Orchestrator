@@ -1,0 +1,1469 @@
+{
+  "features": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "La panoramica dei tuoi progetti — l'avanzamento delle fasi del Lifecycle per ogni progetto, oltre a collegamenti rapidi ai documenti generati di ciascun progetto.",
+      "howTo": "Apri il Dashboard dalla barra laterale. Ogni scheda di progetto mostra l'avanzamento per fase e i collegamenti ai documenti; gli ADMIN hanno un pulsante Nuovo per creare un progetto direttamente."
+    },
+    "projects": {
+      "title": "Progetti",
+      "description": "Crea e gestisci progetti. Progetti illimitati in tutti i piani a pagamento.",
+      "howTo": "Crea un progetto con il pulsante Nuovo della dashboard o dal menu Progetti, poi aprilo per vederne le schede (panoramica, lifecycle, attività)."
+    },
+    "tasks": {
+      "title": "Le mie attività (Kanban)",
+      "description": "Il lavoro a te assegnato su una bacheca Kanban che copre tutti i progetti.",
+      "howTo": "Apri Le mie attività; trascina le schede tra le colonne per cambiarne lo stato, oppure apri una scheda per i dettagli."
+    },
+    "settings": {
+      "title": "Impostazioni",
+      "description": "Impostazioni di account, azienda e preferenze, inclusa la lingua.",
+      "howTo": "Apri Impostazioni dal menu; qui si trovano il selettore della lingua e il profilo."
+    },
+    "faq": {
+      "title": "FAQ",
+      "description": "Risposte alle domande comuni sull'uso di wxKanban.",
+      "howTo": "Apri le FAQ dal menu."
+    },
+    "lifecycle": {
+      "title": "Lifecycle a 6 fasi e orchestratore",
+      "description": "La metodologia Design → Implementation → QA → HumanTesting → Beta → Release che regola ogni funzionalità e mantiene un'unica fonte di verità sullo stato di un progetto.",
+      "howTo": "Guidalo da Claude Code + il kit wxKanban in VS Code (buildscope → createSpecs → implement). Il comando giusto è disponibile solo nella fase giusta."
+    },
+    "specs": {
+      "title": "Spec e Scope",
+      "description": "I documenti Scope-of-project e le Spec, i piani e le attività generati per ogni funzionalità.",
+      "howTo": "Redigi uno Scope con buildscope; genera Spec, piano e attività con createSpecs; monitorali nel Cockpit."
+    },
+    "audit": {
+      "title": "Rapporti di audit",
+      "description": "Una traccia di audit per ogni release di ciò che è stato costruito, testato e delimitato con i fence di codice.",
+      "howTo": "Apri il collegamento Rapporto di audit su una scheda di progetto, oppure rigeneralo dalla dashboard Admin."
+    },
+    "cockpit": {
+      "title": "Dev Cockpit",
+      "description": "Una barra laterale di VS Code che mostra il lavoro rimanente per Scope, in tempo reale man mano che il lavoro procede.",
+      "howTo": "Installa l'estensione Dev Cockpit; fissa il tuo Scope attivo ed elenca le attività non completate."
+    },
+    "pmIntegrations": {
+      "title": "Integrazioni PM",
+      "description": "Collega Jira, Monday.com, Asana e Trello e sincronizza le attività in entrambe le direzioni.",
+      "howTo": "Apri Integrazioni PM e connettiti tramite OAuth; la sincronizzazione viene eseguita secondo una pianificazione in background."
+    },
+    "team": {
+      "title": "Gestione del team",
+      "description": "Invita i colleghi, assegna i ruoli e gestisci gli accessi con controlli basati sui ruoli.",
+      "howTo": "Apri Team; invita via e-mail e imposta il ruolo di ciascun membro."
+    },
+    "timeTracking": {
+      "title": "Monitoraggio del tempo e fatturazione",
+      "description": "Timer integrato con monitoraggio delle ore fatturabili e voci di tempo.",
+      "howTo": "Avvia il timer su un'attività; contrassegna le voci come fatturabili per la fatturazione."
+    },
+    "invoices": {
+      "title": "Fatture",
+      "description": "Genera fatture PDF dalle voci di tempo fatturabili.",
+      "howTo": "Apri Fatture, scegli un progetto e un intervallo di date e genera; le voci fatturate vengono contrassegnate per evitare duplicati."
+    },
+    "reports": {
+      "title": "Report",
+      "description": "Reportistica avanzata su tempo, progetti e risultati.",
+      "howTo": "Apri Report dal menu."
+    },
+    "workHub": {
+      "title": "Work Hub",
+      "description": "Un hub degli incarichi per gestire il lavoro svolto per i clienti.",
+      "howTo": "Apri il Work Hub per visualizzare e gestire i tuoi incarichi."
+    },
+    "clientPortal": {
+      "title": "Portale clienti",
+      "description": "Offri ai clienti una vista limitata e in sola lettura del loro progetto.",
+      "howTo": "Abilita il portale per un progetto e condividi il link del cliente."
+    },
+    "customWorkflows": {
+      "title": "Flussi di lavoro personalizzati",
+      "description": "Adatta i flussi di lavoro del Lifecycle al processo del tuo team.",
+      "howTo": "Configura flussi di lavoro personalizzati nelle impostazioni del progetto."
+    },
+    "apiAccess": {
+      "title": "Accesso API",
+      "description": "Accesso programmatico ai tuoi dati wxKanban tramite API.",
+      "howTo": "Crea un token API nelle Impostazioni e richiama gli endpoint documentati."
+    },
+    "stackProfiles": {
+      "title": "Profili di Stack",
+      "description": "Definizioni riutilizzabili di Stack di destinazione e di stile applicate alla creazione di un progetto.",
+      "howTo": "Apri i Profili di Stack (Admin) per definire o modificare gli stack della tua azienda."
+    },
+    "themeProfiles": {
+      "title": "Profili di tema",
+      "description": "Temi grafici riutilizzabili per gli output generati.",
+      "howTo": "Apri i Profili di tema (Admin) per definire o modificare i temi."
+    },
+    "encryption": {
+      "title": "Crittografia a riposo",
+      "description": "I segreti sono crittografati a riposo con AES-256-GCM.",
+      "howTo": "Sempre attivo — nessuna configurazione richiesta."
+    },
+    "soc2": {
+      "title": "SOC 2 e HIPAA",
+      "description": "Controlli e strumenti di conformità allineati a SOC 2 e HIPAA.",
+      "howTo": "Aggiungi i documenti SDLC della tua azienda per l'analisi di conformità; assegna i controlli ai membri del team."
+    },
+    "sso": {
+      "title": "Single Sign-On (SSO)",
+      "description": "SSO aziendale per la tua organizzazione.",
+      "howTo": "Contatta il tuo referente wxKanban per configurare il tuo provider di identità."
+    },
+    "advancedSecurity": {
+      "title": "Sicurezza avanzata",
+      "description": "Controlli di sicurezza aggiuntivi di livello enterprise.",
+      "howTo": "Configurato come parte dell'onboarding Enterprise."
+    },
+    "emailSupport": {
+      "title": "Assistenza via e-mail",
+      "description": "Assistenza sul prodotto via e-mail.",
+      "howTo": "Invia un'e-mail a admin@wxperts.com."
+    },
+    "dedicatedSupport": {
+      "title": "Assistenza dedicata",
+      "description": "Un contatto di assistenza dedicato per il tuo account.",
+      "howTo": "Assegnato durante l'onboarding Enterprise."
+    },
+    "customIntegrations": {
+      "title": "Integrazioni personalizzate",
+      "description": "Integrazioni su misura realizzate per la tua organizzazione.",
+      "howTo": "Definisci l'ambito delle integrazioni personalizzate con il tuo referente wxKanban."
+    },
+    "sla": {
+      "title": "Garanzia SLA",
+      "description": "Un SLA contrattuale su disponibilità e tempi di risposta.",
+      "howTo": "Incluso nel tuo contratto Enterprise."
+    },
+    "test-suite": {
+      "title": "Suite di test",
+      "description": "Test automatici eseguiti dall'IA nella fase QA, poi test utente che approvi tu stesso una volta che la versione arriva in UAT. Una versione non può essere rilasciata finché restano test in sospeso dell'uno o dell'altro tipo.",
+      "howTo": "Apri un progetto e scegli la fase QA per eseguire i gate automatici e seguire l'avanzamento in tempo reale; la fase Test umani contiene i tuoi test, che si sbloccano quando l'esecuzione automatica passa."
+    },
+    "feedback": {
+      "title": "Feedback e segnalazioni",
+      "description": "Segnala un problema o richiedi una modifica dall'interno del prodotto, poi segui che fine ha fatto. Un test utente fallito crea automaticamente una segnalazione.",
+      "howTo": "Invia un feedback dal prodotto, poi apri I miei feedback per vedere stato, note di triage e risposte relative al progetto su cui stai lavorando."
+    }
+  },
+  "categories": {
+    "Core workspace": "Area di lavoro principale",
+    "Development lifecycle": "Ciclo di vita dello sviluppo",
+    "Integrations": "Integrazioni",
+    "Team & collaboration": "Team e collaborazione",
+    "Time, billing & consulting": "Tempo, fatturazione e consulenza",
+    "Admin & configuration": "Amministrazione e configurazione",
+    "Security & compliance": "Sicurezza e conformità",
+    "Enterprise & support": "Enterprise e supporto"
+  },
+  "plans": {
+    "SINGLE_USER": {
+      "label": "Utente singolo",
+      "userLimit": "1 utente",
+      "tagline": "Singolo, livello base"
+    },
+    "SMALL_BUSINESS": {
+      "label": "Piccola/Media impresa",
+      "userLimit": "Fino a 5 utenti",
+      "tagline": "Piccoli team, pronti per la conformità"
+    },
+    "CONSULTANT": {
+      "label": "Consulente",
+      "userLimit": "Team illimitato",
+      "tagline": "Lavoro fatturabile per clienti"
+    },
+    "ENTERPRISE": {
+      "label": "Enterprise",
+      "userLimit": "25+ utenti",
+      "tagline": "Scala, sicurezza, SLA"
+    }
+  },
+  "guides": {
+    "dashboard": [
+      "Apri la Dashboard dalla barra laterale sinistra.",
+      "Ogni scheda di progetto mostra la sua fase di Lifecycle attuale e una barra di avanzamento.",
+      "Usa i collegamenti ai documenti su una scheda — Panoramica, Lifecycle, Audit — per aprire i report generati.",
+      "ADMIN: fai clic su Nuovo per creare un progetto direttamente."
+    ],
+    "projects": [
+      "Crea un progetto dal pulsante Nuovo della Dashboard o dal menu Progetti.",
+      "Apri un progetto per vedere le sue schede: panoramica, lifecycle e attività.",
+      "I progetti sono illimitati in ogni piano a pagamento — organizza il lavoro in quanti ne servono."
+    ],
+    "tasks": [
+      "Apri Le mie attività dal menu.",
+      "Le schede sono raggruppate in colonne di stato; trascina una scheda per cambiarne lo stato.",
+      "Fai clic su una scheda per aprire il suo dettaglio, i commenti e lo Spec/attività a cui è collegata."
+    ],
+    "settings": [
+      "Apri le Impostazioni dal menu.",
+      "Aggiorna il tuo profilo e le preferenze; cambia lingua con il selettore della lingua.",
+      "Gli ADMIN aziendali gestiscono da qui le impostazioni a livello aziendale."
+    ],
+    "faq": [
+      "Apri le FAQ dal menu.",
+      "Sfoglia o cerca le domande comuni.",
+      "Segui i documenti collegati per indicazioni più approfondite."
+    ],
+    "lifecycle": [
+      "Installa il kit wxKanban e il Dev Cockpit in VS Code.",
+      "Esegui /buildscope per definire uno Scope, poi /createSpecs per generare lo Spec, il piano e le attività.",
+      "Esegui /implement per costruire le attività, poi avanza le fasi (QA → Human Testing → Beta → Release) man mano che ogni controllo viene superato.",
+      "Il Cockpit mostra quale comando è disponibile nella fase attuale."
+    ],
+    "specs": [
+      "Scrivi uno Scope con /buildscope — ti intervista sezione per sezione.",
+      "Genera lo Spec, il piano e le attività con /createSpecs.",
+      "Monitora i progressi nel Dev Cockpit; ogni attività rimanda al suo Spec."
+    ],
+    "audit": [
+      "Apri il collegamento al report Audit su una scheda di progetto, oppure rigeneralo dalla dashboard Admin.",
+      "Esamina ciò che è stato costruito, testato e racchiuso nei code fence per la Release.",
+      "Conservalo come tuo registro di conformità e tracciabilità."
+    ],
+    "cockpit": [
+      "Installa l'estensione VS Code «wxKanban Dev Cockpit» (dal VSIX).",
+      "Apri l'icona wxKanban nella barra delle attività.",
+      "Il tuo Scope attivo è fissato e le attività incomplete vengono elencate in tempo reale mentre costruisci."
+    ],
+    "pmIntegrations": [
+      "Apri le Integrazioni PM dal menu.",
+      "Collega un provider — Jira, Monday.com, Asana o Trello — tramite OAuth.",
+      "Le attività si sincronizzano secondo una pianificazione in background; i conflitti si risolvono con l'ultima-scrittura-vince (vince wxKanban).",
+      "Single User e Small Business ottengono una connessione; Consultant e superiori ne ottengono più di una."
+    ],
+    "team": [
+      "Apri Team dal menu (piano Small Business o superiore).",
+      "Invita un membro del team via e-mail e assegnagli il suo ruolo.",
+      "Gestisci gli accessi e rimuovi i membri secondo necessità.",
+      "Limiti di postazioni: 5 (Small Business), illimitato (Consultant), 25+ (Enterprise)."
+    ],
+    "timeTracking": [
+      "Con il piano Consultant o superiore, apri un'attività e avvia il timer.",
+      "Contrassegna le voci come fatturabili così da farle confluire nella fatturazione.",
+      "Rivedi e modifica le voci di tempo; il timer ti avvisa se supera le 8 ore."
+    ],
+    "invoices": [
+      "Con il piano Consultant o superiore, apri Fatture dal menu.",
+      "Scegli un progetto e un intervallo di date di tempo fatturabile.",
+      "Genera il PDF; le voci fatturate vengono contrassegnate per evitare doppie fatturazioni."
+    ],
+    "reports": [
+      "Con il piano Consultant o superiore, apri Report dal menu.",
+      "Scegli un report e i suoi filtri (tempo, progetto, risultati).",
+      "Rivedi o esporta i risultati."
+    ],
+    "workHub": [
+      "Con il piano Consultant o superiore, apri l'Hub di lavoro dal menu.",
+      "Visualizza i tuoi incarichi con i clienti e il loro stato.",
+      "Apri un incarico per gestirne il lavoro e la fatturazione."
+    ],
+    "clientPortal": [
+      "Con il piano Consultant o superiore, abilita il portale per un progetto.",
+      "Condividi il link cliente; i clienti ottengono una vista limitata in sola lettura."
+    ],
+    "customWorkflows": [
+      "Con il piano Consultant o superiore, apri le impostazioni del progetto.",
+      "Configura le fasi del flusso di lavoro per adattarle al processo del tuo team."
+    ],
+    "apiAccess": [
+      "Con il piano Consultant o superiore, apri le Impostazioni e crea un token API.",
+      "Chiama gli endpoint documentati con il token in un'intestazione Bearer.",
+      "Revoca i token che non ti servono più."
+    ],
+    "stackProfiles": [
+      "Come ADMIN, apri i Profili di stack dal menu admin.",
+      "Definisci o modifica uno stack e uno stile di destinazione — vengono applicati alla creazione di un progetto."
+    ],
+    "themeProfiles": [
+      "Come ADMIN, apri i Profili di tema dal menu admin.",
+      "Definisci o modifica un tema di aspetto per l'output generato."
+    ],
+    "encryption": [
+      "Nulla da fare — i segreti sono cifrati a riposo con AES-256-GCM automaticamente."
+    ],
+    "soc2": [
+      "Con il piano Small Business o superiore, aggiungi i documenti SDLC della tua azienda per l'analisi di conformità.",
+      "Assegna i controlli ai membri del team.",
+      "Usa i controlli di conformità con IA per confermare di soddisfare i requisiti di audit."
+    ],
+    "sso": [
+      "Su Enterprise, contatta il tuo rappresentante wxKanban per configurare il tuo provider di identità.",
+      "Una volta configurato, il tuo team accede tramite SSO."
+    ],
+    "advancedSecurity": [
+      "Configurato durante l'onboarding Enterprise — non è prevista una configurazione self-service."
+    ],
+    "emailSupport": [
+      "Invia la tua domanda via e-mail a admin@wxperts.com.",
+      "Includi il nome del tuo account o della tua azienda per un aiuto più rapido."
+    ],
+    "dedicatedSupport": [
+      "Su Enterprise, il tuo contatto dedicato viene assegnato durante l'onboarding — contattalo direttamente."
+    ],
+    "customIntegrations": [
+      "Su Enterprise, definisci lo Scope dell'integrazione con il tuo rappresentante wxKanban."
+    ],
+    "sla": [
+      "Su Enterprise, il tuo SLA di uptime e tempo di risposta fa parte del tuo accordo — consulta il contratto."
+    ]
+  },
+  "articles": {
+    "dashboard": {
+      "overview": "La dashboard è la tua pagina iniziale dopo l'accesso e si adatta al tuo ruolo. Gli amministratori ottengono la Dashboard di amministrazione (stato dell'abbonamento, statistiche dell'organizzazione, una griglia di panoramica dei progetti con collegamenti ai documenti per progetto, proposte, attività in sospeso, feed delle attività e stato del sistema), mentre i membri del team ottengono una La mia dashboard più snella, incentrata sui progetti assegnati, sulle attività aperte e su un collegamento alla loro coda di lavoro. Diverse sezioni inferiori (Tempo e fatturazione, Report) sono segnaposto che mostrano dati solo una volta che esistono voci di tempo e richiedono il piano corretto e il ruolo di amministratore.",
+      "whatYouSee": [
+        "Intestazione della pagina con il tuo piano, il nome dell'azienda e un messaggio di benvenuto",
+        "Schede statistiche in alto (Membri del team / Progetti assegnati, Progetti attivi / Attività aperte, Ore questa settimana)",
+        "Scheda dell'abbonamento che mostra il tuo piano di fatturazione attuale (amministratore)",
+        "Griglia di panoramica dei progetti — schede raggruppate in Attivi e Diramati, ciascuna con l'avanzamento delle fasi del Lifecycle",
+        "Collegamenti ai documenti per progetto all'interno di ogni scheda di progetto (Panoramica, Lifecycle, Piano di sviluppo, Report di audit, Apprendimenti cumulativi, Analisi dello Scope, Diagramma delle entità)",
+        "Pannelli Proposte di progetto e Attività in sospeso (amministratore)",
+        "Vista rapida degli Ingaggi (amministratore, nascosta quando non ne hai nessuno)",
+        "Anteprima del Riepilogo giornaliero e feed delle attività (amministratore)",
+        "Sezioni Tempo e fatturazione, Stato del sistema e Report (amministratore, segnaposto vincolati al piano)",
+        "Scheda Consultant Work Hub con un collegamento alla tua coda di attività (membro del team)"
+      ],
+      "controls": [
+        {
+          "label": "Nuovo",
+          "does": "Apre la finestra Crea progetto per aggiungere un progetto direttamente dalla dashboard.",
+          "adminOnly": true
+        },
+        {
+          "label": "Tutti i progetti",
+          "does": "Collegamento nell'intestazione del pannello dei progetti che ti porta all'elenco completo dei progetti."
+        },
+        {
+          "label": "Matita di modifica (su una scheda di progetto)",
+          "does": "Apre la finestra Modifica tipo di audit per impostare o cancellare il framework di conformità di un progetto (GDPR, HIPAA, HITRUST, SOC2).",
+          "adminOnly": true
+        },
+        {
+          "label": "Scheda di progetto",
+          "does": "Facendo clic su una scheda di progetto si apre l'area di lavoro di quel progetto."
+        },
+        {
+          "label": "Panoramica del progetto (collegamento della scheda)",
+          "does": "Apre l'editor di panoramica del progetto assistito dall'IA per quel progetto, creando una bozza se non ne esiste nessuna."
+        },
+        {
+          "label": "Lifecycle del progetto (collegamento della scheda)",
+          "does": "Apre il documento/PDF del Lifecycle del progetto generato per quel progetto."
+        },
+        {
+          "label": "Piano di sviluppo (collegamento della scheda)",
+          "does": "Apre il PDF della roadmap di costruzione (piano di sviluppo) generato per quel progetto."
+        },
+        {
+          "label": "Report di audit (collegamento della scheda)",
+          "does": "Apre la pagina del report di audit di conformità del progetto."
+        },
+        {
+          "label": "Apprendimenti cumulativi (collegamento della scheda)",
+          "does": "Apre il report Apprendimenti del progetto che mostra le decisioni e le correzioni acquisite."
+        },
+        {
+          "label": "Analisi dello Scope del progetto (collegamento della scheda)",
+          "does": "Apre il report di analisi tra Scope del progetto."
+        },
+        {
+          "label": "Diagramma delle entità (collegamento della scheda)",
+          "does": "Apre il visualizzatore del diagramma ER del database a livello di piattaforma."
+        },
+        {
+          "label": "Framework di conformità (menu a discesa in Modifica tipo di audit)",
+          "does": "Seleziona quale framework di audit si applica al progetto, quindi Salva lo applica.",
+          "adminOnly": true
+        },
+        {
+          "label": "Apri Work Hub",
+          "does": "Pulsante per i membri del team che apre il Consultant Work Hub — la tua coda di attività unificata con il monitoraggio del tempo."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Creare un nuovo progetto dalla dashboard",
+          "steps": [
+            "Fai clic su Nuovo nell'intestazione del pannello Panoramica dei progetti",
+            "Compila i dettagli del progetto nella finestra",
+            "Conferma per creare — vieni portato al nuovo progetto"
+          ]
+        },
+        {
+          "title": "Impostare il framework di conformità di un progetto",
+          "steps": [
+            "Trova la scheda del progetto",
+            "Fai clic sulla matita di modifica accanto al suo badge di audit",
+            "Scegli un framework (o Nessuno) nel menu a discesa",
+            "Fai clic su Salva"
+          ]
+        },
+        {
+          "title": "Aprire il Lifecycle o il piano di sviluppo di un progetto",
+          "steps": [
+            "Individua la scheda del progetto nella griglia",
+            "Fai clic sul collegamento Lifecycle del progetto o Piano di sviluppo all'interno della scheda",
+            "Il PDF generato si apre"
+          ]
+        }
+      ],
+      "tips": [
+        "I membri del team vedono una griglia di progetti in sola lettura, senza il pulsante Nuovo o le matite di modifica.",
+        "Ore questa settimana e le sezioni Tempo e fatturazione / Report sono segnaposto e mostrano zero/vuoto finché non vengono registrate voci di tempo.",
+        "Un collegamento a un documento che dice «non creato» significa che quel report non è ancora stato generato per il progetto.",
+        "Tempo e fatturazione, Report e Stato del sistema richiedono il piano Consultant+ e/o il ruolo di amministratore."
+      ]
+    },
+    "projects": {
+      "overview": "L'area Progetti elenca tutti i tuoi progetti con ricerca, filtri di fase e ordinamento, e ti consente di aprire qualsiasi progetto in un'area di lavoro completa. L'area di lavoro del progetto è organizzata come un Lifecycle a 6 fasi (Design, Implementation, QA, Human Testing, Beta, Release) più schede aggiuntive per Lifecycle, Piano di sviluppo, Analizzatore di portfolio, Conformità, Apprendimenti e Kit, e una riga di Viste (Matrice, Kanban, Stack, Theme, Segnalazioni di bug). Gli amministratori possono modificare, archiviare o eliminare i progetti e controllare l'avanzamento delle fasi.",
+      "whatYouSee": [
+        "Intestazione dell'elenco dei progetti con un conteggio e un pulsante Nuovo progetto",
+        "Chip di filtro di fase (Tutte, Design, Implementation, QA Testing, Human Testing, Beta Release, Release)",
+        "Casella di ricerca e pulsanti di ordinamento (Aggiornato, Creato, Nome)",
+        "Una riga di schede di progetto; facendo clic su una si espande il suo pannello di dettaglio",
+        "All'interno di un progetto: una barra superiore con il nome del progetto, il badge di fase e i controlli modifica/archivia/elimina",
+        "Barra delle schede: Lifecycle, Piano di sviluppo, Analizzatore di portfolio, Conformità, Apprendimenti, Kit",
+        "Una riga di Viste: Matrice, Kanban, Stack, Theme, Segnalazioni di bug",
+        "L'area di lavoro della fase attiva (specs, attività, completamento, controlli avanza/riapri)",
+        "Un pannello a scomparsa delle attività che scorre all'interno quando apri un'attività specifica"
+      ],
+      "controls": [
+        {
+          "label": "Nuovo progetto",
+          "does": "Apre la finestra Crea progetto per avviare un nuovo progetto."
+        },
+        {
+          "label": "Mostra tutti / I miei progetti",
+          "does": "Alterna tra solo i tuoi progetti assegnati e tutti i progetti della tua organizzazione (mostrato solo ai non amministratori; gli amministratori vedono sempre tutto)."
+        },
+        {
+          "label": "Chip di filtro di fase",
+          "does": "Filtra l'elenco per mostrare i progetti attualmente nella fase del Lifecycle selezionata."
+        },
+        {
+          "label": "Casella di ricerca",
+          "does": "Filtra i progetti per nome o descrizione durante la digitazione."
+        },
+        {
+          "label": "Pulsanti di ordinamento (Aggiornato / Creato / Nome)",
+          "does": "Ordina l'elenco per quel campo; facendo di nuovo clic sul campo attivo si inverte crescente/decrescente."
+        },
+        {
+          "label": "Matita di modifica (barra superiore del progetto)",
+          "does": "Apre la finestra di modifica per cambiare nome, descrizione, tariffa oraria, ore allocate, sistemi PM, classificazione di sicurezza, tipo di audit e assegnazioni di fase."
+        },
+        {
+          "label": "Menu a discesa audit (barra superiore del progetto)",
+          "does": "Imposta rapidamente il framework di conformità del progetto (Nessun audit, GDPR, HIPAA, HITRUST, SOC2).",
+          "adminOnly": true
+        },
+        {
+          "label": "Archivia",
+          "does": "Archivia il progetto in modo che sia nascosto dall'elenco dei progetti (con una richiesta di conferma).",
+          "adminOnly": true
+        },
+        {
+          "label": "Elimina",
+          "does": "Elimina definitivamente il progetto e tutte le sue attività, fasi, specs e documenti (con una richiesta di conferma).",
+          "adminOnly": true
+        },
+        {
+          "label": "Schede Lifecycle / Piano di sviluppo",
+          "does": "Mostrano il PDF del Lifecycle generato e il PDF della roadmap di costruzione del progetto in linea."
+        },
+        {
+          "label": "Scheda Conformità",
+          "does": "Apre l'area di lavoro della conformità con sotto-schede: Impostazioni, Documenti, Attività, Audit, Report."
+        },
+        {
+          "label": "Scheda Apprendimenti",
+          "does": "Mostra il report degli apprendimenti acquisiti; gli amministratori possono rigenerarlo."
+        },
+        {
+          "label": "Scheda Kit",
+          "does": "Apre la gestione del Kit per scaricare e gestire il kit di orchestratore del progetto."
+        },
+        {
+          "label": "Modalità d'impatto delle modifiche (scheda Kit)",
+          "does": "Definisce come il controllo d'impatto del kit tratta le modifiche dell'IA in questo progetto: Notifica dice allo sviluppatore cosa tocca una modifica senza mai chiedere; Confini (predefinito) chiede solo quando una modifica raggiunge un altro ambito o un test approvato; Sempre chiede ogni volta che una modifica tocca altro. Vale per il kit di ogni sviluppatore e prevale su un valore locale. Una possibile perdita di dati viene fermata in ogni modalità. Solo il proprietario del progetto o un amministratore dell'azienda può modificarla; gli altri vedono chi l'ha impostata e quando."
+        },
+        {
+          "label": "Registro d'impatto delle modifiche (riga di ambito espansa)",
+          "does": "Espandi un ambito per vedere il suo registro d'impatto: la traccia, in sola lettura, di ogni modifica che ha superato un confine d'impatto per quell'ambito, chi l'ha accettata o approvata, quando e le parole dello sviluppatore. Le voci non possono essere modificate né eliminate."
+        },
+        {
+          "label": "Viste Matrice / Kanban",
+          "does": "Cambia l'area di lavoro tra una griglia a matrice di Scope e una bacheca Kanban di Scope/attività."
+        },
+        {
+          "label": "Viste Stack / Theme / Segnalazioni di bug",
+          "does": "Aprono l'editor dello stack tecnologico del progetto, lo studio del tema visivo e le superfici di triage delle segnalazioni di bug."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Trovare e aprire un progetto",
+          "steps": [
+            "Vai all'elenco dei progetti",
+            "Digita nella casella di ricerca o fai clic su un chip di filtro di fase",
+            "Fai clic su una scheda di progetto per espanderla, quindi apri la sua area di lavoro"
+          ]
+        },
+        {
+          "title": "Spostare un progetto alla fase successiva",
+          "steps": [
+            "Apri il progetto e seleziona la scheda della fase corrente",
+            "Completa le attività o le specs della fase",
+            "Usa il controllo Avanza nella vista di fase (amministratori o l'assegnatario della fase)"
+          ]
+        },
+        {
+          "title": "Modificare i dettagli del progetto e i responsabili di fase",
+          "steps": [
+            "Apri il progetto",
+            "Fai clic sulla matita di modifica nella barra superiore",
+            "Aggiorna i campi e assegna i membri del team alle fasi",
+            "Salva"
+          ]
+        },
+        {
+          "title": "Abilitare un framework di conformità",
+          "steps": [
+            "Apri il progetto",
+            "Scegli un framework dal menu a discesa audit (amministratore) o dalla finestra di modifica",
+            "Apri la scheda Conformità per configurare le impostazioni, caricare documenti ed eseguire audit"
+          ]
+        },
+        {
+          "title": "Scegliere come il kit controlla le modifiche dell'IA",
+          "steps": [
+            "Apri il progetto e fai clic sulla scheda Kit",
+            "In Modalità d'impatto delle modifiche, scegli Notifica, Confini o Sempre (proprietario del progetto o amministratore dell'azienda)",
+            "Controlla la riga sotto le scelte: mostra chi ha impostato la modalità e quando; il kit di ogni sviluppatore la applica entro un'ora"
+          ]
+        }
+      ],
+      "tips": [
+        "Aprire un URL di progetto semplice porta alla bacheca Kanban per impostazione predefinita.",
+        "La modalità d'impatto impostata qui prevale su quella che uno sviluppatore ha scritto nelle impostazioni del proprio kit; il kit lo avvisa che è stata ignorata.",
+        "Solo gli amministratori (o il responsabile di fase assegnato / il team manager) possono avanzare o riaprire una fase.",
+        "L'eliminazione è permanente e non può essere annullata; usa Archivia per nascondere semplicemente un progetto.",
+        "I progetti a cui si accede tramite un ingaggio cliente mostrano un badge «Progetto cliente» e nascondono i controlli di modifica.",
+        "I PDF del Lifecycle e del Piano di sviluppo possono essere in ritardo rispetto alle modifiche recenti finché non vengono rigenerati."
+      ]
+    },
+    "tasks": {
+      "overview": "La pagina Attività mostra una vista unificata e in sola lettura di tutte le attività aggregate dai tuoi sistemi di project management collegati (Jira, Monday.com, Asana, Trello) più le attività interne. Puoi filtrare, ordinare e avviare manualmente una sincronizzazione, ma le attività qui si consultano anziché crearle o modificarle.",
+      "whatYouSee": [
+        "Intestazione con il titolo della pagina e un badge che mostra il numero totale di attività",
+        "Ora dell'ultima sincronizzazione e un pulsante Sincronizza ora",
+        "Barra di filtro/ordinamento: Origine, Priorità, Stato, campo di Ordinamento e interruttore di direzione dell'ordinamento",
+        "Una griglia adattiva di schede attività (titolo, badge di origine, progetto, priorità, stato, data di scadenza, id esterno)",
+        "Messaggio di stato vuoto con link a Integrazioni quando non esistono attività"
+      ],
+      "controls": [
+        {
+          "label": "← Indietro",
+          "does": "Torna alla Dashboard."
+        },
+        {
+          "label": "Sincronizza ora",
+          "does": "Avvia una sincronizzazione immediata di tutti i sistemi PM collegati, quindi indica quante attività sono state aggiunte, aggiornate o in errore e aggiorna l'elenco."
+        },
+        {
+          "label": "Origine (menu a discesa)",
+          "does": "Filtra le attività per origine: Tutte le origini, Jira, Monday.com, Asana, Trello o Interna."
+        },
+        {
+          "label": "Priorità (menu a discesa)",
+          "does": "Filtra le attività per priorità: Tutte, Critica, Alta, Media o Bassa."
+        },
+        {
+          "label": "Stato (menu a discesa)",
+          "does": "Filtra le attività per stato: Tutti, Aperta, In corso, Completata o Orfana."
+        },
+        {
+          "label": "Ordina (menu a discesa)",
+          "does": "Sceglie il campo di ordinamento: Ultimo aggiornamento, Data di scadenza, Priorità o Titolo."
+        },
+        {
+          "label": "↑ / ↓ (interruttore di direzione)",
+          "does": "Alterna l'ordinamento tra crescente e decrescente."
+        },
+        {
+          "label": "Integrazioni (link)",
+          "does": "Nello stato vuoto, apre la pagina Integrazioni per collegare un sistema PM."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Vedere le attività di uno strumento specifico",
+          "steps": [
+            "Apri la pagina Attività",
+            "Imposta il menu a discesa Origine su Jira, Monday.com, Asana, Trello o Interna",
+            "Esamina le schede filtrate"
+          ]
+        },
+        {
+          "title": "Recuperare le attività più recenti",
+          "steps": [
+            "Fai clic su Sincronizza ora",
+            "Attendi il termine dell'indicatore di caricamento",
+            "Leggi il riepilogo di aggiunte/aggiornate/errori e le schede aggiornate"
+          ]
+        },
+        {
+          "title": "Concentrarsi sul lavoro urgente",
+          "steps": [
+            "Imposta la Priorità su Critica o Alta",
+            "Imposta Ordina su Data di scadenza",
+            "Alterna la direzione su crescente per vedere prima le scadenze più vicine"
+          ]
+        }
+      ],
+      "tips": [
+        "Il badge di conteggio riflette l'insieme di risultati attualmente filtrato.",
+        "Le attività qui sono in sola lettura; collega o gestisci le origini nella pagina Integrazioni.",
+        "L'ultima sincronizzazione mostra un tempo relativo (es. «5 min fa») basato sulla sincronizzazione di connessione più recente."
+      ]
+    },
+    "team": {
+      "overview": "La pagina Membri del team (Personale) elenca tutte le persone della tua azienda, con ricerca, filtro attivo/inattivo e — per gli amministratori — controlli per invitare membri, cambiare ruoli e lingua, attivare/disattivare, rimuovere, reinvitare e reimpostare le password. Gli amministratori vedono anche una tabella Inviti in sospeso e un pannello Consulenti.",
+      "whatYouSee": [
+        "Intestazione con il titolo «Membri del team», il conteggio dei membri e un pulsante Invita membro",
+        "Casella di ricerca più i pulsanti di filtro Tutti / Attivi / Inattivi",
+        "Tabella dei membri: E-mail, Nome, Ruolo, Lingua, Stato, Iscritto il, Azioni",
+        "Banner di errore in linea e un pannello verde di conferma dei passaggi di azione",
+        "Tabella Inviti in sospeso (solo amministratori, quando esistono inviti)",
+        "Pannello Consulenti per le società di consulenza ingaggiate (spec 037)"
+      ],
+      "controls": [
+        {
+          "label": "Invita membro",
+          "does": "Apre la finestra Invita membro del team per inviare un invito via e-mail con un ruolo scelto."
+        },
+        {
+          "label": "Cerca per nome o e-mail",
+          "does": "Filtra l'elenco dei membri man mano che digiti."
+        },
+        {
+          "label": "Tutti / Attivi / Inattivi",
+          "does": "Filtra la tabella su tutti i membri, solo attivi o solo inattivi."
+        },
+        {
+          "label": "Modifica nome (matita)",
+          "does": "Modifica in linea il nome completo del membro; salva con il segno di spunta, annulla con la X (funzionano anche Invio/Esc)."
+        },
+        {
+          "label": "Ruolo (menu a discesa)",
+          "does": "Cambia il ruolo di un membro in Admin, Manager o Member.",
+          "adminOnly": true
+        },
+        {
+          "label": "Lingua (menu a discesa)",
+          "does": "Imposta la lingua dell'interfaccia preferita del membro tra quelle supportate.",
+          "adminOnly": true
+        },
+        {
+          "label": "Attivo / Inattivo (interruttore di stato)",
+          "does": "Disattiva (con conferma) o riattiva l'accesso di un membro.",
+          "adminOnly": true
+        },
+        {
+          "label": "Reinvia invito (icona busta)",
+          "does": "Invia una nuova e-mail di invito a un membro e mostra i passaggi risultanti.",
+          "adminOnly": true
+        },
+        {
+          "label": "Reimposta password (icona chiave)",
+          "does": "Invia un'e-mail di reimpostazione della password al membro.",
+          "adminOnly": true
+        },
+        {
+          "label": "Rimuovi membro (icona cestino)",
+          "does": "Dopo una conferma Sì/No, rimuove il membro (disattiva il suo accesso).",
+          "adminOnly": true
+        },
+        {
+          "label": "Reinvia invito (tabella In sospeso)",
+          "does": "Riemette un invito in sospeso con un nuovo link e una nuova scadenza di 7 giorni.",
+          "adminOnly": true
+        },
+        {
+          "label": "Annulla invito (tabella In sospeso)",
+          "does": "Dopo conferma, annulla un invito in sospeso in modo che non possa più essere accettato.",
+          "adminOnly": true
+        },
+        {
+          "label": "Pulsanti di scelta del ruolo (finestra di invito)",
+          "does": "Scegli Admin, Team Manager o Team Member per l'invitato; Team Manager richiede un piano CONSULTANT+."
+        },
+        {
+          "label": "Invia invito (finestra di invito)",
+          "does": "Invia l'invito all'indirizzo e-mail inserito; mostra un pannello di successo con una finestra di accettazione di 7 giorni."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Invitare un nuovo membro del team",
+          "steps": [
+            "Fai clic su Invita membro",
+            "Inserisci l'e-mail della persona",
+            "Scegli un ruolo (Admin, Team Manager o Team Member)",
+            "Fai clic su Invia invito",
+            "L'invitato riceve un'e-mail e ha 7 giorni per accettare"
+          ]
+        },
+        {
+          "title": "Cambiare il ruolo di qualcuno",
+          "steps": [
+            "Trova il membro nella tabella",
+            "Apri il menu a discesa Ruolo nella sua riga",
+            "Seleziona Admin, Manager o Member"
+          ]
+        },
+        {
+          "title": "Disattivare un account",
+          "steps": [
+            "Individua il membro",
+            "Fai clic sul suo badge verde Attivo",
+            "Conferma «Impostare come inattivo?» con Sì"
+          ]
+        },
+        {
+          "title": "Reinviare un invito obsoleto",
+          "steps": [
+            "Scorri fino a Inviti in sospeso",
+            "Fai clic sull'icona busta nella riga dell'invito per reinviarlo con una nuova scadenza di 7 giorni"
+          ]
+        }
+      ],
+      "tips": [
+        "Ruolo, lingua, interruttore di stato, reinvito, reimpostazione password, rimozione e la tabella Inviti in sospeso sono visibili solo agli amministratori.",
+        "Gli amministratori non possono cambiare lo stato o il ruolo di altri amministratori, né i propri.",
+        "Si applicano limiti di postazioni: al tetto del piano il modulo di invito è disabilitato con un invito all'upgrade, e Team Manager richiede un piano CONSULTANT o ENTERPRISE.",
+        "Le azioni di disattivazione/rimozione/annullamento richiedono ciascuna una conferma Sì/No."
+      ]
+    },
+    "pmIntegrations": {
+      "overview": "La pagina Integrazioni consente di collegare i tuoi strumenti di gestione dei progetti a wxKanban tramite OAuth, così che le loro attività confluiscano nella vista unificata Attività. Mostra una scheda per ogni sistema supportato (Jira, Monday.com, Asana, Trello) con comandi di connessione/disconnessione e lo stato della connessione.",
+      "whatYouSee": [
+        "Intestazione con titolo, sottotitolo e un pulsante Visualizza attività",
+        "Banner verde di successo opzionale dopo il ritorno da un flusso OAuth",
+        "Banner rosso di errore opzionale se un'azione di connessione non riesce",
+        "Una griglia di quattro schede di sistemi PM (Jira, Monday.com, Asana, Trello)",
+        "Stato per scheda: data di connessione, badge di stato di sincronizzazione (attivo/scaduto/non riuscito) e ora dell'ultima sincronizzazione",
+        "Un pannello informativo blu « Serve aiuto? » in basso"
+      ],
+      "controls": [
+        {
+          "label": "← Indietro",
+          "does": "Torna alla Dashboard."
+        },
+        {
+          "label": "Visualizza attività",
+          "does": "Passa alla pagina Attività per vedere le attività sincronizzate."
+        },
+        {
+          "label": "Connetti",
+          "does": "Avvia il flusso di autorizzazione OAuth per quel sistema e ti reindirizza alla sua pagina di accesso/consenso."
+        },
+        {
+          "label": "Disconnetti",
+          "does": "Dopo una richiesta di conferma, rimuove la connessione a quel sistema PM e aggiorna le schede."
+        },
+        {
+          "label": "Badge di stato di sincronizzazione",
+          "does": "Mostra lo stato di salute della connessione: Attivo (verde), o un avviso per Scaduto (giallo) / Non riuscito (rosso)."
+        },
+        {
+          "label": "Pannello Serve aiuto?",
+          "does": "Testo informativo statico con indicazioni per collegare le integrazioni."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Connettere uno strumento PM",
+          "steps": [
+            "Apri la pagina Integrazioni",
+            "Trova la scheda del sistema (ad es. Jira)",
+            "Fai clic su Connetti",
+            "Completa l'accesso/il consenso sul sito del fornitore",
+            "Torna per vedere un banner di successo e lo stato Connesso"
+          ]
+        },
+        {
+          "title": "Rimuovere una connessione",
+          "steps": [
+            "Individua la scheda del sistema connesso",
+            "Fai clic su Disconnetti",
+            "Conferma nella richiesta"
+          ]
+        },
+        {
+          "title": "Verificare perché la sincronizzazione si è interrotta",
+          "steps": [
+            "Apri la pagina Integrazioni",
+            "Guarda il badge di stato della scheda",
+            "Se mostra Scaduto o Non riuscito, Disconnetti e Connetti di nuovo per riautorizzare"
+          ]
+        }
+      ],
+      "tips": [
+        "Sono supportati solo Jira, Monday.com, Asana e Trello.",
+        "Un badge Scaduto o Non riuscito di solito significa che il token OAuth deve essere riautorizzato tramite Connetti.",
+        "Dopo la connessione, usa Visualizza attività (o Sincronizza ora sulla pagina Attività) per importare le attività."
+      ]
+    },
+    "settings": {
+      "overview": "Esistono due superfici Impostazioni distinte. La pagina admin Impostazioni azienda (src/client/pages/admin/SettingsPage.tsx) gestisce le informazioni aziendali, la fatturazione/abbonamento e impostazioni applicative chiave/valore cifrate arbitrarie. Una seconda pagina account SettingsPage (src/client/pages/SettingsPage.tsx) è una schermata personale/aziendale a schede con le schede Azienda, Profilo, Notifiche e Sicurezza. Notifiche è una bozza (« in arrivo ») ; l'unica azione attiva di Sicurezza è un pulsante Elimina account (non collegato), mentre la modifica della password si trova sotto Profilo.",
+      "whatYouSee": [
+        "Pagina admin Impostazioni azienda: intestazione « Impostazioni azienda », un editor Informazioni azienda (admin), un pannello Fatturazione e abbonamento (admin), un modulo « Aggiungi impostazione » e un elenco « Impostazioni correnti » con un conteggio",
+        "Pagina Impostazioni account: una freccia di ritorno alla dashboard, una scheda Info livello con Aggiorna, e una barra di schede — Azienda (solo admin), Profilo, Notifiche, Sicurezza",
+        "Scheda Azienda: nome dell'azienda, e-mail di fatturazione, e-mail fattura del consulente, indirizzo di fatturazione, telefono di fatturazione, Salva modifiche",
+        "Scheda Profilo: e-mail in sola lettura, nome completo, fuso orario, lingua, una casella « Abilita monitoraggio del tempo », Salva profilo, più una scheda Cambia password",
+        "Scheda Notifiche: segnaposto « Impostazioni di notifica in arrivo... »",
+        "Scheda Sicurezza: nota che rimanda a Profilo per la modifica della password, più un pulsante Elimina account in una Zona di pericolo"
+      ],
+      "controls": [
+        {
+          "label": "Informazioni azienda — Salva info azienda",
+          "does": "Salva il nome dell'azienda, l'e-mail di fatturazione, l'e-mail fattura del consulente, l'indirizzo di fatturazione e il telefono tramite l'API delle impostazioni admin.",
+          "adminOnly": true
+        },
+        {
+          "label": "E-mail fattura del consulente",
+          "does": "E-mail a cui vengono recapitate le fatture B2B delle società di consulenza ingaggiate; se vuota, la generazione delle fatture non riesce.",
+          "adminOnly": true
+        },
+        {
+          "label": "Aggiorna carta / Riattiva abbonamento",
+          "does": "Apre il modulo carta di Stripe per reinserire una carta e riattivare un abbonamento non riuscito/incompleto (l'etichetta indica « Aggiungi una carta / Abbonati » se non ne è registrata alcuna). Nascosto quando l'elaborazione delle carte è disabilitata.",
+          "adminOnly": true
+        },
+        {
+          "label": "Modulo Aggiungi impostazione (Nome / Tipo / Valore / Descrizione)",
+          "does": "Crea una nuova impostazione aziendale. Il nome è in snake_case (max 64); il Tipo è boolean, default, report_header o image, il che cambia il campo del valore (menu a discesa / testo / area di testo / URL).",
+          "adminOnly": true
+        },
+        {
+          "label": "Aggiungi impostazione (pulsante)",
+          "does": "Invia la nuova impostazione; mostra « Aggiunta… » durante il salvataggio.",
+          "adminOnly": true
+        },
+        {
+          "label": "Modifica riga impostazione (matita)",
+          "does": "Modifica in linea il valore e la descrizione di un'impostazione; Salva/Annulla, con Invio per salvare ed Esc per annullare nei campi di testo.",
+          "adminOnly": true
+        },
+        {
+          "label": "Elimina riga impostazione (cestino)",
+          "does": "Richiede « Eliminare questa impostazione? » poi Conferma/Annulla per rimuoverla.",
+          "adminOnly": true
+        },
+        {
+          "label": "Profilo — Nome completo / Fuso orario / Lingua / Abilita monitoraggio del tempo",
+          "does": "Campi del profilo modificabili; cambiare la Lingua applica immediatamente la nuova impostazione locale. L'e-mail è mostrata ma bloccata.",
+          "adminOnly": false
+        },
+        {
+          "label": "Salva profilo",
+          "does": "Salva i campi del profilo e aggiorna il contesto dell'utente connesso.",
+          "adminOnly": false
+        },
+        {
+          "label": "Cambia password (Attuale / Nuova / Conferma + pulsante)",
+          "does": "Cambia la password dell'account; verifica minimo 8 caratteri, una conferma corrispondente e che la nuova password differisca dall'attuale.",
+          "adminOnly": false
+        },
+        {
+          "label": "Aggiorna (scheda Info livello)",
+          "does": "Passa alla pagina /upgrade per cambiare il livello del piano.",
+          "adminOnly": false
+        },
+        {
+          "label": "Elimina account (scheda Sicurezza, Zona di pericolo)",
+          "does": "Presentato come un pulsante distruttivo di eliminazione dell'account (nel componente non è collegato alcun gestore di conferma).",
+          "adminOnly": false
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Aggiornare i dati di fatturazione dell'azienda",
+          "steps": [
+            "Apri le Impostazioni azienda admin (o la scheda Azienda delle Impostazioni account)",
+            "Modifica il nome dell'azienda, l'e-mail di fatturazione, l'e-mail fattura del consulente, l'indirizzo, il telefono",
+            "Fai clic su Salva info azienda / Salva modifiche"
+          ]
+        },
+        {
+          "title": "Recuperare un abbonamento non riuscito",
+          "steps": [
+            "Apri le Impostazioni azienda admin",
+            "In Fatturazione e abbonamento esamina il piano e lo stato",
+            "Fai clic su « Aggiorna carta / Riattiva abbonamento »",
+            "Inserisci i dati della carta nel modulo Stripe e completa"
+          ]
+        },
+        {
+          "title": "Aggiungere un'impostazione aziendale",
+          "steps": [
+            "In Aggiungi impostazione, inserisci un nome in snake_case",
+            "Scegli un Tipo (boolean / default / report_header / image)",
+            "Inserisci il Valore (e una Descrizione facoltativa)",
+            "Fai clic su Aggiungi impostazione"
+          ]
+        },
+        {
+          "title": "Cambiare la password",
+          "steps": [
+            "Apri la scheda Profilo delle Impostazioni account",
+            "In Cambia password inserisci l'attuale, la nuova (8+ caratteri) e conferma",
+            "Invia; la nuova password deve differire dall'attuale"
+          ]
+        }
+      ],
+      "tips": [
+        "Le impostazioni aziendali sono cifrate a riposo.",
+        "La scheda Notifiche è un segnaposto; la modifica della password è sotto Profilo, non Sicurezza."
+      ]
+    },
+    "timeTracking": {
+      "overview": "Non esiste una pagina dedicata al Monitoraggio del Tempo integrata nell'app. Il monitoraggio del tempo in tempo reale avviene all'interno del Consultant Work Hub (vedi workHub). Nel codice esiste un insieme di widget autonomi per il monitoraggio del tempo (TimerWidget, TimeEntriesList, TimeSummary) che richiamano gli endpoint /api/time-tracking, ma attualmente non sono montati su alcuna rotta, quindi questa funzionalità è parzialmente realizzata / non raggiungibile dall'utente come schermata a sé stante. I controlli seguenti descrivono tali widget per completezza.",
+      "whatYouSee": [
+        "Widget del timer: un cronometro avvia/ferma che mostra il tempo trascorso HH:MM:SS durante l'esecuzione (componente non montato)",
+        "Elenco delle voci di tempo: voci passate con durata, inizio/fine, badge fatturabile e fatturato (componente non montato)",
+        "Riepilogo del tempo: tempo totale, tempo fatturabile, percentuale fatturabile e medie per voce (componente non montato)"
+      ],
+      "controls": [
+        {
+          "label": "Descrizione (facoltativa)",
+          "does": "Nota in testo libero (max 500 caratteri) su ciò a cui stai lavorando prima di avviare il timer"
+        },
+        {
+          "label": "Contrassegna come fatturabile",
+          "does": "Casella di controllo che imposta la nuova voce di tempo come fatturabile quando avvii il timer"
+        },
+        {
+          "label": "Avvia timer",
+          "does": "Avvia un timer in tempo reale per il progetto/l'attività; bloccato se un timer è già in esecuzione"
+        },
+        {
+          "label": "Ferma timer",
+          "does": "Ferma il timer in esecuzione e registra la durata trascorsa come voce di tempo"
+        },
+        {
+          "label": "Solo fatturabile",
+          "does": "Filtro con casella di controllo che mostra solo le voci fatturabili nell'elenco delle voci di tempo"
+        },
+        {
+          "label": "Elimina",
+          "does": "Rimuove una voce di tempo; disabilitato una volta che la voce è stata fatturata"
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Monitorare il tempo su un lavoro (tramite il Work Hub)",
+          "steps": [
+            "Apri il Consultant Work Hub",
+            "Premi Avvia timer sull'attività su cui stai lavorando",
+            "Premi Ferma al termine e rispondi alla richiesta di fatturabilità"
+          ]
+        }
+      ],
+      "tips": [
+        "Un timer in esecuzione oltre le 8 ore attiva un avviso di inattività che ti invita a fermarlo",
+        "Può essere in esecuzione un solo timer alla volta"
+      ]
+    },
+    "invoices": {
+      "overview": "Schermata di fatturazione completamente funzionante. Mostra statistiche riepilogative, consente di generare una fattura dalle voci di tempo in un intervallo di date, quindi di visualizzare, scaricare, inviare via e-mail, rinviare o eliminare ogni fattura.",
+      "whatYouSee": [
+        "Intestazione con titolo e un pulsante Genera fattura",
+        "Tre schede di statistiche: Totale fatture, Ricavi totali, Fatture inviate",
+        "Tabella dello storico delle fatture: numero, data, intestatario, ore, importo, stato (Inviata/Bozza) e azioni per riga",
+        "Finestra di generazione (intervallo di date) e una finestra di dettaglio per fattura"
+      ],
+      "controls": [
+        {
+          "label": "Genera fattura (+)",
+          "does": "Apre la finestra di generazione per creare una fattura per un intervallo di date"
+        },
+        {
+          "label": "Data di inizio / Data di fine",
+          "does": "Selettori di data nella finestra che definiscono quali voci di tempo vengono fatturate (la tariffa predefinita è di 100 $/h)"
+        },
+        {
+          "label": "Genera fattura (conferma)",
+          "does": "Crea la fattura dal tempo fatturabile nell'intervallo scelto; disabilitato finché entrambe le date non sono impostate"
+        },
+        {
+          "label": "Annulla",
+          "does": "Chiude la finestra di generazione senza creare una fattura"
+        },
+        {
+          "label": "Visualizza (icona occhio)",
+          "does": "Apre la finestra di dettaglio della fattura con intestatario, stato, ore e totale"
+        },
+        {
+          "label": "Invia (icona aeroplano di carta)",
+          "does": "Invia la fattura via e-mail e la contrassegna come Inviata; mostrato solo sulle fatture non inviate"
+        },
+        {
+          "label": "Elimina (icona cestino)",
+          "does": "Elimina la fattura; disabilitato una volta che la fattura è stata inviata"
+        },
+        {
+          "label": "Scarica PDF",
+          "does": "Apre il PDF della fattura in una nuova scheda (finestra di dettaglio)"
+        },
+        {
+          "label": "Invia fattura",
+          "does": "Invia via e-mail una fattura non inviata dalla finestra di dettaglio"
+        },
+        {
+          "label": "Rinvia",
+          "does": "Rinvia una fattura già inviata dalla finestra di dettaglio"
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Generare una fattura",
+          "steps": [
+            "Fai clic su Genera fattura",
+            "Scegli una data di inizio e di fine",
+            "Fai clic su Genera fattura per confermare"
+          ]
+        },
+        {
+          "title": "Inviare una fattura",
+          "steps": [
+            "Trova la fattura nella tabella dello storico",
+            "Fai clic sull'icona di invio (aeroplano di carta), oppure apri Visualizza e fai clic su Invia fattura"
+          ]
+        }
+      ],
+      "tips": [
+        "Le fatture inviate non possono essere eliminate",
+        "Il badge di stato è verde per Inviata, giallo per Bozza"
+      ]
+    },
+    "reports": {
+      "overview": "Schermata dei report con due schede: report Tempo (ore per membro del team per un intervallo di date) e report Progetti (prestazioni per progetto). I dati sono reali; il pulsante di esportazione CSV è un abbozzo e non produce ancora un file.",
+      "whatYouSee": [
+        "Due schede: Tempo e Progetti",
+        "Scheda Tempo: una scheda di filtro per intervallo di date più una tabella per membro (membro, ore totali, ore fatturabili, % fatturabile)",
+        "Scheda Progetti: una tabella dei progetti (ore, numero di attività, barra del tasso di completamento, dimensione del team)"
+      ],
+      "controls": [
+        {
+          "label": "Tempo (scheda)",
+          "does": "Mostra le ore registrate per membro del team per l'intervallo di date selezionato"
+        },
+        {
+          "label": "Progetti (scheda)",
+          "does": "Mostra le prestazioni per progetto: ore, attività, completamento, dimensione del team"
+        },
+        {
+          "label": "Data di inizio / Data di fine",
+          "does": "Selettori di data; il report Tempo si carica solo dopo che entrambe le date sono impostate"
+        },
+        {
+          "label": "Esporta CSV",
+          "does": "Pensato per esportare il report in CSV, ma attualmente non è implementato (nessun download)"
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Vedere il tempo per membro del team",
+          "steps": [
+            "Apri la scheda Tempo",
+            "Imposta una data di inizio e di fine",
+            "Esamina le ore per membro e la percentuale fatturabile"
+          ]
+        },
+        {
+          "title": "Esaminare le prestazioni dei progetti",
+          "steps": [
+            "Apri la scheda Progetti",
+            "Leggi le ore, il numero di attività e il tasso di completamento per progetto"
+          ]
+        }
+      ],
+      "tips": [
+        "Il badge % fatturabile è verde sopra l'80%, giallo sotto",
+        "Il report Tempo rimane vuoto finché non vengono scelte entrambe le date"
+      ]
+    },
+    "faq": {
+      "overview": "Guida e FAQ è disponibile per qualsiasi utente connesso (non riservato agli amministratori). Elenca le FAQ pubblicate e con risposta come una fisarmonica espandibile e ti consente di porre una nuova domanda che viene instradata per ricevere risposta ed essere aggiunta alle FAQ.",
+      "whatYouSee": [
+        "Intestazione della pagina 'Guida e FAQ' con un sottotitolo che ti invita a sfogliare o a chiedere",
+        "Una scheda 'Domande frequenti' che elenca le voci FAQ pubblicate, ciascuna su una riga comprimibile",
+        "Un'area 'Poni una domanda' con una casella di testo e un pulsante Invia domanda",
+        "Stati vuoto/caricamento: 'Caricamento…' oppure 'Nessuna FAQ ancora — poni una domanda qui sotto.'"
+      ],
+      "controls": [
+        {
+          "label": "Riga FAQ (titolo)",
+          "does": "Fai clic per espandere/comprimere la risposta; un chevron ruota per mostrare lo stato aperto. Le risposte espanse possono includere un video incorporato.",
+          "adminOnly": false
+        },
+        {
+          "label": "Casella di testo della domanda",
+          "does": "Digita la tua domanda (fino a 2000 caratteri); deve contenere almeno 5 caratteri per essere inviata.",
+          "adminOnly": false
+        },
+        {
+          "label": "Invia domanda",
+          "does": "Invia la tua domanda affinché riceva risposta e venga aggiunta alle FAQ; mostra 'Invio…' e poi un messaggio di conferma. Rifiuta le domande con meno di 5 caratteri.",
+          "adminOnly": false
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Trovare una risposta",
+          "steps": [
+            "Apri Guida e FAQ",
+            "Scorri l'elenco delle FAQ",
+            "Fai clic su una domanda per espanderne la risposta (e guardare eventuali video allegati)"
+          ]
+        },
+        {
+          "title": "Porre una nuova domanda",
+          "steps": [
+            "Scorri fino a 'Non hai trovato la tua risposta? Chiedici'",
+            "Digita la tua domanda (5 caratteri o più)",
+            "Fai clic su Invia domanda e attendi la conferma"
+          ]
+        }
+      ],
+      "tips": [
+        "Compaiono solo le FAQ pubblicate e con risposta — la tua domanda inviata viene aggiunta una volta che ha ricevuto risposta."
+      ]
+    },
+    "workHub": {
+      "overview": "Il Consultant Work Hub è lo spazio di lavoro quotidiano del consulente: una coda di attività assegnate con un cronometro integrato, contatori del carico di lavoro, un'anteprima del tempo fatturabile e indicatori di conformità. Completamente sviluppato ed è il luogo principale in cui viene registrato il tempo.",
+      "whatYouSee": [
+        "Intestazione con un menu a discesa di filtro per progetto",
+        "Banner verde del cronometro in esecuzione (quando un cronometro è attivo) e un avviso ambra di inattività dopo 8 ore",
+        "Barra di riepilogo del carico di lavoro: conteggi Totale, Scadute, Anzianità oltre 30 giorni e Attenzione conformità",
+        "Elenco della coda assegnata: ogni attività mostra nome, progetto, stato, priorità, tag di origine e pulsanti di azione",
+        "Pannello di anteprima fatturabile con un intervallo di date, una ripartizione delle origini manuale/IA e un elenco di revisione della conformità"
+      ],
+      "controls": [
+        {
+          "label": "Filtro per progetto (menu a discesa)",
+          "does": "Filtra la coda delle attività e le anteprime su Tutti i progetti o un singolo progetto"
+        },
+        {
+          "label": "Avvia cronometro (per attività)",
+          "does": "Avvia un cronometro fatturabile su quell'attività; disabilitato mentre un altro cronometro è in esecuzione"
+        },
+        {
+          "label": "Ferma / Ferma cronometro",
+          "does": "Ferma il cronometro in esecuzione e apre il messaggio Salva voce di tempo (fatturabile)"
+        },
+        {
+          "label": "Continua",
+          "does": "Ignora l'avviso di inattività di 8 ore e lascia il cronometro in esecuzione"
+        },
+        {
+          "label": "Attività",
+          "does": "Apre il pannello Registro tempo dell'attività: voci di tempo, cronologia delle modifiche di stato e stato di sincronizzazione PM"
+        },
+        {
+          "label": "Bloccata",
+          "does": "Apre la finestra di stato per contrassegnare l'attività come bloccata (richiede un motivo)"
+        },
+        {
+          "label": "Sospesa",
+          "does": "Apre la finestra di stato per contrassegnare l'attività come sospesa (richiede un motivo)"
+        },
+        {
+          "label": "Fatturabile / Non fatturabile (messaggio di salvataggio)",
+          "does": "Dopo aver fermato un cronometro, imposta se la voce è fatturabile, con note facoltative"
+        },
+        {
+          "label": "Salva voce",
+          "does": "Salva la voce di tempo fermata con l'indicatore di fatturazione e le note scelti"
+        },
+        {
+          "label": "Data di inizio/fine dell'anteprima fattura",
+          "does": "Campi data che impostano l'intervallo per i totali dell'anteprima del tempo fatturabile"
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Registrare il tempo su un'attività",
+          "steps": [
+            "Facoltativamente filtra per progetto",
+            "Fai clic su Avvia cronometro sull'attività",
+            "Fai clic su Ferma quando hai finito",
+            "Scegli Fatturabile o Non fatturabile e Salva voce"
+          ]
+        },
+        {
+          "title": "Contrassegnare un'attività come bloccata o sospesa",
+          "steps": [
+            "Fai clic su Bloccata o Sospesa sull'attività",
+            "Inserisci un motivo obbligatorio",
+            "Fai clic su Invia"
+          ]
+        },
+        {
+          "title": "Visualizzare l'anteprima del tempo fatturabile",
+          "steps": [
+            "Imposta le date di inizio e fine dell'anteprima",
+            "Leggi il numero di voci / il totale delle ore e la ripartizione manuale vs IA"
+          ]
+        }
+      ],
+      "tips": [
+        "Un solo cronometro è in esecuzione alla volta; il banner verde mostra l'attività attiva e il tempo trascorso",
+        "Un motivo è obbligatorio quando si contrassegna un'attività come bloccata o sospesa"
+      ]
+    },
+    "stackProfiles": {
+      "overview": "Company Stack Profiles è una schermata riservata agli AMMINISTRATORI che imposta uno Stack e stile predefinito a livello aziendale per ciascun tipo di applicazione (Web / Desktop / Mobile). I nuovi progetti di un tipo ereditano il profilo a meno che non acquisiscano il proprio Stack, nel qual caso lo Stack del progetto ha sempre la precedenza. C'è un profilo per tipo (massimo 3).",
+      "whatYouSee": [
+        "Titolo della pagina «Company Stack Profiles» con una spiegazione che i nuovi progetti ereditano il valore predefinito aziendale per tipo di applicazione",
+        "Un pannello «Promuovi lo Stack di un progetto a livello aziendale» con un menu a discesa dei progetti e un pulsante Promuovi",
+        "Un elenco «Profiles» che mostra una riga per tipo di applicazione (Web / Desktop / Mobile), ciascuna indicando se è Impostato (con la data dell'ultimo aggiornamento) o Non impostato",
+        "I non amministratori vedono solo un messaggio rosso «Questa pagina richiede l'accesso Amministratore.»"
+      ],
+      "controls": [
+        {
+          "label": "Progetto (deve avere uno Stack e stile acquisito)",
+          "does": "Menu a discesa dei progetti che hanno uno Stack acquisito; scegli quello il cui Stack vuoi rendere il predefinito aziendale. Appaiono solo i progetti con un tipo di applicazione.",
+          "adminOnly": true
+        },
+        {
+          "label": "Promuovi",
+          "does": "Copia lo Stack/stile acquisito del progetto selezionato nel profilo a livello aziendale per il tipo di applicazione di quel progetto. Disabilitato finché non viene selezionato un progetto; mostra «Promozione in corso…» durante l'elaborazione.",
+          "adminOnly": true
+        },
+        {
+          "label": "Cancella",
+          "does": "Rimuove il profilo di Stack a livello aziendale per quel tipo di applicazione, così i progetti di quel tipo tornano al predefinito integrato. Mostrato su ogni riga Impostata.",
+          "adminOnly": true
+        },
+        {
+          "label": "Riprova",
+          "does": "Ricarica l'elenco dei profili dopo un errore di caricamento.",
+          "adminOnly": true
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Rendere lo Stack di un progetto il predefinito aziendale",
+          "steps": [
+            "Apri Company Stack Profiles (amministratore)",
+            "Nel pannello Promuovi, scegli un progetto che ha uno Stack e stile acquisito",
+            "Fai clic su Promuovi",
+            "Conferma che la riga del tipo di applicazione corrispondente ora mostra «Impostato»"
+          ]
+        },
+        {
+          "title": "Ripristinare un tipo di applicazione al predefinito integrato",
+          "steps": [
+            "Trova la riga del tipo di applicazione (Web / Desktop / Mobile) contrassegnata come «Impostato»",
+            "Fai clic su Cancella su quella riga",
+            "La riga torna a «Non impostato» e i progetti di quel tipo tornano al predefinito di wxKanban"
+          ]
+        }
+      ],
+      "tips": [
+        "Se non appare alcun progetto nel menu a discesa, esegui prima /buildstack su un progetto per acquisire il suo Stack e stile.",
+        "Un progetto che ha il proprio Stack acquisito ignora il profilo aziendale."
+      ]
+    },
+    "themeProfiles": {
+      "overview": "Company Theme Profiles è una schermata riservata agli AMMINISTRATORI che imposta un Theme di colori predefinito a livello aziendale per ciascun tipo di applicazione (Web / Desktop / Mobile). I nuovi progetti ereditano il Theme a meno che non ne impostino uno proprio; un progetto con il proprio Theme ha sempre la precedenza. I profili vengono creati dalla scheda Theme di un progetto, non in questa pagina.",
+      "whatYouSee": [
+        "Titolo della pagina «Company Theme Profiles» con una spiegazione e una nota per impostare un Theme dalla scheda Theme di un progetto tramite «Salva come Theme aziendale»",
+        "Un elenco «Profiles» con una riga per tipo di applicazione (Web / Desktop / Mobile)",
+        "Ogni riga Impostata mostra un'anteprima a campioni dei colori primario / secondario / d'accento / di sfondo più una data dell'ultimo aggiornamento; le righe non impostate riportano «Non impostato (i progetti tornano al predefinito di wxKanban)»",
+        "I non amministratori vedono solo un messaggio rosso «Questa pagina richiede l'accesso Amministratore.»"
+      ],
+      "controls": [
+        {
+          "label": "Campioni di colore",
+          "does": "Anteprima in sola lettura dei colori primario, secondario, d'accento e di sfondo del profilo per ciascun tipo di applicazione Impostato.",
+          "adminOnly": true
+        },
+        {
+          "label": "Cancella",
+          "does": "Rimuove il profilo di Theme a livello aziendale per quel tipo di applicazione, così i progetti di quel tipo tornano al Theme predefinito di wxKanban. Mostrato su ogni riga Impostata.",
+          "adminOnly": true
+        },
+        {
+          "label": "Riprova",
+          "does": "Ricarica l'elenco dei profili dopo un errore di caricamento.",
+          "adminOnly": true
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Impostare un Theme predefinito aziendale",
+          "steps": [
+            "Apri un progetto e vai alla sua scheda Theme",
+            "Scegli «Salva come Theme aziendale»",
+            "Torna a Company Theme Profiles per confermare che la riga del tipo di applicazione mostra «Impostato» con l'anteprima a campioni"
+          ]
+        },
+        {
+          "title": "Rimuovere un Theme aziendale",
+          "steps": [
+            "Trova la riga del tipo di applicazione contrassegnata come «Impostato»",
+            "Fai clic su Cancella",
+            "La riga torna a «Non impostato» e i progetti tornano al predefinito di wxKanban"
+          ]
+        }
+      ],
+      "tips": [
+        "Non è possibile impostare un Theme direttamente in questa pagina — viene creato dalla scheda Theme di un progetto.",
+        "Un progetto che imposta il proprio Theme sovrascrive il profilo aziendale."
+      ]
+    },
+    "test-suite": {
+      "overview": "Ogni versione di un progetto viene verificata due volte prima di poter essere rilasciata. Nella fase QA l'IA esegue i test automatici gate per gate e vedi i risultati arrivare in tempo reale. Nella fase Test umani esegui i test che solo una persona può giudicare e approvi ciascuno di essi — ma restano bloccati finché l'esecuzione automatica non passa, così non ti viene mai chiesto di testare una build già nota come difettosa. Una versione non può arrivare in produzione con nessuno dei due insiemi in sospeso.",
+      "whatYouSee": [
+        "Un'intestazione di versione che riporta «Versione 1.4.0» e il suo stato: In sviluppo, In UAT, In produzione o Sostituita",
+        "Un filtro «Ambito:», così che un progetto con una suite per ambito risponda a «cosa resta da fare per QUESTO ambito» invece di mostrare un elenco piatto di centinaia di voci",
+        "Filtri: Tutti, In sospeso, Forzati, Falliti",
+        "Ogni test contrassegnato come Obbligatorio o Facoltativo, ed etichettato IA o Tester per mostrare chi lo ha scritto",
+        "Un pulsante «Esegui <gate>» per ciascun gate; durante l'esecuzione i totali si aggiornano: «12 superati · 1 falliti · 20 totali»",
+        "Una nota «4 test utente in attesa del rilascio in UAT» — l'insieme umano esiste ma non è ancora utilizzabile",
+        "In Test umani prima del rilascio: «Non ancora pronto per te», con un conteggio e una spiegazione",
+        "Dopo il rilascio: ogni test mostra «Prima di iniziare», «Passaggi» e «Verifica dopo», con i pulsanti Superato e Fallito",
+        "Stato vuoto: «Nessun test ancora. Vengono generati durante l'implementazione dell'ambito.»"
+      ],
+      "controls": [
+        {
+          "label": "Esegui <gate>",
+          "does": "Avvia l'esecutore IA per tutti i test automatici di quel gate e apre la vista in tempo reale. I risultati arrivano man mano; se l'esecutore smette di rispondere vedrai «Esecuzione bloccata — nessuna risposta dall'esecutore» invece di un caricamento infinito."
+        },
+        {
+          "label": "Ambito:",
+          "does": "Restringe la suite a un solo ambito. Vengono caricati solo i test di quell'ambito, ed è questo che mantiene reattivo un progetto grande."
+        },
+        {
+          "label": "Tutti / In sospeso / Forzati / Falliti",
+          "does": "Filtra l'elenco. In sospeso è la vista di lavoro, Falliti quella di triage, e Forzati mostra i test il cui requisito è stato sovrascritto."
+        },
+        {
+          "label": "Superato",
+          "does": "Approva il test a tuo nome. L'approvazione viene registrata per questa versione, non per il progetto in generale."
+        },
+        {
+          "label": "Fallito",
+          "does": "Chiede cosa è realmente accaduto, poi crea una segnalazione con i passaggi del test già allegati. Quello che scrivi diventa la segnalazione: descrivi il comportamento osservato, non una supposizione sulla causa."
+        },
+        {
+          "label": "Aggiungi un test",
+          "does": "Aggiunge un tuo test alla suite. Viene etichettato Tester e non IA, così chi legge i risultati vede che lo ha scritto una persona."
+        },
+        {
+          "label": "Requisito di test",
+          "does": "Disattiva il gate dei test per un progetto, o lo rende obbligatorio per un ambito che eredita un'impostazione disattivata. Solo amministratori, e la modifica viene scritta nel log di audit.",
+          "adminOnly": true
+        },
+        {
+          "label": "Eredita / Sovrascrivi",
+          "does": "Indica se un ambito segue il requisito di test del progetto o ne definisce uno proprio.",
+          "adminOnly": true
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Eseguire i test automatici di una versione",
+          "steps": [
+            "Apri il progetto e scegli la fase QA",
+            "Imposta «Ambito:» sull'ambito che ti interessa, o lascia tutti gli ambiti",
+            "Clicca Esegui accanto al gate desiderato",
+            "Segui i totali; l'elenco si aggiorna da solo al termine",
+            "Passa il filtro su Falliti per lavorare ciò che non è passato"
+          ]
+        },
+        {
+          "title": "Approvare un test utente",
+          "steps": [
+            "Apri il progetto e scegli la fase Test umani",
+            "Se compare «Non ancora pronto per te», i test automatici non sono ancora passati — non c'è nulla da fare",
+            "Leggi «Prima di iniziare», segui i «Passaggi», poi conferma «Verifica dopo»",
+            "Clicca Superato, oppure Fallito descrivendo cosa è realmente accaduto",
+            "Ripeti finché non resta alcun test Obbligatorio in sospeso"
+          ]
+        },
+        {
+          "title": "Gestire una richiesta di ripetere un test",
+          "steps": [
+            "Apri Test umani e cerca «Ripeti questo test»",
+            "Qualcosa è cambiato dopo la tua approvazione, quindi viene ricontrollato",
+            "Ripeti il test e approva normalmente",
+            "Se la modifica non può aver influito su ciò che avevi verificato, spiega perché — la tua approvazione precedente resta valida"
+          ]
+        }
+      ],
+      "tips": [
+        "La fase QA mostra solo i test automatici. I test utente esistono fin dall'inizio e appaiono come conteggio, così vedi che il lavoro c'è senza poterlo iniziare troppo presto.",
+        "Un fallimento è più utile di un commento: crea una segnalazione con i passaggi allegati, cosa che un commento non fa.",
+        "I test facoltativi non bloccano un rilascio. Quelli obbligatori sì.",
+        "Disattivare il requisito di test è un'azione da amministratore e finisce nel log di audit; non cancella i test, smette solo di usarli per bloccare il rilascio."
+      ]
+    },
+    "feedback": {
+      "overview": "Puoi segnalare un problema o richiedere una modifica dall'interno del prodotto e poi seguire che fine ha fatto. I feedback che invii vengono smistati, possono ricevere una risposta e restano visibili in I miei feedback. Far fallire un test utente crea una segnalazione allo stesso modo, con i passaggi del test già allegati.",
+      "whatYouSee": [
+        "Un modulo di feedback che chiede cosa è successo, con spazio per i dettagli",
+        "I miei feedback: i tuoi invii per il progetto su cui stai lavorando, dal più recente",
+        "Uno stato su ogni voce che indica a che punto è",
+        "Eventuali risposte o note di triage lasciate da chi se ne è occupato",
+        "Le segnalazioni del progetto, dove le voci Risolte sono nascoste per impostazione predefinita",
+        "Filtri di stato con contatori, per vedere quante voci ci sono in ciascuno stato"
+      ],
+      "controls": [
+        {
+          "label": "Invia feedback",
+          "does": "Invia la tua segnalazione per il triage. Descrivi cosa hai fatto e cosa hai visto, non cosa pensi ne sia la causa — chi legge non vede il tuo schermo."
+        },
+        {
+          "label": "I miei feedback",
+          "does": "Elenca ciò che hai inviato per il progetto corrente, con stato e risposte. È limitato a quel progetto: un feedback inviato da un altro progetto non comparirà qui."
+        },
+        {
+          "label": "Filtri di stato",
+          "does": "Filtra le segnalazioni per stato; ogni filtro riporta un contatore. Risolto è nascosto per impostazione predefinita, così l'elenco mostra il lavoro ancora aperto."
+        }
+      ],
+      "tasks": [
+        {
+          "title": "Segnalare un problema",
+          "steps": [
+            "Apri il modulo di feedback dall'interno del prodotto",
+            "Descrivi cosa hai fatto, cosa ti aspettavi e cosa è successo invece",
+            "Invia, poi controlla I miei feedback per stato e risposte"
+          ]
+        },
+        {
+          "title": "Sapere che fine ha fatto una segnalazione",
+          "steps": [
+            "Verifica di essere nel progetto giusto",
+            "Apri I miei feedback",
+            "Trova la voce e leggi lo stato e le note di triage"
+          ]
+        }
+      ],
+      "tips": [
+        "I miei feedback è limitato al progetto corrente. Se manca qualcosa che avevi segnalato, controlla di essere nel progetto giusto.",
+        "Far fallire un test utente è il modo più rapido di produrre una buona segnalazione — i passaggi vengono allegati per te."
+      ]
+    }
+  }
+}

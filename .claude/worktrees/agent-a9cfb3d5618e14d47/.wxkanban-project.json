@@ -1,0 +1,13 @@
+{
+  "projectId": "ba924193-0335-4080-9fa6-33cd6b81300a",
+  "version": "1.0.4",
+  "createdAt": "2026-03-24T10:59:43.2Z",
+  "mode": "new",
+  "kitVersion": "1.7.99",
+  "kitReleaseSha": "94243794b870d2ef6af04a534358a3fcd794e022",
+  "mcpBaseUrl": "https://mcp.wxperts.com",
+  "commandsDir": "_wxAI/commands/",
+  "rulesDir": "_wxAI-project/rules/",
+  "vscodeDir": ".vscode/",
+  "install-verified-at": "2026-04-16T12:13:47.097Z"
+}

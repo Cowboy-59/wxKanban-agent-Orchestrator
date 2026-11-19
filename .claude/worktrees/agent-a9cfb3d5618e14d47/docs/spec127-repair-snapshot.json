@@ -1,0 +1,226 @@
+{
+  "takenAt": "2026-09-20T15:50:09.236Z",
+  "purpose": "Rollback source for the spec 127 collision repair (Option A).",
+  "specRow": {
+    "id": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+    "projectid": "ba924193-0335-4080-9fa6-33cd6b81300a",
+    "specnumber": "127",
+    "title": "Brand Document Capture and Ingest",
+    "content": "# Spec 127: Brand Document Capture and Ingest\n\n**Spec Number**: 127\n**Parent Scope**: SCOPE-129 — Executable Brand Schema (Multi-Mode)\n**Status**: `draft`\n**Created**: 2026-09-18\n**Source**: `specs/Project-Scope/129-executable-brand-schema.md`\n\n---\n\n## Overview\n\nThe input half of SCOPE-129. Most customers have no written brand specification; they have a working application whose brand is implicit in its rendered styling. This spec captures that product into a brand instruction document, publishes the format so the document is never guessed at, parses a completed document deterministically, and presents a validation report before anything is stored. It produces documents and parsed schemas; it does not generate artifacts or enforce rules.\n\n## Business Problem\n\nThere is no way to get a brand into the system. The existing derive routes produce a color-only theme from a gallery reference, a prompt, a logo or a live site — useful, but a long way short of a brand: no modes, no typeface roles, no rules, and nothing a customer can read or revise.\n\nAsking customers to author a specification from nothing does not work either. The reference document received from one customer is unusually complete, and treating it as the expected input would be a mistake — it is the exception. A customer with a running product has the raw material already, but no path from it to a structured brand.\n\nThe format itself is the third gap. A customer who must infer a format from one example will produce something a deterministic parser cannot read, and a parser written against a reference nobody re-checks inherits the drift that has already occurred once on this codebase with a design format that no real file matched.\n\n## Actors\n\n- Primary: the consuming customer whose built product is the source of their brand\n- Secondary: the operator running capture on the customer's behalf, and the developer maintaining the parser against a published format\n\n## Success Metrics\n\n- SC-1: 100% of captured documents parse cleanly on their first pass through the ingest they were generated for, because both sides are ours\n- SC-2: 0 rule sections fabricated by capture — every section not measurable from a rendered product is emitted as an unanswered prompt\n- SC-3: the reference corpus parses to exactly 6 modes of 41 contract tokens each, with 0 missing and 0 extra\n- SC-4: 100% of parser rejections name both the offending content and its location, with 0 partial imports\n- SC-5: 100% of imports present the validation report before the schema is committed\n- SC-6: 1 mode is produced by capture, never more, because a built product has one look\n\n## Scope Boundary\n\nIn scope:\n\n- A brand instruction format reference written from the real document\n- A fillable template shipped as a real artifact for customers to complete\n- A deterministic parser for tokens, modes, typefaces and rules, with no language model anywhere in the path\n- Loud rejection of unrecognized structure, naming the content and its location\n- Capture: extending the shipped rendered-styling extraction to emit a complete document\n- Explicit separation of what was measured from what was inferred, with unanswered prompts for the rest\n- An import route that reports before it stores\n- The reference document committed as a regression corpus\n\n## Out of Scope\n\n- The schema model, validator and storage, which belong to spec 126\n- Generating CSS or any artifact from a stored schema, which belongs to spec 128\n- The wxBrand command and skill surface, which belong to spec 129\n- Credentialed capture, and any handling of customer authentication material — permanently excluded, not deferred\n- Fabricating alternative modes; capture yields the one look a built product has\n- Following any reference site or code kit named inside a brand document\n\n## Open Questions\n\n1. Resolved: capture never handles customer credentials. It accepts a reachable page or a rendered page the customer supplies, and how the customer produces either is theirs to decide. Recorded here because the question was asked and the answer changes what T005 builds.\n2. What should capture do when the captured product's own palette fails the accessibility checks? The recommendation is to report and proceed, since refusing to capture a product the customer already ships would be unhelpful.\n3. Should capture attempt a dark counterpart when a product declares only one, or leave the axis declaration to the reviewer?\n\n## Functional Requirements\n\n### FR-001 — The format reference precedes the parser\n\nThe brand instruction format is written down, derived from the real document, before any parser is authored against it. A format reference that had already drifted from every real file on disk has occurred once on this codebase. Implements SCOPE-129 FR-015.\n\n### FR-002 — The template is a shipped artifact\n\nA fillable template carries the token contract, the mode table, the typeface roles and the rule sections. The quality of one received document is not evidence that the next will match it. Implements SCOPE-129 FR-034.\n\n### FR-003 — Ingest is deterministic\n\nThe parser uses no language model. The document structure is regular and machine-verifiable, and a deterministic parser is immune to the provider fragility that has affected an earlier scope here. Implements SCOPE-129 FR-016.\n\n### FR-004 — Unrecognized structure is rejected and named\n\nAn unknown section, an unparseable mode block or an unexpected token is an error naming the content and its location. Nothing is skipped, coerced or partially imported. Satisfies SOC 2 CC6.1 fail-safe defaults. Implements SCOPE-129 FR-017.\n\n### FR-005 — Capture reuses the shipped extraction path\n\nCapture extends the existing rendered-styling extraction rather than introducing a second engine. What is new is the output: a complete document rather than a color-only theme. Implements SCOPE-129 FR-033a.\n\n### FR-005a — Capture never handles customer credentials\n\nCapture accepts exactly two inputs: a page it can reach, or a rendered page the customer supplies. It never accepts, stores, forwards or replays a customer credential, and never authenticates against a customer system. How a customer makes a representative page available is their decision and outside this system. This is a permanent boundary rather than a deferred feature: accepting credentials would place customer authentication material inside a capture path whose entire value is that it only reads public rendering. Satisfies SOC 2 CC6.1.\n\n### FR-006 — A captured brand starts with one mode\n\nA built product has one look, so capture yields a base brand and a single resting mode and never fabricates alternatives. Implements SCOPE-129 FR-036a.\n\n### FR-007 — Capture states what it inferred\n\nA generated document distinguishes what was measured from what was defaulted, and emits every underivable rule section as an explicit unanswered prompt rather than plausible filler. A document that silently invented rules would read as authoritative, which makes it the most dangerous artifact this work could produce. Implements SCOPE-129 FR-036b.\n\n### FR-008 — Every path produces a document\n\nCapture, interview and template all emit a document the customer owns and can revise, which then enters through the same ingest. No path writes a schema directly. Implements SCOPE-129 FR-036.\n\n### FR-009 — Ingest reports before it stores\n\nThe validation report — contract coverage, contrast with measured ratios, distinguishability, fallback stacks and axis declarations — is presented before the schema is committed. Implements SCOPE-129 FR-035.\n\n### FR-010 — Parsing is offline and nothing is sent outward\n\nIngest, parsing and validation are entirely offline and no reference site named inside a document is ever followed. Capture is the one network action, is operator-initiated against a site the customer owns, and only reads. No document, token set or source file is transmitted to any external service. Implements SCOPE-129 FR-019.\n\n### FR-011 — The reference document is the regression corpus\n\nThe document is committed as the parser's fixture, asserting its measured shape of six modes and 41 contract tokens with complete coverage. Implements SCOPE-129 FR-018.\n\n## Data Requirements\n\nNo schema change; this spec writes through the model defined in spec 126. The brand instruction document and the generated template are files, and the reference document is committed as a test fixture. A captured document is returned to the operator rather than persisted server-side until it is accepted.\n\n## API Routes\n\nAn import route accepting a brand instruction document and returning the parsed schema with its validation report, tenant-scoped through the existing project-in-company check. Capture extends the shipped rendered-styling extraction route rather than adding a parallel one.\n\n## Frontend Components\n\nA review surface for the validation report shown before a schema is committed. The capture and ingest flow is otherwise operator-driven through the command surface in spec 129.\n\n## Integration Context\n\nCapture extends the existing look-borrowing extraction, which already drives a headless browser over a live site. The document-ingest pattern follows the established convention for treating a supplied markdown file as authoritative source material. Parsing follows the deterministic pack-parser precedent, which keeps a language model out of the path entirely.\n",
+    "status": "planned",
+    "createdat": "2026-08-23T00:10:48.132Z",
+    "approvedat": null,
+    "updatedat": "2026-09-18T18:32:42.829Z",
+    "specorder": 0,
+    "isoptional": false,
+    "createdbyid": null,
+    "phaseid": null,
+    "claimedbyid": null,
+    "claimedat": null
+  },
+  "tasks": [
+    {
+      "id": "cc333ef6-7f3c-426d-9b73-24b4de239389",
+      "name": "[127-T001] Relocate the adapter directory so all three layers read one place",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:24.354Z"
+    },
+    {
+      "id": "74d83232-4944-4c5b-8f97-f2f0def71e3b",
+      "name": "[127-T002] Build the shared adapter-resolution service (FR-001)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:24.602Z"
+    },
+    {
+      "id": "6cfddefa-85f2-4ad6-9b94-46516911f6ca",
+      "name": "[127-T003] Adapter contract validation — six answers or hard-stop (FR-008)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:24.680Z"
+    },
+    {
+      "id": "a04496fc-f377-460c-8f0d-c91940268332",
+      "name": "[127-T004] Phase 5b resolves its seeding form from the adapter (FR-002)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:24.761Z"
+    },
+    {
+      "id": "d1d63069-4cb7-46ab-82be-b9eb5d02d554",
+      "name": "[127-T005] /preTest resolves database posture from the adapter (FR-003)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:24.841Z"
+    },
+    {
+      "id": "6890cf9a-63b3-44df-b40d-1795c545a903",
+      "name": "[127-T006] Posture boundary enforcement — schema and file postures (FR-009)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:24.929Z"
+    },
+    {
+      "id": "2a97ffd1-d46d-490b-b45c-eb7ec76977c5",
+      "name": "[127-T007] /preTest resolves the UI driver from the adapter (FR-004)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.006Z"
+    },
+    {
+      "id": "df044afb-8392-4cd7-b528-d3abac69ad3a",
+      "name": "[127-T008] UI driver must PROVE it drove something before any UI result (FR-005)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.091Z"
+    },
+    {
+      "id": "dab26946-8e96-478a-880d-4228252f7c54",
+      "name": "[127-T009] Provenance reporting — shipped / provisional / approved (FR-010)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.173Z"
+    },
+    {
+      "id": "0509fc87-b6ec-4bd8-a71a-7f68d7330dc9",
+      "name": "[127-T010] Generate a candidate adapter from stack.md and proceed automatically (FR-006)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.256Z"
+    },
+    {
+      "id": "0d3f0a1b-adae-48fe-8908-2f4a07b23d99",
+      "name": "[127-T011] Persist, reuse and preserve a generated adapter (FR-007)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.338Z"
+    },
+    {
+      "id": "60c74509-5d9a-4f99-8619-929060f56183",
+      "name": "[127-T012] Provisional-to-approved status lifecycle on user-added adapters",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.415Z"
+    },
+    {
+      "id": "56082199-25e5-46ef-8fc2-42aabff90b8a",
+      "name": "[127-T013] Generation cannot bypass the existing guards (FR-013)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.496Z"
+    },
+    {
+      "id": "56718c1c-6dbf-4506-8e47-10d067c35670",
+      "name": "[127-T014] Reference adapter: Expo / React Native (FR-011)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.583Z"
+    },
+    {
+      "id": "cc4730bb-ca43-4982-8774-932feb0f6ae2",
+      "name": "[127-T015] Reference adapter: Electron / embedded SQLite (FR-012)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.665Z"
+    },
+    {
+      "id": "ab2a66b3-714c-4657-b834-b7082097aa51",
+      "name": "[127-T016] Security test cases per adapter — SOC 2 CC7.1 (FR-014)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.750Z"
+    },
+    {
+      "id": "d9789b57-aaf9-41bb-b835-a96be3b57e72",
+      "name": "[127-T017] Document the adapter contract for hand-authoring (FR-015)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.832Z"
+    },
+    {
+      "id": "8f639438-3b58-4656-ab1c-b730dd083eba",
+      "name": "[127-T018] Prove wxKanban's own pipeline is unchanged (SC-6)",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.917Z"
+    },
+    {
+      "id": "997f2fe5-cfa3-4414-b324-49eb871a76b7",
+      "name": "[127-T019] Answer and close the three customer reports",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-08-23T01:01:25.996Z"
+    },
+    {
+      "id": "c739417c-03be-4bac-93da-44200e9d3d9b",
+      "name": "T001 — Brand instruction format reference",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.422Z"
+    },
+    {
+      "id": "ee58805f-b574-4e9c-8bc3-3eab0c57fbd5",
+      "name": "T002 — Fillable brand instruction template",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.450Z"
+    },
+    {
+      "id": "85cac91d-ff52-44f6-820e-7daeffe5da37",
+      "name": "T003 — Deterministic parser: tokens, modes, typefaces",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.478Z"
+    },
+    {
+      "id": "1f70e456-a54e-4a8b-a5f2-a5d79c277ff0",
+      "name": "T004 — Parser: rules extraction and loud rejection",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.505Z"
+    },
+    {
+      "id": "0ab094b3-969d-453c-8332-f286a70b9543",
+      "name": "T005 — Capture: extend rendered-styling extraction to emit a document",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.532Z"
+    },
+    {
+      "id": "06fbc746-da5e-4c30-af7b-84827d12bb28",
+      "name": "T006 — Capture: measured versus inferred separation",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.562Z"
+    },
+    {
+      "id": "8746b5b9-6b4c-42ed-a9f9-ebba5abc4f1f",
+      "name": "T007 — Capture: single resting mode",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.589Z"
+    },
+    {
+      "id": "e8146e38-58c2-4f5e-bb90-a21c713496a1",
+      "name": "T008 — Import route reporting before store",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.617Z"
+    },
+    {
+      "id": "371ead5d-c8ea-474a-9dd2-0ea278b82691",
+      "name": "T009 — Reference corpus regression test",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.644Z"
+    },
+    {
+      "id": "4b7a504d-8018-4394-b78b-0a72b692be4b",
+      "name": "T010 — Capture-to-parse round trip test",
+      "status": "todo",
+      "specid": "ac79dae6-28e9-4ed2-a3bf-2ac0d199dada",
+      "createdat": "2026-09-18T17:46:07.671Z"
+    }
+  ]
+}

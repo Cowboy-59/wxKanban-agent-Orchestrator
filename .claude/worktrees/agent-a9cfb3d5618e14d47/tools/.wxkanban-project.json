@@ -1,0 +1,7 @@
+{
+  "projectId": "test-project-123",
+  "kitVersion": "1.0.0",
+  "primaryAI": "blackboxai",
+  "createdAt": "2026-03-06T11:57:40.494Z",
+  "kitSource": "wxkanban-mcp --init"
+}

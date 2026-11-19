@@ -1,0 +1,68 @@
+{
+  "feature": "003-Reports",
+  "spec": "specs/003-Reports/spec.md",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Design",
+      "status": "in_progress",
+      "enteredAt": "2026-03-21T13:23:33.717Z",
+      "completedAt": null,
+      "artifacts": [],
+      "notes": ""
+    },
+    {
+      "phase": 2,
+      "name": "Implementation",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null,
+      "artifacts": [],
+      "notes": ""
+    },
+    {
+      "phase": 3,
+      "name": "QA Testing",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null,
+      "artifacts": [],
+      "notes": ""
+    },
+    {
+      "phase": 4,
+      "name": "Human Testing",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null,
+      "artifacts": [],
+      "notes": ""
+    },
+    {
+      "phase": 5,
+      "name": "Beta Release",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null,
+      "artifacts": [],
+      "notes": ""
+    },
+    {
+      "phase": 6,
+      "name": "Release",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null,
+      "artifacts": [],
+      "notes": ""
+    }
+  ],
+  "transitionHistory": [
+    {
+      "from": null,
+      "to": "Design",
+      "timestamp": "2026-03-21T13:23:33.717Z",
+      "reason": "Spec created"
+    }
+  ]
+}

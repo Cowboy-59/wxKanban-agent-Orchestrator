@@ -1,0 +1,19 @@
+Schema File Renames (Singular → Plural):
+user.ts → users.ts
+session.ts → sessions.ts
+company.ts → companies.ts
+project.ts → projects.ts
+projectuser.ts → projectusers.ts
+pmsystemconnection.ts → pmsystemconnections.ts
+task.ts → tasks.ts
+timeentry.ts → timeentries.ts
+invoice.ts → invoices.ts
+specification.ts → specifications.ts
+projectphase.ts → projectphases.ts
+testplan.ts → testplans.ts
+feedback.ts → feedbacks.ts
+note.ts → notes.ts
+companyauditlog.ts → companyauditlogs.ts
+userinvitation.ts → userinvitations.ts
+invitationbatch.ts → invitationbatches.ts
+invitationdlq.ts → invitationdlqs.ts

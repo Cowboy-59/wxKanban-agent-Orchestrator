@@ -10,6 +10,17 @@
 
 export type ConnectionState = "idle" | "working" | "waiting";
 
+// MODIFIED-BY: [SCOPE 155 / T004] — heartbeat now carries the rolling session state, not just `state` (FR-105 waitingQuestion piggybacks on the same payload)
+/** Everything one heartbeat tick can send; only `state` is mandatory. */
+export interface HeartbeatPayload {
+  state: ConnectionState;
+  sharing?: boolean;
+  summary?: string;
+  lastEntry?: string;
+  blockers?: string[];
+  waitingQuestion?: string;
+}
+
 /** FR-059: the fixed refusal code when another machine holds the project's open record. */
 export const AGENT_ALREADY_CONNECTED = "agent_already_connected";
 
@@ -112,19 +123,26 @@ export class ConnectionRecord {
     }
   }
 
+  // MODIFIED-BY: [SCOPE 155 / T004] — the state producer may now do async work (SessionSummaryTracker.refresh()) before a tick sends
   /** FR-060: refresh the record with the agent's state on a timer that never keeps the process alive. */
-  startHeartbeat(state: () => ConnectionState): void {
+  startHeartbeat(buildPayload: () => ConnectionState | HeartbeatPayload | Promise<ConnectionState | HeartbeatPayload>): void {
     if (!this.connectionId || this.timer) return;
-    this.timer = setInterval(() => void this.beat(state()), this.heartbeatSeconds * 1000);
+    this.timer = setInterval(() => void this.tick(buildPayload), this.heartbeatSeconds * 1000);
     this.timer.unref?.();
   }
 
+  private async tick(buildPayload: () => ConnectionState | HeartbeatPayload | Promise<ConnectionState | HeartbeatPayload>): Promise<void> {
+    const built = await buildPayload();
+    await this.beat(typeof built === "string" ? { state: built } : built);
+  }
+
   /** One heartbeat. Exposed for tests; a failure changes nothing and the next tick tries again. */
-  async beat(state: ConnectionState): Promise<void> {
+  async beat(payload: ConnectionState | HeartbeatPayload): Promise<void> {
     if (!this.connectionId) return;
+    const body = typeof payload === "string" ? { state: payload } : payload;
     let r: { status: number; text: string };
     try {
-      r = await this.call(`/${this.connectionId}/heartbeat`, { state });
+      r = await this.call(`/${this.connectionId}/heartbeat`, body);
     } catch {
       return;
     }

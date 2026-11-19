@@ -1,0 +1,17 @@
+{
+  "specNumber": "058",
+  "featureName": "Scope Branch Check-out / Check-in",
+  "scopeNumber": "058",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 23,
+    "tasksCompleted": 19,
+    "percentage": 83
+  },
+  "timeline": {
+    "created": "2026-06-15T00:00:00.000Z",
+    "phaseStarted": "2026-06-15T00:00:00.000Z"
+  },
+  "notes": "Generated via createSpecs in-conversation on 2026-06-15 (CLI bootstrap broken per feedback_orchestrator_cli_broken memory). Scope and spec deliberately SHARE the number 058 (1:1 scope→spec; renumbered from the originally-assigned SCOPE-049 on 2026-06-15 at Andy's request so scope and spec align). Distinct from the unrelated pre-existing SPEC-049 (wxperts-site-migration). 17 tasks across 4 phases. Optimistic scope-claim: shared claim flag in DB/MCP (claimedbyid/claimedat on projectspecifications) + local wxAIGit branch on checkout; collisions notify with explicit force-override (separately audited as scope_checkout_forced); check-in releases + offers wxAIGit merge. Builds on SCOPE-042 (Dev Cockpit) and reuses SCOPE-037 engagement assignments for the consultant guard. Code fences reference [SCOPE 058 / Tnn]. Pushed to hosted DB via project.create_specs on 2026-06-15 (projectspecifications specNumber 058, id cef21256-2346-40ee-940a-6dd520163fa2, status planned, 17 tasks). wxKanban Development projectId ba924193-0335-4080-9fa6-33cd6b81300a. NOT committed to git — gated on Andy; next step is implement."
+}

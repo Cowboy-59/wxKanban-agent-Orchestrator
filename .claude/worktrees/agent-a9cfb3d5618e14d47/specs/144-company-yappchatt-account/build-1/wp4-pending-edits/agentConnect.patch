@@ -1,0 +1,25 @@
+--- agentConnect.orig.ts	2026-10-24 10:04:29.241393800 -0500
++++ agentConnect.ts	2026-10-24 10:19:35.447191000 -0500
+@@ -20,6 +20,10 @@
+ const logger = createLogger("agent-connect-routes");
+ 
+ // [SCOPE 134 / T028] BEGIN — agent connect routes
++// MODIFIED-BY: [SCOPE 144 / T008] — 409 no_company_account { contactEmail }; 503 companion_unavailable
++/** The broker's single "companion not available" code (SPEC-144 contract C1, FR-011). */
++const COMPANION_UNAVAILABLE = "companion_unavailable";
++
+ interface AgentRequest extends Request {
+   agentTicket?: CompanyAgentToken;
+ }
+@@ -81,7 +85,10 @@
+     return res.json(result);
+   } catch (err) {
+     if (err instanceof AgentConnectError) {
+-      return res.status(err.status).json({ error: err.code, message: err.message });
++      return res.status(err.status).json({ error: err.code, message: err.message, ...err.extra });
++    }
++    if (err instanceof YappchattBrokerError && err.code === COMPANION_UNAVAILABLE) {
++      return res.status(503).json({ error: COMPANION_UNAVAILABLE, message: err.message });
+     }
+     if (err instanceof YappchattBrokerError) {
+       // Surfaced plainly, never retried (FR-016) — `not_a_member` included.

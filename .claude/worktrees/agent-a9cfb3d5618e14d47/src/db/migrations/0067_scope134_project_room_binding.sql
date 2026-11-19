@@ -1,0 +1,111 @@
+-- [SCOPE 134 / T004] BEGIN — companyprojects room binding for the agent bridge
+--
+-- ============================================================================
+-- ⚠ SUPERSEDED BY 0068 ON 2026-09-23, THE SAME DAY IT WAS APPLIED.
+--
+-- Retained because it is a true record: these two columns WERE applied to
+-- production on 2026-09-23, and rewriting an applied migration to pretend
+-- otherwise is how a migration history stops being worth reading.
+--
+-- 0068 drops both and replaces them with the `projectrooms` table. The reason is
+-- modelling, not a fault: a column on `companyprojects` hard-codes ONE ROOM PER
+-- PROJECT, which silently answers SCOPE-132's OQ-7 ("does ALIS share KAIN's room
+-- or get its own?") as "shares", by construction. The columns were still declared
+-- in no schema file, so the shape could be changed at zero cost; after
+-- SPEC-134/T004 declared them it would have been a three-deploy sequence.
+--
+-- ON A FRESH DATABASE: skip this file and apply 0068 alone. Applying both is
+-- harmless — 0068 drops what this adds — but pointless.
+-- ============================================================================
+--
+-- APPLIED BY HAND 2026-09-23. Recorded in
+-- specs/117-production-schema-integrity/schema-change-log.md.
+--
+-- Do NOT run `drizzle-kit push` against this database (SCOPE-117): it reconciles
+-- the database TO the declared schema and would propose dropping the ~19
+-- undeclared-but-live tables, including `marketingcontacts`.
+-- ============================================================================
+--
+-- WHAT THIS IS FOR
+--
+-- SCOPE-132 lets an agent derive its own YappChatt room instead of a human creating
+-- one and pasting its id into a per-repo `.env`. Today the project-to-room link
+-- exists NOWHERE: `wxkanban-agent/core/yappchatt/client.ts` records that
+-- "per-project falls out because each repo has its own .env" — isolation is a
+-- filesystem convention, not data, and nothing server-side can look it up or enforce
+-- it.
+--
+--   conversationid       the project's YappChatt room. Resolved server-side from the
+--                        caller's token, which is what makes a room authoritative
+--                        rather than a client claim to be distrusted.
+--   agenttokenencrypted  the per-room `yca_...` agent token, AES-256-GCM at rest.
+--
+-- WHY THE AGENT TOKEN IS STORED AT ALL
+--
+-- YappChatt's `connectClaudeToConversation` INSERTS a new token on every call and
+-- never revokes; there is no expiry. Minting on each connect would therefore grow
+-- live credentials against a room without bound, with nothing cleaning them up.
+-- Mint-once-and-reuse is the workaround, and it needs somewhere to keep the token.
+-- The underlying absence of revocation belongs to the YappChatt product, not here.
+--
+-- WHY ENCRYPTED, AND WITH WHAT
+--
+-- A `yca_...` token can post to that room as the Claude agent, so it is a live
+-- credential. Stored as `iv:authTag:ciphertext` via `encryptToken`/`decryptToken`
+-- in `src/server/lib/crypto.ts` — the same helper and the same shape as
+-- `externalconnection.credentialsencrypted` (SCOPE-017). No second convention.
+--
+-- NOTE for the credential-rotation work that is already deferred: this adds a second
+-- dependency on that key class. Rotation is recorded as data-destroying, and this
+-- makes it more expensive, not less.
+--
+-- WHY NULLABLE, WITH NO DEFAULT AND NO BACKFILL
+--
+-- 174 projects existed when this was applied and none has a room. Null means "no
+-- room bound", which is the truth for all of them, and no existing project changes
+-- behaviour. A room is bound when an agent first connects, not before.
+--
+-- SAFETY
+--
+-- Purely additive: two nullable columns, no defaults, no constraints, no indexes, no
+-- data touched. ADD COLUMN with a NULL default does not rewrite the table. Idempotent;
+-- re-running is a no-op.
+--
+-- ORDERING
+--
+-- `companyprojects` is read widely, and Drizzle names every declared column in its
+-- SELECTs, so declaring either column before this statement is applied returns
+-- errors from every read of the table. Apply first, verify, then declare — in BOTH
+-- the application schema and the `mcp-server/src/db/schema.ts` mirror. That mirror
+-- carried 8 of this table's 17 columns when this was written, which is precisely how
+-- `currentphase` came to be served as a hardcoded null: undeclared, never fetched,
+-- and papered over rather than fixed.
+--
+-- VERIFY (do NOT rely on `npm run db:drift` — it compares TABLES and exits 0 whether
+-- or not these columns exist):
+--
+--   select column_name, data_type, character_maximum_length, is_nullable
+--     from information_schema.columns
+--    where table_schema='public' and table_name='companyprojects'
+--      and column_name in ('conversationid','agenttokenencrypted')
+--    order by column_name;
+--
+--   -- expect 2 rows: agenttokenencrypted text YES, conversationid varchar(255) YES
+--
+--   -- and confirm nothing was bound by accident:
+--   select count(*) as total, count(conversationid) as withroom
+--     from companyprojects;
+--   -- expect withroom = 0 at apply time (0 of 174 on 2026-09-23)
+-- ============================================================================
+
+ALTER TABLE "companyprojects"
+  ADD COLUMN IF NOT EXISTS "conversationid"      varchar(255),
+  ADD COLUMN IF NOT EXISTS "agenttokenencrypted" text;
+
+COMMENT ON COLUMN "companyprojects"."conversationid" IS
+  'SCOPE-134: the project''s YappChatt room conversationId. Resolved server-side from the caller''s token so a room is authoritative, never a client claim. NULL means no room is bound yet.';
+
+COMMENT ON COLUMN "companyprojects"."agenttokenencrypted" IS
+  'SCOPE-134: per-room yca_ agent token, AES-256-GCM as iv:authTag:ciphertext via src/server/lib/crypto.ts — same shape as externalconnection.credentialsencrypted. Stored because YappChatt mints a new token per call and never revokes, so minting per connect would grow live credentials without bound.';
+
+-- [SCOPE 134 / T004] END

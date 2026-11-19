@@ -1,0 +1,16 @@
+{
+  "specNumber": "097",
+  "featureName": "MCP Token/Project Binding Hardening",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 7,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-07-13T23:05:37.918Z",
+    "phaseStarted": "2026-07-13T23:05:37.918Z"
+  },
+  "specId": "7f695a14-2981-4f62-b1d8-9174989e6712"
+}

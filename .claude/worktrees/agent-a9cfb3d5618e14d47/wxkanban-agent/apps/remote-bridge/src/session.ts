@@ -1,0 +1,286 @@
+import type { HookCallback, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import { loadAgentSdk, type QueryFn } from "./sdk-loader";
+import { GATE_HOOK_TIMEOUT_S } from "./override-gate"; // [SCOPE 134 / T035]
+import { buildChildEnv } from "./child-env"; // [SCOPE 102 / T014]
+
+// [SCOPE 102 / T003] BEGIN — BridgeSession: owns a driveable headless Claude session
+// MODIFIED-BY: [SCOPE 137 / T010] — the session runs with WXAI_UNATTENDED=1 and WXAI_REMOTE=1 so the Change Impact hook treats it as unattended
+// MODIFIED-BY: [SCOPE 149 / T007] — an optional handoff-turn guard, registered as a PreToolUse hook with no matcher (FR-007)
+// Wraps the Agent SDK `query()` with a push-based input queue (so the room can feed
+// new user messages over time), routes the output stream to typed handler callbacks,
+// and exposes interrupt/stop/resume. Runs in bypassPermissions so native prompts never
+// freeze it (FR-005); git push is disallowed at the SDK level by default until the
+// review-gated flow (FR-006 / T008) replaces it with a canUseTool gate.
+
+type QueryHandle = ReturnType<QueryFn>;
+
+/** A push-fed async iterable of user turns. Each push() is a new turn for the session. */
+class InputQueue implements AsyncIterable<SDKUserMessage> {
+  private readonly buffered: SDKUserMessage[] = [];
+  private readonly waiters: Array<(r: IteratorResult<SDKUserMessage>) => void> = [];
+  private closed = false;
+
+  push(text: string): void {
+    if (this.closed) return;
+    const msg: SDKUserMessage = {
+      type: "user",
+      message: { role: "user", content: text },
+      parent_tool_use_id: null,
+    };
+    const waiter = this.waiters.shift();
+    if (waiter) waiter({ value: msg, done: false });
+    else this.buffered.push(msg);
+  }
+
+  close(): void {
+    this.closed = true;
+    let waiter = this.waiters.shift();
+    while (waiter) {
+      waiter({ value: undefined as unknown as SDKUserMessage, done: true });
+      waiter = this.waiters.shift();
+    }
+  }
+
+  async *[Symbol.asyncIterator](): AsyncGenerator<SDKUserMessage> {
+    for (;;) {
+      const next = this.buffered.shift();
+      if (next) {
+        yield next;
+        continue;
+      }
+      if (this.closed) return;
+      const result = await new Promise<IteratorResult<SDKUserMessage>>((resolve) => this.waiters.push(resolve));
+      if (result.done) return;
+      yield result.value;
+    }
+  }
+}
+
+export interface BridgeSessionOptions {
+  /** Working directory for the session's tools — the repo root. */
+  cwd: string;
+  /** Model override; omit to inherit the SDK/CLI default. */
+  model?: string;
+  // [SCOPE 150 / T004] No seed or resume options: the plain .env launch that set them is
+  // retired; the Project Agent always starts a fresh session (FR-012).
+  /** Tool patterns to hard-block. Defaults to blocking `git push` (FR-006 safety default). */
+  disallowedTools?: string[];
+  // [SCOPE 134 / T013] When supplied, `git push` is no longer hard-blocked: it becomes
+  // REACHABLE and routed through this gate, which suspends the call until the operator
+  // answers. Removing the block without supplying a gate would remove the safeguard
+  // rather than replace it, so the two move together and `start()` refuses to separate
+  // them — see the guard there.
+  overrideGate?: HookCallback; // [SCOPE 134 / T035] a PreToolUse hook — see override-gate.ts
+  // [SCOPE 149 / T007] A PreToolUse hook with NO matcher, so it sees every tool. It answers
+  // only while a handoff turn runs and has no opinion otherwise — see handoff-turn.ts.
+  turnGuard?: HookCallback;
+}
+
+export interface BridgeSessionHandlers {
+  onSessionInit(sessionId: string): void;
+  onText(delta: string): void;
+  onToolUse(name: string, summary: string): void;
+  onAssistantDone(text: string): void;
+  onResult(subtype: string, resultText?: string): void;
+  onError(message: string): void;
+}
+
+export class BridgeSession {
+  private handle?: QueryHandle;
+  private readonly input = new InputQueue();
+  private sessionId?: string;
+  private running = false;
+
+  constructor(
+    private readonly opts: BridgeSessionOptions,
+    private readonly handlers: BridgeSessionHandlers,
+  ) {}
+
+  get id(): string | undefined {
+    return this.sessionId;
+  }
+
+  get isRunning(): boolean {
+    return this.running;
+  }
+
+  /** Feed a message from the room into the session (starts a turn when idle, steers when running). */
+  send(text: string): void {
+    this.input.push(text);
+  }
+
+  async start(): Promise<void> {
+    const { query } = await loadAgentSdk();
+    // [SCOPE 134 / T010, T013] With a gate supplied, `git push` stops being hard-blocked
+    // and becomes reachable-but-gated: the call suspends in `canUseTool` until the
+    // operator answers. Without a gate the original hard block stands.
+    //
+    // The two must not come apart. A caller that passed `disallowedTools: []` and no gate
+    // would be removing the safeguard rather than replacing it, and it would look like
+    // configuration rather than a decision — so that combination is refused outright.
+    const gate = this.opts.overrideGate;
+    const guard = this.opts.turnGuard; // [SCOPE 149 / T007]
+    const blocked = this.opts.disallowedTools ?? (gate ? [] : ["Bash(git push:*)"]);
+
+    if (!gate && this.opts.disallowedTools && !this.opts.disallowedTools.some((t) => /git\s+push/i.test(t))) {
+      throw new Error(
+        "BridgeSession: git push was removed from disallowedTools with no overrideGate supplied. " +
+          "That removes the safeguard instead of replacing it. Pass an overrideGate, or leave the block in place.",
+      );
+    }
+
+    this.handle = query({
+      prompt: this.input,
+      options: {
+        cwd: this.opts.cwd,
+        model: this.opts.model,
+        permissionMode: "bypassPermissions",
+        allowDangerouslySkipPermissions: true,
+        includePartialMessages: true,
+        disallowedTools: blocked,
+        // [SCOPE 137 / T010] Nobody is at the keyboard: the Change Impact hook logs an Impact
+        // Boundary crossing and continues, and stops on possible data loss, which this bridge
+        // relays to the phone. `env` REPLACES the child's environment, so process.env is spread.
+        // MODIFIED-BY: [SCOPE 102 / T014] — ANTHROPIC_API_KEY stripped from the child env (FR-013)
+        env: buildChildEnv({ WXAI_UNATTENDED: "1", WXAI_REMOTE: "1" }).env,
+        // MODIFIED-BY: [SCOPE 134 / T035] — enforced as a PreToolUse hook, NOT canUseTool.
+        // canUseTool is never consulted under bypassPermissions (found live 2026-09-25:
+        // the gate never ran and push was ungated). A PreToolUse hook runs before EVERY
+        // tool call in every permission mode and its deny beats any settings allow rule.
+        // [SCOPE 149 / T007] The handoff-turn guard rides beside the gate, with no matcher.
+        // Without a guard the registration is exactly what it was.
+        ...(gate || guard
+          ? {
+              hooks: {
+                PreToolUse: [
+                  ...(gate ? [{ matcher: "Bash", timeout: GATE_HOOK_TIMEOUT_S, hooks: [gate] }] : []),
+                  ...(guard ? [{ hooks: [guard] }] : []),
+                ],
+              },
+            }
+          : {}),
+      },
+    });
+    this.running = true;
+    void this.consume();
+  }
+
+  private async consume(): Promise<void> {
+    if (!this.handle) return;
+    try {
+      for await (const msg of this.handle) {
+        this.route(msg);
+      }
+    } catch (err) {
+      this.handlers.onError(`session stream error — ${(err as Error).message}`);
+    } finally {
+      this.running = false;
+    }
+  }
+
+  private route(msg: SDKMessage): void {
+    if (msg.type === "system") {
+      const init = msg as Extract<SDKMessage, { type: "system" }>;
+      const sid = readSessionId(init);
+      if (sid && !this.sessionId) {
+        this.sessionId = sid;
+        this.handlers.onSessionInit(sid);
+      }
+      return;
+    }
+    if (msg.type === "stream_event") {
+      this.routeStreamEvent((msg as Extract<SDKMessage, { type: "stream_event" }>).event);
+      return;
+    }
+    if (msg.type === "assistant") {
+      const text = extractText((msg as Extract<SDKMessage, { type: "assistant" }>).message.content);
+      if (text) this.handlers.onAssistantDone(text);
+      return;
+    }
+    if (msg.type === "result") {
+      const r = msg as Extract<SDKMessage, { type: "result" }>;
+      const resultText = "result" in r && typeof r.result === "string" ? r.result : undefined;
+      this.handlers.onResult(r.subtype, resultText);
+      return;
+    }
+  }
+
+  private routeStreamEvent(rawEvent: unknown): void {
+    const ev = rawEvent as RawStreamEvent;
+    if (ev?.type === "content_block_delta" && ev.delta?.type === "text_delta" && typeof ev.delta.text === "string") {
+      this.handlers.onText(ev.delta.text);
+      return;
+    }
+    if (ev?.type === "content_block_start" && ev.content_block?.type === "tool_use") {
+      this.handlers.onToolUse(ev.content_block.name ?? "tool", summarizeToolInput(ev.content_block));
+    }
+  }
+
+  /** Interrupt the current turn (STOP) — keeps the session live for the next turn. */
+  async interrupt(): Promise<void> {
+    try {
+      await this.handle?.interrupt();
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  async setModel(model?: string): Promise<void> {
+    try {
+      await this.handle?.setModel(model);
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  /** Fully tear the session down (CANCEL REMOTE). */
+  stop(): void {
+    this.running = false;
+    try {
+      this.handle?.close();
+    } catch {
+      /* ignore */
+    }
+    this.input.close();
+    this.handle = undefined;
+  }
+}
+
+// ── narrow shapes for the raw stream event (typed, no `any`) ─────────────────
+interface RawStreamEvent {
+  type?: string;
+  delta?: { type?: string; text?: string };
+  content_block?: { type?: string; name?: string; input?: unknown };
+}
+
+function readSessionId(msg: Extract<SDKMessage, { type: "system" }>): string | undefined {
+  const holder = msg as unknown as { session_id?: unknown };
+  return typeof holder.session_id === "string" ? holder.session_id : undefined;
+}
+
+function extractText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((block) => {
+      if (block && typeof block === "object") {
+        const b = block as { type?: unknown; text?: unknown };
+        if (b.type === "text" && typeof b.text === "string") return b.text;
+      }
+      return "";
+    })
+    .join("")
+    .trim();
+}
+
+function summarizeToolInput(block: { name?: string; input?: unknown }): string {
+  const name = block.name ?? "tool";
+  const input = block.input;
+  if (input && typeof input === "object") {
+    const rec = input as Record<string, unknown>;
+    const cmd = rec.command ?? rec.file_path ?? rec.path ?? rec.pattern ?? rec.url ?? rec.prompt;
+    if (typeof cmd === "string") return `${name}: ${cmd.slice(0, 120)}`;
+  }
+  return name;
+}
+// [SCOPE 102 / T003] END

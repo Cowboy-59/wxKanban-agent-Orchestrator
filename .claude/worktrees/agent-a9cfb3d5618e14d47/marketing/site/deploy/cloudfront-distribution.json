@@ -1,0 +1,41 @@
+{
+  "CallerReference": "wxkanban-landing-2026-06-01-windev",
+  "Aliases": { "Quantity": 1, "Items": ["windev.wxperts.com"] },
+  "DefaultRootObject": "index.html",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "s3-origin",
+        "DomainName": "wxkanban-landing-907693067083.s3.us-east-1.amazonaws.com",
+        "OriginAccessControlId": "E39WTICH68ADFH",
+        "S3OriginConfig": { "OriginAccessIdentity": "" },
+        "ConnectionAttempts": 3,
+        "ConnectionTimeout": 10
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "s3-origin",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+    "Compress": true,
+    "AllowedMethods": {
+      "Quantity": 2,
+      "Items": ["GET", "HEAD"],
+      "CachedMethods": { "Quantity": 2, "Items": ["GET", "HEAD"] }
+    }
+  },
+  "Comment": "wxKanban landing page (windev.wxperts.com)",
+  "Enabled": true,
+  "ViewerCertificate": {
+    "ACMCertificateArn": "arn:aws:acm:us-east-1:907693067083:certificate/637947ba-be0d-499b-bf69-e72427296f6b",
+    "SSLSupportMethod": "sni-only",
+    "MinimumProtocolVersion": "TLSv1.2_2021"
+  },
+  "HttpVersion": "http2and3",
+  "PriceClass": "PriceClass_All",
+  "Restrictions": { "GeoRestriction": { "RestrictionType": "none", "Quantity": 0 } },
+  "Logging": { "Enabled": false, "IncludeCookies": false, "Bucket": "", "Prefix": "" },
+  "WebACLId": ""
+}

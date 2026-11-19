@@ -1,0 +1,21 @@
+{
+  "specNumber": "092",
+  "featureName": "Multi-language help content",
+  "currentPhase": "design",
+  "createdAt": "2026-07-09",
+  "phases": [
+    { "phase": "design", "status": "in_progress", "startedAt": "2026-07-09" },
+    { "phase": "implementation", "status": "pending" },
+    { "phase": "qa", "status": "pending" },
+    { "phase": "human_testing", "status": "pending" },
+    { "phase": "beta", "status": "pending" },
+    { "phase": "released", "status": "pending" }
+  ],
+  "tasks": {
+    "total": 10,
+    "todo": 10,
+    "inProgress": 0,
+    "done": 0
+  },
+  "progress": 0
+}

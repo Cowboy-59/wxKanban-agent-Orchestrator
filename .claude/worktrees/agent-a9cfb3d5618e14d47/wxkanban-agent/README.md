@@ -1,0 +1,446 @@
+# wxKanban Agent Orchestrator Kit
+
+A self-contained, installable orchestration kit that brings **deterministic lifecycle management**, **stage-gated commands**, **AI-assisted workflows**, and **full audit trails** to any project in the wxKanban ecosystem.
+
+The kit enforces a 6-phase development lifecycle. Every command is gated by the current phase — you can't skip ahead, and every action is recorded.
+
+---
+
+## Design Overview
+
+### The Problem
+
+Software projects drift. Specs get written but not followed. Tests get skipped. Releases happen without proper QA. There's no single source of truth for where a project actually is in its lifecycle.
+
+### The Solution
+
+The orchestrator kit installs into any project and provides:
+
+1. **A 6-phase lifecycle** that every feature must progress through sequentially
+2. **Stage-gated commands** — only the right actions are available at the right time
+3. **Cross-cutting commands** that work in any phase (database sync, pipeline orchestration)
+4. **Structured outputs** — every command returns a typed `CommandResult` + `AuditRecord`
+5. **Multi-project isolation** — all projects share one wxKanban database, isolated by `projectId`
+6. **AI routing** — primary + fallback AI providers for scope drafting and analysis
+
+### Architecture
+
+```
+Consumer Project (any stack)
+  |
+  +-- wxkanban-agent/                  <-- this kit
+  |     +-- apps/command-gateway/      CLI + HTTP entry points
+  |     +-- core/
+  |     |     +-- context/             Project context resolution
+  |     |     +-- policy/              Stage-gated command policy
+  |     |     +-- orchestrator/        Workflow engine + command handlers
+  |     |     +-- schemas/             TypeScript types (lifecycle, commands, artifacts)
+  |     +-- workers/ai/               AI client (Gemini + OpenAI fallback)
+  |     +-- adapters/mcp/             MCP tool wrappers
+  |     +-- services/lifecycle-api/   HTTP client to MCP server
+  |     +-- scripts/                  Verification gate
+  |
+  +-- mcp-server/                      MCP Project Hub (HTTP/SSE on :3002)
+  +-- .wxkanban-project.json           Per-install config (projectId, kitVersion)
+  +-- .wxai/project.json               Current lifecycle stage
+  +-- ai-settings.json                 AI adapter config + custom commands
+```
+
+**Command flow:**
+```
+User / AI agent
+  -> CLI (cli.ts) or HTTP Gateway (http.ts) or MCP Adapter (server.ts)
+    -> Project Context resolved from config files
+    -> Policy Engine evaluates stage gate
+    -> Workflow Engine dispatches to handler
+      -> Handler executes (may call AI worker, MCP tools, file I/O)
+      -> Audit record created
+    -> Structured CommandResult returned
+```
+
+---
+
+## The 6-Phase Lifecycle
+
+Every feature progresses through these phases in order. You cannot skip phases or go backward.
+
+| # | Phase | Purpose | Available Commands |
+|---|-------|---------|-------------------|
+| 1 | **Design** | Define what to build | `buildscope`, `createspecs` |
+| 2 | **Implementation** | Build it | `implement`, `createtesttasks` |
+| 3 | **QA Testing** | Automated verification | `runqa` |
+| 4 | **Human Testing** | Manual verification + feedback | `runhuman` |
+| 5 | **Beta** | Controlled release | `prepareRelease` |
+| 6 | **Release** | Ship it | `finalizeRelease` |
+
+**Cross-cutting commands** (available in every phase):
+- `dbpush` — validate and sync all local data to the wxKanban database (also applies bundled kit migrations to the consumer DB)
+- `pipeline-agent` — multi-phase orchestration (run, resume, retry, status)
+- `auditfences` — verify every code unit is fenced with its owning spec/task (spec 026)
+- `kit:status` — report per-service liveness from `.wxai/kit-runtime.json` (spec 027)
+
+---
+
+## Commands Reference
+
+### Stage-Gated Commands
+
+#### `buildscope`
+Interactive Senior Business Analyst workflow for building scope documents. Follows a strict 5-phase process (defined in `_wxAI/commands/buildscope.md`):
+
+1. **Discovery** — 5 probing questions (business context, users, integrations, success metrics, constraints)
+2. **Draft Generation** — initial scope from discovery answers
+3. **Section-by-Section Review** — 6 sections each presented with reasoning and STOP/WAIT for user approval: Overview, User Scenarios, Functional Requirements, Technical Specs, Success Criteria, Constraints
+4. **Final Review** — summary of all approved sections, last-chance questions
+5. **File Generation** — writes `specs/Project-Scope/NNN-name.md` + `checklists/requirements.md`
+
+```bash
+wxkanban-agent buildscope --featureDescription "Time tracking and billing for consultants"
+wxkanban-agent buildscope --featureDescription "Audit system" --quick     # skip interactive review
+wxkanban-agent buildscope --editSpecNumber 005                            # edit existing scope
+```
+
+Auto-numbers specs (`001`, `002`, ...) and generates kebab-case short names from the description.
+
+#### `createspecs`
+Full spec pipeline that orchestrates the entire workflow in one call (defined in `_wxAI/commands/createSpecs.md`). Creates a complete spec directory with all artifacts:
+
+| File | Purpose |
+|------|---------|
+| `spec.md` | Detailed specification |
+| `plan.md` | Implementation plan |
+| `tasks.md` | Task breakdown with status tracking |
+| **`tests.md`** | **Test plan — unit, integration, E2E test cases linked to tasks** |
+| `quickstart.md` | Developer quickstart guide |
+| `lifecycle.json` | Phase tracking and progress |
+| `checklists/requirements.md` | Quality checklist |
+
+```bash
+wxkanban-agent createspecs --specNumber 020 --featureName "User Authentication" --phase design
+```
+
+Every spec gets a `tests.md` by default (3 test cases per task: happy path, validation error, edge case). Disable with `--generateTests false`.
+
+#### `implement`
+*Available in Implementation phase.* Generates code for a single spec task: reads the spec + tasks.md, calls Gemini (OpenAI fallback) to produce file proposals, passes each file through the fence-emitter (spec 026), writes to disk, updates the `taskfences` DB table, and flips the task's status from `todo` to `done` in tasks.md.
+
+```bash
+wxkanban-agent implement 026/T010                   # implement scope 026, task T010
+wxkanban-agent implement 026/T010 --dry-run         # show proposed output without writing
+wxkanban-agent implement 026/T010 --replace         # force full-replacement fence rule
+wxkanban-agent implement 026/T010 --modify          # force MODIFIED-BY nesting
+wxkanban-agent implement 026/T010 --accept-drift    # proceed even if a fenced block was hand-edited
+wxkanban-agent implement 026/T010 --file src/x.ts   # restrict output to a single file
+```
+
+Requires `GEMINI_API_KEY` and/or `OPENAI_API_KEY` in env. See `docs/implement.md` for full reference.
+
+#### `createtesttasks`
+*Available in Implementation phase.* Generates test task definitions from specifications.
+
+#### `runqa`
+*Available in QA Testing phase.* Executes automated QA verification against specifications.
+
+#### `runhuman` (wxht)
+*Available in Human Testing phase.* Interactive human testing workflow — presents test scenarios, collects pass/fail results, captures feedback, and can generate new specs from failed tests.
+
+#### `prepareRelease`
+*Available in Beta phase.* Prepares a controlled release with changelog and validation.
+
+#### `finalizeRelease`
+*Available in Release phase.* Finalizes the release and marks the feature as shipped.
+
+### Cross-Cutting Commands
+
+#### `dbpush`
+Validates all local spec files, tasks, and lifecycle data, then pushes everything to the wxKanban database via MCP. Ensures the database is always in sync with local changes.
+
+```bash
+wxkanban-agent dbpush                # validate and push
+wxkanban-agent dbpush --dry-run      # validate only, no push
+wxkanban-agent dbpush --force        # push even with validation warnings
+```
+
+#### `auditfences`
+Walks the source tree, parses every fenced code unit, and reports problems: un-fenced top-level declarations, malformed fences, fences pointing at non-existent task IDs, and warnings for stacked `MODIFIED-BY` lines. Provides a baseline mode that captures the current tree's hash set so legacy un-fenced code is reported as info, not error.
+
+```bash
+wxkanban-agent auditfences                       # scan repo, exit 1 on any error
+wxkanban-agent auditfences --strict              # promote warnings to errors
+wxkanban-agent auditfences --format json         # machine-readable output for CI
+wxkanban-agent auditfences --history 026/T010    # show ownership timeline for a task
+wxkanban-agent auditfences --baseline            # capture legacy hashes (one-time at kit upgrade)
+```
+
+CI integration: drop in `templates/auditfences-github-action.yml`. See `docs/fencing.md` for the full convention.
+
+#### `kit:status`
+*Available in every stage.* Reports per-service liveness from `.wxai/kit-runtime.json` (the runtime-state file written by MCP + gateway at bind time per spec 027). Probes each entry's PID, prints port/parent/uptime, exits 0 if all expected services (`mcp`, `gateway`) are alive.
+
+```bash
+npm run kit:status                       # text output, exit 0/1/2
+npm run kit:status -- --format=json      # machine-readable
+npm run kit:status -- --strict           # promote stale entries to errors
+```
+
+Exit codes: `0` healthy, `1` stale/missing, `2` runtime-state file unreadable. See `docs/kit-runtime.md` for the full reference (port autoselect, parent-watcher, runtime-state schema).
+
+#### `pipeline-agent`
+Multi-phase pipeline orchestration. Runs the full lifecycle pipeline for a feature, with support for pausing, resuming, retrying failed phases, and skipping phases.
+
+```bash
+wxkanban-agent pipeline-agent run "Add user auth"           # run full pipeline
+wxkanban-agent pipeline-agent run --dry-run "Add user auth" # preview
+wxkanban-agent pipeline-agent run --skip-dbpush "Feature"   # skip a phase
+wxkanban-agent pipeline-agent status                        # show all pipelines
+wxkanban-agent pipeline-agent resume                        # resume last failed
+wxkanban-agent pipeline-agent resume pipeline-1713045600000 # resume specific
+wxkanban-agent pipeline-agent retry                         # retry failed phases
+```
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- **Node.js >= 20** on PATH
+- wxKanban MCP server running (default: `http://localhost:3002`)
+- `.wxkanban-project.json` in project root (created at kit install time)
+
+### Running Commands
+
+**CLI gateway** (interactive use):
+```bash
+# Show available commands for current lifecycle stage
+npx tsx wxkanban-agent/apps/command-gateway/src/cli.ts --help
+
+# Run buildscope (guided mode — 5-phase interactive flow)
+npx tsx wxkanban-agent/apps/command-gateway/src/cli.ts buildscope \
+  --featureDescription "Time tracking and billing for consultants"
+
+# Run buildscope (quick mode — skip interactive review)
+npx tsx wxkanban-agent/apps/command-gateway/src/cli.ts buildscope \
+  --featureDescription "Audit system" --quick
+
+# Run createspecs (generates spec dir with spec.md, plan.md, tasks.md, tests.md, lifecycle.json)
+npx tsx wxkanban-agent/apps/command-gateway/src/cli.ts createspecs \
+  --specNumber 020 --featureName "User Authentication" --phase design
+
+# Check kit version
+npx tsx wxkanban-agent/apps/command-gateway/src/cli.ts --version
+```
+
+**HTTP gateway** (programmatic use):
+```bash
+# Start the HTTP gateway on port 3003
+npx tsx wxkanban-agent/apps/command-gateway/src/http.ts
+
+# List available commands for current stage
+curl http://localhost:3003/commands
+
+# Dispatch buildscope
+curl -X POST http://localhost:3003/dispatch \
+  -H "Content-Type: application/json" \
+  -d '{"command": "buildscope", "input": {"featureDescription": "My Feature", "quick": true}, "user": "alice"}'
+
+# Dispatch createspecs
+curl -X POST http://localhost:3003/dispatch \
+  -H "Content-Type: application/json" \
+  -d '{"command": "createspecs", "input": {"specNumber": "020", "featureName": "Auth System", "phase": "design"}, "user": "alice"}'
+
+# Health check
+curl http://localhost:3003/health
+```
+
+### Verify Installation
+
+Runs a 5-step verification that proves the kit is fully operational:
+
+```bash
+npx tsx wxkanban-agent/scripts/verify-install.ts
+```
+
+Checks:
+1. `.wxkanban-project.json` exists and is valid
+2. MCP server is healthy at configured URL
+3. wxKanban database is reachable via MCP
+4. Policy engine loads and evaluates correctly
+5. `buildscope` executes successfully end-to-end
+
+On success, writes `install-verified-at` timestamp to `.wxkanban-project.json`.
+
+### Run Tests
+
+```bash
+cd wxkanban-agent
+npx vitest run --config vitest.config.ts
+```
+
+41 tests across 5 test suites:
+- `lifecycle.test.ts` — stage enum, command mapping, cross-cutting commands
+- `command-policy.test.ts` — stage gating, cross-cutting bypass, custom commands, structured denial
+- `workflow-engine.test.ts` — dispatch routing, audit records, policy enforcement
+- `transitions.test.ts` — forward-only transitions, no skipping, stage ordering
+- `mcp-adapter.test.ts` — tool registration, project scoping, command routing
+
+---
+
+## Custom Commands (Multi-Project Extension)
+
+Consumer projects can register their own commands by adding a `customCommands` array to `ai-settings.json`:
+
+```json
+{
+  "customCommands": ["my-lint", "my-deploy", "my-audit"]
+}
+```
+
+Custom commands are allowed in **every lifecycle stage** (like cross-cutting commands). They appear in `--help` output and pass policy evaluation, but require a handler registered in the workflow engine to actually execute.
+
+---
+
+## Setup
+
+### Recommended: hosted MCP (v0.4.0+)
+
+```bash
+# 1. Get a project API token: in the wxKanban web app open your project's
+#    Kit tab, click Generate Kit, then Download Kit. The token is shown once
+#    (Copy Token / Environment Setup) and is already written into the kit.
+#    Only an admin or a user assigned to the project sees these buttons.
+#
+# 2. Configure the kit (only needed if you are not using the downloaded kit as-is):
+wxkanban-agent kit:configure \
+  --token <the token shown when you downloaded the kit> \
+  --project-id <uuid> \
+  --mcp-url https://mcp.wxperts.com
+
+# 3. Verify:
+wxkanban-agent verify
+```
+
+`kit:configure` writes `.wxai/project.json` atomically. The token is
+never echoed in full. The kit no longer needs a `DATABASE_URL` —
+everything goes over HTTPS to `mcp.wxperts.com`. See
+[docs/hosted-mcp.md](docs/hosted-mcp.md) for the full reference and
+[docs/hosted-mcp-migration.md](docs/hosted-mcp-migration.md) for the
+v0.3.x → v0.4.0 upgrade.
+
+### Self-hosted (legacy)
+
+For air-gapped environments or local MCP development, run the MCP
+server locally:
+
+```bash
+npm run kit:start:legacy   # spawns mcp-server + gateway
+```
+
+You'll need `DATABASE_URL` pointing at the wxKanban Postgres in `.env`.
+This path emits a deprecation warning on every start and may be removed
+in a future kit release.
+
+## Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `.wxai/project.json` | Lifecycle stage + `kit` block (mcpBaseUrl, apiToken, projectId) |
+| `.wxkanban-project.json` | **Legacy** — pre-v0.4.0 project metadata + creds; safe to remove after `kit:configure` |
+| `ai-settings.json` | AI adapter config, custom commands |
+
+### Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MCP_BASE_URL` | `https://mcp.wxperts.com` | Hosted MCP endpoint (override for staging or local) |
+| `WXKANBAN_API_TOKEN` | — | Bearer token for the hosted MCP (a ~43-char URL-safe base64 string, e.g. `9bB7UUaP0FebtuVsib999l4WB0Eplf2dfZJ6DF2njS0`; no `wxk_` prefix) |
+| `WXKANBAN_PROJECT_ID` | — | Project ID (fallback if not in `.wxai/project.json`) |
+| `GATEWAY_HTTP_PORT` | `3003` | HTTP gateway port |
+| `GROQ_API_KEY` | — | Primary AI provider key (spec 025 / 028 default) |
+| `OPENAI_API_KEY` | — | Fallback AI provider key |
+
+Env vars take precedence over the `kit` block in `.wxai/project.json`.
+
+---
+
+## Project Structure
+
+```
+wxkanban-agent/
+  apps/command-gateway/src/
+    cli.ts                    CLI entry point
+    http.ts                   HTTP/Express entry point (port 3003)
+  core/
+    context/
+      project-context.ts      ProjectContext interface
+      repo-config.ts          .wxkanban-project.json loader
+    orchestrator/
+      workflow-engine.ts       Command dispatch + audit
+      transitions.ts           Stage transition validation
+      command-handlers/
+        buildscope.ts          Interactive scope drafting
+        createspecs.ts         Spec generation + test plan
+        dbpush.ts              Database sync wrapper
+        pipeline-agent.ts      Multi-phase pipeline orchestration
+        pipeline-agent-run.ts  Pipeline execution helper
+        wxht.ts                Human testing workflow
+    policy/
+      command-policy.ts        Stage gate evaluation
+      command-rules-loader.ts  Custom rules from ai-settings.json
+    schemas/
+      lifecycle.ts             6 stages + command mapping + cross-cutting
+      commands.ts              CommandRequest<T>, CommandResult<T>
+      artifacts.ts             ScopeDraft, AuditRecord, Feature, HandoffBundle
+  adapters/mcp/
+    server.ts                  MCP tool registration + routing
+    tools/run-buildscope.ts    Buildscope MCP tool wrapper
+  services/lifecycle-api/
+    lifecycle-client.ts        HTTP client to MCP server
+    artifact-service.ts        Document/spec operations
+    feature-service.ts         Task operations
+  workers/ai/
+    ai-client.ts               Primary (Gemini) + fallback (OpenAI) routing
+    buildscope-worker.ts       AI-powered scope draft generation
+  scripts/
+    verify-install.ts          R11 install verification gate
+  web/
+    wxht-api.ts                Express routes for human testing UI
+  tests/unit/
+    lifecycle.test.ts          8 tests
+    command-policy.test.ts     10 tests
+    workflow-engine.test.ts    8 tests
+    transitions.test.ts        9 tests
+    mcp-adapter.test.ts        6 tests
+  vitest.config.ts             Test configuration
+  tsconfig.json                TypeScript (ES2020, CommonJS, strict)
+  package.json                 Scripts: test, verify, gateway:cli, gateway:http, dbpush
+```
+
+---
+
+## Frontend Stack
+
+The kit ships an opinionated Tailwind v4 + shadcn/ui scaffold via the
+`scaffold:frontend` command. A single run on a fresh consumer project drops
+in:
+
+- Tailwind v4 + PostCSS configs
+- `components.json` (shadcn registry) and `cn()` helper
+- 11 stock shadcn primitives (Button, Card, Input, Label, Dialog, DropdownMenu,
+  Table, Form, Select, Toast, Calendar)
+- A Tailwind-styled `<ResourceCalendar>` wrapping `react-big-calendar`
+  (no library CSS imported — fully restyled from scratch)
+- `<ThemeProvider>` + `<ModeToggle>` for light/dark/system mode
+
+```bash
+wxkanban-agent scaffold:frontend          # idempotent; skips existing files
+wxkanban-agent scaffold:frontend --dry-run
+wxkanban-agent scaffold:frontend --force --yes
+```
+
+See [`docs/scaffold-frontend.md`](docs/scaffold-frontend.md) for the full
+command reference, dark-mode wiring, and known limitations.
+
+## Spec Reference
+
+The orchestrator kit is defined by **Spec 019** at `specs/Project-Scope/019-agent-orchestrator-kit.md`. It contains 13 requirements (R0-R13) covering bootstrap, MCP runtime, command gateway, lifecycle policy, AI routing, structured outputs, adapter installation, kit updates, audit trails, wxKanban migration, and multi-project onboarding.

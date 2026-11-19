@@ -1,0 +1,32 @@
+---
+id: cmd-cockpit-wxkanbancockpitinstallcommands
+part: command-reference
+audience: customer
+sources: vscode-extension/package.json
+generated: true
+---
+
+# Install Slash Commands (.claude/commands)
+
+Install Slash Commands (.claude/commands).
+
+| | |
+|---|---|
+| **Runs in** | Dev Cockpit (Command Palette) |
+| **How to start it** | `Command Palette → wxKanban: Install Slash Commands (.claude/commands)` |
+| **Stage** | Any stage |
+
+## What it calls
+
+None.
+
+## What calls it
+
+None.
+
+:::internal
+**Read from:** `vscode-extension/package.json`
+
+**Stage confidence:** Likely (from the generator's stage map until the command declares its own)
+
+:::

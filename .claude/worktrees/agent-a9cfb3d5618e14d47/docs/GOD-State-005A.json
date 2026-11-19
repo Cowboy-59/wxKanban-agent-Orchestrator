@@ -1,0 +1,240 @@
+{
+  "mode": "new-project",
+  "note": "Single-scope amendment run: SCOPE-005 Amendment A (Time and Billing). Scope built interactively with the owner 2026-11-01; owner approved every section and said go for G.O.D. Separate state file so docs/GOD-State.json (SCOPE-132-C / SPEC-148 run) is untouched.",
+  "customer": "wxperts (internal)",
+  "level": "senior",
+  "phase": "implement",
+  "scopes": [
+    {
+      "key": "SCOPE-005-A",
+      "title": "Time and Billing - Amendment A",
+      "scopeNumber": "005",
+      "scopeFile": "specs/Project-Scope/005-scope-timeandBilling.md",
+      "hubDocument": "238bf2aa-466a-4baf-9826-afed86d307fe",
+      "buildscope": {
+        "qualityScore": 86,
+        "canProceedToCreateSpecs": true
+      },
+      "requirementsReal": true,
+      "specs": [
+        "005"
+      ],
+      "implement": "running",
+      "dependsOnOutside": [
+        "SPEC-143 agentruns table in production (FR-007 auto pull only; manual path works without it)"
+      ],
+      "validation": {
+        "isValid": true,
+        "score": 100,
+        "at": "2026-11-01"
+      },
+      "specId": "acc8465d-15ea-4657-b274-225c6c697376",
+      "specFolder": "specs/005-Time-and-Billing",
+      "stage": "Implementation",
+      "tasksOpen": [
+        "T021"
+      ],
+      "tasksDone": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008",
+        "T009",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T022",
+        "T023",
+        "T024"
+      ],
+      "helper": {
+        "command": "/implement 005 T006 (Sonnet subagent)",
+        "question": null
+      },
+      "amendments": [
+        "A (2026-11-01)",
+        "B (2026-11-02): Business plan+, FR-014 engaged client projects, projectbillings (0073 applied+verified)"
+      ]
+    }
+  ],
+  "designDecisions": [
+    "Resource not AI in all UI/statement text",
+    "Developer 150.00 / Resource 50.00 company defaults, project override, rate snapshot per entry",
+    "Round up to 15 min: manual entries per entry; agent runs per day per line per model once",
+    "Statement per Customer (SCOPE-119), weekly default, biweekly if negotiated",
+    "Resources counted per agent (each subagent run = 1, main session = 1, manual entry = 1)",
+    "Processes = Resource-only project line; brainstorm Developer+Resource project lines",
+    "Developer time entered manually on the page (ADMIN) or by side timer; legacy task-timer entries excluded",
+    "Statement <= 2 pages; summary one line per item",
+    "Out of scope: payment/paid status, emailing, client view, approval workflow, task timer changes, editing invoiced entries"
+  ],
+  "position": {
+    "step": "N8",
+    "gate": "implement 005: 23/24 done; T021 endpoint test as ADMIN pending owner OK (writes to prod DB)",
+    "task": "T021",
+    "done": [
+      "T001",
+      "T002",
+      "T003",
+      "T004",
+      "T005",
+      "T006",
+      "T007",
+      "T008",
+      "T009"
+    ]
+  },
+  "nextAction": "Reconnect wxkanban MCP; set T009 done in wxKanban. Then T010 Statement summary page (FR-010). Pending owner: (1) gated comment edit in TimeBillingSettingsService.ts — owner said continue, not approval; (2) SPEC-143 AgentRunBillingService reconciliation (a: file SPEC-143 task, recommended / b: edit now).",
+  "gateLog": [
+    {
+      "at": "2026-11-01T23:46:07.221Z",
+      "gate": "buildscope change impact",
+      "answer": "approve",
+      "source": "owner, verbatim: yes"
+    },
+    {
+      "at": "2026-11-01T23:51:25.786Z",
+      "gate": "SPEC number",
+      "answer": "fill existing empty SPEC-005 stub (same feature, 1:1 era) rather than a new number",
+      "source": "G.O.D. decision, low-risk, logged; fences read [SCOPE 005 / Tnnn]"
+    },
+    {
+      "at": "2026-11-02T00:22:43.557Z",
+      "gate": "resourcecount column (scope gap FR-007 vs FR-009)",
+      "answer": "add projecttimeentries.resourcecount",
+      "source": "owner, verbatim: yes"
+    },
+    {
+      "at": "2026-11-02T00:22:43.558Z",
+      "gate": "Change Impact boundary on 0072 (5 shared tables)",
+      "answer": "approve",
+      "source": "owner, verbatim: yes SQL applied"
+    },
+    {
+      "at": "2026-11-02T00:22:43.558Z",
+      "gate": "T001 hard stop: owner DDL apply",
+      "answer": "applied; verified read-only + db:drift exit 0; logged in schema-change-log.md",
+      "source": "owner, verbatim: yes SQL applied"
+    },
+    {
+      "at": "2026-11-02T00:38:44.651Z",
+      "gate": "Change Impact: T002 schema declarations (companyproject, customer, projecttimeentry imports)",
+      "answer": "approve",
+      "source": "owner, verbatim: yes"
+    },
+    {
+      "at": "2026-11-02T00:38:44.652Z",
+      "gate": "Change Impact: nullable-taskid fixes in BillingService.ts and AISpecSessionService.ts",
+      "answer": "approve",
+      "source": "owner, verbatim: yes"
+    },
+    {
+      "at": "2026-11-02T00:57:06.692Z",
+      "gate": "Change Impact: TimeBillingEntryService.ts isNull fix (2 edits; 2nd re-hashed after 1st applied)",
+      "answer": "approve",
+      "source": "owner, verbatim: yes"
+    },
+    {
+      "at": "2026-11-02T03:43",
+      "gate": "Change Impact — uuidv7 import in AgentRunPullService.ts (T007)",
+      "answer": "yes",
+      "by": "owner"
+    }
+  ],
+  "repairs": [
+    {
+      "what": "Old stub paragraph left at top of scope by edit merge, quoted as superseded by Amendment A (no requirement text changed)",
+      "file": "specs/Project-Scope/005-scope-timeandBilling.md"
+    },
+    {
+      "what": "Added ## Overview (owner-approved revised description) and ## Open Questions (none) to lift validation from 86 to 100; no requirement text changed",
+      "file": "specs/Project-Scope/005-scope-timeandBilling.md"
+    },
+    {
+      "what": "create_specs with phase design left spec in draft (known kit gap); set to planned via project_update_spec_status per G.O.D. N8 intent",
+      "spec": "005"
+    },
+    {
+      "what": "createspecs.ts generators: 5 not exported and generateSpecMarkdown emits template text; helper spliced the scope real sections into spec.md and replaced generic plan phases (no repo file touched)",
+      "spec": "005"
+    }
+  ],
+  "preexistingChanges": [
+    "CONTEXT.md",
+    "decisions/ledger.yaml",
+    "docs/brainstorms/Scratchpad.md",
+    "mcp-server/src/prompts/registry.ts",
+    "scripts/sync-to-orchestrator.mjs",
+    "specs/121-kit-upgrade-file-preservation/spec.md",
+    "specs/121-kit-upgrade-file-preservation/tasks.md",
+    "specs/Project-Scope/019-agent-orchestrator-kit.md",
+    "specs/Project-Scope/121-kit-upgrade-file-preservation.md",
+    "E-issues/",
+    "decisions/routing-log.jsonl",
+    "docs/Facebook.pdf",
+    "docs/Facebook2.pdf",
+    "docs/GOD-State-132F.json",
+    "docs/GOD-State-135B.json",
+    "docs/GOD-State.json",
+    "docs/brainstorms/2026-10-27-global-kit.md",
+    "scripts/release-secret-gate.mjs",
+    "specs/019-agent-orchestrator-kit/plan.md",
+    "specs/019-agent-orchestrator-kit/spec.md",
+    "specs/019-agent-orchestrator-kit/tasks.md",
+    "specs/142-decision-memory/evidence/us3-live.ts",
+    "specs/142-decision-memory/evidence/us3-resume.ts",
+    "specs/144-company-yappchatt-account/build-1/wp4-pending-edits/",
+    "src/db/schema/agentrun.ts",
+    "src/server/routes/agentRuns.ts",
+    "src/server/services/AgentRunBillingService.ts",
+    "tests/testplans/SCOPE-146/INVENTORY.full.md",
+    "tests/testplans/SCOPE-146/SCHEMA-ANALYSIS.full.md",
+    "tests/testplans/SCOPE-146/inventory.full.json",
+    "tests/testplans/SCOPE-146/schema-analysis.full.json",
+    "tests/unit/agentRunBilling.test.ts",
+    "tests/unit/agentRunsRoute.test.ts",
+    "tests/unit/release-secret-gate.test.ts"
+  ],
+  "stoppedAt": null,
+  "pendingOwner": [],
+  "ownerApprovals": [
+    {
+      "at": "2026-11-02T00:05:00Z",
+      "what": "Added **Implemented By**: SPEC-005 to specs/Project-Scope/005-scope-timeandBilling.md",
+      "source": "owner, verbatim: ok"
+    },
+    {
+      "at": "2026-11-02T00:05:50Z",
+      "what": "Filed kit defects: feedback 4dff99f2 (create_specs phase design -> draft), cccbafc0 (createspecs generators unexported/template text)",
+      "source": "owner, verbatim: ok"
+    }
+  ],
+  "notes": [
+    "T002: BillingService.ts and AISpecSessionService.ts edited for nullable taskid (owner approved); both are legacy-baselined files, so auditfences now reports UNFENCED_DECL on them (advisory gate).",
+    "tasks.md uses - [ ] bullets; auditfences task index reads only ### or | rows, so every SCOPE 005 fence shows UNKNOWN_TASK. File as kit defect in implement Phase 6.",
+    "T003: src/server/lib/timeBilling.ts + tests/unit/timeBilling.test.ts (15/15 pass, strict tsc clean).",
+    "Double-billing check: the legacy invoice generators (routes/invoices.ts -> InvoiceService, routes/billing.ts) are NOT mounted; TimeTrackingService.markAsInvoiced has no callers. No live path can double-bill. T009 will set invoiced=true + invoicedat alongside invoiceid when locking, so legacy metrics see statement-billed entries as invoiced. Dead-code defects to report to owner (out of scope): InvoiceService.generateInvoice/markTimeEntriesAsInvoiced have no companyid filter; TimeTrackingService.markAsInvoiced ignores entryIds and would mark every uninvoiced row.",
+    "DQ (low-risk, logged): timer automatic notes list agent runs of the timer project only, never other projects (FR-010 no other-client data).",
+    "DQ (low-risk, logged): archived or deleted scopes that still carry time in the period stay visible on the page so totals never drop minutes.",
+    "2026-11-02 T006 verified (subagent, 49/49). T007 done: AgentRunPullService + 8 tests; 57/57 time-billing tests pass; tsc 1556 = baseline, 0 new; fences clean (UNKNOWN_TASK only).",
+    "2026-11-02 T008 done: TimeBillingSettingsService (rates, project overrides, ACH encrypted via encryptToken+config.ENCRYPTION_KEY, routing+account masked to last 4, ABA checksum, getStatementAch for T009/T011) + 11 tests; logs carry field names only; tsc 1556 = baseline; fences clean. NOTE: encryptToken needs a 32-byte key and config only enforces >=32 chars, same as consultantConnections — T021 endpoint test will exercise it in the real env.",
+    "2026-11-02 T007 task text asks to reconcile with SPEC-143 AgentRunBillingService (one pull path); NOT done — that service is uncommitted SPEC-143 code with type errors; awaiting owner decision.",
+    "2026-11-02 T009 done: TimeBillingStatementService — buildStatementPage1 (rows per day/category/rate; count = distinct developers or sum resourcecount, NULL=1; zero-net rows dropped; assertStatementAddsUp), checkPeriod (<=31 days), suggestPeriod (day after last statement, else last full Mon-Sun week; biweekly 14d), statementNumber INV-YYYY-<random 8 hex>, generate (customer+billed projects, unlocked, finished, billable entries by workdate; one transaction inserts projectinvoices + locks entries invoiceid/invoiced/invoicedat; partial lock -> 409 rollback), load (rebuild page1 from locked entries, check vs stored total). 16 tests; 84/84 TB tests; tsc 1556 = baseline; fences clean.",
+    "Legacy defect for owner report: InvoiceService invoicenumber uses the first 8 hex of a UUIDv7 (timestamp bits) — numbers repeat for invoices made within ~65 s. Not fixed (dead code, gated file); statements use a random suffix."
+  ],
+  "pendingTaskStatusSync": [
+    "T009 cd041498-1598-415a-ab0a-50bc30745566 -> done (wxkanban MCP disconnected 2026-11-02 04:04)"
+  ]
+}

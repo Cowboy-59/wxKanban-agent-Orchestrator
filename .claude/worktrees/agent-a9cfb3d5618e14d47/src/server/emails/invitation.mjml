@@ -1,0 +1,79 @@
+<mjml>
+  <mj-head>
+    <mj-title>You've Been Invited to wxKanban</mj-title>
+    <mj-font name="Inter" href="https://fonts.googleapis.com/css?family=Inter:400,600,700" />
+    <mj-attributes>
+      <mj-all font-family="Inter, Helvetica, Arial, sans-serif" />
+      <mj-text font-size="16px" line-height="24px" color="#1e293b" />
+      <mj-button background-color="#3b82f6" color="#ffffff" font-size="16px" font-weight="600" border-radius="8px" padding="16px 32px" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f1f5f9">
+    <mj-section padding="40px 20px">
+      <mj-column>
+        <mj-image src="https://wxkanban.com/logo.png" alt="wxKanban" width="200px" align="center" />
+      </mj-column>
+    </mj-section>
+    
+    <mj-section background-color="#ffffff" border-radius="12px" padding="40px 30px">
+      <mj-column>
+        <mj-text font-size="28px" font-weight="700" color="#0f172a" align="center" padding-bottom="20px">
+          You're Invited! 🎉
+        </mj-text>
+        
+        <mj-text padding-bottom="20px">
+          Hi there,
+        </mj-text>
+        
+        <mj-text padding-bottom="20px">
+          <strong>{{invitedByName}}</strong> has invited you to join <strong>{{companyName}}</strong> on wxKanban as a <strong>{{role}}</strong>.
+        </mj-text>
+        
+        <mj-text padding-bottom="20px">
+          wxKanban is a powerful project management platform that helps teams collaborate, track tasks, and deliver projects efficiently.
+        </mj-text>
+        
+        <mj-button href="{{invitationLink}}" padding="30px 0">
+          Accept Invitation
+        </mj-button>
+        
+        <mj-text font-size="14px" color="#64748b" padding-top="20px" padding-bottom="20px">
+          This invitation link will expire in 7 days. If you don't have a wxKanban account yet, you'll be able to create one when you accept this invitation.
+        </mj-text>
+        
+        <mj-divider border-color="#e2e8f0" padding="20px 0" />
+        
+        <mj-text font-size="14px" color="#64748b">
+          If the button doesn't work, copy and paste this link into your browser:
+        </mj-text>
+        
+        <mj-text font-size="12px" color="#94a3b8" word-break="break-all">
+          {{invitationLink}}
+        </mj-text>
+        
+        {{#if message}}
+        <mj-divider border-color="#e2e8f0" padding="20px 0" />
+        
+        <mj-text font-size="14px" color="#64748b" padding-bottom="10px">
+          <strong>Message from {{invitedByName}}:</strong>
+        </mj-text>
+        
+        <mj-text font-size="14px" color="#1e293b" font-style="italic" background-color="#f8fafc" padding="15px" border-radius="6px">
+          "{{message}}"
+        </mj-text>
+        {{/if}}
+      </mj-column>
+    </mj-section>
+    
+    <mj-section padding="30px 20px">
+      <mj-column>
+        <mj-text font-size="12px" color="#64748b" align="center">
+          © 2026 wxKanban. All rights reserved.
+        </mj-text>
+        <mj-text font-size="12px" color="#64748b" align="center">
+          If you weren't expecting this invitation, you can safely ignore this email.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

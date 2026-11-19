@@ -1,0 +1,130 @@
+{
+  "specNumber": "018",
+  "specName": "Unified CLI and AI Gateway for MCP Tool Access",
+  "status": "ready",
+  "createdAt": "2026-03-31",
+  "updatedAt": "2026-03-31",
+  "dependsOn": ["002-Scope", "main-mcp", "project-kit-mcp"],
+  "phases": [
+    {
+      "phase": 0,
+      "name": "Research and Governance Artifacts",
+      "status": "planned",
+      "duration": "0.5 days",
+      "deliverables": [
+        "Guardrail patterns catalog",
+        "LLM provider normalization contract",
+        "MCP parity surface map",
+        "CLI command surface inventory",
+        "CI parity gate design notes"
+      ]
+    },
+    {
+      "phase": 1,
+      "name": "Database & Schema",
+      "status": "planned",
+      "duration": "0.5 days",
+      "deliverables": [
+        "Drizzle schema: mcpdriftevents",
+        "Drizzle schema: mcpupdateadoptions",
+        "Drizzle schema: mcpparityconfig",
+        "3 database migrations",
+        "Performance indexes"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "AI Gateway Service",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "GatewayService (mediation orchestrator)",
+        "GuardrailsPolicy (injection detection, allowlist)",
+        "LLMRouter (primary + fallback)",
+        "MCPToolCallBuilder (normalize to MCP call)",
+        "GatewayAuditLog (Pino-based trail)",
+        "POST /api/gateway/invoke endpoint",
+        "Unit tests"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "CLI Bridge Alignment",
+      "status": "planned",
+      "duration": "0.5 days",
+      "deliverables": [
+        "CLIBridgeRouter (command registration + routing)",
+        "Alias resolution map",
+        "CLI startup surface validation",
+        "Unit tests"
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Drift Logging and Feedback",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "DriftEventService (emit, resolve, aggregate)",
+        "GitHubFeedbackClient",
+        "GET /api/drift/events",
+        "PATCH /api/drift/events/:id/resolve",
+        "GET /api/drift/summary",
+        "Unit tests"
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "MCP Upgrade Distribution",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "UpdateAdoptionService",
+        "GitHubReleasePoller",
+        "Reminder cron job (30-day deferred)",
+        "GET /api/updates/available",
+        "POST /api/updates/decide",
+        "POST /api/updates/apply",
+        "Unit tests"
+      ]
+    },
+    {
+      "phase": 6,
+      "name": "Parity CI Gates",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        ".github/workflows/parity-check.yml",
+        "ParityGateService (getMode, setMode, rollback)",
+        "GET /api/parity/config",
+        "PATCH /api/parity/config",
+        "Unit tests"
+      ]
+    },
+    {
+      "phase": 7,
+      "name": "Frontend (Admin UI)",
+      "status": "planned",
+      "duration": "1 day",
+      "deliverables": [
+        "DriftEventsPanel component",
+        "DriftEventDetail component",
+        "ParityGateToggle component",
+        "UpdateAdoptionPanel component",
+        "Admin Dashboard integration"
+      ]
+    },
+    {
+      "phase": 8,
+      "name": "Testing",
+      "status": "planned",
+      "duration": "0.5 days",
+      "deliverables": [
+        "Playwright E2E: gateway invocation and guardrail block",
+        "Playwright E2E: drift event emit, list, resolve",
+        "Playwright E2E: update adoption accept and defer",
+        "Playwright E2E: parity gate mode switch and rollback"
+      ]
+    }
+  ]
+}

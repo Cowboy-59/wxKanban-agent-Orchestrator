@@ -1,0 +1,3150 @@
+{
+  "generatedFor": "specs/146-audit-route-access-control",
+  "inventoryRef": "tests/testplans/SCOPE-146/inventory.json",
+  "commit": "7c796612+working-tree",
+  "caps": {
+    "perUnit": {
+      "HIGH": 12,
+      "MEDIUM": 8,
+      "LOW": 3
+    },
+    "global": 250
+  },
+  "totals": {
+    "items": 55,
+    "byVariant": {
+      "permission": 11,
+      "negative": 12,
+      "happy": 18,
+      "boundary": 10,
+      "recovery": 3,
+      "concurrency": 1
+    },
+    "byGate": {
+      "unit": 39,
+      "crud": 5,
+      "ui-flow": 5,
+      "smoke": 6
+    },
+    "byPriority": {
+      "P1": 45,
+      "P2": 8,
+      "P3": 2
+    },
+    "byTier": {
+      "unit-mocked": 39,
+      "crud-nonprod": 4,
+      "manual": 6,
+      "live-readonly": 6
+    },
+    "byExecutor": {
+      "machine": 50,
+      "human": 5
+    },
+    "exemptionsByCode": {
+      "N/A-READ-ONLY": 1,
+      "N/A-STATELESS": 1,
+      "N/A-NO-AUTH": 1
+    },
+    "deferredByCap": 0
+  },
+  "clarifications": [
+    {
+      "id": "CLAR-01",
+      "unitId": "fn:recordAuditLibraryWrite",
+      "question": "Must the audit row be written in the same transaction as the action it records?",
+      "why": "SPEC-146 writes it after the action and swallows a failed insert; SOC2 CC7.2 evidence could then be missing for a completed change.",
+      "blocks": [
+        "TC-SEC-016-R1"
+      ],
+      "assumedForNow": "Observed: written after, failure logged and not raised.",
+      "severityIfWrong": "Medium",
+      "feedbackRef": null
+    },
+    {
+      "id": "CLAR-02",
+      "unitId": "fn:canReadProjectCompliance",
+      "question": "May a scope- or task-level consultant (not a whole-project grant) read a client project's compliance settings?",
+      "why": "canAccessProjectTenant counts only whole-project engagement assignments.",
+      "blocks": [
+        "TC-SEC-024-B1"
+      ],
+      "assumedForNow": "Observed: no — only whole-project grants read.",
+      "severityIfWrong": "Low",
+      "feedbackRef": null
+    },
+    {
+      "id": "CLAR-03",
+      "unitId": "route:GET /documents/:id",
+      "question": "What status should a non-UUID :id return on the audit routes?",
+      "why": "Today a non-UUID id reaches Postgres and returns 500 (pre-existing).",
+      "blocks": [],
+      "assumedForNow": "Not asserted.",
+      "severityIfWrong": "Low",
+      "feedbackRef": null
+    },
+    {
+      "id": "CLAR-04",
+      "unitId": "route:PUT /config",
+      "question": "Should AuditConfigPanel disable the framework toggles for a consulting ADMIN, now that their PUT answers 404?",
+      "why": "The panel enables toggles for any ADMIN; a consultant's save now fails.",
+      "blocks": [],
+      "assumedForNow": "Not asserted; UX gap.",
+      "severityIfWrong": "Low",
+      "feedbackRef": null
+    }
+  ],
+  "items": [
+    {
+      "id": "TC-SEC-001",
+      "title": "Customer roles get 403 SYSADMIN on DELETE /documents/:id and nothing is written",
+      "requirementId": "FR-001",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-001",
+      "unitId": "route:DELETE /documents/:id",
+      "sourceRef": "src/server/routes/audit.ts:329",
+      "fenceRef": "[SCOPE 146 / T002]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [
+        {
+          "name": "roles",
+          "value": [
+            "TEAM_MEMBER",
+            "TEAM_MANAGER",
+            "ADMIN"
+          ],
+          "source": "literal"
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "DELETE /documents/:id as each customer role (id 00000000-0000-7000-8000-000000000000 where the path takes one)",
+          "expected": "status 403; body.roleRequired === 'SYSADMIN'; body.currentRole equals the caller's role"
+        },
+        {
+          "step": 2,
+          "action": "inspect service stubs",
+          "expected": "deleteDocument called 0 times; db.insert called 0 times"
+        }
+      ],
+      "flow": null,
+      "postconditions": [
+        "companyauditlogs inserts: 0",
+        "service write functions: 0 calls"
+      ],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (T007 customer roles on SYSADMIN routes)",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:DELETE /documents/:id",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 329,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-002-P1",
+      "title": "Customer roles get 403 SYSADMIN on POST /documents/:id/extract and nothing is written",
+      "requirementId": "FR-001",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-001",
+      "unitId": "route:POST /documents/:id/extract",
+      "sourceRef": "src/server/routes/audit.ts:230",
+      "fenceRef": "[SCOPE 146 / T002]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": "TC-SEC-001",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [
+        {
+          "name": "roles",
+          "value": [
+            "TEAM_MEMBER",
+            "TEAM_MANAGER",
+            "ADMIN"
+          ],
+          "source": "literal"
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST /documents/:id/extract as each customer role (id 00000000-0000-7000-8000-000000000000 where the path takes one)",
+          "expected": "status 403; body.roleRequired === 'SYSADMIN'; body.currentRole equals the caller's role"
+        },
+        {
+          "step": 2,
+          "action": "inspect service stubs",
+          "expected": "extractTasksFromDocument called 0 times; db.insert called 0 times"
+        }
+      ],
+      "flow": null,
+      "postconditions": [
+        "companyauditlogs inserts: 0",
+        "service write functions: 0 calls"
+      ],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (T007 customer roles on SYSADMIN routes)",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:POST /documents/:id/extract",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 230,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-003-P1",
+      "title": "Customer roles get 403 SYSADMIN on POST /documents and nothing is written",
+      "requirementId": "FR-001",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-001",
+      "unitId": "route:POST /documents",
+      "sourceRef": "src/server/routes/audit.ts:198",
+      "fenceRef": "[SCOPE 146 / T002]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": "TC-SEC-001",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [
+        {
+          "name": "roles",
+          "value": [
+            "TEAM_MEMBER",
+            "TEAM_MANAGER",
+            "ADMIN"
+          ],
+          "source": "literal"
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST /documents as each customer role (id 00000000-0000-7000-8000-000000000000 where the path takes one)",
+          "expected": "status 403; body.roleRequired === 'SYSADMIN'; body.currentRole equals the caller's role"
+        },
+        {
+          "step": 2,
+          "action": "inspect service stubs",
+          "expected": "uploadDocument called 0 times; db.insert called 0 times"
+        }
+      ],
+      "flow": null,
+      "postconditions": [
+        "companyauditlogs inserts: 0",
+        "service write functions: 0 calls"
+      ],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (T007 customer roles on SYSADMIN routes)",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:POST /documents",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 198,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-004-N1",
+      "title": "A malformed body on POST /documents is refused with 403, not 400",
+      "requirementId": "FR-001",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-001",
+      "unitId": "route:POST /documents",
+      "sourceRef": "src/server/routes/audit.ts:198",
+      "fenceRef": "[SCOPE 146 / T002]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-SEC-001",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [
+        {
+          "name": "body",
+          "value": {
+            "nonsense": true
+          },
+          "source": "literal"
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST /documents as TEAM_MEMBER with body { nonsense: true }",
+          "expected": "status 403 (the guard runs before validateBody)"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (malformed body)",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:POST /documents",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 198,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-005-P1",
+      "title": "Every SYSADMIN route mounts requireSysAdmin as its first handler",
+      "requirementId": "FR-001",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-001",
+      "unitId": "fn:requireSysAdmin",
+      "sourceRef": "src/server/middleware/requireSysAdmin.ts:15",
+      "fenceRef": null,
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": "TC-SEC-001",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "enumerate router.stack for routes whose access entry is sysadmin",
+          "expected": "14 routes; handles[0] === requireSysAdmin on each"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (T001 guard matches)",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2",
+        "suite-level"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:requireSysAdmin",
+          "sourcePath": "src/server/middleware/requireSysAdmin.ts",
+          "sourceLine": 15,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-006",
+      "title": "All 11 self-audit and report routes refuse every customer role",
+      "requirementId": "FR-002",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-002",
+      "unitId": "route:GET /executions",
+      "sourceRef": "src/server/routes/audit.ts:560",
+      "fenceRef": "[SCOPE 146 / T002]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [
+        {
+          "name": "roles",
+          "value": [
+            "TEAM_MEMBER",
+            "TEAM_MANAGER",
+            "ADMIN"
+          ],
+          "source": "literal"
+        },
+        {
+          "name": "routes",
+          "value": [
+            "POST /execute",
+            "GET /executions",
+            "GET /executions/:id",
+            "GET /executions/:id/results",
+            "POST /executions/:id/cancel",
+            "POST /reports",
+            "GET /reports",
+            "GET /reports/:id",
+            "GET /reports/:id/download",
+            "POST /reports/:id/approve",
+            "GET /trends"
+          ],
+          "source": "literal"
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "call each route as each customer role",
+          "expected": "status 403 with roleRequired 'SYSADMIN' on all 33 calls"
+        },
+        {
+          "step": 2,
+          "action": "inspect stubs",
+          "expected": "listReports, getComplianceTrends, createAuditExecution, generateReport, approveReport, cancelAuditExecution: 0 calls"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": "inventory tiered the GET routes MEDIUM/LOW; re-tiered HIGH — they return wxKanban source snippets and reports (SOC2 CC6.3)",
+      "tags": [
+        "soc2",
+        "suite-level",
+        "parameterized"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /executions",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 560,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-007",
+      "title": "SYSADMIN is never refused on any SYSADMIN route",
+      "requirementId": "FR-002",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-002",
+      "unitId": "route:POST /execute",
+      "sourceRef": "src/server/routes/audit.ts:500",
+      "fenceRef": "[SCOPE 146 / T002]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "call each of the 14 SYSADMIN routes as SYSADMIN",
+          "expected": "status not in {401, 403} on all 14"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (SYSADMIN is never refused)",
+      "blockedReason": null,
+      "exemptions": [
+        {
+          "variant": "recovery",
+          "code": "N/A-READ-ONLY",
+          "note": "reads carry no partial state"
+        },
+        {
+          "variant": "concurrency",
+          "code": "N/A-STATELESS",
+          "note": "the guard holds no state"
+        }
+      ],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:POST /execute",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 500,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-008-N1",
+      "title": "A customer never receives an execution, result, code snippet, report or trend row",
+      "requirementId": "FR-002",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-002",
+      "unitId": "route:GET /executions/:id/results",
+      "sourceRef": "src/server/routes/audit.ts:626",
+      "fenceRef": "[SCOPE 146 / T002]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-SEC-006",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET /executions/:id/results and GET /reports/:id/download as ADMIN",
+          "expected": "status 403; body has no data key"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /executions/:id/results",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 626,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-API-001",
+      "title": "A non-SYSADMIN document list is narrowed to framework documents",
+      "requirementId": "FR-003",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-003",
+      "unitId": "route:GET /documents",
+      "sourceRef": "src/server/routes/audit.ts:162",
+      "fenceRef": "[SCOPE 146 / T003]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET /documents as TEAM_MEMBER",
+          "expected": "listDocuments called with frameworkOnly: true"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (FR-003)",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": "re-tiered from LOW: cross-tenant read of internal documents",
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /documents",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 162,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-API-002-B1",
+      "title": "?documenttype=db_analysis cannot widen a non-SYSADMIN list",
+      "requirementId": "FR-003",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-003",
+      "unitId": "route:GET /documents",
+      "sourceRef": "src/server/routes/audit.ts:162",
+      "fenceRef": "[SCOPE 146 / T003]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "boundary",
+      "parentId": "TC-API-001",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [
+        {
+          "name": "documenttype",
+          "value": "db_analysis",
+          "source": "literal"
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET /documents?documenttype=db_analysis as TEAM_MEMBER",
+          "expected": "listDocuments called with { frameworkOnly: true, documenttype: 'db_analysis' }"
+        },
+        {
+          "step": 2,
+          "action": "render the WHERE listDocuments sends",
+          "expected": "params contain 'compliance_framework' and 'db_analysis' joined by AND"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts; tests/unit/documentServiceFrameworkOnly.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /documents",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 162,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-API-003-N1",
+      "title": "An internal document by id answers a 404 identical to a missing one",
+      "requirementId": "FR-003",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-003",
+      "unitId": "route:GET /documents/:id",
+      "sourceRef": "src/server/routes/audit.ts:303",
+      "fenceRef": "[SCOPE 146 / T003]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-API-001",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET /documents/:id as ADMIN where getDocument returns null under frameworkOnly",
+          "expected": "status 404; body deep-equals { success: false, error: 'Document not found' }; getDocument called with (id, { frameworkOnly: true })"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /documents/:id",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 303,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-API-004",
+      "title": "/documents/search is reachable and framework-only for a non-SYSADMIN",
+      "requirementId": "FR-003",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-003",
+      "unitId": "route:GET /documents/search",
+      "sourceRef": "src/server/routes/audit.ts:275",
+      "fenceRef": "[SCOPE 146 / T003]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET /documents/search?q=access as TEAM_MEMBER",
+          "expected": "status 200; searchDocuments called with ('access', { frameworkOnly: true }); getDocument called 0 times"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": "search was registered after /documents/:id and never ran before SPEC-146",
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /documents/search",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 275,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-FN-001-B1",
+      "title": "The framework-only predicate reaches the SQL of list, get and search",
+      "requirementId": "FR-003",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-003",
+      "unitId": "fn:searchDocuments",
+      "sourceRef": "src/server/services/DocumentService.ts:176",
+      "fenceRef": null,
+      "gate": "unit",
+      "layer": "app",
+      "variant": "boundary",
+      "parentId": "TC-API-001",
+      "priority": "P1",
+      "riskTier": "MEDIUM",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "call listDocuments/getDocument/searchDocuments with frameworkOnly",
+          "expected": "rendered SQL params include 'compliance_framework' in all three"
+        },
+        {
+          "step": 2,
+          "action": "call each without the option",
+          "expected": "no documenttype predicate in any"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/unit/documentServiceFrameworkOnly.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:searchDocuments",
+          "sourcePath": "src/server/services/DocumentService.ts",
+          "sourceLine": 176,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-API-005-P1",
+      "title": "A SYSADMIN document list is not narrowed",
+      "requirementId": "FR-003",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-003",
+      "unitId": "route:GET /documents",
+      "sourceRef": "src/server/routes/audit.ts:162",
+      "fenceRef": "[SCOPE 146 / T003]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": "TC-API-001",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET /documents as SYSADMIN",
+          "expected": "listDocuments called with frameworkOnly: false"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /documents",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 162,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-009",
+      "title": "Every registered audit route has exactly one access entry",
+      "requirementId": "FR-004",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-004",
+      "unitId": "fn:guardFor",
+      "sourceRef": "src/server/routes/auditAccess.ts:64",
+      "fenceRef": "[SCOPE 146 / T001]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "enumerate router.stack keys METHOD /path",
+          "expected": "set difference router − AUDIT_ROUTE_ACCESS is empty"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (T001)",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": "SOC2 CC6.3: stops a future route shipping under the login-only router.use",
+      "tags": [
+        "soc2",
+        "suite-level"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:guardFor",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 64,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-010-N1",
+      "title": "An access entry naming an unregistered route fails the test",
+      "requirementId": "FR-004",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-004",
+      "unitId": "fn:guardFor",
+      "sourceRef": "src/server/routes/auditAccess.ts:64",
+      "fenceRef": "[SCOPE 146 / T001]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-SEC-009",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "compare AUDIT_ROUTE_ACCESS keys to registered keys",
+          "expected": "set difference table − router is empty"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "suite-level"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:guardFor",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 64,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-011-B1",
+      "title": "The router registers exactly 22 audit routes",
+      "requirementId": "FR-004",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-004",
+      "unitId": "fn:guardFor",
+      "sourceRef": "src/server/routes/auditAccess.ts:64",
+      "fenceRef": "[SCOPE 146 / T001]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "boundary",
+      "parentId": "TC-SEC-009",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "count registered routes",
+          "expected": "22"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "suite-level"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:guardFor",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 64,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-012-P1",
+      "title": "Each route's first guard matches its access entry",
+      "requirementId": "FR-004",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-004",
+      "unitId": "fn:guardFor",
+      "sourceRef": "src/server/routes/auditAccess.ts:64",
+      "fenceRef": "[SCOPE 146 / T001]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": "TC-SEC-009",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "for each route compare handles[0] to its entry",
+          "expected": "sysadmin → requireSysAdmin; companyAdmin → requireAdmin; login → neither present"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "suite-level"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:guardFor",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 64,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-013",
+      "title": "Every SYSADMIN audit-library write leaves one companyauditlogs row",
+      "requirementId": "FR-005",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-005",
+      "unitId": "fn:recordAuditLibraryWrite",
+      "sourceRef": "src/server/routes/auditAccess.ts:121",
+      "fenceRef": "[SCOPE 146 / T005]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [
+        {
+          "name": "actions",
+          "value": [
+            "audit_document_uploaded",
+            "audit_document_tasks_replaced",
+            "audit_document_deleted",
+            "audit_selfaudit_started",
+            "audit_selfaudit_cancelled",
+            "audit_report_generated",
+            "audit_report_approved"
+          ],
+          "source": "literal"
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "perform each write as SYSADMIN",
+          "expected": "exactly 1 companyauditlogs insert per write with action from the table, companyid = caller's company, changedby = caller's userid"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automatable",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (extract, delete)",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": "extract and delete are automated in the route suite; the other five actions are covered only by code review today",
+      "tags": [
+        "soc2",
+        "mutating",
+        "parameterized"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:recordAuditLibraryWrite",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 121,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-014-B1",
+      "title": "A delete record carries the real cascaded task count, not the document counter",
+      "requirementId": "FR-005",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-005",
+      "unitId": "route:DELETE /documents/:id",
+      "sourceRef": "src/server/routes/audit.ts:329",
+      "fenceRef": "[SCOPE 146 / T002]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "boundary",
+      "parentId": "TC-SEC-013",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [
+        {
+          "name": "extractedtasks",
+          "value": 1,
+          "source": "literal"
+        },
+        {
+          "name": "rows counted",
+          "value": 119,
+          "source": "literal"
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "DELETE /documents/:id as SYSADMIN with extractedtasks=1 and 119 counted rows",
+          "expected": "insert previousvalue.tasksRemoved === 119"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:DELETE /documents/:id",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 329,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-015-N1",
+      "title": "A denial writes a warn record with userid, usertype, method and full path",
+      "requirementId": "FR-005",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-005",
+      "unitId": "fn:requireSysAdmin",
+      "sourceRef": "src/server/middleware/requireSysAdmin.ts:15",
+      "fenceRef": null,
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-SEC-013",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "call a SYSADMIN route as TEAM_MEMBER",
+          "expected": "pino warn record has keys userid, usertype, method, path; path starts with the router's baseUrl"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automatable",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:requireSysAdmin",
+          "sourcePath": "src/server/middleware/requireSysAdmin.ts",
+          "sourceLine": 15,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-016-R1",
+      "title": "A failed audit insert is logged as an error and does not fail the write (observed)",
+      "requirementId": "FR-005",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-005",
+      "unitId": "fn:recordAuditLibraryWrite",
+      "sourceRef": "src/server/routes/auditAccess.ts:121",
+      "fenceRef": "[SCOPE 146 / T005]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "recovery",
+      "parentId": "TC-SEC-013",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "make the companyauditlogs insert throw during a SYSADMIN delete",
+          "expected": "HTTP 200; logger.error called once with action"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automatable",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": "CLAR-01",
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:recordAuditLibraryWrite",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 121,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-017-N1",
+      "title": "A caller with no company writes no audit row and logs an error",
+      "requirementId": "FR-005",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-005",
+      "unitId": "fn:recordAuditLibraryWrite",
+      "sourceRef": "src/server/routes/auditAccess.ts:121",
+      "fenceRef": "[SCOPE 146 / T005]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-SEC-013",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "call recordAuditLibraryWrite with req.companyid undefined",
+          "expected": "db.insert not called; logger.error called once"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automatable",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:recordAuditLibraryWrite",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 121,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-FN-002",
+      "title": "A first extract adds the parsed tasks and removes none",
+      "requirementId": "FR-006",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-006",
+      "unitId": "fn:extractTasksFromDocument",
+      "sourceRef": "src/server/services/AuditTaskService.ts:58",
+      "fenceRef": "[SCOPE 146 / T004]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "extract a 3-item document with no prior tasks",
+          "expected": "returns { tasksRemoved: 0, tasksExtracted: 3 }"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/unit/auditTaskExtraction.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:extractTasksFromDocument",
+          "sourcePath": "src/server/services/AuditTaskService.ts",
+          "sourceLine": 58,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-FN-003-B1",
+      "title": "Extracting the same document twice leaves the same task count",
+      "requirementId": "FR-006",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-006",
+      "unitId": "fn:extractTasksFromDocument",
+      "sourceRef": "src/server/services/AuditTaskService.ts:58",
+      "fenceRef": "[SCOPE 146 / T004]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "boundary",
+      "parentId": "TC-FN-002",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "extract twice",
+          "expected": "second returns { tasksRemoved: 3, tasksExtracted: 3 }; document holds 3 tasks"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/unit/auditTaskExtraction.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:extractTasksFromDocument",
+          "sourcePath": "src/server/services/AuditTaskService.ts",
+          "sourceLine": 58,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-FN-004-N1",
+      "title": "A parse that finds no tasks throws NoTasksExtractedError and leaves the set",
+      "requirementId": "FR-006",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-006",
+      "unitId": "fn:extractTasksFromDocument",
+      "sourceRef": "src/server/services/AuditTaskService.ts:58",
+      "fenceRef": "[SCOPE 146 / T004]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-FN-002",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "extract a heading-only document over an existing set",
+          "expected": "rejects with NoTasksExtractedError; task ids unchanged"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/unit/auditTaskExtraction.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:extractTasksFromDocument",
+          "sourcePath": "src/server/services/AuditTaskService.ts",
+          "sourceLine": 58,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-FN-005-R1",
+      "title": "A failed insert rolls back the delete",
+      "requirementId": "FR-006",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-006",
+      "unitId": "fn:extractTasksFromDocument",
+      "sourceRef": "src/server/services/AuditTaskService.ts:58",
+      "fenceRef": "[SCOPE 146 / T004]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "recovery",
+      "parentId": "TC-FN-002",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "force the insert to throw",
+          "expected": "rejects 'insert failed'; task ids unchanged"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/unit/auditTaskExtraction.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:extractTasksFromDocument",
+          "sourcePath": "src/server/services/AuditTaskService.ts",
+          "sourceLine": 58,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-FN-006-B1",
+      "title": "Another document's tasks are never touched by an extract",
+      "requirementId": "FR-006",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-006",
+      "unitId": "fn:extractTasksFromDocument",
+      "sourceRef": "src/server/services/AuditTaskService.ts:58",
+      "fenceRef": "[SCOPE 146 / T004]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "boundary",
+      "parentId": "TC-FN-002",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "extract doc-1 twice with doc-2 holding a task",
+          "expected": "doc-2 task list deep-equals its seed"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/unit/auditTaskExtraction.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:extractTasksFromDocument",
+          "sourcePath": "src/server/services/AuditTaskService.ts",
+          "sourceLine": 58,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-API-006-N1",
+      "title": "Extract of a missing document answers 404 and extracts nothing; empty parse answers 422",
+      "requirementId": "FR-006",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-006",
+      "unitId": "route:POST /documents/:id/extract",
+      "sourceRef": "src/server/routes/audit.ts:230",
+      "fenceRef": "[SCOPE 146 / T004]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-FN-002",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "POST extract as SYSADMIN where getDocument returns null",
+          "expected": "status 404; extractTasksFromDocument 0 calls"
+        },
+        {
+          "step": 2,
+          "action": "POST extract where the service throws NoTasksExtractedError",
+          "expected": "status 422; 0 audit inserts"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:POST /documents/:id/extract",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 230,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-DB-001-C1",
+      "title": "Two concurrent re-extracts of one document leave exactly one task set (observed)",
+      "requirementId": "FR-006",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-006",
+      "unitId": "fn:extractTasksFromDocument",
+      "sourceRef": "src/server/services/AuditTaskService.ts:58",
+      "fenceRef": "[SCOPE 146 / T004]",
+      "gate": "crud",
+      "layer": "data",
+      "variant": "concurrency",
+      "parentId": "TC-FN-002",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "crud-nonprod",
+      "preconditions": [
+        "faithful wxktest_ clone (faithful: true); search_path asserted with SELECT current_schema()"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "run two extracts of the same document concurrently in the clone",
+          "expected": "count(complianceaudittasks where documentid = doc) equals the parsed count, not twice it"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "blocked",
+      "automationRef": null,
+      "blockedReason": "needs a faithful wxktest_ clone (EXECUTE mode only)",
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "concurrency",
+        "mutating"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:extractTasksFromDocument",
+          "sourcePath": "src/server/services/AuditTaskService.ts",
+          "sourceLine": 58,
+          "role": "primary"
+        }
+      ],
+      "targetObjects": [
+        "complianceaudittasks",
+        "fk complianceaudittasks.documentid"
+      ],
+      "isolationLevel": "read-committed",
+      "seedScript": "clone via clone-test-schema.mjs --create; INSERT one wxkanbandocuments row (compliance_framework, 3 checklist items)",
+      "teardownScript": "clone-test-schema.mjs --drop --name wxktest_<id>",
+      "expectedPlan": null
+    },
+    {
+      "id": "TC-UI-001",
+      "title": "A customer's Compliance tab shows Settings, Documents and Tasks only",
+      "requirementId": "FR-007",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-007",
+      "unitId": "route:GET /config",
+      "sourceRef": "src/server/routes/audit.ts:45",
+      "fenceRef": null,
+      "gate": "ui-flow",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P2",
+      "riskTier": "MEDIUM",
+      "testLevel": "system",
+      "tier": "manual",
+      "preconditions": [
+        "SPEC-146 deployed to the test environment",
+        "a customer project with SOC2 enabled"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "sign in as TEAM_MEMBER, open the project, click Compliance",
+          "expected": "sub-tabs present: Settings, Documents, Tasks; Audit and Reports absent"
+        }
+      ],
+      "flow": {
+        "startRoute": "/projects/:id",
+        "navAction": "click the Compliance tab",
+        "destRoute": "/projects/:id",
+        "backTo": null,
+        "elements": [
+          {
+            "selector": "Compliance sub-tab bar",
+            "assert": "count-equals",
+            "value": 3
+          }
+        ]
+      },
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "human",
+      "subjects": [
+        {
+          "unitId": "route:GET /config",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 45,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-UI-002",
+      "title": "Customer Documents sub-tab has no Upload, Extract or Delete control",
+      "requirementId": "FR-007",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-007",
+      "unitId": "route:GET /documents",
+      "sourceRef": "src/server/routes/audit.ts:162",
+      "fenceRef": null,
+      "gate": "ui-flow",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P2",
+      "riskTier": "MEDIUM",
+      "testLevel": "system",
+      "tier": "manual",
+      "preconditions": [
+        "SPEC-146 deployed to the test environment",
+        "a customer project with SOC2 enabled"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "as company ADMIN open Compliance → Documents",
+          "expected": "0 Upload buttons; 0 delete buttons; only framework documents listed (no Database Analysis, no ER diagram)"
+        }
+      ],
+      "flow": {
+        "startRoute": "/projects/:id",
+        "navAction": "click Compliance then Documents",
+        "destRoute": "/projects/:id",
+        "backTo": null,
+        "elements": [
+          {
+            "selector": "button Upload Document",
+            "assert": "count-equals",
+            "value": 0
+          },
+          {
+            "selector": "document delete buttons",
+            "assert": "count-equals",
+            "value": 0
+          }
+        ]
+      },
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "human",
+      "subjects": [
+        {
+          "unitId": "route:GET /documents",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 162,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-UI-003",
+      "title": "/admin/audit shows a non-SYSADMIN the access-required notice and makes no /api/audit calls",
+      "requirementId": "FR-007",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-007",
+      "unitId": "route:GET /documents",
+      "sourceRef": "src/server/routes/audit.ts:162",
+      "fenceRef": null,
+      "gate": "ui-flow",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P2",
+      "riskTier": "MEDIUM",
+      "testLevel": "system",
+      "tier": "manual",
+      "preconditions": [
+        "SPEC-146 deployed to the test environment",
+        "a customer project with SOC2 enabled"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "as ADMIN open /admin/audit with the network panel open",
+          "expected": "notice text shown; 0 requests to /api/audit"
+        },
+        {
+          "step": 2,
+          "action": "browser back",
+          "expected": "pathname /dashboard"
+        }
+      ],
+      "flow": {
+        "startRoute": "/dashboard",
+        "navAction": "open /admin/audit",
+        "destRoute": "/admin/audit",
+        "backTo": "/dashboard",
+        "elements": [
+          {
+            "selector": "page text",
+            "assert": "text-equals",
+            "value": "System Administrator access required. Compliance frameworks for a project are set on that project's Compliance tab."
+          }
+        ]
+      },
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "human",
+      "subjects": [
+        {
+          "unitId": "route:GET /documents",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 162,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-UI-004",
+      "title": "SYSADMIN sees every Compliance sub-tab and every library control",
+      "requirementId": "FR-007",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-007",
+      "unitId": "route:POST /execute",
+      "sourceRef": "src/server/routes/audit.ts:500",
+      "fenceRef": null,
+      "gate": "ui-flow",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P2",
+      "riskTier": "MEDIUM",
+      "testLevel": "system",
+      "tier": "manual",
+      "preconditions": [
+        "SPEC-146 deployed to the test environment",
+        "a customer project with SOC2 enabled"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "as SYSADMIN open /admin/audit and a project's Compliance tab",
+          "expected": "5 tabs on /admin/audit; Audit and Reports present on the project tab; Upload and Delete visible"
+        }
+      ],
+      "flow": {
+        "startRoute": "/admin/audit",
+        "navAction": "open each tab",
+        "destRoute": "/admin/audit",
+        "backTo": null,
+        "elements": [
+          {
+            "selector": "tab bar",
+            "assert": "count-equals",
+            "value": 5
+          },
+          {
+            "selector": "button Upload Document",
+            "assert": "visible",
+            "value": true
+          }
+        ]
+      },
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "human",
+      "subjects": [
+        {
+          "unitId": "route:POST /execute",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 500,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-UI-005",
+      "title": "Re-extract asks first and names the replacement",
+      "requirementId": "FR-007",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-007",
+      "unitId": "route:POST /documents/:id/extract",
+      "sourceRef": "src/server/routes/audit.ts:230",
+      "fenceRef": null,
+      "gate": "ui-flow",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P2",
+      "riskTier": "MEDIUM",
+      "testLevel": "system",
+      "tier": "manual",
+      "preconditions": [
+        "SPEC-146 deployed to the test environment",
+        "a customer project with SOC2 enabled"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "as SYSADMIN click Extract and cancel",
+          "expected": "confirm text equals the value above; 0 requests to /extract after cancel"
+        }
+      ],
+      "flow": {
+        "startRoute": "/admin/audit",
+        "navAction": "click Extract on a document",
+        "destRoute": "/admin/audit",
+        "backTo": null,
+        "elements": [
+          {
+            "selector": "confirm dialog",
+            "assert": "text-equals",
+            "value": "Re-extract this document? Its existing compliance tasks, and any Platform Self-Audit results recorded against them, will be replaced by a fresh extraction."
+          }
+        ]
+      },
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "human",
+      "subjects": [
+        {
+          "unitId": "route:POST /documents/:id/extract",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 230,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-018",
+      "title": "Live: each role gets its expected status on all 22 routes (fake-UUID probes)",
+      "requirementId": "FR-008",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-008",
+      "unitId": "route:DELETE /documents/:id",
+      "sourceRef": "src/server/routes/audit.ts:329",
+      "fenceRef": null,
+      "gate": "smoke",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "acceptance",
+      "tier": "live-readonly",
+      "preconditions": [
+        "SPEC-146 deployed; live bundle version verified and a live probe answered",
+        "test logins available for TEAM_MEMBER, company ADMIN and SYSADMIN (run-wxkanban roles)"
+      ],
+      "testData": [
+        {
+          "name": "probe id",
+          "value": "00000000-0000-7000-8000-000000000000",
+          "source": "literal"
+        }
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "call every route as anonymous, TEAM_MEMBER, ADMIN, SYSADMIN against the deployed app",
+          "expected": "statuses match the access table: 401 anonymous; 403 customers on the 14 SYSADMIN routes; 404 on missing/internal docs; 2xx SYSADMIN"
+        }
+      ],
+      "flow": null,
+      "postconditions": [
+        "no destructive call targets a real id"
+      ],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:DELETE /documents/:id",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 329,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-019-R1",
+      "title": "Live: a throwaway framework document survives upload, extract ×2, delete with no residue",
+      "requirementId": "FR-008",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-008",
+      "unitId": "route:POST /documents/:id/extract",
+      "sourceRef": "src/server/routes/audit.ts:230",
+      "fenceRef": null,
+      "gate": "crud",
+      "layer": "app",
+      "variant": "recovery",
+      "parentId": "TC-SEC-018",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "acceptance",
+      "tier": "manual",
+      "preconditions": [
+        "SPEC-146 deployed; live bundle version verified and a live probe answered",
+        "test logins available for TEAM_MEMBER, company ADMIN and SYSADMIN (run-wxkanban roles)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "upload a compliance_framework doc with 3 checklist items as SYSADMIN",
+          "expected": "201"
+        },
+        {
+          "step": 2,
+          "action": "extract twice",
+          "expected": "both 200; second { tasksRemoved: 3, tasksExtracted: 3 }"
+        },
+        {
+          "step": 3,
+          "action": "delete it",
+          "expected": "200"
+        },
+        {
+          "step": 4,
+          "action": "count its tasks",
+          "expected": "0"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": "PRODUCTION write by owner exception (2026-10-25): one throwaway compliance_framework document, residue verified zero. Not a non-prod CRUD item; run only as part of T008 with the owner's go.",
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:POST /documents/:id/extract",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 230,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-020-B1",
+      "title": "Live: the library is unchanged after the test (6 framework docs, SOC2 119, total 565)",
+      "requirementId": "FR-008",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-008",
+      "unitId": "route:GET /tasks",
+      "sourceRef": "src/server/routes/audit.ts:376",
+      "fenceRef": null,
+      "gate": "smoke",
+      "layer": "app",
+      "variant": "boundary",
+      "parentId": "TC-SEC-018",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "acceptance",
+      "tier": "live-readonly",
+      "preconditions": [
+        "SPEC-146 deployed; live bundle version verified and a live probe answered",
+        "test logins available for TEAM_MEMBER, company ADMIN and SYSADMIN (run-wxkanban roles)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "count before and after",
+          "expected": "framework documents 6; SOC2 tasks 119; HITRUST 304; total 565 — identical before and after"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /tasks",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 376,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-MCP-001",
+      "title": "Live: MCP get_compliance_context returns the same SOC2 control count before and after release",
+      "requirementId": "FR-008",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-008",
+      "unitId": "route:GET /tasks",
+      "sourceRef": "src/server/routes/audit.ts:376",
+      "fenceRef": null,
+      "gate": "smoke",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "acceptance",
+      "tier": "live-readonly",
+      "preconditions": [
+        "SPEC-146 deployed; live bundle version verified and a live probe answered",
+        "test logins available for TEAM_MEMBER, company ADMIN and SYSADMIN (run-wxkanban roles)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "call project.get_compliance_context for a SOC2 project before and after",
+          "expected": "frameworks[0].controlCount equal"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /tasks",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 376,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-021-N1",
+      "title": "Live: every denial in the live run has a warn log line in App Runner logs",
+      "requirementId": "FR-008",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-008",
+      "unitId": "fn:requireSysAdmin",
+      "sourceRef": "src/server/middleware/requireSysAdmin.ts:15",
+      "fenceRef": null,
+      "gate": "smoke",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-SEC-018",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "acceptance",
+      "tier": "live-readonly",
+      "preconditions": [
+        "SPEC-146 deployed; live bundle version verified and a live probe answered",
+        "test logins available for TEAM_MEMBER, company ADMIN and SYSADMIN (run-wxkanban roles)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "query the App Runner log group for 'SysAdmin-only endpoint accessed' during the run window",
+          "expected": "count equals the number of 403s the run recorded"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:requireSysAdmin",
+          "sourcePath": "src/server/middleware/requireSysAdmin.ts",
+          "sourceLine": 15,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-022",
+      "title": "Another company's ADMIN gets 404 on PUT /config?projectId and the target is unchanged",
+      "requirementId": "FR-009",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-009",
+      "unitId": "route:PUT /config",
+      "sourceRef": "src/server/routes/audit.ts:105",
+      "fenceRef": "[SCOPE 146 / T009]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "PUT /config?projectId=<company B project> as company A ADMIN",
+          "expected": "status 404; body { success: false, error: 'Project not found' }; updateAuditConfigByProject 0 calls"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts (FR-009 US5)",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": "cross-tenant write found at implement 2026-10-25",
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:PUT /config",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 105,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-023-P1",
+      "title": "Another company cannot read a project's settings or relevant tasks",
+      "requirementId": "FR-009",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-009",
+      "unitId": "route:GET /config",
+      "sourceRef": "src/server/routes/audit.ts:45",
+      "fenceRef": "[SCOPE 146 / T009]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": "TC-SEC-022",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET /config?projectId and GET /tasks/relevant?projectId as company A for B's project",
+          "expected": "both 404; getOrCreateAuditConfigByProject and getEnabledFrameworksByProject 0 calls"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /config",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 45,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-024-B1",
+      "title": "An engaged consulting company reads but cannot change (whole-project grants, observed)",
+      "requirementId": "FR-009",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-009",
+      "unitId": "fn:canReadProjectCompliance",
+      "sourceRef": "src/server/routes/auditAccess.ts:100",
+      "fenceRef": "[SCOPE 146 / T009]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "boundary",
+      "parentId": "TC-SEC-022",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET then PUT /config?projectId as consulting ADMIN with a whole-project grant",
+          "expected": "GET 200; PUT 404; updateAuditConfigByProject 0 calls"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": "CLAR-02",
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:canReadProjectCompliance",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 100,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-025",
+      "title": "The owner company reads and its ADMIN writes, as before",
+      "requirementId": "FR-009",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-009",
+      "unitId": "fn:ownsProject",
+      "sourceRef": "src/server/routes/auditAccess.ts:107",
+      "fenceRef": "[SCOPE 146 / T009]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET as owner TEAM_MEMBER, PUT as owner ADMIN",
+          "expected": "200 and 200; updateAuditConfigByProject called with (projectId, body)"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:ownsProject",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 107,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-026-N1",
+      "title": "An owner-company TEAM_MEMBER still gets 403 on PUT (requireAdmin unchanged)",
+      "requirementId": "FR-009",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-009",
+      "unitId": "route:PUT /config",
+      "sourceRef": "src/server/routes/audit.ts:105",
+      "fenceRef": "[SCOPE 146 / T009]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-SEC-022",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "PUT /config?projectId as owner TEAM_MEMBER",
+          "expected": "status 403"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:PUT /config",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 105,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-027-B1",
+      "title": "SYSADMIN reads any existing project; an unknown project answers 404",
+      "requirementId": "FR-009",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-009",
+      "unitId": "fn:canReadProjectCompliance",
+      "sourceRef": "src/server/routes/auditAccess.ts:100",
+      "fenceRef": "[SCOPE 146 / T009]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "boundary",
+      "parentId": "TC-SEC-022",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET /config?projectId as SYSADMIN for another company's project",
+          "expected": "200; canAccessProjectTenant 0 calls"
+        },
+        {
+          "step": 2,
+          "action": "same for a project id that does not exist",
+          "expected": "404"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:canReadProjectCompliance",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 100,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-028",
+      "title": "The legacy company-wide /config path is unchanged",
+      "requirementId": "FR-009",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-009",
+      "unitId": "route:GET /config",
+      "sourceRef": "src/server/routes/audit.ts:45",
+      "fenceRef": "[SCOPE 146 / T009]",
+      "gate": "unit",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P2",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "GET /config with no projectId as TEAM_MEMBER",
+          "expected": "200; getOrCreateAuditConfig called with the caller's companyid"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automated",
+      "automationRef": "tests/backend/auditRouteAccess.route.test.ts",
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /config",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 45,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-SEC-029-P1",
+      "title": "Live: a cross-tenant PUT /config?projectId answers 404 and leaves the target byte-identical",
+      "requirementId": "FR-009",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-009",
+      "unitId": "route:PUT /config",
+      "sourceRef": "src/server/routes/audit.ts:105",
+      "fenceRef": null,
+      "gate": "smoke",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": "TC-SEC-022",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "acceptance",
+      "tier": "live-readonly",
+      "preconditions": [
+        "SPEC-146 deployed; live bundle version verified and a live probe answered",
+        "test logins available for TEAM_MEMBER, company ADMIN and SYSADMIN (run-wxkanban roles)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "read B's config as B; PUT as A's ADMIN; read again as B",
+          "expected": "PUT 404; before and after JSON deep-equal"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": "requires a second test company; read-only for the target",
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:PUT /config",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 105,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-FN-007",
+      "title": "No reference to sysadmin_audit_logs or the removed logger remains",
+      "requirementId": "FR-010",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-010",
+      "unitId": "fn:guardFor",
+      "sourceRef": "src/server/routes/auditAccess.ts:64",
+      "fenceRef": null,
+      "gate": "unit",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P3",
+      "riskTier": "LOW",
+      "testLevel": "unit",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "grep src/, mcp-server/src/, scripts/ for sysadmin_audit_logs|lib/auditLogger|logSysAdminAction",
+          "expected": "0 matches"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automatable",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [
+        {
+          "variant": "permission",
+          "code": "N/A-NO-AUTH",
+          "note": "a source-tree check"
+        }
+      ],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:guardFor",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 64,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-FN-008-N1",
+      "title": "Both bundles build and the SPEC-146 suites pass without the logger",
+      "requirementId": "FR-010",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-010",
+      "unitId": "fn:guardFor",
+      "sourceRef": "src/server/routes/auditAccess.ts:64",
+      "fenceRef": null,
+      "gate": "unit",
+      "layer": "app",
+      "variant": "negative",
+      "parentId": "TC-FN-007",
+      "priority": "P3",
+      "riskTier": "LOW",
+      "testLevel": "system",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "npm run build",
+          "expected": "exit 0"
+        },
+        {
+          "step": 2,
+          "action": "vitest run the three SPEC-146 suites",
+          "expected": "0 failures"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automatable",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:guardFor",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 64,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-DB-002",
+      "title": "Deleting a document cascades its compliance tasks",
+      "requirementId": "FR-001",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-001",
+      "unitId": "fn:deleteDocument",
+      "sourceRef": "src/server/services/DocumentService.ts:163",
+      "fenceRef": null,
+      "gate": "crud",
+      "layer": "data",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "crud-nonprod",
+      "preconditions": [
+        "faithful wxktest_ clone (faithful: true); search_path asserted with SELECT current_schema()"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "DELETE the seeded document",
+          "expected": "count(complianceaudittasks where documentid = doc) = 0"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "blocked",
+      "automationRef": null,
+      "blockedReason": "needs a faithful wxktest_ clone (EXECUTE mode only)",
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "referential-integrity"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:deleteDocument",
+          "sourcePath": "src/server/services/DocumentService.ts",
+          "sourceLine": 163,
+          "role": "primary"
+        }
+      ],
+      "targetObjects": [
+        "wxkanbandocuments",
+        "complianceaudittasks",
+        "fk complianceaudittasks.documentid ON DELETE CASCADE"
+      ],
+      "isolationLevel": "read-committed",
+      "seedScript": "INSERT wxkanbandocuments (compliance_framework) + 3 complianceaudittasks rows referencing it",
+      "teardownScript": "clone-test-schema.mjs --drop --name wxktest_<id>",
+      "expectedPlan": null
+    },
+    {
+      "id": "TC-DB-003-B1",
+      "title": "Replacing a document's tasks cascades their self-audit results",
+      "requirementId": "FR-006",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-006",
+      "unitId": "fn:extractTasksFromDocument",
+      "sourceRef": "src/server/services/AuditTaskService.ts:58",
+      "fenceRef": null,
+      "gate": "crud",
+      "layer": "data",
+      "variant": "boundary",
+      "parentId": "TC-DB-002",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "crud-nonprod",
+      "preconditions": [
+        "faithful wxktest_ clone (faithful: true); search_path asserted with SELECT current_schema()"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "seed 1 auditresults row on a task, then re-extract",
+          "expected": "count(auditresults where taskid = old task) = 0"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "blocked",
+      "automationRef": null,
+      "blockedReason": "needs a faithful wxktest_ clone (EXECUTE mode only)",
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "referential-integrity"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:extractTasksFromDocument",
+          "sourcePath": "src/server/services/AuditTaskService.ts",
+          "sourceLine": 58,
+          "role": "primary"
+        }
+      ],
+      "targetObjects": [
+        "auditresults",
+        "fk auditresults.taskid ON DELETE CASCADE"
+      ],
+      "isolationLevel": "read-committed",
+      "seedScript": "document + 3 tasks + 1 auditexecutions + 1 auditresults on task 1",
+      "teardownScript": "clone-test-schema.mjs --drop --name wxktest_<id>",
+      "expectedPlan": null
+    },
+    {
+      "id": "TC-DB-004-N1",
+      "title": "companyauditlogs rejects a row without companyid (SQLSTATE 23502)",
+      "requirementId": "FR-005",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-005",
+      "unitId": "fn:recordAuditLibraryWrite",
+      "sourceRef": "src/server/routes/auditAccess.ts:121",
+      "fenceRef": null,
+      "gate": "crud",
+      "layer": "data",
+      "variant": "negative",
+      "parentId": "TC-DB-002",
+      "priority": "P1",
+      "riskTier": "HIGH",
+      "testLevel": "integration",
+      "tier": "crud-nonprod",
+      "preconditions": [
+        "faithful wxktest_ clone (faithful: true); search_path asserted with SELECT current_schema()"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "INSERT INTO companyauditlogs (action) VALUES ('x')",
+          "expected": "raises SQLSTATE 23502 not_null_violation"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "blocked",
+      "automationRef": null,
+      "blockedReason": "needs a faithful wxktest_ clone (EXECUTE mode only)",
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "schema-constraint"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:recordAuditLibraryWrite",
+          "sourcePath": "src/server/routes/auditAccess.ts",
+          "sourceLine": 121,
+          "role": "primary"
+        }
+      ],
+      "targetObjects": [
+        "companyauditlogs",
+        "companyauditlogs.companyid NOT NULL"
+      ],
+      "isolationLevel": "read-committed",
+      "seedScript": "none beyond the clone (statement inserts into an empty table)",
+      "teardownScript": "ROLLBACK; clone-test-schema.mjs --drop",
+      "expectedPlan": null
+    },
+    {
+      "id": "TC-SEC-030",
+      "title": "Other requireSysAdmin routes still refuse non-SYSADMIN with the same 403 body",
+      "requirementId": "FR-005",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-005",
+      "unitId": "fn:requireSysAdmin",
+      "sourceRef": "src/server/middleware/requireSysAdmin.ts:15",
+      "fenceRef": null,
+      "gate": "unit",
+      "layer": "app",
+      "variant": "permission",
+      "parentId": null,
+      "priority": "P2",
+      "riskTier": "MEDIUM",
+      "testLevel": "integration",
+      "tier": "unit-mocked",
+      "preconditions": [
+        "audit router mounted at /api/audit on an Express app; services and db stubbed (no database reached)",
+        "role supplied by the stubbed auth middleware from the x-test-role header (absent = anonymous)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "call GET /api/sysadmin/companies as ADMIN",
+          "expected": "status 403; body { error, roleRequired: 'SYSADMIN', currentRole: 'ADMIN' }"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "automatable",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": "requireSysAdmin's log record changed (method, full path); its response must not",
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "fn:requireSysAdmin",
+          "sourcePath": "src/server/middleware/requireSysAdmin.ts",
+          "sourceLine": 15,
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "TC-MCP-002",
+      "title": "MCP compliance context still loads for a kit user after release",
+      "requirementId": "FR-008",
+      "specRef": "specs/146-audit-route-access-control/spec.md FR-008",
+      "unitId": "route:GET /tasks",
+      "sourceRef": "src/server/routes/audit.ts:376",
+      "fenceRef": null,
+      "gate": "smoke",
+      "layer": "app",
+      "variant": "happy",
+      "parentId": null,
+      "priority": "P2",
+      "riskTier": "MEDIUM",
+      "testLevel": "acceptance",
+      "tier": "live-readonly",
+      "preconditions": [
+        "SPEC-146 deployed; live bundle version verified and a live probe answered",
+        "test logins available for TEAM_MEMBER, company ADMIN and SYSADMIN (run-wxkanban roles)"
+      ],
+      "testData": [],
+      "steps": [
+        {
+          "step": 1,
+          "action": "call project.get_compliance_context { projectId, phase: 'Design' }",
+          "expected": "complianceActive true; activeFrameworks includes 'SOC2'; controls length > 0"
+        }
+      ],
+      "flow": null,
+      "postconditions": [],
+      "automation": "manual-only",
+      "automationRef": null,
+      "blockedReason": null,
+      "exemptions": [],
+      "clarificationId": null,
+      "rationale": null,
+      "tags": [
+        "soc2"
+      ],
+      "result": null,
+      "executor": "machine",
+      "subjects": [
+        {
+          "unitId": "route:GET /tasks",
+          "sourcePath": "src/server/routes/audit.ts",
+          "sourceLine": 376,
+          "role": "primary"
+        }
+      ]
+    }
+  ]
+}

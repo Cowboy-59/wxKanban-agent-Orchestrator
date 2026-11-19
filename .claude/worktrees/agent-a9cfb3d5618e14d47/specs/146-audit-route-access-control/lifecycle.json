@@ -1,0 +1,15 @@
+{
+  "specNumber": "146",
+  "featureName": "Audit Route Access Control",
+  "phase": "design",
+  "priority": "critical",
+  "progress": {
+    "tasksTotal": 8,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-25T17:53:17.555Z",
+    "phaseStarted": "2026-10-25T17:53:17.555Z"
+  }
+}

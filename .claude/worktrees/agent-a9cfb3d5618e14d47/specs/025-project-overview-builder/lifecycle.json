@@ -1,0 +1,15 @@
+{
+  "specNumber": "025",
+  "featureName": "Project Overview Builder",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 42,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-04-24T18:17:10.827Z",
+    "phaseStarted": "2026-04-24T18:17:10.827Z"
+  }
+}

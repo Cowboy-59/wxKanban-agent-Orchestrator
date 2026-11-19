@@ -1,0 +1,15 @@
+{
+  "specNumber": "147",
+  "featureName": "SysAdmin Action Audit Trail",
+  "phase": "design",
+  "priority": "critical",
+  "progress": {
+    "tasksTotal": 10,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-25T19:58:01.286Z",
+    "phaseStarted": "2026-10-25T19:58:01.286Z"
+  }
+}

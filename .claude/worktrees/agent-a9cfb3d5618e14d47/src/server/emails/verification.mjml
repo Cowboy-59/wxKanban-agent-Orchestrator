@@ -1,0 +1,63 @@
+<mjml>
+  <mj-head>
+    <mj-title>Verify Your Email - wxKanban</mj-title>
+    <mj-font name="Inter" href="https://fonts.googleapis.com/css?family=Inter:400,600,700" />
+    <mj-attributes>
+      <mj-all font-family="Inter, Helvetica, Arial, sans-serif" />
+      <mj-text font-size="16px" line-height="24px" color="#1e293b" />
+      <mj-button background-color="#3b82f6" color="#ffffff" font-size="16px" font-weight="600" border-radius="8px" padding="16px 32px" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f1f5f9">
+    <mj-section padding="40px 20px">
+      <mj-column>
+        <mj-image src="https://wxkanban.com/logo.png" alt="wxKanban" width="200px" align="center" />
+      </mj-column>
+    </mj-section>
+    
+    <mj-section background-color="#ffffff" border-radius="12px" padding="40px 30px">
+      <mj-column>
+        <mj-text font-size="28px" font-weight="700" color="#0f172a" align="center" padding-bottom="20px">
+          Verify Your Email
+        </mj-text>
+        
+        <mj-text padding-bottom="20px">
+          Hi there,
+        </mj-text>
+        
+        <mj-text padding-bottom="20px">
+          Thank you for registering with wxKanban! To complete your registration and activate your account, please verify your email address by clicking the button below.
+        </mj-text>
+        
+        <mj-button href="{{verificationLink}}" padding="30px 0">
+          Verify Email Address
+        </mj-button>
+        
+        <mj-text font-size="14px" color="#64748b" padding-top="20px" padding-bottom="20px">
+          This verification link will expire in 24 hours. If you didn't create an account with wxKanban, you can safely ignore this email.
+        </mj-text>
+        
+        <mj-divider border-color="#e2e8f0" padding="20px 0" />
+        
+        <mj-text font-size="14px" color="#64748b">
+          If the button doesn't work, copy and paste this link into your browser:
+        </mj-text>
+        
+        <mj-text font-size="12px" color="#94a3b8" word-break="break-all">
+          {{verificationLink}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    
+    <mj-section padding="30px 20px">
+      <mj-column>
+        <mj-text font-size="12px" color="#64748b" align="center">
+          © 2026 wxKanban. All rights reserved.
+        </mj-text>
+        <mj-text font-size="12px" color="#64748b" align="center">
+          Need help? Contact us at <a href="mailto:support@wxkanban.com" style="color: #3b82f6;">support@wxkanban.com</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

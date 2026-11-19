@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""
+pcsoft-procs-to-scope.py - Document the PCSoft global/server WLanguage procedure sets as ONE
+backend scope. This is the application's business-logic layer (incl. HFSQL "trigger"
+procedures), which has no UI and is NOT scaffolded as React pages.
+
+Input : pre-convert/*.proc.md   (one file per "Set of procedures")
+Output: rebuild/scopes/PROC-procedures-scope.md
+          - a TRIGGERS callout (every *Trigger procedure, across all sets),
+          - a summary table (set, #procedures, #triggers, server procedures called),
+          - a per-set section listing each procedure's name + signature (triggers flagged),
+            the HFSQL server procedures it calls (HExecuteProcedure), and referenced queries.
+
+WLanguage procedure declarations in the doc look like `PROCEDURE Name(p1, p2)` (NOT SQL); HFSQL
+"triggers" are ordinary WLanguage procedures (named *Trigger here) invoked by the rules engine
+or registered via HDescribeTrigger. Port these to the API/server layer the React pages call.
+
+Usage:
+    python scripts/pcsoft-procs-to-scope.py --src pre-convert --out rebuild/scopes
+"""
+import argparse
+import sys
+import glob
+import os
+import re
+
+import os as _wmos, sys as _wmsys
+_wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
+
+# Case-insensitive, with the optional Global/Internal/Server qualifier PCSoft prints in front of
+# the keyword. Requiring uppercase PROCEDURE reported "procedures=0" for whole procedure layers
+# that were present and parsed fine: 259 declarations across 20 sets on one export, 3 sets on
+# another, both silently (wxKanban b9942029, 11207b9f). The '^' anchor stays, so the
+# "Global procedure X (server)" heading form is not counted a second time.
+#
+# The access/kind modifiers WLanguage allows AFTER the keyword ("PROCEDURE PRIVATE _InitCache()",
+# "procedure restricted GeneratePasswordID(...)", the French "PROCEDURE RESTREINT", a class's
+# "PROCEDURE PUBLIC"/"VIRTUAL" methods) hid the declaration just as the lowercase keyword did: the
+# procedure was either missing outright or left with only its heading for a signature (b9942029).
+PROC_RE = re.compile(
+    r"^(?:(?:global|internal|local|server)\s+)?PROCEDURE\s+"
+    r"(?:(?:public|private|protected|restricted|restreint|virtual|global|abstract)\s+)*"
+    r"([A-Za-z_]\w*)\s*\(([^)]*)\)",
+    re.M | re.I,
+)
+# ...but that optional qualifier also admits the documentation's own HEADING for each procedure,
+# "Global procedure NL_ReadParam (server)", which precedes the real declaration. Deduplication kept
+# the first occurrence, so every procedure of a WEBDEV set was documented with the signature
+# "(server)" instead of its parameters - 111 of 111 on one export, 75 on another. The heading is
+# still a valid record of the procedure when no declaration follows it, so it is only outranked,
+# never dropped.
+_HEADING_RE = re.compile(r"^global\s", re.I)
+UNKNOWN_SIG = "?"
+SRVPROC_RE = re.compile(r'HExecuteProcedure\s*\([^,]*,\s*"([^"]+)"')
+QRY_RE = re.compile(r"\bQRY_\w+")
+
+
+def parse(path):
+    name = os.path.basename(path).split(".")[0]
+    text = open(path, encoding="utf-8").read()
+    procs = []
+    for m in PROC_RE.finditer(text):
+        pname, params = m.group(1), re.sub(r"\s+", " ", m.group(2)).strip()
+        procs.append((pname, params, bool(_HEADING_RE.match(m.group(0)))))
+    # dedupe preserving order; a declaration's signature outranks the heading's (see _HEADING_RE)
+    pos, uniq = {}, []
+    for pname, params, heading in procs:
+        if pname not in pos:
+            pos[pname] = (len(uniq), heading)
+            uniq.append((pname, params))
+        elif pos[pname][1] and not heading:
+            uniq[pos[pname][0]] = (pname, params)
+            pos[pname] = (pos[pname][0], False)
+    # Only the heading was found: its parentheses hold where the procedure runs, not what it takes.
+    for pname, (idx, heading) in pos.items():
+        if heading and re.fullmatch(r"(?i)server|browser|client|ajax", uniq[idx][1]):
+            uniq[idx] = (pname, UNKNOWN_SIG)
+    srv = []
+    for s in SRVPROC_RE.findall(text):
+        if s not in srv:
+            srv.append(s)
+    qrys = []
+    for q in QRY_RE.findall(text):
+        if q not in qrys:
+            qrys.append(q)
+    return dict(name=name, procs=uniq, srv=srv, qrys=qrys)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--src", default="pre-convert")
+    ap.add_argument("--out", default="rebuild/scopes")
+    rd.add_redaction_args(ap, scan=False)
+    args = ap.parse_args()
+
+    # rebuild/scopes/_redactions.md is shared with the queries and reports stages: continue it,
+    # never overwrite it, and number above the splitter's tokens (wxKanban f6df3914).
+    state = rd.RedactionState.resume(os.path.join(args.out, rd.SIDECAR_NAME),
+                                     os.path.join(args.src, rd.SIDECAR_NAME))
+
+    files = sorted(glob.glob(os.path.join(args.src, "*.proc.md")))
+    sets = [parse(f) for f in files]
+    os.makedirs(args.out, exist_ok=True)
+
+    # all trigger procedures across every set
+    triggers = [(s["name"], pn, pp) for s in sets for pn, pp in s["procs"]
+                if "trigger" in pn.lower()]
+    total_procs = sum(len(s["procs"]) for s in sets)
+
+    md = [
+        "# Scope — Server / Global Procedures (Sets of procedures)", "",
+        "_The application's backend business-logic layer: global & HFSQL-server WLanguage "
+        "procedure sets. Generated from the converted `*.proc.md`. These have **no UI** and are "
+        "**not** scaffolded as React pages — port them to the API/server modules the pages call._",
+        "",
+        "> **HFSQL triggers are WLanguage procedures, not SQL `CREATE TRIGGER`.** They look like "
+        "ordinary procedures (named `*Trigger` here) and are invoked by the custom-rules engine "
+        "or registered with `HDescribeTrigger`. They are listed in the callout below and flagged "
+        "inline in their set.",
+        "",
+        f"## Trigger procedures ({len(triggers)})", "",
+    ]
+    if triggers:
+        md += ["| Procedure | Signature | Set of procedures |", "|---|---|---|"]
+        for setn, pn, pp in sorted(triggers):
+            md.append(f"| **{pn}** | `({pp})` | {setn} |")
+    else:
+        md.append("_None found._")
+    md.append("")
+
+    md += [f"## Summary ({len(sets)} sets, {total_procs} procedures)", "",
+           "| Set of procedures | Procedures | Triggers | HFSQL server procedures called |",
+           "|---|---|---|---|"]
+    for s in sets:
+        ntrig = sum(1 for pn, _ in s["procs"] if "trigger" in pn.lower())
+        srv = ", ".join(f"`{x}`" for x in s["srv"][:6]) + (" …" if len(s["srv"]) > 6 else "")
+        md.append(f"| {s['name']} | {len(s['procs'])} | {ntrig or '-'} | {srv or '-'} |")
+    md.append("\n---\n")
+
+    for s in sets:
+        md.append(f"## {s['name']}\n")
+        md.append(f"- **Procedures:** {len(s['procs'])}")
+        if s["srv"]:
+            md.append(f"- **HFSQL server procedures called:** {', '.join('`'+x+'`' for x in s['srv'])}")
+        if s["qrys"]:
+            shown = ", ".join(s["qrys"][:12]) + (f" … (+{len(s['qrys'])-12})" if len(s["qrys"]) > 12 else "")
+            md.append(f"- **Referenced queries:** {shown}")
+        if s["procs"]:
+            md.append("\n**Procedures:**\n")
+            for pn, pp in s["procs"]:
+                flag = "  **← trigger**" if "trigger" in pn.lower() else ""
+                if pp == UNKNOWN_SIG:
+                    flag += "  _(signature not in the export - only its documentation heading)_"
+                md.append(f"- `{pn}({pp})`{flag}")
+        md.append("\n_Source: `pre-convert/" + s["name"] + ".proc.md` — port logic to the API/server layer._")
+        md.append("\n---\n")
+
+    out_path = os.path.join(args.out, "PROC-procedures-scope.md")
+    # [SCOPE 125 / T009] Through the shared funnel (FR-007): redacts, accumulates findings, and
+    # stamps the watermark on .md — so the manual stamp_markdown call is gone, not duplicated.
+    rd.write_text(out_path, "\n".join(md) + "\n", state)
+    print(f"sets={len(sets)}  procedures={total_procs}  triggers={len(triggers)}  -> {out_path}")
+    for s in sets:
+        print(f"  {s['name']}: {len(s['procs'])} procs, {len(s['srv'])} server-procs, {len(s['qrys'])} qry refs")
+
+    sidecar_path = os.path.join(args.out, rd.SIDECAR_NAME)
+    if rd.ledger_changed(state):
+        rd.write_text(sidecar_path, rd.render_sidecar(state), state)
+    print(rd.summary_line(state, sidecar_path))
+    return rd.exit_code(len(state.findings), args.fail_on_secrets)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

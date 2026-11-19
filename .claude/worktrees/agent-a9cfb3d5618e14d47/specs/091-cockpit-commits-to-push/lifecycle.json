@@ -1,0 +1,32 @@
+{
+  "specNumber": "091",
+  "specId": "d3115fd1-d2f8-425e-bc74-3114894e349e",
+  "featureName": "Cockpit Commits To Push",
+  "scope": "SCOPE-091",
+  "phase": "beta",
+  "priority": "medium",
+  "status": "beta_cleared",
+  "createdAt": "2026-07-06T12:20:27.590Z",
+  "dependsOn": ["SCOPE-042", "SCOPE-019"],
+  "progress": {
+    "totalTasks": 5,
+    "completedTasks": 5,
+    "percentComplete": 100
+  },
+  "tasks": [
+    { "id": "b6a8ddd5-6d7a-4bec-9d3b-eead2423c0d4", "code": "T001", "title": "gitStatus local service (unpushed commits)", "priority": "high", "status": "done", "frs": ["FR-001", "FR-005"] },
+    { "id": "9a2eca45-068f-458b-9ace-1c5ab8e4ecf5", "code": "T002", "title": "Cockpit Git section + nodes", "priority": "high", "status": "done", "frs": ["FR-002", "FR-003"] },
+    { "id": "3b171fac-8ca9-4541-b10e-c2f33458e68b", "code": "T003", "title": "Fold aheadCount into poll signature", "priority": "medium", "status": "done", "frs": ["FR-004"] },
+    { "id": "80850017-3308-4184-8812-35ff0787c76b", "code": "T005", "title": "Group unfinished scopes under \"<nn> Scopes unfinished\" header", "priority": "high", "status": "done", "frs": ["FR-006"] },
+    { "id": "d88722e0-9604-4e43-9cbe-40b561cef873", "code": "T004", "title": "COCKPIT bump + VSIX rebuild + vsce publish", "priority": "medium", "status": "done", "frs": ["release"] }
+  ],
+  "phaseTimeline": {
+    "scoping": { "startedAt": "2026-07-06", "completedAt": "2026-07-06" },
+    "design": { "startedAt": "2026-07-06", "completedAt": "2026-07-06" },
+    "implementation": { "startedAt": "2026-07-06", "completedAt": "2026-07-06" },
+    "qa": { "startedAt": "2026-07-06", "completedAt": "2026-07-06" },
+    "human_testing": { "startedAt": "2026-07-06", "completedAt": "2026-07-06" },
+    "beta": { "startedAt": "2026-07-09", "completedAt": null },
+    "released": { "startedAt": null, "completedAt": null }
+  }
+}

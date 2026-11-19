@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Lusion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#1a2ffb;
+    --primary-active:#0016ec;
+    --cta-bg:#2b2e3a;
+    --on-primary:#ffffff;
+    --dark:#2b2e3a;
+    --accent-lime:#c1ff00;
+    --canvas:#ffffff;
+    --canvas-soft:#f0f1fa;
+    --canvas-dark:#0b0b12;
+    --surface:#ffffff;
+    --surface-alt:#e4e6ef;
+    --ink:#000000;
+    --ink-secondary:#2b2e3a;
+    --ink-faint:#6e7178;
+    --ink-placeholder:#9a9da4;
+    --hairline:rgba(0,0,0,0.16);
+    --hairline-soft:rgba(0,0,0,0.08);
+    --r-xs:3px;--r-sm:10px;--r-md:15px;--r-lg:18px;--r-xl:24px;--r-xxl:32px;--r-full:9999px;
+    --e1:0 2px 4px rgba(0,0,0,0.04), 0 6px 10px rgba(0,0,0,0.04);
+    --e2:0 8px 24px rgba(0,0,0,0.10);
+    --font:'Space Grotesk', 'Aeonik', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --display-size:112px;
+    --display-weight:400;
+    --section-size:57px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:80px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:14px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:14px;}
+  h1.display{font-size:var(--display-size);font-weight:var(--display-weight);line-height:0.95;letter-spacing:-2.24px;}
+  h2.sec{font-size:var(--section-size);font-weight:400;line-height:1.0;letter-spacing:-1px;margin-bottom:16px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;}
+  .hero{padding:96px 0 72px;}
+  .cta-row{display:flex;gap:14px;margin-top:36px;flex-wrap:wrap;}
+  .btn{font-size:14px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;border:none;cursor:pointer;border-radius:var(--r-full);padding:14px 26px;line-height:1.15;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--ink);padding:13px 25px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);}
+  .btn-accent{background:var(--primary);color:#fff;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:500;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:220px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:500;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:500;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:500;}
+  .link-inline a:hover{color:var(--primary);}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px 16px;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  input.field:focus,textarea.field:focus{outline:none;border-color:var(--primary);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--primary);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:500;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:500;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:1/1;border-radius:var(--r-md);background:linear-gradient(135deg,var(--surface-alt),var(--canvas-soft));position:relative;overflow:hidden;}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:var(--r-full);font-size:12px;font-weight:500;padding:5px 10px;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+  .listing .l-title{font-weight:500;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:15px;margin-top:2px;}
+  .listing .l-price{margin-top:6px;font-size:15px;}
+  .listing .l-price b{font-weight:500;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-lg);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--canvas-dark);color:#fff;border-color:var(--canvas-dark);}
+  .plan .tier{font-size:11px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--accent-lime);}
+  .plan .price{font-size:48px;font-weight:400;margin:14px 0 4px;line-height:1;letter-spacing:-1px;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:500;letter-spacing:.3px;padding:4px 10px;border-radius:var(--r-full);}
+  .s-ok{background:var(--surface-alt);color:var(--primary);}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-lg);padding:36px;box-shadow:var(--e1);}
+  .auth h3{font-size:28px;font-weight:400;margin:4px 0 24px;letter-spacing:-.5px;}
+  .auth label{font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:var(--r-full);background:#fff;padding:13px;font-size:14px;font-weight:500;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:56px;letter-spacing:-1px;}h2.sec{font-size:40px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Lusion</h1>
+  <p class="lede" style="margin-top:28px;">A gallery-white canvas, pure-black Aeonik type, and a single electric-blue spark — a deliberately flat UI that lets the 3D stage carry all the colour and depth.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Let's talk</button>
+    <button class="btn btn-secondary">View projects</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Set in <b>Aeonik</b>, a proprietary geometric grotesque — shown here in <b>Space Grotesk</b>, the nearest Google substitute. Hierarchy comes from size and tight negative tracking, almost never from weight: nearly everything sits at regular 400, with 500 reserved for small uppercase labels.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Let's talk</button><div class="desc">The signature charcoal pill. Fully rounded, uppercase 14px medium, floats over content.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">Back</button><div class="desc">White pill with a 1px black outline — the lightweight inverse used for back / secondary nav.</div></div>
+    <div class="ccard"><div class="lbl">button-accent</div><button class="btn btn-accent">Start a project</button><div class="desc">The electric-blue fill, used rarely for a single high-intent moment.</div></div>
+    <div class="ccard"><div class="lbl">button-pill</div><button class="btn btn-pill">Labs</button><div class="desc">Soft grey utility chip for tags and toggles within content.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">About us</a><a href="#">Projects</a><div class="desc">Black underlined links that shift to electric blue on hover.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Featured-work tiles: square media, a small radius, no resting shadow — depth arrives only on hover as a whisper-soft lift.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Your email address"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Tell us about your project"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">An 8px base expanding through a generous rhythm — section padding errs large to protect the negative space the design depends on.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">Two shape stories: content uses a small-to-medium radius, while every control resolves to a full pill or circle.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The default: the UI is flat by design, with separation coming from space rather than shadow.</div>
+    <div class="e l1">Level 1 — a ~4% black double-layer, the only shadow found on the site, used on the odd floating card or hovered tile.</div>
+    <div class="e l2">Level 2 — a deeper modal/popover lift (inferred), kept restrained to match the otherwise shadowless system.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Hero display drops to ~48–56px; galleries collapse to one column; pill nav becomes a menu toggle.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Four-up tiles become two-up; display sizes ease down; column gutters tighten.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Full layout returns; display headings near full scale; 3D moments stay full-bleed.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Centered ~1200px column with edge-to-edge 3D bands; display type at full 96–112px.</td></tr>
+  </table>
+  <p class="note">The monochrome-on-white, pill-control, big-quiet-heading identity holds at <b>every</b> breakpoint — only the display sizes and column counts change.</p>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Engagement Tiers</h2>
+  <p class="lede">Illustrative only — Lusion is a studio, not a SaaS. These cards demonstrate the system's pricing-card pattern, with the featured tier inverted to the near-black band Lusion uses for full-bleed moments.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Sprint</span></div><div class="price">$25k<span>/ engagement</span></div><div class="blurb">A focused 3–4 week build for a single hero moment.</div><ul><li>One interactive scene</li><li>Concept + art direction</li><li>WebGL prototype</li><li>2 revision rounds</li></ul><button class="btn btn-block-dark">Enquire</button></div>
+    <div class="plan feat"><div class="tier"><span>Studio</span><span class="pop">● Most requested</span></div><div class="price">$80k<span>/ engagement</span></div><div class="blurb">A full site experience — design, motion, 3D, and build.</div><ul><li>Full multi-scene experience</li><li>Bespoke 3D + motion system</li><li>Performance optimisation</li><li>Dedicated creative lead</li></ul><button class="btn btn-block-dark">Start a project</button></div>
+    <div class="plan"><div class="tier"><span>Partner</span></div><div class="price">Custom<span>/ retainer</span></div><div class="blurb">Ongoing creative partnership across multiple launches.</div><ul><li>Rolling roadmap</li><li>Priority studio capacity</li><li>R&amp;D in Lusion Labs</li><li>Quarterly creative reviews</li></ul><button class="btn btn-block-dark">Talk to us</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Project Pipeline</h2>
+  <p class="lede">Illustrative data table demonstrating list, status-pill, and pagination patterns in the Lusion palette.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>ID</th><th>Project</th><th>Client</th><th>Status</th><th>When</th></tr>
+      <tr><td>LSN-412</td><td>Particle Field</td><td>Aether</td><td><span class="status s-ok">Live</span></td><td>This week</td></tr>
+      <tr><td>LSN-411</td><td>Liquid Type</td><td>Monolith</td><td><span class="status s-ok">Live</span></td><td>2 weeks ago</td></tr>
+      <tr><td>LSN-409</td><td>Spatial Reel</td><td>Vantage</td><td><span class="status s-pend">In build</span></td><td>In progress</td></tr>
+      <tr><td>LSN-407</td><td>Kinetic Logo</td><td>Northwind</td><td><span class="status s-pend">In build</span></td><td>In progress</td></tr>
+      <tr><td>LSN-405</td><td>Depth Map</td><td>Orbital</td><td><span class="status s-ok">Live</span></td><td>Last month</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="sec" style="font-size:48px;">Account Forms</h2>
+  <p class="lede">Illustrative auth pattern — minimal fields, full-pill buttons, electric-blue focus states.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@studio.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Google</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Join the Labs</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@studio.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Google</button></div>
+  </div>
+</div></section>
+
+<script>
+const colors = [
+  ["primary","#1a2ffb","Electric blue — links, live states","#1a2ffb"],
+  ["primary-active","#0016ec","Deeper blue on filled surfaces","#0016ec"],
+  ["accent-lime","#c1ff00","Radioactive lime — rare highlight","#c1ff00"],
+  ["dark","#2b2e3a","Charcoal pill buttons","#2b2e3a"],
+  ["canvas","#ffffff","Gallery-white page background","#ffffff"],
+  ["canvas-soft","#f0f1fa","Faint cool section tint","#f0f1fa"],
+  ["canvas-dark","#0b0b12","Inverted full-bleed bands","#0b0b12"],
+  ["surface-alt","#e4e6ef","Cool grey chip / sunken fill","#e4e6ef"],
+  ["ink","#000000","Headings & body — pure black","#000000"],
+  ["ink-secondary","#2b2e3a","Secondary text / charcoal","#2b2e3a"],
+  ["ink-faint","#6e7178","Captions / placeholders","#6e7178"],
+  ["hairline","rgba(0,0,0,0.1)","The rare 1px divider","#e6e6e6"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","112px / 400 / 1.0 / -2.24px","Bold Ideas","font-size:88px;font-weight:400;line-height:1.0;letter-spacing:-2px;"],
+  ["display-2","96px / 400 / 1.0 / -1.92px","Brought to Life","font-size:76px;font-weight:400;line-height:1.0;letter-spacing:-1.6px;"],
+  ["heading-1","77px / 400 / 0.9 / -1.53px","Featured Work","font-size:64px;font-weight:400;line-height:0.9;letter-spacing:-1.3px;"],
+  ["heading-2","57px / 400 / 1.0 / -1px","Award-winning studio","font-size:52px;font-weight:400;line-height:1.0;letter-spacing:-1px;"],
+  ["heading-3","38px / 400 / 1.15","Subscribe to our newsletter","font-size:38px;font-weight:400;line-height:1.15;"],
+  ["title","26px / 400 / 1.2","3D visual storytelling","font-size:26px;font-weight:400;line-height:1.2;"],
+  ["body-lg","20px / 400 / 1.4","We combine design, motion, 3D, and code.","font-size:20px;font-weight:400;line-height:1.4;"],
+  ["body-md","16px / 400 / 1.4","Interactive web experiences that help brands stand out from the crowd.","font-size:16px;font-weight:400;line-height:1.4;"],
+  ["body-sm","14px / 400 / 1.15","Used for UI text and dense captions.","font-size:14px;font-weight:400;line-height:1.15;"],
+  ["button","14px / 500 / 1.15 · UPPER","LET'S TALK","font-size:14px;font-weight:500;line-height:1.15;letter-spacing:.5px;text-transform:uppercase;"],
+  ["eyebrow","14px / 500 / 1.15 · UPPER","SCROLL TO EXPLORE","font-size:14px;font-weight:500;line-height:1.15;letter-spacing:.5px;text-transform:uppercase;color:#2b2e3a;"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [["xxs","4px",10],["xs","8px",18],["sm","12px",28],["md","16px",40],["lg","24px",58],["xl","32px",78],["xxl","48px",112]];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [["xs","3px","3"],["sm","10px","10"],["md","15px","15"],["lg","18px","18"],["xl","24px","24"],["xxl","32px","32"],["full","9999px","∞"]];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["Particle Field","Interactive 3D","WebGL · 2024","","Live"],
+  ["Liquid Type","Kinetic identity","Motion · 2024","",""],
+  ["Spatial Reel","Immersive scroll","R3F · 2023","","Labs"],
+  ["Depth Map","Generative art","Shaders · 2023","",""]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

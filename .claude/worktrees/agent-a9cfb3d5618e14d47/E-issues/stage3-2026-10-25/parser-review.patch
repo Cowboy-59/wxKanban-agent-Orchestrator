@@ -1,0 +1,652 @@
+--- a/scripts/pcsoft-schema-to-sql.py
++++ b/scripts/pcsoft-schema-to-sql.py
+@@ -24,6 +24,8 @@
+ import os as _wmos, sys as _wmsys
+ _wmsys.path.insert(0, _wmos.path.dirname(_wmos.path.abspath(__file__)))
+ import wxconv_redact as rd  # noqa: E402 - the watermark stamp now lives inside rd.write_text()
++
++_diagnostic_redactions = rd.RedactionState()
+ 
+ # HFSQL type -> target type, per dialect. (col_type, is_identity_pk)
+ TYPEMAP = {
+@@ -280,6 +282,13 @@
+ 
+ 
+ def match_type(line):
++    # Source recognition is deliberately independent of TYPEMAP and --type-map.
++    if re.match(r"^Array of\s+", line or ""):
++        return line, "array"
++    if re.fullmatch(r"UUID\s*\(128 bits\)", line or ""):
++        return line, "uuid"
++    if line == "JSON":
++        return line, "json"
+     if _CAPTION_NOT_TYPE_RE.match(line or ""):
+         return None, None
+     for lbl, key in HFSQL:
+@@ -290,6 +299,116 @@
+         # Report the label as written in the doc, so the DDL comment stays faithful to the source.
+         return line.split("(")[0].strip(), derived
+     return None, None
++
++
++class _SourceLine(str):
++    """Carry original line positions through the existing furniture filters."""
++    def __new__(cls, value, line):
++        obj = str.__new__(cls, value)
++        obj.line = line
++        return obj
++
++
++def _element_type(label):
++    fmt = re.search(r"\s*\(([^)]+)\)$", label)
++    base = label[:fmt.start()].strip() if fmt else label.strip()
++    integer = re.fullmatch(r"(Unsigned )?(\d+)-byte integer", base)
++    if integer:
++        return dict(kind="integer", unsigned=bool(integer[1]), bytes=int(integer[2]))
++    kinds = {"Boolean": "boolean", "Decimal": "decimal", "Currency": "currency",
++             "String": "string", "Date": "date", "Time": "time"}
++    if base not in kinds:
++        return None
++    result = dict(kind=kinds[base])
++    if fmt:
++        result["format"] = fmt[1]
++    return result
++
++
++def recognize_source_type(lines, at):
++    """Return (descriptor, consumed lines); never selects a target representation."""
++    raw = [str(lines[at])]
++    label, key = match_type(raw[0])
++    if key == "array":
++        match = re.fullmatch(r"Array of ([1-9]\d*) (.+)", raw[0])
++        if not match:
++            return dict(kind="unknown", status="incomplete", raw=raw, key="unknown"), 1
++        base = match[2]
++        # Only evidenced continuations; never concatenate the next field speculatively.
++        for _ in range(2):
++            if _element_type(base) is not None or at + len(raw) >= len(lines):
++                break
++            nxt = str(lines[at + len(raw)])
++            if (base == "Unsigned" and re.fullmatch(r"\d+-byte integer", nxt)) or (re.fullmatch(r"(?:Unsigned )?\d+-byte", base) and nxt == "integer"):
++                raw.append(nxt)
++                base += " " + nxt
++            else:
++                break
++        element = _element_type(base)
++        if element and element["kind"] in ("date", "time") and at + len(raw) < len(lines) and DATE_FORMAT_ANNOTATION_RE.fullmatch(str(lines[at + len(raw)])):
++            raw.append(str(lines[at + len(raw)]))
++            element["format"] = raw[-1][1:-1]
++        descriptor = dict(kind="array", dimensions=[int(match[1])], element=element,
++                          raw=raw, key="array", status="recognised" if element else "incomplete")
++        if element and "format" in element:
++            descriptor["format"] = element["format"]
++        return descriptor, len(raw)
++    if key in ("uuid", "json"):
++        return dict(kind=key, raw=raw, key=key, status="recognised", **({"bits": 128} if key == "uuid" else {})), 1
++    if key:
++        result = dict(kind="composite" if key == "composite" else "scalar", raw=raw,
++                      key=key, status="recognised")
++        fmt = re.search(r"\(([ymdhsc]+)\)", raw[0])
++        if fmt:
++            result["format"] = fmt[1]
++        return result, 1
++    return dict(kind="unknown", raw=raw, key="unknown", status="unknown"), 1
++
++
++def _field_diagnostic(field, table, code, reason):
++    # Diagnostics contain schema identity only, never default values/raw record data.
++    payload = dict(code=code, severity="error", table=table, field=field["printed_name"],
++                   canonical_name=field.get("canonical_name"), caption=field["caption"],
++                   type=" ".join(field["source_type"]["raw"]), reason=reason,
++                   source_row_id=field["source_row_id"], source=field["source"])
++    def clean(value):
++        if isinstance(value, str):
++            return rd.redact(value, _diagnostic_redactions, source=field['source']['markdown'])[0]
++        if isinstance(value, dict):
++            return {k: clean(v) for k, v in value.items()}
++        if isinstance(value, list):
++            return [clean(v) for v in value]
++        return value
++    return clean(payload)
++
++
++def validate_source_tables(tables, links=()):
++    """Pure pre-emission gate. Structured source recognition never approves mappings."""
++    diagnostics = []
++    for table, fields in tables:
++        names = {}
++        for field in fields:
++            names.setdefault(field["name"].lower(), []).append(field)
++            descriptor = field.get("source_type", {})
++            kind = descriptor.get("kind")
++            code = None
++            if descriptor.get("status") == "incomplete":
++                code = "TYPE_DECLARATION_INCOMPLETE"
++            elif kind == "unknown":
++                code = "SOURCE_TYPE_UNKNOWN"
++            elif kind in ("array", "json", "uuid"):
++                code = "TARGET_MAPPING_UNRESOLVED"
++            if code:
++                diagnostics.append(_field_diagnostic(field, table, code, "Source retained; no approved target mapping"))
++            if field.get("name_status") == "unresolved":
++                diagnostics.append(_field_diagnostic(field, table, "CANONICAL_NAME_UNRESOLVED", "Source-backed name recovery is ambiguous"))
++            if field.get("boundary_status") != "established":
++                diagnostics.append(_field_diagnostic(field, table, "FIELD_BOUNDARY_AMBIGUOUS", "Unconsumed source tokens require review"))
++        for group in names.values():
++            if len(group) > 1:
++                for field in group:
++                    diagnostics.append(_field_diagnostic(field, table, "CANONICAL_NAME_COLLISION", "Distinct source rows share a canonical name"))
++    return list({(d["source_row_id"], d["code"]): d for d in diagnostics}.values())
+ 
+ 
+ # A line sitting in the TYPE position that we could not map. Deliberately narrow: the "<n>-byte
+@@ -450,7 +569,7 @@
+         start = find_header_block(lines)
+         if start is None:
+             return name, []
+-    body = [l.strip() for l in lines[start + 1:] if l.strip()]
++    body = [_SourceLine(l.strip(), n + 1) for n, l in enumerate(lines) if n > start and l.strip()]
+     body = drop_watermark_trailer(body)
+     # Drop the leading header block. Each label appears exactly once in it, so a REPEAT means the
+     # block has ended and we are looking at field data — which matters because 'Type', 'Size',
+@@ -469,6 +588,9 @@
+         composite_only = False
+         if not ITEM_NAME_RE.match(fname) and fname not in spaced_names:
+             if not COMPOSITE_NAME_RE.match(fname):
++                if fields and not re.match(r"^\d+\s*:", fname) and not re.fullmatch(r"[-_*]+", fname):
++                    fields[-1]["boundary_status"] = "ambiguous"
++                    fields[-1]["source_annotations"].append(str(fname))
+                 i += 1                   # not an item name -> note text, legend, stray
+                 continue
+             composite_only = True        # '#'-joined: a composite key, or nothing at all
+@@ -483,72 +605,40 @@
+         # the real type line unconsumed, and that line then became the next field's name: a real
+         # export produced items literally named 'Date (yyyymmdd)', 'Time (hhmm)' and 'String'.
+         # Every one of those phantoms is a real column lost.
++        # Some PDF text runs join caption and type across adjacent columns. Split only
++        # an exact scalar suffix when the ordinary type position is not a type.
++        if i + 2 < n and match_type(body[i + 2])[0] is None:
++            for label, scalar_key in sorted(HFSQL, key=lambda x: len(x[0]), reverse=True):
++                suffix = " " + label
++                if body[i + 1].endswith(suffix) and scalar_key != "composite":
++                    joined = body[i + 1]
++                    body[i + 1:i + 2] = [_SourceLine(joined[:-len(suffix)], joined.line),
++                                         _SourceLine(label, joined.line)]
++                    n += 1
++                    break
+         j = i + 2
+         while j < n and match_type(body[j])[0] is None and j - i <= 7:
++            # Unknown bare labels are retained at their type position, not searched past.
++            if j == i + 2 and (BARE_TYPE_RE.fullmatch(body[j]) or SUSPECT_TYPE_RE.match(body[j])):
++                break
++            # A following evidenced name/caption/type triple is a boundary, not a caption.
++            if j > i + 2 and j + 2 < n and ITEM_NAME_RE.fullmatch(body[j]) and match_type(body[j + 2])[0]:
++                j = i + 2
++                break
+             j += 1
+-        if composite_only and (j >= n or match_type(body[j])[1] != "composite"):
+-            i += 1
+-            continue
+-        # Anything in the caption span that LOOKS like a type but is not one is an unmapped type
+-        # being absorbed as caption text. This must be checked whether or not a type was found
+-        # further down the window: when a later line does match, the unknown type is swallowed
+-        # silently AND the scan slides past the next field, so one unknown label both mistypes its
+-        # own column and deletes the following one.
+-        if unmapped is not None:
+-            for c in range(i + 1, min(j + 1, n)):
+-                cand = body[c]
+-                if match_type(cand)[0] is not None:
+-                    continue
+-                if SUSPECT_TYPE_RE.match(cand):
+-                    unmapped.append({"type": cand, "table": name, "field": fname})
+-                    continue
+-                # Second shape: a bare capitalized word followed by a size. 'Decimal' reached real
+-                # conversions this way — SUSPECT_TYPE_RE only knows the '<n>-byte <word>' family,
+-                # so a one-word unknown type was absorbed as caption text and never reported, and
+-                # the gate that exists to hard-stop on an unmapped type never fired.
+-                nxt = body[c + 1] if c + 1 < n else ""
+-                if (cand not in HEADER_LABELS and BARE_TYPE_RE.match(cand)
+-                        and NUMERIC_LINE_RE.match(nxt)):
+-                    unmapped.append({"type": cand, "table": name, "field": fname})
+-                    continue
+-                # Third shape: the unknown type in the TYPE position, followed by a whole record it
+-                # swallowed. PCSoft prints an item's name again as its caption when the caption is
+-                # empty, so '<word> / B / B' inside one field's caption span is the next field,
+-                # absorbed - its column lost and its type given to this one. Measured on a real
+-                # export, 'Character' swallowed three columns this way and was reported only
+-                # because a fourth occurrence happened to fit another shape (wxKanban 4d285663).
+-                if (c == i + 2 and c + 2 < j and looks_like_type_label(cand)
+-                        and ITEM_NAME_RE.match(nxt) and nxt == body[c + 2]):
+-                    unmapped.append({"type": cand, "table": name, "field": fname})
+-
+-        if j >= n or match_type(body[j])[0] is None:
+-            # No type anywhere in the window. Today that just drops the field: the scan moves on
+-            # one line and the column never reaches the DDL. The line sitting in the TYPE position
+-            # is the most likely culprit, so report it rather than lose the column in silence —
+-            # this is what caught 'Character' and 'Array of 20 String' in real exports, neither of
+-            # which the shape-based patterns below can match.
+-            if unmapped is not None and i + 2 < n:
+-                cand = body[i + 2]
+-                # One unknown type desyncs the scan, so the NEXT window fails too and reports
+-                # whatever it finds — which is usually a caption. When the developer left the
+-                # caption empty PCSoft repeats the item name, so a candidate identical to the line
+-                # above it is a caption, not a type. Without this, one unknown type ('Array of 20
+-                # String') was reported as two, the second being a real column name.
+-                if cand != body[i + 1] and looks_like_type_label(cand):
+-                    unmapped.append({"type": cand, "table": name, "field": fname})
+-                    # Step over the whole record we just judged unreadable (name, caption, type)
+-                    # instead of one line. Advancing by one walks the scan back into the same
+-                    # record from its caption, and each pass reports something else it finds —
+-                    # turning one unknown type into a list of imaginary ones.
+-                    i += 3
+-                    continue
+-            i += 1
+-            continue
++        if j >= n or j - i > 7:
++            j = min(i + 2, n - 1)
++        if composite_only and match_type(body[j])[1] != "composite":
++            # Retain an unresolved record instead of silently dropping it.
++            pass
++        descriptor, consumed = recognize_source_type(body, j)
+         caption = " ".join(body[i + 1:j]).strip()
+-        lbl, key = match_type(body[j])
+-        k = j + 1
++        lbl = match_type(body[j])[0] or str(body[j])
++        key = descriptor["key"]
++        k = j + consumed
+         # consume 2-line type tails like "Automatic identifier (8 " + "bytes)"
+         if k < n and body[k] in ("bytes)", "byte)"):
++            descriptor["raw"].append(str(body[k]))
+             k += 1
+         # ...and the date/time FORMAT annotation, printed on its own line under the type label:
+         #     Date and Time
+@@ -558,6 +648,8 @@
+         # of them drifted several positions.
+         if key in ("date", "time", "datetime") and k < n \
+                 and DATE_FORMAT_ANNOTATION_RE.match(body[k]):
++            descriptor["raw"].append(str(body[k]))
++            descriptor["format"] = str(body[k])[1:-1]
+             k += 1
+         size = None
+         default = None
+@@ -578,12 +670,19 @@
+                 k += 1
+             components = "".join(parts).strip()
+ 
+-        if k < n and re.fullmatch(r"\d+", body[k]) and (key in ("varchar", "uvarchar", "composite")):
++        size_annotation = None
++        if k < n and re.fullmatch(r"\d+", body[k]) and (key in ("varchar", "uvarchar", "composite") or (key == "array" and (descriptor.get("element") or {}).get("kind") == "string")):
++            size_annotation = str(body[k])
+             size = int(body[k]); k += 1
+         # optional trailing default: a numeric whose following line is NOT a type.
+         # Decimal defaults are printed in full ("0.000000" for a Currency item), so an
+         # integers-only pattern left that line behind to be read as the next field's name.
+-        if k < n and re.fullmatch(r"-?\d+(?:[.,]\d+)?", body[k]):
++        array_defaults = []
++        if key == "array":
++            while k < n and re.fullmatch(r"-?\d+(?:[.,]\d+)?", body[k]) and len(array_defaults) < descriptor["dimensions"][0]:
++                array_defaults.append(str(body[k]))
++                k += 1
++        if key != "array" and k < n and re.fullmatch(r"-?\d+(?:[.,]\d+)?", body[k]):
+             # Decide by POSITION, not by "is the very next line a type". If this number is a
+             # default the next record starts one line later, so its type sits at k+3 and k+2 holds
+             # a caption; if the number were itself the next field's NAME, the type would sit at
+@@ -613,8 +712,37 @@
+         while k + 1 < n and LANG_MARKER_RE.match(body[k]):
+             k += 2
+ 
+-        fields.append(dict(name=fname, caption=caption, hfsql=lbl, key=key,
+-                           size=size, default=default, components=components))
++        # A clipped UUID default is evidence, not a value to normalise or invent.
++        annotations = []
++        if key in ("uuid", "varchar", "uvarchar") and k < n and re.fullmatch(r"[0-9A-Fa-f]+(?:-[0-9A-Fa-f]+)+", body[k]):
++            annotations.append(str(body[k]))
++            k += 1
++        if key == "array" and descriptor.get("element") and descriptor["element"]["kind"] == "string":
++            descriptor["element"]["width"] = size
++        first_line = body[i].line
++        last_line = body[k - 1].line if k > i else first_line
++        pdf = re.search(r"Source: PDF pages? (\d+)(?:-(\d+))?", "\n".join(lines[:start + 1]))
++        source_path = os.path.normpath(path).replace("\\", "/")
++        field = dict(name=str(fname), caption=caption, hfsql=lbl, key=key,
++                     size=size, default=default, components=components,
++                     printed_name=str(fname), canonical_name=str(fname), name_status="printed",
++                     name_evidence=[], source_type=descriptor,
++                     source_row_id=hashlib.sha256((source_path + ":" + str(first_line)).encode()).hexdigest()[:24],
++                     source=dict(markdown=source_path, line=first_line, end_line=last_line,
++                                 type_line=body[j].line,
++                                 pdf_page_range=[int(pdf[1]), int(pdf[2] or pdf[1])] if pdf else None),
++                     source_annotations=annotations, array_default_annotations=array_defaults,
++                     size_annotation=size_annotation,
++                     boundary_status="established" if j >= i + 2 else "ambiguous",
++                     mapping_status="unresolved" if key in ("array", "uuid", "json", "unknown") else "supported")
++        fields.append(field)
++        if unmapped is not None:
++            if descriptor.get("status") == "incomplete":
++                unmapped.append(_field_diagnostic(field, name, "TYPE_DECLARATION_INCOMPLETE", "Incomplete source declaration"))
++            elif key == "unknown":
++                unmapped.append(_field_diagnostic(field, name, "SOURCE_TYPE_UNKNOWN", "Unrecognised source type retained"))
++            elif key in ("array", "uuid", "json"):
++                unmapped.append(_field_diagnostic(field, name, "TARGET_MAPPING_UNRESOLVED", "Recognised source type has no approved target representation"))
+         i = k
+     return name, fields
+ 
+@@ -1087,19 +1215,48 @@
+             present.discard(name.lower())
+             present.add(choice.lower())
+             applied.append((tname, name, choice, oracle))
++    for table, fields in tables:
++        for f in fields:
++            if "printed_name" not in f:
++                continue
++            f["canonical_name"] = f["name"]
++            evidence = [a for a in applied if a[0] == table and a[1] == f["printed_name"] and a[2] == f["name"]]
++            if evidence:
++                f["name_status"] = "recovered"
++                f["name_evidence"] = [dict(printed=a[1], canonical=a[2], oracle=a[3]) for a in evidence]
++            elif any(u[0] == table and u[1] == f["printed_name"] for u in unresolved):
++                f["name_status"] = "unresolved"
++                f["canonical_name"] = None
+     return applied, unresolved
+ 
+ 
+-def apply_renames_to_links(links, applied):
++def apply_renames_to_links(links, applied, diagnostics=None):
+     """Re-point FK endpoints at the restored column names.
+ 
+     emit_ddl writes each link's item name straight into the ALTER TABLE, and never checks that the
+     column exists — so renaming a column without this leaves a foreign key referencing a name that
+     is no longer in the table, and the DDL fails at run time instead of at review.
+     """
+-    remap = {(t.lower(), old.lower()): new for t, old, new, _ in applied}
++    choices = {}
++    for t, old, new, _ in applied:
++        choices.setdefault((t.lower(), old.lower()), set()).add(new)
++    remap = {key: next(iter(values)) for key, values in choices.items() if len(values) == 1}
+     out = []
+-    for src_tbl, src_item, dst_tbl, dst_item in links:
++    for link_index, (src_tbl, src_item, dst_tbl, dst_item) in enumerate(links):
++        ambiguous = [(t, item) for t, item in ((src_tbl, src_item), (dst_tbl, dst_item))
++                     if len(choices.get((t.lower(), item.lower()), ())) > 1]
++        if ambiguous:
++            if diagnostics is None:
++                raise ValueError("RELATIONSHIP_ENDPOINT_AMBIGUOUS")
++            for endpoint_index, (table, item) in enumerate(ambiguous):
++                diagnostics.append(dict(code="RELATIONSHIP_ENDPOINT_AMBIGUOUS", severity="error",
++                                        table=table, field=item, canonical_name=None, caption=None,
++                                        type="(relationship)",
++                                        source_row_id="link:%d:%d" % (link_index, endpoint_index),
++                                        source=dict(markdown="_schema.md", line=None, pdf_page_range=None),
++                                        source_relationship=[src_tbl, src_item, dst_tbl, dst_item],
++                                        reason="Printed endpoint has more than one source-backed recovery"))
++            continue
+         src_item = remap.get((src_tbl.lower(), src_item.lower()), src_item)
+         dst_item = remap.get((dst_tbl.lower(), dst_item.lower()), dst_item)
+         out.append((src_tbl, src_item, dst_tbl, dst_item))
+@@ -1203,42 +1360,23 @@
+     the next person converting the same kind of app never hits it. A conversion that quietly drops
+     the columns instead teaches nobody anything.
+     """
++    # One entry per source row and code; repeated printed names remain separate.
++    unique = {(r["source_row_id"], r["code"]): r for r in unmapped}
+     by_type = {}
+-    for row in unmapped:
+-        by_type.setdefault(row["type"], []).append(f"{row['table']}.{row['field']}")
+-
+-    print("", file=sys.stderr)
+-    print(f"schema-to-sql: {len(by_type)} unmapped HFSQL type(s) - these columns would be DROPPED:",
+-          file=sys.stderr)
+-    for label, where in sorted(by_type.items()):
+-        print(f"  {label}", file=sys.stderr)
+-        for w in where[:6]:
+-            print(f"      {w}", file=sys.stderr)
+-        if len(where) > 6:
+-            print(f"      ...and {len(where) - 6} more", file=sys.stderr)
+-
+-    valid = sorted({k for dial in TYPEMAP.values() for k in dial})
+-    print("", file=sys.stderr)
+-    print("  Ask the developer what each type should become, then re-run with:", file=sys.stderr)
+-    for label in sorted(by_type):
+-        print(f'      --type-map "{label}=<key>"', file=sys.stderr)
+-    print(f"  Valid keys: {', '.join(valid)}", file=sys.stderr)
+-
+-    payload = {
+-        "kind": "hfsql-unmapped-types",
+-        "types": [{"label": lbl, "occurrences": len(w), "examples": w[:10]}
+-                  for lbl, w in sorted(by_type.items())],
+-    }
+-    try:
+-        os.makedirs(out_dir, exist_ok=True)
+-        path = os.path.join(out_dir, "_unmapped-types.json")
+-        with open(path, "w", encoding="utf-8") as fh:
+-            json.dump(payload, fh, indent=2)
+-        print(f"  Details written to {path}", file=sys.stderr)
+-        print("  Once confirmed, file the mapping to wxKanban (project_submit_feedback) so it "
+-              "ships in the built-in table.", file=sys.stderr)
+-    except OSError as err:
+-        print(f"  (could not write _unmapped-types.json: {err})", file=sys.stderr)
++    for row in unique.values():
++        by_type.setdefault(row.get("type", "(source identity)"), []).append(row["table"] + "." + row["field"])
++    payload = {"kind": "hfsql-unmapped-types", "diagnosticsVersion": 2,
++               "occurrences": list(unique.values()),
++               "types": [dict(label=label, occurrences=len(rows), examples=rows[:10]) for label, rows in sorted(by_type.items())]}
++    print("schema-to-sql: source/mapping validation refused emission (%d blocking occurrences)" % len(unique), file=sys.stderr)
++    for code in sorted({r["code"] for r in unique.values()}):
++        print("  %s: %d" % (code, sum(r["code"] == code for r in unique.values())), file=sys.stderr)
++    os.makedirs(out_dir, exist_ok=True)
++    state = _diagnostic_redactions
++    sidecar = os.path.join(out_dir, "_unmapped-types.json")
++    rd.write_text(sidecar, json.dumps(payload, indent=2) + "\n", state)
++    if state.findings:
++        rd.write_text(os.path.join(out_dir, rd.SIDECAR_NAME), rd.render_sidecar(state), state)
+     return 3
+ 
+ 
+@@ -1709,8 +1847,6 @@
+     tables = [parse_table(p, unmapped,
+                           {n for n, users in dictionary.items() if " " in n and fn.lower() in users})
+               for p, fn in zip(table_files, file_names)]
+-    if unmapped:
+-        return report_unmapped(unmapped, args.out)
+ 
+     # A data file that parsed to zero columns is not a real result. Reaching the DDL stage with an
+     # empty table means the parse missed the item block, and an empty CREATE TABLE reads as
+@@ -1727,8 +1863,12 @@
+     renamed, unresolved_names = recover_truncated_names(tables, args.src)
+ 
+     links = parse_links(schema_md, known_tables={t for t, _ in tables})
++    link_diagnostics = []
+     if renamed:
+-        links = apply_renames_to_links(links, renamed)
++        links = apply_renames_to_links(links, renamed, diagnostics=link_diagnostics)
++    blockers = validate_source_tables(tables, links) + link_diagnostics
++    if blockers:
++        return report_unmapped(blockers, args.out)
+     _, fk_review = plan_foreign_keys(tables, links)
+ 
+     os.makedirs(args.out, exist_ok=True)
+--- a/scripts/test_pcsoft_schema_parse.py
++++ b/scripts/test_pcsoft_schema_parse.py
+@@ -262,7 +262,7 @@
+ 
+ 
+ def test_an_unknown_type_in_the_type_position_is_reported_not_dropped():
+-    """No recognised type in the window means the column is dropped. Say so instead."""
++    """Revised source contract: retain unknown records and block mapping, never drop them."""
+     unmapped = []
+     _, fields = _parse_raw("stdallergy", [
+         "stdallergy data file items",
+@@ -270,7 +270,9 @@
+         "allergy", "allergy", "Unicode string", "40",
+         "typecode", "typecode", "Character",
+     ], unmapped)
+-    assert [f["name"] for f in fields] == ["allergy"], fields
++    assert [f["name"] for f in fields] == ["allergy", "typecode"], fields
++    assert fields[1]["key"] == "unknown", fields
++    assert fields[1]["mapping_status"] == "unresolved", fields
+     assert any(u["type"] == "Character" for u in unmapped), unmapped
+ 
+ 
+--- /dev/null
++++ b/tests/test_boundaries.py
+@@ -0,0 +1,160 @@
++"""Source-identity assertions independent of PostgreSQL mappings."""
++import importlib.util
++import os
++from pathlib import Path
++import tempfile
++
++SCRIPTS = Path(os.environ['STAGE3_SCRIPTS'])
++spec = importlib.util.spec_from_file_location('boundary_schema', SCRIPTS / 'pcsoft-schema-to-sql.py')
++M = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(M)
++
++def parse(body):
++    with tempfile.TemporaryDirectory() as tmp:
++        path = Path(tmp) / 'T.table.md'
++        path.write_text('# T\n_Source: PDF pages 10-11_\nT data file items\nCaption\nType\nSize\nUnique Key\nKey with Duplicates\nDirection\nGDPR\nDefault value\n' + body, encoding='utf-8')
++        diagnostics = []
++        return M.parse_table(str(path), diagnostics)[1], diagnostics
++
++def test_monday_array_and_boolean():
++    fields, diagnostics = parse('MondayTime\nMondaytime\nArray of 3 Time\n(hhmmsscc)\nMondayFlag\nMondayflag\nBoolean\n0\n')
++    assert [f['name'] for f in fields] == ['MondayTime', 'MondayFlag']
++    assert fields[0]['source_type']['dimensions'] == [3]
++    assert fields[0]['source_type']['format'] == 'hhmmsscc'
++    assert fields[0]['default'] is None and fields[1]['default'] == '0'
++    assert fields[0]['mapping_status'] == 'unresolved'
++
++def test_books_two_arrays_then_scalar():
++    fields, _ = parse('StartTime\nStarttime\nArray of 7 Time (hhmm)\nEndTime\nEndtime\nArray of 7 Time (hhmm)\nBookOrder\nBook order\nUnsigned 2-byte integer\n0\n')
++    assert [f['name'] for f in fields] == ['StartTime', 'EndTime', 'BookOrder']
++    assert fields[2]['key'] == 'uint2'
++
++def test_unsigned_array_retains_width_and_sign():
++    fields, _ = parse('BankCount\nBankcount\nArray of 15 Unsigned\n4-byte integer\nNextID\nNext id\n8-byte integer\n0\n')
++    assert [f['name'] for f in fields] == ['BankCount', 'NextID']
++    assert fields[0]['source_type']['dimensions'] == [15]
++    assert fields[0]['source_type']['element']['unsigned'] is True
++    assert fields[0]['source_type']['element']['bytes'] == 4
++
++def test_uuid_does_not_consume_datetime():
++    fields, _ = parse('MasterPayLogID\nMasterPayLog ID\nUUID (128 bits)\n00000000-0\nLogDateTime\nLogDateTime\nDate and Time\n(yyyymmddhhmmssccc)\n')
++    assert [f['name'] for f in fields] == ['MasterPayLogID', 'LogDateTime']
++    assert fields[0]['source_type']['kind'] == 'uuid'
++    assert fields[1]['key'] == 'datetime'
++
++def test_both_json_records_and_online_id():
++    fields, diagnostics = parse('PaymentDetails\nPaymentDetails\nJSON\nPaymentData\nPaymentData\nJSON\nOnlineId\nOnlineId\n8-byte integer\n0\n')
++    assert [f['name'] for f in fields] == ['PaymentDetails', 'PaymentData', 'OnlineId']
++    assert sum(d.get('code') == 'TARGET_MAPPING_UNRESOLVED' for d in diagnostics) == 2
++
++def test_label_array_and_composite():
++    fields, _ = parse('Label\nLabel\nArray of 20 String\n50\nTypeDescription\nType + Description\nComposite key:\nType+Description\n60\n')
++    assert [f['name'] for f in fields] == ['Label', 'TypeDescription']
++    assert fields[0]['source_type']['element']['width'] == 50
++    assert fields[1]['components'] == 'Type+Description'
++
++def test_dollar_caption_is_not_type():
++    fields, diagnostics = parse('TABLE_ServiceDeptSales\n%\nArray of 100 4-byte\ninteger\nTABLE_ServiceDeptSales\nDollar\nArray of 100 Currency\n')
++    assert len(fields) == 2
++    assert fields[1]['caption'] == 'Dollar'
++    assert fields[0]['source_row_id'] != fields[1]['source_row_id']
++    assert not any(d.get('type') == 'Dollar' or d.get('field') == 'integer' for d in diagnostics)
++
++def test_unknown_type_keeps_following_field():
++    fields, diagnostics = parse('Mystery\nMystery\nUnrecognisedKind\nNextID\nNextID\n8-byte integer\n0\n')
++    assert [f['name'] for f in fields] == ['Mystery', 'NextID']
++    assert any(d.get('code') == 'SOURCE_TYPE_UNKNOWN' for d in diagnostics)
++
++def test_ambiguous_link_rename_is_blocked():
++    diagnostics = []
++    result = M.apply_renames_to_links([('T', 'CutName', 'Child', 'ParentID')], [('T', 'CutName', 'FirstName', 'source'), ('T', 'CutName', 'SecondName', 'source')], diagnostics=diagnostics)
++    assert result == []
++    assert any(d['code'] == 'RELATIONSHIP_ENDPOINT_AMBIGUOUS' for d in diagnostics)
++
++def test_unmapped_scalar_override_cannot_flatten_array():
++    fields, _ = parse('Flags\nFlags\nArray of 7 Boolean\n')
++    M.register_type_overrides(['Array of 7 Boolean=boolean'])
++    try:
++        assert fields[0]['mapping_status'] == 'unresolved'
++        try:
++            M.col_type(fields[0], 'postgres')
++        except SystemExit:
++            pass
++        else:
++            raise AssertionError('structured field reached a scalar target mapping')
++    finally:
++        M.HFSQL[:] = [x for x in M.HFSQL if x[0] != 'Array of 7 Boolean']
++
++def test_caption_and_type_joined_by_pdf_text_run():
++    fields, _ = parse('ScreenOffset\nScreen horizontal offset (index or Unsigned 4-byte integer\n0\nReceiptPrinter\nReceipt Printing Device\nString\n30\n')
++    assert [f['name'] for f in fields] == ['ScreenOffset', 'ReceiptPrinter']
++    assert fields[0]['key'] == 'uint4' and fields[0]['default'] == '0'
++    assert fields[0]['caption'] == 'Screen horizontal offset (index or'
++
++def test_boundary_ambiguity_blocks_emission():
++    fields, _ = parse('Name\nCaption only\n')
++    blockers = M.validate_source_tables([('T', fields)])
++    assert any(d['code'] == 'FIELD_BOUNDARY_AMBIGUOUS' for d in blockers)
++
++def test_incomplete_array_declaration_blocks_emission():
++    fields, _ = parse('Values\nValues\nArray of 7 Unsigned\nNext\nNext\nBoolean\n0\n')
++    assert [f['name'] for f in fields] == ['Values', 'Next']
++    assert any(d['code'] == 'TYPE_DECLARATION_INCOMPLETE' for d in M.validate_source_tables([('T', fields)]))
++
++def test_diagnostics_redact_schema_literals():
++    fields, diagnostics = parse('Details\nPassword = "SYNTHETIC-DIAGNOSTIC-SECRET"\nJSON\n')
++    import json
++    assert 'SYNTHETIC-DIAGNOSTIC-SECRET' not in json.dumps(diagnostics)
++    assert '[[CRED-' in json.dumps(diagnostics)
++
++def test_main_refuses_before_emitters():
++    from unittest.mock import patch
++    with tempfile.TemporaryDirectory() as tmp:
++        src = Path(tmp) / 'src'
++        out = Path(tmp) / 'out'
++        src.mkdir()
++        (src / 'T.table.md').write_text('T data file items\nCaption\nType\nSize\nUnique Key\nKey with Duplicates\nDirection\nGDPR\nDefault value\nFlags\nFlags\nArray of 7 Boolean\n', encoding='utf-8')
++        with patch('sys.argv', ['pcsoft-schema-to-sql.py', '--dialect', 'postgres', '--src', str(src), '--out', str(out), '--fail-on-secrets']), patch.object(M, 'emit_ddl', side_effect=AssertionError('DDL emitter reached')), patch.object(M, 'emit_er', side_effect=AssertionError('ER emitter reached')):
++            assert M.main() == 3
++        assert not list(out.glob('*.sql'))
++        assert not (out / 'ER-diagram.md').exists()
++
++def test_per_element_defaults_are_retained_as_annotations():
++    fields, diagnostics = parse('Flags\nFlags\nArray of 3 Boolean\n0\n0\n0\nNext\nNext\nBoolean\n1\n')
++    assert [f['name'] for f in fields] == ['Flags', 'Next']
++    assert fields[0]['array_default_annotations'] == ['0', '0', '0']
++    assert fields[0]['default'] is None and fields[1]['default'] == '1'
++    assert not any(d['code'] == 'FIELD_BOUNDARY_AMBIGUOUS' for d in M.validate_source_tables([('T', fields)]))
++
++def test_clipped_guid_string_default_is_not_a_new_field():
++    fields, _ = parse('Reference\nReference\nString\n50\n00000000-0\nNext\nNext\nBoolean\n0\n')
++    assert [f['name'] for f in fields] == ['Reference', 'Next']
++    assert fields[0]['source_annotations'] == ['00000000-0']
++
++def test_scalar_raw_type_format_and_identifier_tail_retained():
++    fields, _ = parse('ID\nID\nAutomatic identifier (8\nbytes)\nWhen\nWhen\nDate and Time\n(yyyymmddhhmmssccc)\n')
++    assert fields[0]['source_type']['raw'] == ['Automatic identifier (8', 'bytes)']
++    assert fields[1]['source_type']['format'] == 'yyyymmddhhmmssccc'
++    assert fields[1]['source_type']['raw'] == ['Date and Time', '(yyyymmddhhmmssccc)']
++
++def test_name_collision_is_blocked_without_deduplicating_records():
++    fields, _ = parse('PrintedPrefix\nFirst\nArray of 3 String\n20\nPrintedPrefix\nSecond\nArray of 3 String\n20\n')
++    diagnostics = M.validate_source_tables([('T', fields)])
++    assert len(fields) == 2
++    collisions = [d for d in diagnostics if d['code'] == 'CANONICAL_NAME_COLLISION']
++    assert len(collisions) == 2 and collisions[0]['source_row_id'] != collisions[1]['source_row_id']
++
++def test_foreign_key_planning_remains_structural_and_offline():
++    parent, _ = parse('ID\nID\nAutomatic identifier (8\nbytes)\n')
++    child, _ = parse('ID\nID\nAutomatic identifier (8\nbytes)\nParentID\nParentID\n8-byte integer\n0\n')
++    links = [('Parent', 'ID', 'Child', 'ParentID')]
++    declared, pending = M.plan_foreign_keys([('Parent', parent), ('Child', child)], links)
++    assert declared == links and pending == []
++
++def test_ambiguous_relationship_occurrences_remain_distinct():
++    diagnostics = []
++    links = [('T', 'Cut', 'A', 'ID'), ('T', 'Cut', 'B', 'ID')]
++    result = M.apply_renames_to_links(links, [('T', 'Cut', 'First', 'source'), ('T', 'Cut', 'Second', 'source')], diagnostics=diagnostics)
++    assert result == [] and len(diagnostics) == 2
++    assert diagnostics[0]['source_row_id'] != diagnostics[1]['source_row_id']
++    assert [d['source_relationship'] for d in diagnostics] == [list(x) for x in links]

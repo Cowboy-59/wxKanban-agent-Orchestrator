@@ -1,0 +1,49 @@
+{
+  "specNumber": "024",
+  "featureName": "Pending Projects",
+  "currentPhase": 1,
+  "status": "planned",
+  "progress": 0,
+  "phases": [
+    {
+      "phase": 0,
+      "name": "Scoping",
+      "status": "complete",
+      "startedAt": "2026-04-16T16:25:02.347Z",
+      "completedAt": "2026-04-16T16:25:02.347Z"
+    },
+    {
+      "phase": 1,
+      "name": "Design",
+      "status": "active",
+      "startedAt": "2026-04-16T16:25:02.347Z"
+    },
+    {
+      "phase": 2,
+      "name": "Implementation",
+      "status": "pending"
+    },
+    {
+      "phase": 3,
+      "name": "QA Testing",
+      "status": "pending"
+    },
+    {
+      "phase": 4,
+      "name": "Human Testing",
+      "status": "pending"
+    },
+    {
+      "phase": 5,
+      "name": "Beta Release",
+      "status": "pending"
+    },
+    {
+      "phase": 6,
+      "name": "Released",
+      "status": "pending"
+    }
+  ],
+  "createdAt": "2026-04-16T16:25:02.347Z",
+  "updatedAt": "2026-04-16T16:25:02.347Z"
+}

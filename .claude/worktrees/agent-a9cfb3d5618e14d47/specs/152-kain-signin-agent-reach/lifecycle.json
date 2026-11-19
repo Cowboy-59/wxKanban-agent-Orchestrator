@@ -1,0 +1,15 @@
+{
+  "specNumber": "152",
+  "featureName": "KAIN Signin Agent Reach",
+  "phase": "design",
+  "priority": "high",
+  "progress": {
+    "tasksTotal": 13,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-10-28T23:59:00.000Z",
+    "phaseStarted": "2026-10-28T23:59:00.000Z"
+  }
+}

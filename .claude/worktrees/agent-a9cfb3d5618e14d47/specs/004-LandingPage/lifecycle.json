@@ -1,0 +1,64 @@
+{
+  "feature": "004-landing-page",
+  "spec": "specs/004-LandingPage/spec.md",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Design",
+      "status": "complete",
+      "enteredAt": "2025-01-10T00:00:00Z",
+      "completedAt": "2025-01-10T00:00:00Z",
+      "artifacts": [
+        "specs/004-LandingPage/spec.md",
+        "specs/004-LandingPage/plan.md",
+        "specs/004-LandingPage/checklists/requirements.md",
+        "specs/004-LandingPage/checklists/spec.md"
+      ],
+      "notes": "Landing Page design. Minimal documentation — spec.md and plan.md only. No tasks.md generated yet."
+    },
+    {
+      "phase": 2,
+      "name": "Implementation",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null,
+      "notes": "Awaiting tasks.md generation and implementation start."
+    },
+    {
+      "phase": 3,
+      "name": "QA Testing",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null
+    },
+    {
+      "phase": 4,
+      "name": "Human Testing",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null
+    },
+    {
+      "phase": 5,
+      "name": "Beta Release",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null
+    },
+    {
+      "phase": 6,
+      "name": "Release",
+      "status": "pending",
+      "enteredAt": null,
+      "completedAt": null
+    }
+  ],
+  "transitionHistory": [
+    {
+      "from": null,
+      "to": "Design",
+      "timestamp": "2025-01-10T00:00:00Z",
+      "reason": "Feature initiated — Landing Page specification created"
+    }
+  ]
+}

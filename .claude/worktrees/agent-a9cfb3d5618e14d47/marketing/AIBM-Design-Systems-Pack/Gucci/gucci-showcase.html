@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Analysis of Gucci</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@100;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#000000;
+    --primary-active:#333333;
+    --cta-bg:#000000;            /* solid black fill */
+    --on-primary:#ffffff;
+    --dark:#000000;
+    --canvas:#ffffff;
+    --canvas-soft:#f4f4f4;
+    --surface:#ffffff;
+    --surface-alt:#f4f4f4;
+    --ink:#000000;
+    --ink-secondary:#555555;
+    --ink-faint:#767676;
+    --ink-placeholder:#999999;
+    --hairline:#dddddd;
+    --hairline-soft:#ebebeb;
+    --r-xs:1px;--r-sm:2px;--r-md:4px;--r-lg:5px;--r-xl:20px;--r-xxl:50px;--r-full:9999px;
+    --e1:0 4px 8px rgba(0,0,0,0.08);
+    --e2:0 0 18px rgba(0,0,0,0.20);
+    --font:"Archivo","Gucci Sans Pro",sans-serif;
+    --display-size:56px;
+    --display-weight:100;
+    --section-size:28px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--canvas);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;letter-spacing:-0.1px;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 40px;}
+  section{padding:72px 0;border-top:1px solid var(--hairline-soft);}
+  section:first-of-type{border-top:none;}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:-.2px;text-transform:uppercase;color:var(--ink-secondary);margin-bottom:10px;}
+  h1.display{font-size:var(--display-size);font-weight:var(--display-weight);line-height:1.05;letter-spacing:-1px;}
+  h2.sec{font-size:var(--section-size);font-weight:700;line-height:1.1;letter-spacing:-.5px;margin-bottom:14px;}
+  .lede{font-size:18px;color:var(--ink-secondary);max-width:680px;line-height:1.5;letter-spacing:-.2px;}
+  .hero{padding:80px 0 64px;}
+  .cta-row{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;}
+  .btn{font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;border:none;cursor:pointer;border-radius:0;padding:14px 30px;line-height:1.29;}
+  .btn-primary{background:var(--cta-bg);color:var(--on-primary);}
+  .btn-dark{background:var(--dark);color:#fff;}
+  .btn-secondary{background:var(--canvas);color:var(--ink);border:1px solid var(--ink);padding:13px 29px;}
+  .btn-pill{background:var(--surface-alt);color:var(--ink);border-radius:var(--r-full);padding:11px 22px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .swatch{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;background:var(--surface);}
+  .swatch .chip{height:96px;}
+  .swatch .meta{padding:14px 16px;}
+  .swatch .name{font-weight:600;font-size:14px;}
+  .swatch .hex{font-size:13px;color:var(--ink-secondary);margin:3px 0;}
+  .swatch .role{font-size:12px;color:var(--ink-faint);}
+  .ladder{margin-top:24px;}
+  .row{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:baseline;padding:22px 0;border-top:1px solid var(--hairline-soft);}
+  .row .spec{font-size:13px;color:var(--ink-secondary);}
+  .row .spec b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:3px;}
+  .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:36px;}
+  .ccard{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:24px;background:var(--surface);}
+  .ccard .lbl{font-size:13px;color:var(--ink-secondary);margin-bottom:16px;font-weight:600;}
+  .ccard .desc{font-size:13px;color:var(--ink-secondary);margin-top:16px;line-height:1.5;}
+  .link-inline a{color:var(--ink);text-decoration:underline;font-size:14px;margin-right:18px;font-weight:600;}
+  input.field,textarea.field{width:100%;border:1px solid var(--hairline);border-radius:var(--r-sm);padding:12px 16px;font-family:var(--font);font-size:14px;color:var(--ink);background:var(--canvas);}
+  input.field::placeholder,textarea.field::placeholder{color:var(--ink-placeholder);}
+  textarea.field{resize:vertical;min-height:90px;}
+  .spacing{display:flex;align-items:flex-end;gap:18px;margin-top:32px;flex-wrap:wrap;}
+  .sp .bar{background:var(--primary);border-radius:var(--r-xs);width:34px;}
+  .sp .t{font-size:12px;color:var(--ink-secondary);margin-top:8px;text-align:center;}
+  .sp .t b{display:block;color:var(--ink);font-weight:600;}
+  .radii{display:flex;gap:22px;margin-top:32px;flex-wrap:wrap;}
+  .rad{width:96px;}
+  .rad .box{height:96px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink);}
+  .rad .t{font-size:12px;color:var(--ink-secondary);text-align:center;margin-top:8px;}
+  .rad .t b{display:block;color:var(--ink);font-weight:600;}
+  .elev{display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;}
+  .elev .e{width:300px;border-radius:var(--r-md);background:var(--surface);padding:22px;font-size:13px;color:var(--ink-secondary);line-height:1.5;}
+  .elev .l0{border:1px solid var(--hairline);}
+  .elev .l1{box-shadow:var(--e1);}
+  .elev .l2{box-shadow:var(--e2);}
+  table.rt{width:100%;border-collapse:collapse;margin-top:28px;}
+  table.rt th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:0 0 14px;}
+  table.rt td{padding:18px 0;border-top:1px solid var(--hairline-soft);font-size:15px;color:var(--ink);}
+  .note{margin-top:24px;font-size:14px;color:var(--ink-secondary);line-height:1.6;}
+  .note b{color:var(--ink);}
+  .listings{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:36px;}
+  .listing .photo{aspect-ratio:1/1;border-radius:var(--r-xs);background:linear-gradient(135deg,var(--surface-alt),var(--hairline));position:relative;overflow:hidden;}
+  .listing:hover .photo{box-shadow:var(--e1);}
+  .listing .badge{position:absolute;top:12px;left:12px;background:#fff;border-radius:0;font-size:11px;font-weight:700;letter-spacing:-.2px;text-transform:uppercase;padding:5px 10px;}
+  .listing .l-title{font-weight:600;font-size:15px;margin-top:12px;display:flex;justify-content:space-between;}
+  .listing .l-sub{color:var(--ink-secondary);font-size:14px;margin-top:2px;}
+  .listing .l-price{margin-top:6px;font-size:15px;}
+  .listing .l-price b{font-weight:600;}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px;}
+  .plan{border:1px solid var(--hairline);border-radius:var(--r-md);padding:32px;background:var(--surface);}
+  .plan.feat{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .plan .tier{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:flex;justify-content:space-between;}
+  .plan.feat .tier{color:rgba(255,255,255,.7);}
+  .plan .pop{color:var(--ink);}
+  .plan.feat .pop{color:#fff;}
+  .plan .price{font-size:44px;font-weight:100;margin:14px 0 4px;line-height:1;letter-spacing:-1px;}
+  .plan .price span{font-size:15px;font-weight:400;color:var(--ink-secondary);letter-spacing:0;}
+  .plan.feat .price span{color:rgba(255,255,255,.7);}
+  .plan .blurb{font-size:14px;color:var(--ink-secondary);margin-bottom:20px;}
+  .plan.feat .blurb{color:rgba(255,255,255,.8);}
+  .plan ul{list-style:none;border-top:1px solid var(--hairline);}
+  .plan.feat ul{border-color:rgba(255,255,255,.2);}
+  .plan li{font-size:14px;padding:13px 0;border-bottom:1px solid var(--hairline-soft);display:flex;gap:10px;align-items:center;}
+  .plan.feat li{border-color:rgba(255,255,255,.12);}
+  .plan li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--primary);flex:none;}
+  .plan.feat li::before{background:#fff;}
+  .plan .btn{width:100%;margin-top:22px;text-align:center;}
+  .btn-block-dark{background:var(--dark);color:#fff;}
+  .plan.feat .btn-block-dark{background:#fff;color:var(--dark);}
+  .dt-wrap{border:1px solid var(--hairline-soft);border-radius:var(--r-md);overflow:hidden;margin-top:32px;}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{background:var(--canvas-soft);text-align:left;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);padding:14px 20px;}
+  table.dt td{padding:16px 20px;border-top:1px solid var(--hairline-soft);font-size:14px;}
+  .status{font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;padding:4px 10px;border-radius:var(--r-xs);}
+  .s-ok{background:var(--surface-alt);color:var(--primary);}
+  .s-pend{background:var(--surface-alt);color:var(--ink-secondary);}
+  .dt-foot{display:flex;justify-content:space-between;align-items:center;background:var(--canvas-soft);padding:14px 20px;font-size:13px;color:var(--ink-secondary);}
+  .pager{display:flex;gap:8px;}
+  .pager span{width:32px;height:32px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid var(--hairline);}
+  .pager .cur{background:var(--dark);color:#fff;border-color:var(--dark);}
+  .auth{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:36px;}
+  .auth .card{border:1px solid var(--hairline-soft);border-radius:var(--r-md);padding:36px;box-shadow:var(--e1);}
+  .auth h3{font-size:26px;font-weight:100;letter-spacing:-.6px;margin:4px 0 24px;}
+  .auth label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-secondary);display:block;margin:16px 0 7px;}
+  .auth .btn{width:100%;text-align:center;margin-top:20px;}
+  .divider{display:flex;align-items:center;gap:14px;color:var(--ink-faint);font-size:12px;margin:20px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--hairline-soft);}
+  .ghost{width:100%;text-align:center;border:1px solid var(--ink);border-radius:0;background:#fff;padding:13px;font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;}
+  @media(max-width:1023px){.grid,.cgrid,.listings{grid-template-columns:repeat(2,1fr);}.plans,.auth{grid-template-columns:1fr;}h1.display{font-size:48px;}}
+  @media(max-width:600px){.wrap{padding:0 22px;}.grid,.cgrid,.listings{grid-template-columns:1fr 1fr;}.row{grid-template-columns:1fr;gap:8px;}}
+</style>
+</head>
+<body>
+
+<div class="wrap hero">
+  <h1 class="display">Design System<br>Analysis of Gucci</h1>
+  <p class="lede" style="margin-top:28px;">A near-monochrome editorial system — pure black on white, an ultra-thin display weight, razor-sharp corners, and tight letter-spacing standing in for colour.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary">Shop the Collection</button>
+    <button class="btn btn-secondary">Book an Appointment</button>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <div class="eyebrow">01 — Foundations</div><h2 class="sec">Colour Palette</h2>
+  <p class="lede">There is essentially no palette — only the discipline of black and white, a tight grey ramp for hierarchy, hairlines for structure, and a single functional green reserved for form feedback.</p>
+  <div class="grid" id="colors"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">02 — Foundations</div><h2 class="sec">Typography</h2>
+  <p class="lede">Proprietary <b>Gucci Sans Pro</b>, shown here in its nearest Google substitute, <b>Archivo</b>. Hierarchy is built from weight and tracking, not size: a feather-thin weight-100 display up top, tight negative letter-spacing everywhere, and a 12px label doing most of the interface work.</p>
+  <div class="ladder" id="type"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">03 — Components</div><h2 class="sec">Button Variants</h2>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">button-primary</div><button class="btn btn-primary">Add to Shopping Bag</button><div class="desc">Solid black fill, white uppercase label with slight positive tracking, square corners. The single highest-emphasis action.</div></div>
+    <div class="ccard"><div class="lbl">button-dark</div><button class="btn btn-dark">Proceed to Checkout</button><div class="desc">Identical black to primary — the system's emphasis colour and its dark surface are one and the same.</div></div>
+    <div class="ccard"><div class="lbl">button-secondary</div><button class="btn btn-secondary">Book an Appointment</button><div class="desc">A 1px black outline on white. Equal footprint, lower emphasis.</div></div>
+    <div class="ccard"><div class="lbl">button-pill</div><button class="btn btn-pill">Filters</button><div class="desc">The rare rounded form — used only for chips and toggles, never primary actions.</div></div>
+    <div class="ccard link-inline"><div class="lbl">link · inline</div><a href="#">Size guide</a><a href="#">Shipping &amp; returns</a><div class="desc">Inline links are black with an underline — never the browser blue.</div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">04 — Components</div><h2 class="sec">Cards &amp; Surfaces</h2>
+  <p class="lede">Product cards are borderless and shadowless at rest — image, name, price — lifting on a single faint shadow only on hover.</p>
+  <div class="listings" id="listings"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">05 — Components</div><h2 class="sec">Form Elements</h2>
+  <p class="lede">On the live site, fields are drawn as underlined rules rather than boxes; shown here boxed for the style guide, always on a 1px hairline.</p>
+  <div class="cgrid">
+    <div class="ccard"><div class="lbl">text-input</div><input class="field" placeholder="Search"></div>
+    <div class="ccard"><div class="lbl">textarea</div><textarea class="field" placeholder="Add a gift message…"></textarea></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">06 — Foundations</div><h2 class="sec">Spacing Scale</h2>
+  <p class="lede">An 8px base with a 4px half-step; gutters and module padding run generously to 40px and beyond.</p>
+  <div class="spacing" id="spacing"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">07 — Foundations</div><h2 class="sec">Border Radius</h2>
+  <p class="lede">Corners are effectively square — 1–2px almost everywhere — with larger radii reserved for the occasional circular icon or pill chip.</p>
+  <div class="radii" id="radii"></div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">08 — Foundations</div><h2 class="sec">Elevation &amp; Depth</h2>
+  <div class="elev">
+    <div class="e l0">Level 0 — 1px hairline only. The default state of nearly every surface; structure comes from borders and whitespace, not shadow.</div>
+    <div class="e l1">Level 1 — a faint <b style="color:var(--ink)">0 4px 8px rgba(0,0,0,.08)</b> lift, used almost exclusively on hovered product cards.</div>
+    <div class="e l2">Level 2 — a deeper <b style="color:var(--ink)">0 0 18px rgba(0,0,0,.20)</b> halo, reserved for floating overlays and dialogs.</div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">09 — Responsive</div><h2 class="sec">Responsive Behavior</h2>
+  <table class="rt">
+    <tr><th>Name</th><th>Width</th><th>Key changes</th></tr>
+    <tr><td>Mobile</td><td>&lt; 768px</td><td>Single-column product grid, hamburger menu, centred wordmark; display type shrinks but keeps its thin weight.</td></tr>
+    <tr><td>Tablet</td><td>768–1023px</td><td>Two-up product grids, condensed utility nav, 40px gutters maintained.</td></tr>
+    <tr><td>Laptop</td><td>1024–1279px</td><td>Four-up product rows return; full horizontal navigation under the centred logo.</td></tr>
+    <tr><td>Desktop</td><td>≥ 1280px</td><td>Edge-to-edge imagery, maximal whitespace, the thin display scales up to its full editorial size.</td></tr>
+  </table>
+  <p class="note">The constant across every breakpoint is the ratio: <b>a lot of white, a little black, and almost nothing else</b> competing for attention.</p>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">10 — Patterns</div><h2 class="sec" style="font-size:28px;">Service Tiers</h2>
+  <p class="lede">The House has no subscription pricing; these delivery &amp; service options demonstrate the card and emphasis pattern — note the featured tier inverts to solid black.</p>
+  <div class="plans">
+    <div class="plan"><div class="tier"><span>Standard</span></div><div class="price">Free<span></span></div><div class="blurb">Complimentary delivery in 3–5 business days.</div><ul><li>Signature packaging</li><li>Complimentary returns</li><li>Order tracking</li></ul><button class="btn btn-block-dark">Select</button></div>
+    <div class="plan feat"><div class="tier"><span>Express</span><span class="pop">● Most chosen</span></div><div class="price">$25<span>/ order</span></div><div class="blurb">Next-business-day delivery, signature on receipt.</div><ul><li>Everything in Standard</li><li>Next-day delivery</li><li>Priority handling</li><li>Gift wrapping</li></ul><button class="btn btn-block-dark">Select</button></div>
+    <div class="plan"><div class="tier"><span>By Appointment</span></div><div class="price">Private<span></span></div><div class="blurb">One-to-one styling at your nearest boutique.</div><ul><li>Dedicated client advisor</li><li>Private fitting room</li><li>Collection previews</li></ul><button class="btn btn-block-dark">Book</button></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">11 — Patterns</div><h2 class="sec" style="font-size:28px;">Order History</h2>
+  <p class="lede">Account tables — orders, addresses — use uppercase hairline headers and a quiet, zebra-free divider rhythm.</p>
+  <div class="dt-wrap">
+    <table class="dt">
+      <tr><th>Order</th><th>Item</th><th>Boutique</th><th>Status</th><th>When</th></tr>
+      <tr><td>#US-4837</td><td>Leather Shoulder Bag</td><td>Milan</td><td><span class="status s-ok">Shipped</span></td><td>2 days ago</td></tr>
+      <tr><td>#US-4821</td><td>Horsebit Loafer</td><td>New York</td><td><span class="status s-ok">Delivered</span></td><td>1 week ago</td></tr>
+      <tr><td>#US-4810</td><td>Silk Twill Shirt</td><td>Online</td><td><span class="status s-pend">Processing</span></td><td>1 week ago</td></tr>
+      <tr><td>#US-4795</td><td>Wool &amp; Silk Scarf</td><td>London</td><td><span class="status s-ok">Delivered</span></td><td>3 weeks ago</td></tr>
+      <tr><td>#US-4788</td><td>Leather Wallet</td><td>Online</td><td><span class="status s-pend">Returned</span></td><td>1 month ago</td></tr>
+    </table>
+    <div class="dt-foot"><span>1–5 of 412</span><div class="pager"><span>‹</span><span class="cur">1</span><span>2</span><span>3</span><span>›</span></div></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">12 — Patterns</div><h2 class="sec" style="font-size:28px;">Account Access</h2>
+  <p class="lede">Sign-in and registration share the same hairline fields and full-width black actions, with the heading set in the thin display weight.</p>
+  <div class="auth">
+    <div class="card"><div class="eyebrow">Sign in</div><h3>Welcome back</h3>
+      <label>Email</label><input class="field" placeholder="you@example.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Sign in</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Apple</button></div>
+    <div class="card"><div class="eyebrow">Create account</div><h3>Join Gucci</h3>
+      <label>Full name</label><input class="field" placeholder="Sample Name">
+      <label>Email</label><input class="field" placeholder="you@example.com">
+      <label>Password</label><input class="field" type="password" value="password">
+      <button class="btn btn-primary">Create account</button>
+      <div class="divider">OR</div><button class="ghost">Continue with Apple</button></div>
+  </div>
+</div></section>
+
+<script>
+const colors = [
+  ["primary · black","#000000","CTAs, links, brand, filled bands","#000000"],
+  ["on-primary","#ffffff","Text on black; the canvas","#ffffff"],
+  ["canvas-soft","#f4f4f4","Off-tint sections, sunken fills","#f4f4f4"],
+  ["ink-secondary","#555555","Secondary running copy","#555555"],
+  ["ink-muted","#767676","Tertiary / meta text","#767676"],
+  ["ink-faint","#999999","Placeholder / disabled","#999999"],
+  ["hairline","#dddddd","1px borders, dividers, inputs","#dddddd"],
+  ["hairline-soft","#ebebeb","Faint section dividers","#ebebeb"],
+  ["success","#32ae88","Form validation accent","#32ae88"],
+  ["success-surface","#f9fffa","Success field tint","#f9fffa"]
+];
+document.getElementById('colors').innerHTML = colors.map(c =>
+  `<div class="swatch"><div class="chip" style="background:${c[3]||c[1]}"></div><div class="meta"><div class="name">${c[0]}</div><div class="hex">${c[1]}</div><div class="role">${c[2]}</div></div></div>`).join('');
+
+const type = [
+  ["display-1","32px · 100 · -0.96px","Redefining luxury, quietly","font-size:32px;font-weight:100;letter-spacing:-0.96px;line-height:1.5;"],
+  ["heading-1","24px · 400 · -0.5px","The House Collections","font-size:24px;font-weight:400;letter-spacing:-0.5px;line-height:1.33;"],
+  ["heading-2","20px · 500 · -0.6px","Gucci Services","font-size:20px;font-weight:500;letter-spacing:-0.6px;line-height:1.4;"],
+  ["heading-3","16px · 700 · -0.48px","BOOK AN APPOINTMENT","font-size:16px;font-weight:700;letter-spacing:-0.48px;line-height:1.5;"],
+  ["title","16px · 500 · -0.64px","Discover the collection","font-size:16px;font-weight:500;letter-spacing:-0.64px;line-height:1.5;"],
+  ["body-lg","16px · 400 · -0.2px","The workhorse paragraph size, set with a faint negative tracking.","font-size:16px;font-weight:400;letter-spacing:-0.2px;line-height:1.5;"],
+  ["body-md","14px · 400","Secondary running text and product descriptions.","font-size:14px;font-weight:400;line-height:1.43;"],
+  ["body-sm","13px · 400","Fine print and supporting detail.","font-size:13px;font-weight:400;line-height:1.38;"],
+  ["button","12px · 600 · +0.5px · CAPS","ADD TO SHOPPING BAG","font-size:12px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;line-height:1.33;"],
+  ["caption","12px · 500 · -0.36px","Navigation &amp; label workhorse","font-size:12px;font-weight:500;letter-spacing:-0.36px;line-height:1.33;"],
+  ["eyebrow","12px · 700 · -0.6px · CAPS","MADE IN ITALY","font-size:12px;font-weight:700;letter-spacing:-0.6px;text-transform:uppercase;line-height:1.33;"]
+];
+document.getElementById('type').innerHTML = type.map(t =>
+  `<div class="row"><div class="spec"><b>${t[0]}</b>${t[1]}</div><div style="${t[3]}">${t[2]}</div></div>`).join('');
+
+const sp = [
+  ["xxs","4px",4],["xs","8px",8],["sm","12px",12],["md","16px",16],
+  ["lg","24px",24],["xl","40px",40],["xxl","64px",64]
+];
+document.getElementById('spacing').innerHTML = sp.map(s =>
+  `<div class="sp"><div class="bar" style="height:${s[2]}px"></div><div class="t"><b>${s[0]}</b>${s[1]}</div></div>`).join('');
+
+const rad = [
+  ["xs","1px","1"],["sm","2px","2"],["md","4px","4"],["lg","5px","5"],
+  ["xl","20px","20"],["xxl","50px","50"],["full","9999px","∞"]
+];
+document.getElementById('radii').innerHTML = rad.map(r =>
+  `<div class="rad"><div class="box" style="border-radius:${r[1]}">${r[2]}</div><div class="t"><b>${r[0]}</b>${r[1]}</div></div>`).join('');
+
+const ls = [
+  ["Leather Shoulder Bag","Calfskin · gold-tone hardware","<b>$2,980</b>","","New"],
+  ["Wool &amp; Silk Scarf","Fringed, made in Italy","<b>$540</b>","",""],
+  ["Horsebit Loafer","Polished leather","<b>$1,150</b>","",""],
+  ["Silk Twill Shirt","Printed silk twill","<b>$1,400</b>","","New"]
+];
+document.getElementById('listings').innerHTML = ls.map(l =>
+  `<div class="listing"><div class="photo">${l[4]?`<span class="badge">${l[4]}</span>`:''}</div>
+   <div class="l-title"><span>${l[0]}</span><span>${l[3]||''}</span></div>
+   <div class="l-sub">${l[1]}</div><div class="l-price">${l[2]}</div></div>`).join('');
+</script>
+</body>
+</html>

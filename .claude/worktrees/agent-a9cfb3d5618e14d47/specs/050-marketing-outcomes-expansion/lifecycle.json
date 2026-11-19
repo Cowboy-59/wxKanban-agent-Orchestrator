@@ -1,0 +1,18 @@
+{
+  "specNumber": "050",
+  "featureName": "Marketing — Outcomes & Expansion",
+  "phase": "design",
+  "priority": "medium",
+  "parentScope": "045",
+  "phaseTag": "phase-2",
+  "progress": {
+    "tasksTotal": 6,
+    "tasksCompleted": 0,
+    "percentage": 0
+  },
+  "timeline": {
+    "created": "2026-06-08T00:00:00.000Z",
+    "phaseStarted": "2026-06-08T00:00:00.000Z",
+    "launchTarget": null
+  }
+}

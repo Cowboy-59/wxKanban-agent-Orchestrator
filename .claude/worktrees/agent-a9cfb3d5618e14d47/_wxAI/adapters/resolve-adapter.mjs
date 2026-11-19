@@ -1,0 +1,452 @@
+#!/usr/bin/env node
+/**
+ * Adapter resolution — SCOPE-127 / T002 (FR-001).
+ *
+ * ONE mechanism that reads `stack.md` and returns a resolved adapter or a documented miss.
+ * `wxCreateTestPlan`, `implement` Phase 5b and `/preTest` all resolve through this, rather than
+ * each deciding for itself — three implementations would drift, and a pipeline that resolved one
+ * adapter at plan time and a different one at test time would be worse than one that resolved none.
+ *
+ * RESOLUTION IS MACHINE-DECIDABLE. Adapters declare a `**Matches:**` line of explicit tokens and
+ * this compares tokens. It does not interpret prose at run time, because the primary caller is an
+ * agent mid-`implement` and under FR-006 an unmatched result triggers generation rather than a
+ * stop — so a fuzzy match here becomes a confident wrong answer downstream.
+ *
+ * IT NEVER DEFAULTS. No `stack.md`, or a stack nothing covers, produces a NAMED miss. Silently
+ * falling back to the Express adapter is the specific failure this replaces: the TypeScript
+ * extractor once walked 316 C# files, matched nothing, wrote a valid-looking inventory of zero
+ * units and exited 0. A confident empty result reads as a result.
+ *
+ *   node _wxAI/adapters/resolve-adapter.mjs [--root <dir>] [--app-type web|desktop|mobile] [--json]
+ *
+ * Exit codes:  0 resolved   3 documented miss (the existing hard-stop convention)   2 bad usage
+ */
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
+
+import { isAdapterDoc } from "./validate-adapter.mjs";
+
+/** Adapters wxperts ships. In KIT_DIRS, so these reach consumers. */
+const SHIPPED_DIR = join("_wxAI", "adapters");
+/** Generated and user-added adapters. Outside KIT_DIRS — deliberately never packaged. */
+const LOCAL_DIR = join(".wxai", "adapters");
+
+const APP_TYPES = ["web", "desktop", "mobile"];
+
+/** Lower-case, strip punctuation, collapse whitespace — so "Node.js + Express" and "node express" agree. */
+// [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+export function normalize(text) {
+  return String(text)
+    .toLowerCase()
+    .replace(/[().,/+·|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+// [SCOPE 127 / T002] END
+
+/** Tokens from a free-text value, minus words that carry no stack signal. */
+const NOISE = new Set([
+  "or", "and", "the", "a", "an", "with", "for", "only", "if", "needed", "optional",
+  "core", "sidecar", "embedded", "native", "shell", "same", "as", "no", "required",
+]);
+
+// [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+export function tokenize(text) {
+  return normalize(text)
+    .split(" ")
+    .filter((t) => t.length > 1 && !NOISE.has(t));
+}
+// [SCOPE 127 / T002] END
+
+/**
+ * Parse `stack.md` into one token set per declared application type.
+ *
+ * Reads the `## Target Stack — <type>` tables. A dimension's Choice is the signal; the Why column
+ * is prose and is deliberately ignored.
+ */
+// [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+export function parseStack(stackPath) {
+  if (!existsSync(stackPath)) return null;
+  const src = readFileSync(stackPath, "utf-8");
+  const out = {};
+
+  const sectionRe = /^##\s+Target Stack\s*[—-]\s*(\w+)\s*$/gim;
+  const marks = [];
+  let m;
+  while ((m = sectionRe.exec(src)) !== null) {
+    marks.push({ type: String(m[1]).toLowerCase(), start: m.index + m[0].length });
+  }
+  if (marks.length === 0) return {};
+
+  marks.forEach((mark, i) => {
+    const end = i + 1 < marks.length ? marks[i + 1].start : src.length;
+    const body = src.slice(mark.start, end);
+    const dims = {};
+    const tokens = new Set();
+    for (const row of body.matchAll(/^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|/gm)) {
+      const dim = String(row[1]).trim();
+      const choice = String(row[2]).trim();
+      if (/^-+$/.test(dim) || dim.toLowerCase() === "dimension") continue;
+      dims[normalize(dim)] = choice;
+      for (const t of tokenize(choice)) tokens.add(t);
+    }
+    if (Object.keys(dims).length > 0) out[mark.type] = { dimensions: dims, tokens: [...tokens] };
+  });
+
+  return out;
+}
+// [SCOPE 127 / T002] END
+
+/** Read one adapter file's declared identity. */
+// [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+// MODIFIED-BY: [SCOPE 127 / T009] — reads **Status:** and **Origin:** so provenance can be stated
+// MODIFIED-BY: [SCOPE 127 / T020] — reads **Requires:**, the tokens the adapter's machinery depends on
+export function readAdapter(path) {
+  const src = readFileSync(path, "utf-8");
+  const title = (/^#\s+(.+)$/m.exec(src) || [, basename(path)])[1].trim();
+  const stackLine = (/^\*\*Stack:\*\*\s*([\s\S]*?)(?:\n\n|\n\*\*)/m.exec(src) || [, ""])[1];
+  const matchLine = (/^\*\*Matches:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
+  const requiresLine = (/^\*\*Requires:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
+  const appTypeLine = (/^\*\*Application type:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
+  const statusLine = (/^\*\*Status:\*\*\s*(\S+)/m.exec(src) || [, ""])[1];
+  const originLine = (/^\*\*Origin:\*\*\s*(.+)$/m.exec(src) || [, ""])[1];
+
+  // `Matches:` is the machine-readable declaration. `Stack:` is prose kept for a human reader and
+  // is used ONLY as a fallback signal for adapters written before `Matches:` existed.
+  const declared = matchLine ? tokenize(matchLine) : [];
+  const fallback = tokenize(stackLine);
+
+  return {
+    path,
+    name: basename(path, ".md"),
+    title,
+    appType: appTypeLine ? normalize(appTypeLine) : null,
+    tokens: declared.length > 0 ? declared : fallback,
+    declaresMatches: declared.length > 0,
+    requires: parseRequires(requiresLine),
+    status: statusLine ? statusLine.toLowerCase().replace(/[^a-z]/g, "") : null,
+    generated: /^\s*generated\b/i.test(originLine),
+  };
+}
+// [SCOPE 127 / T002] END
+
+/**
+ * Requirements — SCOPE-127 / T020 (decision 25, feedback 3626c874).
+ *
+ * Scoring only adds, so shared framework and test-tool tokens can outvote a database the adapter
+ * cannot serve: an Express + SQLite project scored 5 against the Express / Drizzle / PostgreSQL
+ * adapter and was handed its seeding form. `**Requires:**` is the disqualifier. Space-separated
+ * groups, `|` between alternatives (`express postgresql|postgres`); every group must be present in
+ * the stack's tokens, or the adapter is excluded before scoring and can neither win nor tie.
+ */
+// [SCOPE 127 / T020] BEGIN — Resolution excludes an adapter whose required tokens the stack lacks (FR-001)
+export function parseRequires(line) {
+  return String(line)
+    .replace(/`/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((group) => group.split("|").map((alt) => tokenize(alt)).filter((alt) => alt.length > 0))
+    .filter((group) => group.length > 0);
+}
+// [SCOPE 127 / T020] END
+
+/** The `**Requires:**` groups this stack does not satisfy, each written back as `a|b`. Empty means eligible. */
+// [SCOPE 127 / T020] BEGIN — Resolution excludes an adapter whose required tokens the stack lacks (FR-001)
+export function missingRequirements(adapter, stackTokens) {
+  const set = new Set(stackTokens);
+  return (adapter.requires ?? [])
+    .filter((group) => !group.some((alt) => alt.every((t) => set.has(t))))
+    .map((group) => group.map((alt) => alt.join(" ")).join("|"));
+}
+// [SCOPE 127 / T020] END
+
+/**
+ * Provenance — SCOPE-127 / T009 (FR-010) and T012.
+ *
+ * Three states, and a project adapter can never claim the first. A wxperts-shipped adapter is
+ * `shipped` whatever its file says. A project adapter (generated, or written by the developer) is
+ * `provisional` until its own `**Status:**` line says `approved` — editing that line is the whole
+ * approval mechanism (owner decision 7). Approval promotes after the fact; it never blocks a run.
+ */
+// [SCOPE 127 / T009] BEGIN — Provenance reporting — shipped / provisional / approved (FR-010)
+export function provenanceOf(adapter) {
+  if (adapter.origin === "shipped") return "shipped";
+  return adapter.status === "approved" ? "approved" : "provisional";
+}
+// [SCOPE 127 / T009] END
+
+/** Every adapter on disk, shipped first then local. */
+// [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+// MODIFIED-BY: [SCOPE 127 / T010] — README.md and GENERATE.md are docs, not adapters
+export function listAdapters(root) {
+  const out = [];
+  for (const [dir, origin] of [[SHIPPED_DIR, "shipped"], [LOCAL_DIR, "local"]]) {
+    const full = resolve(root, dir);
+    if (!existsSync(full)) continue;
+    for (const f of readdirSync(full)) {
+      if (!f.endsWith(".md") || isAdapterDoc(f)) continue;
+      out.push({ ...readAdapter(join(full, f)), origin });
+    }
+  }
+  return out;
+}
+// [SCOPE 127 / T002] END
+
+/**
+ * Minimum overlapping tokens for a match to count.
+ *
+ * Two is deliberate. One token matches "PostgreSQL" against every adapter that mentions Postgres,
+ * which is how a C# project would resolve to the Express adapter — the exact failure this replaces.
+ */
+export const MIN_TOKEN_OVERLAP = 2;
+
+// [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+export function scoreAdapter(adapter, stackTokens) {
+  const set = new Set(stackTokens);
+  const hits = adapter.tokens.filter((t) => set.has(t));
+  return { hits, score: hits.length };
+}
+// [SCOPE 127 / T002] END
+
+/**
+ * Resolve an adapter for a project.
+ *
+ * Returns `{ resolved, adapter, reason, candidates, ... }`. It never throws and never picks a
+ * default: an ambiguous or absent match is reported as a miss with everything needed to act on it.
+ */
+// [SCOPE 127 / T021] BEGIN — Resolution reports every declared application type (FR-001)
+export function resolveAdapter({ root = process.cwd(), appType = null } = {}) {
+  const result = resolvePooled({ root, appType });
+  if (appType) return result;
+
+  // Decision 26 (feedback 1565dac1): pooling every declared type returns one adapter for one type
+  // and says nothing about the rest, so a Web + Mobile project's Mobile half never reached no-match
+  // or generation. The top-level answer and exit code stay as they were (SC-6: wxKanban's own
+  // stack.md declares three types); each type's own outcome is added beside it.
+  const declared = Object.keys(parseStack(resolve(root, "stack.md")) ?? {});
+  if (declared.length < 2) return result;
+
+  const byAppType = declared.map((type) => {
+    const r = resolvePooled({ root, appType: type });
+    return r.resolved
+      ? { appType: type, resolved: true, adapter: r.adapter.name, provenance: r.provenance }
+      : { appType: type, resolved: false, reason: r.reason };
+  });
+  return { ...result, byAppType };
+}
+// [SCOPE 127 / T021] END
+
+/** The types a pooled result does not answer for: each one that misses, or resolves elsewhere. */
+// [SCOPE 127 / T021] BEGIN — Resolution reports every declared application type (FR-001)
+export function typesNotServed(result) {
+  if (!result.byAppType) return [];
+  const top = result.resolved ? result.adapter.name : null;
+  return result.byAppType.filter((t) => !t.resolved || t.adapter !== top);
+}
+// [SCOPE 127 / T021] END
+
+// [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+// MODIFIED-BY: [SCOPE 127 / T020] — an adapter missing a **Requires:** group is excluded before scoring
+// MODIFIED-BY: [SCOPE 127 / T021] — renamed from resolveAdapter; the exported wrapper adds byAppType
+function resolvePooled({ root = process.cwd(), appType = null } = {}) {
+// [SCOPE 127 / T002] END
+  const stackPath = resolve(root, "stack.md");
+  const stack = parseStack(stackPath);
+
+  if (stack === null) {
+    return {
+      resolved: false,
+      reason: "no-stack-md",
+      message:
+        `No stack.md at ${stackPath}. The test pipeline cannot resolve machinery without a declared ` +
+        "stack, and will not assume one. Run /buildstack to capture it, or pass --app-type with a " +
+        "project that declares its stack elsewhere.",
+      candidates: [],
+    };
+  }
+
+  const types = appType ? [normalize(appType)] : Object.keys(stack);
+  if (types.length === 0) {
+    return {
+      resolved: false,
+      reason: "no-target-stack-tables",
+      message: `stack.md at ${stackPath} declares no "Target Stack" table, so there is nothing to match against.`,
+      candidates: [],
+    };
+  }
+
+  const adapters = listAdapters(root);
+  if (adapters.length === 0) {
+    return {
+      resolved: false,
+      reason: "no-adapters",
+      message: `No adapters found under ${SHIPPED_DIR} or ${LOCAL_DIR}.`,
+      candidates: [],
+    };
+  }
+
+  const scored = [];
+  // T020: an adapter whose machinery this stack contradicts never reaches scoring, so it can
+  // neither win nor tie — but it is reported, so a miss explains itself.
+  const excluded = [];
+  for (const type of types) {
+    const entry = stack[type];
+    if (!entry) continue;
+    for (const a of adapters) {
+      if (a.appType && a.appType !== type) continue;
+      const { hits, score } = scoreAdapter(a, entry.tokens);
+      const missing = missingRequirements(a, entry.tokens);
+      if (missing.length > 0) {
+        excluded.push({ name: a.name, appType: type, missing, score, hits });
+        continue;
+      }
+      scored.push({ adapter: a, appType: type, score, hits });
+    }
+  }
+
+  scored.sort((x, y) => y.score - x.score);
+  const best = scored[0];
+  const viable = scored.filter((s) => s.score >= MIN_TOKEN_OVERLAP);
+
+  if (!best || best.score < MIN_TOKEN_OVERLAP) {
+    return {
+      resolved: false,
+      reason: "no-match",
+      message:
+        `No adapter covers the declared stack (${types.join(", ")}). Nothing is assumed: running an ` +
+        "extractor built for another stack would produce a valid-looking inventory of zero units, " +
+        "which reads as a result rather than an error.",
+      candidates: scored.slice(0, 3).map((s) => ({ name: s.adapter.name, score: s.score, hits: s.hits })),
+      excluded,
+      stackTokens: types.flatMap((t) => stack[t]?.tokens ?? []),
+    };
+  }
+
+  // A tie between two adapters is a miss, not a coin toss.
+  const tied = viable.filter((s) => s.score === best.score);
+  if (tied.length > 1) {
+    return {
+      resolved: false,
+      reason: "ambiguous",
+      message:
+        `${tied.length} adapters match the declared stack equally well (${tied
+          .map((s) => s.adapter.name)
+          .join(", ")}). Resolution must be unambiguous, so this is reported rather than guessed.`,
+      candidates: tied.map((s) => ({ name: s.adapter.name, score: s.score, hits: s.hits })),
+      excluded,
+    };
+  }
+
+  return {
+    resolved: true,
+    adapter: {
+      name: best.adapter.name,
+      path: best.adapter.path,
+      title: best.adapter.title,
+      origin: best.adapter.origin,
+      declaresMatches: best.adapter.declaresMatches,
+      generated: best.adapter.generated,
+    },
+    appType: best.appType,
+    score: best.score,
+    matchedOn: best.hits,
+    // FR-010: provenance travels with every resolution, so a caller can always say where the
+    // machinery it is about to run came from — and a project adapter is never called shipped.
+    provenance: provenanceOf(best.adapter),
+    candidates: viable.slice(1, 3).map((s) => ({ name: s.adapter.name, score: s.score })),
+    excluded,
+  };
+}
+
+// [SCOPE 127 / T002] BEGIN — Build the shared adapter-resolution service (FR-001)
+// MODIFIED-BY: [SCOPE 127 / T009] — a provisional resolution is announced as provisional (SC-8)
+// MODIFIED-BY: [SCOPE 127 / T010] — a no-match miss points at generation, other misses stay stops
+// MODIFIED-BY: [SCOPE 127 / T020] — a miss names each excluded adapter and the requirement it lacked
+// MODIFIED-BY: [SCOPE 127 / T021] — names every declared application type the answer does not serve
+function main(argv) {
+  const args = argv.slice(2);
+  const get = (flag) => {
+    const i = args.indexOf(flag);
+    return i >= 0 ? args[i + 1] : null;
+  };
+  const json = args.includes("--json");
+  const root = get("--root") || process.cwd();
+  const appType = get("--app-type");
+
+  if (appType && !APP_TYPES.includes(normalize(appType))) {
+    console.error(`--app-type must be one of: ${APP_TYPES.join(", ")}`);
+    process.exit(2);
+  }
+
+  const result = resolveAdapter({ root, appType });
+
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+  } else if (result.resolved) {
+    console.log(`Resolved adapter: ${result.adapter.name} (${result.provenance})`);
+    console.log(`  application type : ${result.appType}`);
+    console.log(`  file             : ${result.adapter.path}`);
+    console.log(`  matched on       : ${result.matchedOn.join(", ")}`);
+    if (!result.adapter.declaresMatches) {
+      console.log("  note             : matched on prose; this adapter declares no **Matches:** line");
+    }
+    if (result.provenance === "provisional") {
+      // SC-8: an unapproved project adapter says so out loud, not only in its file.
+      console.log(
+        `  note             : PROVISIONAL — ${result.adapter.generated ? "generated" : "written"} for this ` +
+          "project, not shipped by wxperts, and not yet approved. Set **Status:** approved in the file to promote it.",
+      );
+    }
+  } else {
+    console.error(`Adapter resolution FAILED (${result.reason})\n`);
+    console.error(result.message);
+    if (result.candidates?.length) {
+      console.error("\nClosest candidates:");
+      for (const c of result.candidates) {
+        console.error(`  ${c.name}  score ${c.score}${c.hits ? `  (${c.hits.join(", ")})` : ""}`);
+      }
+    }
+    if (result.excluded?.length) {
+      console.error("\nExcluded — this stack lacks what the adapter's machinery depends on (**Requires:**):");
+      for (const x of result.excluded) {
+        console.error(`  ${x.name}  needs ${x.missing.join(", ")}  (would have scored ${x.score})`);
+      }
+    }
+    console.error(
+      result.reason === "no-match"
+        ? "\nNext: generate a candidate adapter for this project and complete it — follow " +
+            "_wxAI/adapters/GENERATE.md (node _wxAI/adapters/generate-adapter.mjs). Never borrow another " +
+            "stack's machinery."
+        : "\nThis is a stop, not something to generate past. Declare the stack with /buildstack, or make " +
+            "resolution unambiguous by giving the intended adapter a token only this stack's Choice column contains.",
+    );
+  }
+
+  // T021: a type the top-level answer does not serve is named, never dropped (decision 26).
+  const unserved = json ? [] : typesNotServed(result);
+  if (unserved.length > 0) {
+    const say = result.resolved ? console.log : console.error;
+    say(
+      `\nstack.md declares ${result.byAppType.length} application types. ` +
+        (result.resolved ? `This answer is for ${result.appType} only.` : "Each one resolves on its own:"),
+    );
+    for (const t of unserved) {
+      say(
+        `  ${t.appType.padEnd(8)} ${t.resolved ? `resolves to ${t.adapter} (${t.provenance})` : `${t.reason}`}` +
+          `  →  node _wxAI/adapters/resolve-adapter.mjs --app-type ${t.appType}`,
+      );
+    }
+    say(
+      "Test a target's code with the adapter for that code's own application type. If the target is " +
+        "one of the types above, resolve it with --app-type (a no-match there generates, per GENERATE.md).",
+    );
+  }
+
+  process.exit(result.resolved ? 0 : 3);
+}
+// [SCOPE 127 / T002] END
+
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("resolve-adapter.mjs")) {
+  main(process.argv);
+}

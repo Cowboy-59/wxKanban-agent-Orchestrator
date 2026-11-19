@@ -1,0 +1,667 @@
+{
+  "variant": "patched",
+  "results": [
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_a_boolean_default_is_emitted_as_a_boolean_literal_not_a_number",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_a_caption_that_is_a_type_word_does_not_become_the_type",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_a_caption_that_merely_describes_the_field_is_not_used_as_a_name",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_a_control_data_binding_names_the_item_in_full",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_a_dictionary_entry_at_its_own_column_width_is_not_written_into_the_ddl",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_a_lone_header_word_used_as_a_caption_survives",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_a_non_boolean_default_is_still_passed_through_unchanged",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_a_short_column_that_merely_prefixes_a_longer_item_is_left_alone",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_an_export_with_no_truncation_is_left_completely_untouched",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_an_identifier_beginning_with_a_type_word_is_not_a_type",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_an_item_named_after_a_type_does_not_steal_the_previous_default",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_an_item_used_by_a_different_data_file_does_not_rename_this_one",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_an_unknown_type_in_the_type_position_is_reported_not_dropped",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_an_unreadable_boolean_default_is_dropped_and_named",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_bare_unmapped_type_is_reported_not_swallowed",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_captions_separate_columns_the_cut_collapsed_onto_one_name",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_composite_key_members_are_rejoined_across_wrapped_lines",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_datetime_format_annotation_is_consumed",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_declared_item_count_is_read_from_the_general_information_block",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_edb86afb_sqlite_ddl_executes_with_foreign_keys_enforced",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_edb86afb_sqlite_fk_to_a_non_key_parent_column_is_not_declared",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_edb86afb_sqlite_hard_keywords_are_quoted",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_export_without_the_data_file_items_line_still_parses",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_foreign_keys_follow_a_restored_column_name",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_gdpr_header_is_not_read_as_a_field",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_known_bare_types_do_not_trip_the_gate",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_our_own_watermark_trailer_is_not_mistaken_for_a_type",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_reprinted_header_block_does_not_rename_a_field",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_review_notes_sit_above_the_create_table_not_inside_it",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_the_dictionary_keeps_an_item_named_after_a_type",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_the_dictionary_restores_a_name_cut_on_two_data_files_at_once",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_the_row_caption_restores_the_name_without_any_cross_reference",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_the_table_pages_cannot_seed_the_binding_oracle_with_their_own_cut_names",
+      "status": "pass"
+    },
+    {
+      "file": "test_pcsoft_schema_parse.py",
+      "test": "test_two_candidates_are_reported_rather_than_guessed",
+      "status": "pass"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_0a922271_composite_key_named_with_hash_is_kept",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_1854bd85_duplicate_column_is_commented_and_the_table_still_creates",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_1854bd85_fk_on_a_column_its_table_lacks_is_not_declared",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_1854bd85_migration_note_carries_the_load_gotchas",
+      "status": "pass"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_1854bd85_numeric_precision_is_flagged",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_4d285663_unknown_type_that_swallows_the_next_field_is_reported",
+      "status": "pass"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_6ff76692_links_shortfall_is_reported_and_names_unsplit_tables",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_a075d21f_collapsed_cut_names_are_separated_by_caption_tail",
+      "status": "pass"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_a075d21f_report_warns_candidates_are_not_in_source_order",
+      "status": "pass"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_a31aac60_keyword_column_is_not_made_case_sensitive",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_b9942029_default_survives_an_item_named_and_captioned_after_a_type",
+      "status": "pass"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_d4e8ec3f_a_long_shortfall_is_listed_in_full",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_ee8dc32e_fk_to_a_non_key_parent_column_is_not_declared_on_any_dialect",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_runningheader_dictionary_page_header_is_not_an_item",
+      "status": "pass"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_runningheader_page_header_is_not_read_as_a_field",
+      "status": "pass"
+    },
+    {
+      "file": "test_field_reports_schema.py",
+      "test": "test_runningheader_stage3_ddl_executes",
+      "status": "excluded",
+      "reason": "Requires DDL/ER emission, generator subprocess or SQL; not authorised"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_clarion_owner_attribute",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_console_output_is_ascii_only",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_embedded_connection_string_is_redacted_whole",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_embedded_connection_string_without_a_key",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_fail_on_secrets_defaults_off",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_findings_have_no_value_field_at_all",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_hungarian_notation_is_matched",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_keyed_authorization_and_auth_keys",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_keyed_bare_user_windev_member_syntax",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_keyed_case_insensitive_and_assignment_forms",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_keyed_every_credential_key",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_keyed_multi_word_keys",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_line_numbers_are_reported",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_module_imports_without_pymupdf",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_negative_auth_does_not_overmatch_ordinary_words",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_negative_clean_text_returned_byte_identical",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_negative_comment_key_must_end_its_identifier",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_negative_comment_two_lines_below_is_not_adjacent",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_negative_parameter_passing_is_untouched",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_negative_prose_comment_does_not_redact_its_neighbour",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_negative_recordset_open_sql_is_not_redacted",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_negative_unterminated_quote_cannot_consume_the_page",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_negative_word_boundary_does_not_overmatch",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_no_dotall_patterns_are_line_bounded",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_positional_ado_open_without_parentheses",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_positional_email_session_secret",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_positional_ftp_connect_secret_is_the_third_argument",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_positional_hdescribeconnection",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_positional_pop3_and_imap_sessions",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_positional_skips_nested_call_arguments",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_redaction_is_idempotent",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_scan_finds_the_reported_leak_shape",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_scan_is_read_only_and_allocates_nothing",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_scan_report_is_explicit_when_clean",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_scan_report_says_already_disclosed_and_names_rotation",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_scan_tree_is_read_only_and_finds_the_reported_leak_shape",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_scanning_redacted_output_reports_zero",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_sidecar_never_contains_a_value_in_any_form",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_sidecar_reports_token_key_file_and_line",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_sidecar_states_rotation_disclosure_and_limits",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_smuggled_comment_markers_for_all_three_languages",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_smuggled_credential_named_by_next_line_comment",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_smuggled_credential_named_by_same_line_comment",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_smuggled_finding_records_the_key_the_comment_named",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_smuggled_redaction_is_idempotent",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_state_repr_never_discloses_the_map",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_summary_line_is_explicit_when_clean_and_when_not",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_token_is_safe_in_markdown_json_sql_and_tsx",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_tokens_are_stable_across_occurrences_and_files",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_write_text_accumulates_findings_across_files",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_write_text_dry_run_writes_nothing_but_still_reports",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_write_text_non_markdown_is_not_watermarked",
+      "status": "pass"
+    },
+    {
+      "file": "test_wxconv_redact.py",
+      "test": "test_write_text_redacts_and_watermarks_markdown",
+      "status": "pass"
+    },
+    {
+      "file": "test_conversion_fidelity.py",
+      "test": "test_clean_text_is_identity_without_credentials",
+      "status": "pass"
+    },
+    {
+      "file": "test_conversion_fidelity.py",
+      "test": "test_credential_free_source_produces_no_sidecar_and_no_findings",
+      "status": "pass"
+    },
+    {
+      "file": "test_conversion_fidelity.py",
+      "test": "test_manifest_identical_with_and_without_redaction",
+      "status": "pass"
+    },
+    {
+      "file": "test_conversion_fidelity.py",
+      "test": "test_non_credential_content_survives_a_redacted_run",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_ambiguous_link_rename_is_blocked",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_ambiguous_relationship_occurrences_remain_distinct",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_books_two_arrays_then_scalar",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_both_json_records_and_online_id",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_boundary_ambiguity_blocks_emission",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_caption_and_type_joined_by_pdf_text_run",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_clipped_guid_string_default_is_not_a_new_field",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_diagnostics_redact_schema_literals",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_dollar_caption_is_not_type",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_foreign_key_planning_remains_structural_and_offline",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_incomplete_array_declaration_blocks_emission",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_label_array_and_composite",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_main_refuses_before_emitters",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_monday_array_and_boolean",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_name_collision_is_blocked_without_deduplicating_records",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_per_element_defaults_are_retained_as_annotations",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_scalar_raw_type_format_and_identifier_tail_retained",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_unknown_type_keeps_following_field",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_unmapped_scalar_override_cannot_flatten_array",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_unsigned_array_retains_width_and_sign",
+      "status": "pass"
+    },
+    {
+      "file": "test_boundaries.py",
+      "test": "test_uuid_does_not_consume_datetime",
+      "status": "pass"
+    }
+  ],
+  "counts": {
+    "pass": 112,
+    "fail": 0,
+    "excluded": 16
+  },
+  "sqlNetworkAndEmissionGuard": true
+}
