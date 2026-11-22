@@ -35,3 +35,7 @@ kit.zip
 # for `gh release create --notes-file` and removes it in a finally; a killed run
 # leaves it behind, and it must never be committed or published.
 .release-notes.tmp.md
+
+# Claude Code agent worktrees: full repository checkouts. A synced copy was committed and shipped
+# in kit v1.7.102 (SPEC-121 FR-018). build-release.mjs also refuses to pack this path.
+.claude/worktrees/

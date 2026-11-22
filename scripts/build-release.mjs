@@ -134,6 +134,10 @@ function shouldExclude(relPath /* relative to root, forward slashes */) {
   // Top-level entry in exclude list
   if (parts.length === 1 && EXCLUDE_ROOT_FILES.has(basename)) return true;
 
+  // [SCOPE 121 / T023] Claude Code agent worktrees are full repository checkouts; never pack
+  // them, whatever the sync or git left on disk (FR-018 — v1.7.102 shipped 4381 such files).
+  if (parts[0] === '.claude' && parts[1] === 'worktrees') return true;
+
   // .claude/<name> top-level (files only, skill subdirs are fine)
   if (parts.length === 2 && parts[0] === '.claude' && EXCLUDE_CLAUDE_TOPLEVEL.has(basename)) {
     return true;
