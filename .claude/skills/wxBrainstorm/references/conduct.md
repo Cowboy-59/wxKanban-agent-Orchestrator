@@ -156,6 +156,11 @@ On a later session for the same topic, update the same file: append decision row
 **Next item**, and **Open items**, and never rewrite an earlier decision row. A reversed decision is a
 new row that says what it replaces.
 
+**A record is never renamed or moved once a scope cites it** (SCOPE-135 Amendment C). A scope's
+`**Source Record**:` line, and each `- Source Record:` line in its Amendment Log, points at this
+file's path and its `#` rows. Renaming the file or renumbering a row breaks that pointer silently.
+New decisions go in as new rows on the same file.
+
 **Privacy.** Customer suggestions often arrive with names, emails, or account details. Record the
 source by reference only (a feedback ID, "customer call, YYYY-MM-DD") and never copy personal data,
 credentials, or secrets into a record, the scratch pad, or chat.

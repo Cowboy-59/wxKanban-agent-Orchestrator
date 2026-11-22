@@ -170,4 +170,123 @@ describe('SCOPE-135 FR-016 — buildscope worker', () => {
 		});
 	});
 	// [SCOPE 135 / T018] END
+
+	// [SCOPE 135 / T027] BEGIN — the kit stops when a server drops the sourceRecord pointer (FR-026, FR-027)
+	describe('sourceRecord strip guard', () => {
+		const pointer = 'docs/brainstorms/x.md#3,4a';
+		const createFile = () => join(root, 'specs', 'Project-Scope', '021-x.md');
+		const editFile = () => join(root, 'specs', 'Project-Scope', '010-parametres-serveur.md');
+		const original = '# Scope 010: Paramètres\n\nauthored\n';
+		const header = (line: string) => `# Scope 021: X\n\n**Source**: \`specs/Project-Scope/021-x.md\`\n${line}\n## Overview\nx\n`;
+		const logged = (entries: Array<{ letter: string; value?: string }>) =>
+			`# Scope 010: Paramètres\n\nauthored and edited\n\n## Amendment Log\n` +
+			entries
+				.map((e) => `\n### 2026-11-22 — Amendment ${e.letter}\n\n- Reason: r\n- Items: FR-001${e.value ? `\n- Source Record: ${e.value}` : ''}\n`)
+				.join('');
+		const createResponse = (scopeContent: string) => ({
+			success: true, status: 'drafted', specNumber: '021', shortName: 'x', filePath: 'specs/Project-Scope/021-x.md', scopeContent,
+		});
+		const editResponse = (scopeContent: string) => ({
+			success: true, status: 'draft_updated', specNumber: '010', shortName: 'parametres-serveur',
+			filePath: 'specs/Project-Scope/010-parametres-serveur.md', scopeContent,
+			editDiff: { hunks: [{ line: 3, before: ['authored'], after: ['authored and edited'] }], text: '@@' },
+		});
+
+		beforeEach(() => {
+			vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+		});
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
+		it('--source-record reaches the server as sourceRecord, unparsed', async () => {
+			nextResponse = createResponse(header(`**Source Record**: ${pointer}`));
+			await BuildScopeWorker.generateScopeDraft({ 'feature-description': 'X', quick: true, 'source-record': pointer });
+			expect(calls[0].args.sourceRecord).toBe(pointer);
+			expect(existsSync(createFile())).toBe(true);
+		});
+
+		it('a create whose header lacks the pointer stops and writes nothing', async () => {
+			nextResponse = createResponse(header(''));
+			await expect(
+				BuildScopeWorker.generateScopeDraft({ 'feature-description': 'X', quick: true, 'source-record': pointer }),
+			).rejects.toThrow('server too old: sourceRecord was not applied');
+			expect(existsSync(createFile())).toBe(false);
+		});
+
+		it('a create whose header carries a different pointer stops', async () => {
+			nextResponse = createResponse(header('**Source Record**: none'));
+			await expect(
+				BuildScopeWorker.generateScopeDraft({ 'feature-description': 'X', quick: true, 'source-record': pointer }),
+			).rejects.toThrow('server too old: sourceRecord was not applied');
+		});
+
+		it('an edit whose last entry carries the letter and pointer is written', async () => {
+			nextResponse = editResponse(logged([{ letter: 'C', value: pointer }]));
+			await BuildScopeWorker.generateScopeDraft({ 'feature-description': 'x', 'edit-spec-number': '010', amendment: 'C', 'source-record': pointer, yes: true });
+			expect(readFileSync(editFile(), 'utf8')).toContain(`- Source Record: ${pointer}`);
+		});
+
+		it('an edit whose entry lacks the pointer stops and leaves the file untouched', async () => {
+			nextResponse = editResponse(logged([{ letter: 'C' }]));
+			await expect(
+				BuildScopeWorker.generateScopeDraft({ 'feature-description': 'x', 'edit-spec-number': '010', amendment: 'C', 'source-record': pointer, yes: true }),
+			).rejects.toThrow('server too old: sourceRecord was not applied');
+			expect(readFileSync(editFile(), 'utf8')).toBe(original);
+		});
+
+		it('an earlier entry with the same pointer does not pass the edit guard', async () => {
+			nextResponse = editResponse(logged([{ letter: 'B', value: pointer }, { letter: 'C' }]));
+			await expect(
+				BuildScopeWorker.generateScopeDraft({ 'feature-description': 'x', 'edit-spec-number': '010', amendment: 'C', 'source-record': pointer, yes: true }),
+			).rejects.toThrow('server too old: sourceRecord was not applied');
+			expect(readFileSync(editFile(), 'utf8')).toBe(original);
+		});
+
+		it('a last entry with the pointer but a different letter does not pass', async () => {
+			nextResponse = editResponse(logged([{ letter: 'B', value: pointer }]));
+			await expect(
+				BuildScopeWorker.generateScopeDraft({ 'feature-description': 'x', 'edit-spec-number': '010', amendment: 'C', 'source-record': pointer, yes: true }),
+			).rejects.toThrow('server too old: sourceRecord was not applied');
+		});
+
+		it('draft_interview is not checked: the interview error comes back, not the guard', async () => {
+			nextResponse = { success: true, status: 'draft_interview', specNumber: '021', questions: [{ field: 'businessProblem', question: 'Why?' }] };
+			await expect(
+				BuildScopeWorker.generateScopeDraft({ 'feature-description': 'X', 'source-record': pointer }),
+			).rejects.toThrow('businessProblem: Why?');
+		});
+	});
+	// [SCOPE 135 / T027] END
+
+	// [SCOPE 135 / T029] BEGIN — the edit guard counts entries against the document sent (FR-027)
+	describe('sourceRecord edit guard — entry count', () => {
+		const pointer = 'docs/brainstorms/x.md#3,4a';
+		const editFile = () => join(root, 'specs', 'Project-Scope', '010-parametres-serveur.md');
+		const alreadyLogged =
+			'# Scope 010: Paramètres\n\nauthored\n\n## Amendment Log\n\n' +
+			`### 2026-11-22 — Amendment C\n\n- Reason: r\n- Items: FR-001\n- Source Record: ${pointer}\n`;
+
+		beforeEach(() => {
+			vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+		});
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
+		it('a server that returns the sent document unchanged does not pass on its existing last entry', async () => {
+			writeFileSync(editFile(), alreadyLogged);
+			nextResponse = {
+				success: true, status: 'draft_updated', specNumber: '010', shortName: 'parametres-serveur',
+				filePath: 'specs/Project-Scope/010-parametres-serveur.md', scopeContent: alreadyLogged,
+				editDiff: { hunks: [], text: '' },
+			};
+			await expect(
+				BuildScopeWorker.generateScopeDraft({ 'feature-description': 'x', 'edit-spec-number': '010', amendment: 'C', 'source-record': pointer, yes: true }),
+			).rejects.toThrow('server too old: sourceRecord was not applied');
+			expect(calls[calls.length - 1].args.currentScopeContent).toBe(alreadyLogged);
+			expect(readFileSync(editFile(), 'utf8')).toBe(alreadyLogged);
+		});
+	});
+	// [SCOPE 135 / T029] END
 });

@@ -227,11 +227,22 @@ many ledger entries were written.
 
 For the agreed items marked **To scope? yes**, one scope at a time and with the user's go before each:
 
-1. Run `/buildscope` with the record as its input (`--from-md docs/brainstorms/<file>.md`). Its own
-   reuse check decides whether to amend an existing scope or create one. Follow **all** its rules and
-   its interactive steps. wxBrainstorm never writes or edits a scope itself.
-2. Run `/validateScope` on the result.
-3. Offer `/createSpecs`, but run it only if the user asks.
+1. **Show the rows this scope carries** (SCOPE-135 Amendment C). List the `## Decisions` rows (by
+   their `#`) that go to this target scope, each with its item in plain words, and ask one yes/no:
+   "Scope SCOPE-NNN (or: the new scope) cites rows 3, 4a and 7 of this record — right?" On a no, take
+   the corrected list and ask again. One question per target scope.
+2. Run `/buildscope` with the record as its input (`--from-md docs/brainstorms/<file>.md`) and
+   `--source-record docs/brainstorms/<file>.md#<rows>`, passing **exactly** the approved row list.
+   The path is the record itself (the file with `- **Status:**` and `## Decisions`), never its
+   `*.scope-draft.md` sidecar. On an amendment to an existing scope, pass its `--amendment` letter too.
+   Its own reuse check decides whether to amend an existing scope or create one. Follow **all** its
+   rules and its interactive steps. wxBrainstorm never writes or edits a scope itself.
+3. **Re-read the written scope.** On a create, its `**Source Record**:` line must equal what you sent;
+   on an amendment, the **last** Amendment Log entry must carry the amendment letter and a
+   `- Source Record:` line equal to what you sent. On a mismatch, stop with "server too old:
+   sourceRecord was not applied" and go no further with that scope.
+4. Run `/validateScope` on the result.
+5. Offer `/createSpecs`, but run it only if the user asks.
 
 After each one, update the record: set the item's **To scope?** to `done (SCOPE-NNN)` and fill in
 **Next step**. If a command fails or stops at a gate, stop and say exactly where. Never work around it.

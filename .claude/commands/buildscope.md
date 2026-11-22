@@ -10,6 +10,19 @@ model: opus
 
 # buildscope — Build Scope of Project
 
+## Arguments
+- `"<feature description>"` (optional): What the scope covers
+- `--from-md <path>` (optional): Convert an existing Markdown file into a scope
+- `--edit NNN` (optional): Edit an existing scope instead of creating one
+- `--amendment <letter>` (optional): The amendment letter an edit is logged under
+- `--source-record <value>` (optional): The record this scope's decisions come from — `none`, or a
+  repo-relative `.md` path with optional rows, e.g. `docs/brainstorms/2026-11-20-agent-common-room.md#21`.
+  A create writes it as the `**Source Record**:` header line; an edit logs it in that edit's
+  Amendment Log entry and needs `--amendment`. A brainstorm pointer names the record, never its
+  `*.scope-draft.md` sidecar. If the written scope does not carry it, the run stops with
+  "server too old: sourceRecord was not applied" (SCOPE-135 Amendment C)
+- `--quick` / `--template-only` (optional): Skip the interview / write the bare template
+
 > The full methodology for this command is delivered by wxKanban at runtime.
 >
 > Call the MCP tool `project.get_command_prompt` with `{ "command": "buildscope" }`, then follow the

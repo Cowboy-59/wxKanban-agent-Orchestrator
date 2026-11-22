@@ -49,3 +49,23 @@ export {
   withScopeSyncMarker,
   type ScopeSyncMarker,
 } from './scope-sync.js';
+
+// [SCOPE 135 / T024] FR-028 — the source-record pointer, one grammar for the server, the kit and run stamps.
+export {
+  parseSourceRecord,
+  formatSourceRecord,
+  expandPointers,
+  validateSourceRecord,
+  sourceRecordApplied,
+  createFenceTracker, // [SCOPE 135 / T029] FR-028 — one fence rule for the log writer and the parser
+  isAmendmentLogHeading, // [SCOPE 135 / T029] FR-028 — one heading rule for where the log starts
+  endsAmendmentLog, // [SCOPE 135 / T029] FR-028 — and where it ends
+  SOURCE_RECORD_GRAMMAR,
+  SOURCE_RECORD_NOT_APPLIED,
+  type SourceRecordPointer,
+  type SourceRecordValue,
+  type SourceRecordReading,
+  type SourceRecordAmendment,
+  type ParsedSourceRecord,
+  type SourceRecordValidation,
+} from './source-record.js';

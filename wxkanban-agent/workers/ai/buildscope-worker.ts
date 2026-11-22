@@ -9,6 +9,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join, relative, resolve } from 'path';
 import { createInterface } from 'readline';
+import { SOURCE_RECORD_NOT_APPLIED, sourceRecordApplied } from '@wxkanban/preflight';
 import { ScopeDraft } from '../../core/schemas/artifacts';
 import { McpClient } from '../../core/http/mcp-client';
 
@@ -201,6 +202,24 @@ export class BuildScopeWorker {
 			if (blockerList) parts.push(`Blocking issues:\n${blockerList}`);
 			parts.push('Re-run buildscope with the missing fields filled in.');
 			throw new Error(parts.join('\n\n'));
+		}
+
+		// [SCOPE 135 / T025] FR-027 — an older server drops an input it does not know, so a pointer
+		// that was sent must come back: in the header on a create, in the LAST Amendment Log entry
+		// (with the sent letter) on an edit. A miss stops here, before anything is written.
+		if (typeof args['sourceRecord'] === 'string' && typeof mcpResult.scopeContent === 'string') {
+			const applied = sourceRecordApplied(mcpResult.scopeContent, {
+				value: args['sourceRecord'] as string,
+				amendment: typeof args['amendment'] === 'string' ? (args['amendment'] as string) : undefined,
+				edit: editNumber !== null,
+				// [SCOPE 135 / T029] FR-027 — the document the edit was sent against: the response must
+				// hold exactly one more lettered entry, so an earlier entry with the same letter and value
+				// cannot stand in for one the server never wrote.
+				base: typeof args['currentScopeContent'] === 'string' ? (args['currentScopeContent'] as string) : undefined,
+			});
+			if (!applied) {
+				throw new Error(`buildscope: ${SOURCE_RECORD_NOT_APPLIED}. Nothing was written; update the MCP server and rerun.`);
+			}
 		}
 
 		// [SCOPE 028 / Phase 12 — FR-021] Write-first: the server no longer writes
