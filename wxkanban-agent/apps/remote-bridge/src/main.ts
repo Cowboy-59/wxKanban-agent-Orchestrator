@@ -19,6 +19,7 @@ import {
 import { AgentAlreadyConnectedError, ConnectionRecord } from "./connection-record"; // [SCOPE 151 / T004]
 import { buildChildEnv } from "./child-env"; // [SCOPE 154 / T015]
 import { redactSecrets } from "./handoff-writer"; // [SCOPE 154 / T015]
+import { SessionSummaryTracker } from "./session-summary"; // [SCOPE 155 / T004]
 
 // [SCOPE 102 / T004] BEGIN — remote-bridge entry point (the Project Agent)
 // MODIFIED-BY: [SCOPE 145 / T006] — fixed refusal lines; stop on SIGBREAK and stdin close; 5 s exit bound
@@ -183,7 +184,26 @@ async function main(): Promise<void> {
     // short-lived token above, so its holder renews through this config (FR-016).
     projectAgentConfig: paCfg,
   });
-  record?.startHeartbeat(() => bridge.connectionState()); // [SCOPE 151 / T004] FR-060
+  // MODIFIED-BY: [SCOPE 155 / T004] — the heartbeat now also carries sharing/summary/lastEntry/blockers/waitingQuestion (FR-105)
+  // `WXKANBAN_SHARE_STATUS` is threaded from the VS Code extension's `wxkanban.projectAgent.shareStatus`
+  // setting at spawn time (default on, matching that setting's default); an operator-run bridge with no
+  // such env set also defaults on.
+  const sharingEnabled = process.env.WXKANBAN_SHARE_STATUS !== "0";
+  const summaryTracker = new SessionSummaryTracker({ repoRoot: REPO_ROOT, warn: (line) => console.warn(line) });
+  record?.startHeartbeat(async () => {
+    const state = bridge.connectionState();
+    if (!sharingEnabled) return { state, sharing: false };
+    await summaryTracker.refresh();
+    const s = summaryTracker.getState();
+    return {
+      state,
+      sharing: true,
+      summary: s.summary || undefined,
+      lastEntry: s.lastEntry || undefined,
+      blockers: s.blockers,
+      waitingQuestion: state === "waiting" ? bridge.waitingQuestion() ?? undefined : undefined,
+    };
+  }); // [SCOPE 151 / T004] FR-060
 
   // [SCOPE 154 / T015] A crash used to end the agent without a word anywhere: the room just went
   // quiet. Now the stack goes to .wxai/project-agent-crash.log and one masked line to the room.
