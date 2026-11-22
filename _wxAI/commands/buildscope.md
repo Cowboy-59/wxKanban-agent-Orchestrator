@@ -14,7 +14,8 @@ model: opus
 - `"<feature description>"` (optional): What the scope covers
 - `--from-md <path>` (optional): Convert an existing Markdown file into a scope
 - `--edit NNN` (optional): Edit an existing scope instead of creating one
-- `--amendment <letter>` (optional): The amendment letter an edit is logged under
+- `--amendment <letter>` (optional): The amendment letter an edit is logged under — the one after
+  the scope's last lettered entry (`A` when none; after `Z` comes `Z0001`, then `Z0002`, and on)
 - `--source-record <value>` (optional): The record this scope's decisions come from — `none`, or a
   repo-relative `.md` path with optional rows, e.g. `docs/brainstorms/2026-11-20-agent-common-room.md#21`.
   A create writes it as the `**Source Record**:` header line; an edit logs it in that edit's

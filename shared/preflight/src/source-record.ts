@@ -1,5 +1,6 @@
 // [SCOPE 135 / T024] BEGIN — the source-record pointer: grammar, parser, formatter, expander (FR-028)
 // MODIFIED-BY: [SCOPE 135 / T029] — tighter grammar, exported fence tracker, entry-count edit guard.
+// MODIFIED-BY: [SCOPE 135 / T031] — only the first `## Amendment Log` opens the log; the header closes on an indented `##`.
 /**
  * SCOPE-135 Amendment C / FR-023..FR-028 — a scope names the brainstorm record it came from.
  *
@@ -197,13 +198,15 @@ export function parseSourceRecord(content: string): ParsedSourceRecord {
   let header: SourceRecordReading = null;
   let inHeader = true;
   let inLog = false;
+  let logSeen = false;
   const amendments: SourceRecordAmendment[] = [];
   let current: SourceRecordAmendment | null = null;
 
   for (const line of lines) {
     if (inFence(line)) continue;
 
-    if (/^##\s/.test(line)) inHeader = false;
+    // [SCOPE 135 / T031] FR-028 — an ATX `##` indented up to 3 spaces closes the header, as the writer reads it.
+    if (/^ {0,3}##(?:[ \t]|$)/.test(line)) inHeader = false;
 
     if (inHeader) {
       const match = line.match(HEADER_LINE);
@@ -211,7 +214,10 @@ export function parseSourceRecord(content: string): ParsedSourceRecord {
       continue;
     }
 
-    if (isAmendmentLogHeading(line)) {
+    // [SCOPE 135 / T031] FR-028 — only the FIRST `## Amendment Log` opens the log, the one
+    // appendAmendmentLog writes to. A later heading with the same text ends it below, like any `##`.
+    if (!logSeen && isAmendmentLogHeading(line)) {
+      logSeen = true;
       inLog = true;
       current = null;
       continue;

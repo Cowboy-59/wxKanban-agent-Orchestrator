@@ -274,3 +274,55 @@ describe('T029 verify fixes — inline-code openers and indented headings', () =
   });
 });
 // [SCOPE 135 / T029] END
+
+// [SCOPE 135 / T030] BEGIN — amendment letters after Z: Z0001, Z0002, ... (FR-025)
+describe('amendment letters after Z', () => {
+  const pastZ = `${SCOPE}\n### 2026-11-23 — Amendment Z\n\n- Items: Overview\n\n### 2026-11-24 — Amendment Z0001\n\n- Items: Overview\n- Source Record: ${REC}#15\n`;
+
+  it('parses Z0001 as the entry letter', () => {
+    expect(parseSourceRecord(pastZ).amendments.slice(-2)).toEqual([
+      { letter: 'Z', date: '2026-11-23', pointer: null },
+      { letter: 'Z0001', date: '2026-11-24', pointer: { path: REC, rows: ['15'] } },
+    ]);
+  });
+
+  it('passes the edit re-read check with amendment Z0001', () => {
+    const base = `${SCOPE}\n### 2026-11-23 — Amendment Z\n\n- Items: Overview\n`;
+    expect(sourceRecordApplied(pastZ, { value: `${REC}#15`, amendment: 'Z0001', edit: true, base })).toBe(true);
+    expect(sourceRecordApplied(pastZ, { value: `${REC}#15`, amendment: 'Z', edit: true, base })).toBe(false);
+  });
+});
+// [SCOPE 135 / T030] END
+
+// [SCOPE 135 / T031] BEGIN — only the first `## Amendment Log` heading opens the log (FR-028)
+describe('a second Amendment Log heading', () => {
+  it('ends the log and its entries are not listed', () => {
+    const doc = [
+      '# Scope', '', '## Amendment Log', '',
+      '### 2026-11-10 — Amendment A', '', '- Items: Overview', '',
+      '## Notes', '', 'x', '',
+      '## Amendment Log', '',
+      '### 2026-11-11 — Amendment B', '', '- Items: Overview', '',
+    ].join('\n');
+    expect(parseSourceRecord(doc).amendments.map((a) => a.letter)).toEqual(['A']);
+  });
+
+  it('ends the log even when the second heading follows the first directly', () => {
+    const doc = [
+      '# Scope', '', '## Amendment Log', '', '### 2026-11-10 — Amendment A', '', '- Items: Overview', '',
+      '## Amendment Log', '', '### 2026-11-11 — Amendment B', '', '- Items: Overview', '',
+    ].join('\n');
+    expect(parseSourceRecord(doc).amendments.map((a) => a.letter)).toEqual(['A']);
+  });
+
+  it('an indented `  ## Amendment Log` closes the header and opens the log, as the writer reads it', () => {
+    const doc = `# T\n\n**Source Record**: ${REC}#1\n\n  ## Amendment Log\n\n### 2026-11-10 — Amendment A\n\n- Source Record: ${REC}#2\n`;
+    const parsed = parseSourceRecord(doc);
+    expect(parsed.header).toEqual({ path: REC, rows: ['1'] });
+    expect(parsed.amendments).toEqual([{ letter: 'A', date: '2026-11-10', pointer: { path: REC, rows: ['2'] } }]);
+    // A `####` line, or a `##` indented 4 spaces (indented code), does not close the header.
+    const notHeadings = `# T\n\n    ## code\n#### deep\n**Source Record**: ${REC}#3\n\n## Overview\n`;
+    expect(parseSourceRecord(notHeadings).header).toEqual({ path: REC, rows: ['3'] });
+  });
+});
+// [SCOPE 135 / T031] END
