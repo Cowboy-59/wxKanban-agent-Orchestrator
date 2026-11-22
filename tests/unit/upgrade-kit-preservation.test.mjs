@@ -487,6 +487,22 @@ describe('snapshot', () => {
     expect(fs.readFileSync(saved).equals(original)).toBe(true);
   });
 
+  // [SPEC 121 / T024] FR-018 — the leaked worktree is deleted, never snapshotted.
+  it('does not back up the worktree copy kits v1.7.101 and v1.7.102 leaked', async (ctx) => {
+    const consumer = path.join(tmp, 'consumer');
+    buildConsumer(consumer);
+    write(path.join(consumer, '.claude/worktrees/agent-a9cfb3d5618e14d47/src/leak.ts'), 'leaked\n');
+    const kit = path.join(tmp, 'kit');
+    buildKitTree(kit, 2);
+    const archive = makeArchive(kit, path.join(tmp, 'kit.tar.gz'), 'tar.gz');
+    if (!archive) ctx.skip('no tar archiver on this platform');
+
+    const m = await loadKit(consumer);
+    const snap = m.snapshotBeforeUpgrade(archive);
+
+    expect(fs.existsSync(path.join(snap.dir, '.claude/worktrees'))).toBe(false);
+  });
+
   it('refuses to proceed when the archive cannot be read', async () => {
     const consumer = path.join(tmp, 'consumer');
     buildConsumer(consumer);
@@ -503,6 +519,45 @@ describe('snapshot', () => {
     const r = spawnSync('node', [probe], { encoding: 'utf8', windowsHide: true });
     expect(r.status).not.toBe(0);
     expect(r.stdout + r.stderr).toMatch(/Refusing to extract unprotected/);
+  });
+});
+
+// [SPEC 121 / T024] FR-018 — consumers of the two leaked kits lose the copy on upgrade.
+describe('leaked worktree cleanup', () => {
+  const LEAK = '.claude/worktrees/agent-a9cfb3d5618e14d47';
+
+  it('removes the leaked agent folder and nothing else under .claude/worktrees', async () => {
+    const consumer = path.join(tmp, 'consumer');
+    buildConsumer(consumer);
+    write(path.join(consumer, LEAK, 'src/leak.ts'), 'leaked\n');
+    write(path.join(consumer, '.claude/worktrees/my-own-worktree/keep.ts'), 'mine\n');
+
+    const m = await loadKit(consumer);
+    const removed = m.cleanupStaleAfterExtract();
+
+    expect(removed).toContain(LEAK);
+    expect(fs.existsSync(path.join(consumer, LEAK))).toBe(false);
+    expect(fs.existsSync(path.join(consumer, '.claude/worktrees/my-own-worktree/keep.ts'))).toBe(true);
+  });
+
+  it('lists the folder in a dry run without removing it', async () => {
+    const consumer = path.join(tmp, 'consumer');
+    buildConsumer(consumer);
+    write(path.join(consumer, LEAK, 'src/leak.ts'), 'leaked\n');
+
+    const m = await loadKit(consumer);
+
+    expect(m.cleanupStaleAfterExtract({ dryRun: true })).toContain(LEAK);
+    expect(fs.existsSync(path.join(consumer, LEAK, 'src/leak.ts'))).toBe(true);
+  });
+
+  it('removes nothing when the folder is absent', async () => {
+    const consumer = path.join(tmp, 'consumer');
+    buildConsumer(consumer);
+
+    const m = await loadKit(consumer);
+
+    expect(m.cleanupStaleAfterExtract({ dryRun: true })).not.toContain(LEAK);
   });
 });
 

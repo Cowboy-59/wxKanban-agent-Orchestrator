@@ -213,6 +213,16 @@ const STALE_RENAMED = [
   'wxkanban-agent/templates/skills/wxConversionScopeFromPDF',
 ];
 
+// [SPEC 121 / T024] FR-018 — kits v1.7.101 and v1.7.102 shipped an author's agent
+// worktree by mistake: a full copy of another repository, about 4300 files. Removed
+// after extract like STALE_RENAMED, but kept OFF the pre-upgrade snapshot: the copy
+// was never the consumer's, so backing it up would only duplicate it into .wxai/.
+// Exactly this agent id, never `.claude/worktrees/` itself, which can hold the
+// consumer's own worktrees.
+const STALE_LEAKED_COPIES = [
+  '.claude/worktrees/agent-a9cfb3d5618e14d47',
+];
+
 // (2) Raw TypeScript source — only prune once the kit actually ships the
 // compiled bundle (dist/cli.cjs present after extract).
 const STALE_SOURCE_TREES = [
@@ -253,7 +263,7 @@ function cleanupStaleAfterExtract({ dryRun = false, willWrite = [] } = {}) {
   // [SPEC 121 / T008] Deletions are reported through the T007 change manifest
   // rather than announced here and forgotten. `dryRun` lists without removing.
   const removed = [];
-  for (const rel of [...renamed, ...sourceTrees]) {
+  for (const rel of [...renamed, ...STALE_LEAKED_COPIES, ...sourceTrees]) {
     const abs = path.join(root, rel);
     if (!existsAfter(rel)) continue;
     if (dryRun) {
