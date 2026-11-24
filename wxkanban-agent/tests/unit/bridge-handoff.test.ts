@@ -208,12 +208,13 @@ describe("bridge handoff turn", () => {
     expect(await guardDecision()).toBeUndefined();
   });
 
-  it("gives a [HANDOFF] typed by a person the same context-only turn", async () => {
+  // [SCOPE 159 / T014] A [HANDOFF] typed in the room is an ordinary instruction now (FR-065): no context-only turn, no guard.
+  it("treats a [HANDOFF] typed by a person as an ordinary instruction", async () => {
     await connectAgent();
     expect(await guardDecision()).toBeUndefined();
     room.handlers?.onMessage({ id: "m1", from: "andy", text: "[handoff]\nNext: rename the helper", ts: Date.now() });
-    expect(session.sent).toEqual([handoffPrompt("Next: rename the helper")]);
-    expect(await guardDecision()).toBe("deny");
+    expect(session.sent).toEqual(["[handoff]\nNext: rename the helper"]);
+    expect(await guardDecision()).toBeUndefined();
   });
 
   it("holds an operator message during the handoff turn, then runs it as a normal turn", async () => {

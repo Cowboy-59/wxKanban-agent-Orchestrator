@@ -1,0 +1,11 @@
+{
+  "name": "@wxkanban/common-room",
+  "version": "1.0.0",
+  "description": "Agent common room: the versioned message contract, its validator and the run log format. No database client, no bridge imports (SPEC-159 FR-091).",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "check": "node scripts/check-imports.mjs"
+  },
+  "dependencies": {}
+}

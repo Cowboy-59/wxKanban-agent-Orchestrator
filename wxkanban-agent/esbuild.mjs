@@ -63,10 +63,10 @@ await build({
   outExtension: { ".js": ".cjs" },
 });
 
-// [SCOPE 149 / T002] The HANDOFF REMOTE writer, loaded by bin/handoff-remote.mjs.
+// [SCOPE 159 / T014] The transfer-to-agent writer (was the HANDOFF REMOTE writer, SPEC-149 T002), loaded by bin/transfer-to-agent.mjs.
 await build({
   ...bridgeBuild,
-  entryPoints: { "handoff-remote": "apps/remote-bridge/src/handoff-main.ts" },
+  entryPoints: { "transfer-to-agent": "apps/remote-bridge/src/transfer-main.ts" },
   outdir: "dist",
   outExtension: { ".js": ".cjs" },
 });
@@ -80,4 +80,4 @@ await build({
   outExtension: { ".js": ".cjs" },
 });
 
-console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs + dist/remote-bridge.cjs + dist/handoff-remote.cjs + dist/redact.cjs");
+console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs + dist/remote-bridge.cjs + dist/transfer-to-agent.cjs + dist/redact.cjs");

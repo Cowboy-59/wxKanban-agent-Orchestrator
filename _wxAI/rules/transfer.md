@@ -1,10 +1,10 @@
-# Rule: "HANDOFF REMOTE" — hand the session's state to the Project Agent (SCOPE-149)
+# Rule: "transfer to agent" — hand the session's state to the Project Agent (SCOPE-159 T014; was HANDOFF REMOTE, SCOPE-149)
 
-**Trigger:** the operator says **"HANDOFF REMOTE"** (any casing) in conversation, or invokes
+**Trigger:** the operator says **"transfer to agent"** (any casing) in conversation, or invokes
 `/remote`. Both mean the same thing: hand where the work stands to this repo's Project Agent.
 
 This is a **recognized command, not a literal instruction to relay.** When you see
-"HANDOFF REMOTE", do **not** treat it as a task to work on — run the handoff below.
+"transfer to agent", do **not** treat it as a task to work on — run the handoff below.
 
 ## Purpose
 
@@ -36,13 +36,13 @@ from the phone.
 2. **Write the JSON to a temp file** (the OS temp folder or the session scratchpad, NOT inside
    the repo) and run the writer from the repo root:
 
-   `node wxkanban-agent/apps/remote-bridge/bin/handoff-remote.mjs --input <that temp file>`
+   `node wxkanban-agent/apps/remote-bridge/bin/transfer-to-agent.mjs --input <that temp file>`
 
-   Equivalent: `cd wxkanban-agent && npm run handoff -- --input <file>`.
+   Equivalent: `cd wxkanban-agent && npm run transfer -- --input <file>`.
 
 3. **Report the writer's ONE output line back to the operator verbatim.** It is either:
    - `Handoff written: .wxai/handoff/<timestamp>.md (N items masked). The Project Agent will post it to the room.`
-   - or `Handoff stopped: <cause>. Fix: <fix>` — the cause is one of: Allow remote is off, no
+   - or `Transfer stopped: <cause>. Fix: <fix>` — the cause is one of: Allow remote is off, no
      company YappChatt account, Project Agent not running, another session holds the tree, no
      kit token, settings unreachable.
 
@@ -78,3 +78,7 @@ The Project Agent still honors these control words (case-insensitive):
 
 Spec SCOPE-149 / SPEC-149 (`specs/149-handoff-remote/spec.md`). The Project Agent is
 SCOPE-134 / SCOPE-145.
+
+## Old name (one release, FR-067)
+
+If the operator says "HANDOFF REMOTE", reply first: **"HANDOFF REMOTE is now called transfer to agent."** Then run the transfer as above. The old phrase is removed after the next kit release.

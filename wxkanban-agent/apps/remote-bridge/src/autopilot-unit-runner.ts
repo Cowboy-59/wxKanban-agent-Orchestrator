@@ -3,6 +3,7 @@ import { join } from "path";
 import type { Options, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { loadAgentSdk, type QueryFn } from "./sdk-loader";
 import { buildChildEnv } from "./child-env"; // [SCOPE 102 / T014]
+import { makeWorkerPreToolUseHook, workerBlocks, workerEnv } from "./worker-guard"; // [SCOPE 159 / T007]
 import type { GateResolver, ParkedGate, PipelineUnit, RunUnitFn, UnitRunResult } from "./autopilot-pipeline";
 
 // [SCOPE 154 / T005b] BEGIN — the live session that actually runs validateScope→createSpecs→implement (FR-004)
@@ -228,7 +229,9 @@ export function createAutopilotUnitRunner(opts: AutopilotUnitRunnerOptions): Run
       },
       disallowedTools: ["Bash(git push:*)", "WebFetch", "WebSearch"],
       // [SCOPE 102 / T014] ANTHROPIC_API_KEY stripped from the child env (FR-013)
-      env: buildChildEnv({ WXAI_UNATTENDED: "1", WXAI_REMOTE: "1" }).env,
+      // MODIFIED-BY: [SCOPE 159 / T007] — the worker carries the process mark, a git shim first on PATH, no push credentials, and a PreToolUse hook that denies push, commit, ledger append and reassign (FR-021, FR-022)
+      env: workerEnv(buildChildEnv({ WXAI_UNATTENDED: "1", WXAI_REMOTE: "1" }).env, opts.repoRoot),
+      hooks: { PreToolUse: [{ hooks: [makeWorkerPreToolUseHook(`unit:${unit.num}`, workerBlocks) as never] }] },
       abortController: abort,
     };
 

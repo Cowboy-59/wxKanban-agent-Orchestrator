@@ -169,7 +169,7 @@ describe("agent-mode bridge — every decision is recorded (T019)", () => {
     void askGate("drizzle-kit push");
     await tick();
     const ask = room.posts.find((p) => p.startsWith("The project agent is asking to run a gated action."));
-    expect(ask).toMatch(/\(you or KAIN\)/);
+    expect(ask).toMatch(/\(a Room Approver, or KAIN relaying one\)/);
   });
 
   it("KAIN may grant (FR-033), and the record names KAIN as grantor", async () => {

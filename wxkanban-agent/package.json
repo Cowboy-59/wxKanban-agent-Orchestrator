@@ -7,6 +7,7 @@
     "core/",
     "apps/",
     "workers/",
+    "common-room/",
     "adapters/",
     "services/",
     "scripts/",
@@ -18,7 +19,8 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "node esbuild.mjs",
+    "build": "node common-room/scripts/check-imports.mjs && node esbuild.mjs",
+    "check:room-imports": "node common-room/scripts/check-imports.mjs",
     "test": "vitest run --config vitest.config.ts",
     "verify": "ts-node scripts/verify-install.ts",
     "gateway:cli": "ts-node apps/command-gateway/src/cli.ts",
@@ -26,7 +28,7 @@
     "dbpush": "ts-node dbpush.ts",
     "remote": "ts-node apps/remote-bridge/src/main.ts --project-agent",
     "project-agent": "ts-node apps/remote-bridge/src/main.ts --project-agent",
-    "handoff": "node apps/remote-bridge/bin/handoff-remote.mjs",
+    "transfer": "node apps/remote-bridge/bin/transfer-to-agent.mjs",
     "pack": "bash scripts/pack-kit.sh"
   },
   "dependencies": {

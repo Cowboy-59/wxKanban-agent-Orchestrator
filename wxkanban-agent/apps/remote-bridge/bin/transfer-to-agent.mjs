@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// [SCOPE 149 / T002] BEGIN — HANDOFF REMOTE writer launcher (FR-001)
+// [SCOPE 159 / T014] BEGIN — Transfer-to-agent writer launcher (FR-065; was HANDOFF REMOTE, mapping [SCOPE 149 / T002] -> [SCOPE 159 / T014])
 //
 // Writes one handoff file to .wxai/handoff/ for the running Project Agent to post:
 //
-//   node wxkanban-agent/apps/remote-bridge/bin/handoff-remote.mjs --input <fields.json>
+//   node wxkanban-agent/apps/remote-bridge/bin/transfer-to-agent.mjs --input <fields.json>
 //
 // Run from anywhere: the project root is the directory holding `wxkanban-agent/`. Loads the
 // compiled bundle in this process when present (shipped builds); otherwise runs the
@@ -18,8 +18,8 @@ import path from 'node:path';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const agentRoot = path.resolve(here, '..', '..', '..');
 const projectRoot = path.resolve(agentRoot, '..');
-const dist = path.join(agentRoot, 'dist', 'handoff-remote.cjs');
-const src = path.join(agentRoot, 'apps', 'remote-bridge', 'src', 'handoff-main.ts');
+const dist = path.join(agentRoot, 'dist', 'transfer-to-agent.cjs');
+const src = path.join(agentRoot, 'apps', 'remote-bridge', 'src', 'transfer-main.ts');
 
 process.env.WXKANBAN_REPO_ROOT = process.env.WXKANBAN_REPO_ROOT || projectRoot;
 
@@ -32,7 +32,7 @@ if (existsSync(dist)) {
   ].find((p) => existsSync(p));
   if (!tsx) {
     process.stdout.write(
-      'Handoff stopped: no compiled writer and no tsx found. Fix: run `npm install` in the project root (or wxkanban-agent/), then try again.\n',
+      'Transfer stopped: no compiled writer and no tsx found. Fix: run `npm install` in the project root (or wxkanban-agent/), then try again.\n',
     );
     process.exit(1);
   }
@@ -43,4 +43,4 @@ if (existsSync(dist)) {
   });
   process.exit(r.status ?? 1);
 }
-// [SCOPE 149 / T002] END
+// [SCOPE 159 / T014] END

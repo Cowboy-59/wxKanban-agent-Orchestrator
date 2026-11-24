@@ -75,8 +75,15 @@ import { defaultApproverLookup, handleHumanDecision, httpApproverLookup, type Ap
 import { HandoffWatcher } from "./handoff-watch"; // [SCOPE 149 / T006]
 import { HandoffQueue } from "./handoff-queue"; // [SCOPE 149 / T006]
 import { createHandoffLogger } from "./handoff-log"; // [SCOPE 149 / T006]
-import { HandoffTurnGuard, handoffPrompt, isHandoffText, stripHandoffTag } from "./handoff-turn"; // [SCOPE 149 / T007]
+import { HandoffTurnGuard, handoffPrompt } from "./handoff-turn"; // [SCOPE 149 / T007]
 import type { HookCallback } from "@anthropic-ai/claude-agent-sdk"; // [SCOPE 149 / T007]
+import { fromLocalRoom, labelFromAgent, listTakesMessage, oldInboundPathOn, type InboundMessage } from "./inbound"; // [SCOPE 159 / T004]
+import { LocalRoom } from "./local-room"; // [SCOPE 159 / T004]
+import { RunLog } from "./run-log"; // [SCOPE 159 / T016]
+import { buildPanel, writePanelSnapshot, type GateInput, type WorkerInput } from "./room-view"; // [SCOPE 159 / T018]
+import { NOT_RECORDED_NOTE, notRecordedRelay } from "./decision-reply"; // [SCOPE 159 / T005]
+import { GateRaisers, WorkerRegistry, type WorkerIdentity } from "./worker-identity"; // [SCOPE 159 / T006]
+import type { ContractResult, RoomMessage, SenderStamp } from "../../../common-room/src/index"; // [SCOPE 159 / T004]
 
 // [SCOPE 134 / T018] One yes/no parser, used by BOTH the operator-initiated push
 // confirmation and the agent-initiated gate. It was inline in resolvePendingPush; two
@@ -140,6 +147,8 @@ export interface RemoteBridgeOptions {
   approverLookup?: ApproverLookup;
   // [SCOPE 144 / T024] Where the Room Link alert and outage records go. Absent: stderr.
   roomLinkLogger?: Logger;
+  /** [SCOPE 159 / T004] One-release switch: keep the old inbound path (a waiting list takes any text). FR-017. */
+  oldInboundPath?: boolean;
 }
 
 export class RemoteBridge {
@@ -232,6 +241,9 @@ export class RemoteBridge {
   private handoffLogger?: ReturnType<typeof createHandoffLogger>;
   // [SCOPE 144 / T010] The Room Approver check for a person's DQ answer or KR review (FR-008).
   private readonly approverLookup: ApproverLookup;
+  // [SCOPE 159 / T004] The local worker room (lazy) and the one-release old-inbound switch (FR-017).
+  private localRoomInst?: LocalRoom;
+  private readonly oldInbound: boolean;
   // [SCOPE 144 / T024] The last Room Link status from the client, and whether this outage has
   // already raised its one alert (FR-017). A reconnect clears the flag.
   private roomLink?: RoomLinkInfo;
@@ -253,6 +265,7 @@ export class RemoteBridge {
       onTyping: () => undefined,
       onError: (e) => console.error(`[room] ${e}`),
     });
+    this.oldInbound = oldInboundPathOn(opts.oldInboundPath); // [SCOPE 159 / T004]
     const agent = opts.agent;
     const paCfg = opts.projectAgentConfig;
     // [SCOPE 144 / T010] Project-agent mode asks the app it is bound to; otherwise the kit's own.
@@ -436,7 +449,7 @@ export class RemoteBridge {
     if (this.pendingApproval?.asked) {
       asks.push(
         `${lead}${this.agentLabel()} is asking to run a gated action.\n\n  ${this.pendingApproval.request.detail}\n\n` +
-          `Reply CONFIRMED to allow, or NO to refuse${this.opts.supervisor ? ` (you or ${this.opts.supervisor}).` : "."}`,
+          `Reply CONFIRMED to allow, or NO to refuse${this.opts.supervisor ? ` (a Room Approver, or ${this.opts.supervisor} relaying one).` : "."}`, // [SCOPE 159 / T005]
       );
     }
     if (this.pendingAutopilotGate) {
@@ -643,6 +656,7 @@ export class RemoteBridge {
   // MODIFIED-BY: [SCOPE 144 / T026] — a replayed message goes to the session as discussion only and settles nothing (FR-020)
   // MODIFIED-BY: [SCOPE 144 / T030] — a failed decision outcome is logged through Pino, masked, never unhandled
   // MODIFIED-BY: [SCOPE 144 / T031] — a pending approval is settled only after its question is posted; before that the message is discussion and the room is told once (FR-021)
+  // MODIFIED-BY: [SCOPE 159 / T004] — onRoomMessage only normalizes; one handler (ingest) takes every source (FR-003)
   private onRoomMessage(m: YappchattMessage): void {
     let text = m.text.trim();
     if (!text) return;
@@ -663,6 +677,108 @@ export class RemoteBridge {
       if (!text) return;
       from = sup;
     }
+    // [SCOPE 159 / T004] Every source goes through the one handler below. A supervisor post is
+    // marked from-agent; a person's post carries the user id the room gave.
+    this.ingest({
+      source: "yappchatt",
+      text,
+      from,
+      fromAgent: m.isAgent,
+      roomAgent: m.isAgent,
+      authorId: m.isAgent ? undefined : m.authorId,
+      replayed: m.replayed,
+    });
+  }
+
+  /** The local worker room: a worker or the Manager posted a line into the journal (FR-002, FR-003). */
+  receiveLocal(raw: unknown, sender: SenderStamp): ContractResult<RoomMessage> {
+    const room = this.localRoom();
+    const posted = room.post(raw, sender);
+    if (posted.ok) this.ingest(fromLocalRoom(posted.value));
+    return posted;
+  }
+
+  // [SCOPE 159 / T006] BEGIN — Worker posts are stamped by the bridge, never by the worker (FR-019, FR-029)
+  // MODIFIED-BY: [SCOPE 159 / T018] — the registry also remembers who is registered, for the Agent Room panel
+  readonly workers = new (class extends WorkerRegistry {
+    readonly known = new Map<string, WorkerIdentity>();
+    override register(identity: WorkerIdentity): void {
+      super.register(identity);
+      this.known.set(identity.id, { ...identity });
+    }
+    override unregister(workerId: string): void {
+      super.unregister(workerId);
+      this.known.delete(workerId);
+    }
+  })();
+  readonly gateRaisers = new GateRaisers();
+
+  /** A worker's post: the bridge replaces any claimed sender with the worker's true identity. */
+  receiveFromWorker(workerId: string, raw: unknown): ContractResult<RoomMessage> | { ok: false; reason: "unknown_worker" | "not_an_object" } {
+    const stamped = this.workers.stamp(workerId, raw);
+    if (!stamped.ok) return stamped;
+    this.lastBeat.set(workerId, new Date()); // [SCOPE 159 / T018] a post is a heartbeat for the lane light
+    const r = this.receiveLocal(stamped.raw, stamped.sender);
+    this.publishPanel();
+    return r;
+  }
+  // [SCOPE 159 / T006] END
+
+  // [SCOPE 159 / T018] BEGIN — Agent Room panel snapshot, rewritten on change; a write error never stops the bridge (FR-083, FR-084)
+  private readonly lastBeat = new Map<string, Date>();
+  publishPanel(now: Date = new Date()): void {
+    try {
+      const workers: WorkerInput[] = [...this.workers.known.values()].map((w) => ({
+        id: w.id,
+        role: "worker",
+        persona: w.persona,
+        model: w.model,
+        taskId: w.unit,
+        state: "running",
+        lane: "local",
+        lastBeatAt: this.lastBeat.get(w.id) ?? now,
+      }));
+      const gates: GateInput[] = this.gateRaisers.waiting().map((g) => ({ gateId: g.gateId, raisedBy: g.raisedBy.id, raisedAt: new Date(g.raisedAt) }));
+      writePanelSnapshot(this.opts.cwd, buildPanel(this.opts.cwd, workers, gates, [], now));
+    } catch {
+      /* the panel is a view, not a gate */
+    }
+  }
+  // [SCOPE 159 / T018] END
+
+  private localRoom(): LocalRoom {
+    this.localRoomInst ??= new LocalRoom({
+      root: this.opts.cwd,
+      projectId: this.opts.agent?.projectId ?? "",
+    });
+    return this.localRoomInst;
+  }
+
+  // [SCOPE 159 / T004] The one inbound handler. Gates are decided in today's order; a waiting
+  // devplan list takes only go, no or skip unless the old-path switch is on (FR-003, FR-017).
+  private ingest(msg: InboundMessage): void {
+    const text = msg.text;
+    const from = msg.from;
+    // [SCOPE 159 / T016] Every inbound line is saved masked to the local run log. A write error never stops ingest (FR-073, FR-074).
+    try {
+      new RunLog({ root: this.opts.cwd }).writeFeed(`${from}: ${text}`);
+    } catch {
+      /* the log is a record, not a gate */
+    }
+    // [SCOPE 159 / T004] A local worker or agent line is information: it answers no gate and runs
+    // no control word. The session sees it labeled from-agent (FR-003, FR-020).
+    if (msg.source === "local" && msg.fromAgent) {
+      if (!this.session) return;
+      const labeled = labelFromAgent(msg);
+      if (this.handoffGuard?.active) {
+        this.heldDuringHandoff.push(labeled);
+        return;
+      }
+      this.turnActive = true;
+      this.session.send(labeled);
+      return;
+    }
+    const m = { replayed: msg.replayed, isAgent: msg.roomAgent === true, authorId: msg.authorId };
     if (this.consumeSelfEcho(text)) return;
     // [SCOPE 144 / T026] A replayed message is discussion only: it settles no gate, decision or
     // control word, and the gate it might have answered is re-asked on reconnect (FR-020).
@@ -694,26 +810,19 @@ export class RemoteBridge {
       this.session.send(labeled);
       return;
     }
+    // MODIFIED-BY: [SCOPE 159 / T005] — the three waiting gates (push, agent gate, Autopilot question) take an answer only from a Room Approver checked by user id, or from KAIN relaying one (FR-004)
     // While a push confirmation is pending, the next message IS the decision (lenient yes/no) — never
     // relay it to the AI session, which is hard-blocked from pushing and would report "blocked".
-    if (this.pendingPush && text.toUpperCase() !== "CANCEL REMOTE") {
-      this.resolvePendingPush(text);
-      return;
-    }
-    // [SCOPE 134 / T018] Same rule for an agent-initiated gate: while one is pending the
-    // next message IS the decision. Relaying it to the session instead would leave the
-    // gate waiting forever on an answer that went somewhere else.
-    // [SCOPE 144 / T031] Reached only once the question is posted (the guard above).
-    if (this.pendingApproval && text.toUpperCase() !== "CANCEL REMOTE") {
-      this.resolvePendingApproval(text, from);
-      return;
-    }
-    // [SCOPE 154 / T013] Same rule for a unit session's live gate question: the next message IS
-    // the owner's answer (or PARK) — relaying it to the session instead would leave the running
-    // unit's turn waiting forever on an answer that went somewhere else.
-    // MODIFIED-BY: [SCOPE 154 / T015] — control words (STATUS, PAUSE, ...) pass through; they are never an answer (FR-015)
-    if (this.pendingAutopilotGate && text.toUpperCase() !== "CANCEL REMOTE" && !isQuestionPassThrough(text)) {
-      this.resolvePendingAutopilotGate(text, from);
+    // [SCOPE 134 / T018] Same rule for an agent-initiated gate; [SCOPE 154 / T013] and for a unit
+    // session's live gate question (control words pass through, T015).
+    if (this.waitingGate(text) && text.toUpperCase() !== "CANCEL REMOTE") {
+      const apply = (who: { ok: true; name: string } | { ok: false }): void => {
+        if (who.ok) this.settleGate(text, who.name);
+        else this.refuseGateAnswer(text);
+      };
+      const checked = this.checkApprover(msg);
+      if (checked instanceof Promise) void checked.then(apply);
+      else apply(checked);
       return;
     }
     // [SCOPE 154 / T004] While a skip cascade's "keep <nums>" / "keep none" question is pending,
@@ -727,13 +836,24 @@ export class RemoteBridge {
     // that decision (FR-002) — the owner's "go" is the run's approval, nothing further is asked.
     // MODIFIED-BY: [SCOPE 154 / T004] — a "skip <num>" reply removes one listed scope and runs
     // its cascade instead of being parsed as a go/no-go answer.
-    if (this.autopilot?.isAwaitingGo && text.toUpperCase() !== "CANCEL REMOTE") {
-      const skipNum = this.trySkipCommand(text);
-      if (skipNum) {
-        void this.handleSkipCommand(skipNum);
-        return;
-      }
-      this.resolvePendingAutopilotGo(text);
+    // MODIFIED-BY: [SCOPE 159 / T004] — a waiting list takes only go, no or skip unless the old-path switch is on (FR-003, FR-017)
+    // MODIFIED-BY: [SCOPE 159 / T005] — the list's answer is checked by user id like every other gate (FR-004)
+    if (this.autopilot?.isAwaitingGo && listTakesMessage(text, this.oldInbound)) {
+      const answer = (who: { ok: true; name: string } | { ok: false }): void => {
+        if (!who.ok) {
+          this.refuseGateAnswer(text);
+          return;
+        }
+        const skipNum = this.trySkipCommand(text);
+        if (skipNum) {
+          void this.handleSkipCommand(skipNum);
+          return;
+        }
+        this.resolvePendingAutopilotGo(text);
+      };
+      const checked = this.checkApprover(msg);
+      if (checked instanceof Promise) void checked.then(answer);
+      else answer(checked);
       return;
     }
     // [SCOPE 142 / T025] A queue answer (DQ-nn) or a review verdict (KR-nnnn) is recorded here,
@@ -746,11 +866,7 @@ export class RemoteBridge {
       console.log("[bridge] message before session ready — ignored:", text.slice(0, 60));
       return;
     }
-    // [SCOPE 149 / T007] A [HANDOFF] typed by a person gets the same context-only turn.
-    if (this.handoffGuard && isHandoffText(text)) {
-      this.startHandoffTurn(stripHandoffTag(text));
-      return;
-    }
+    // [SCOPE 159 / T014] A [HANDOFF] typed by a person is no longer special: it is an ordinary instruction (FR-065).
     // [SCOPE 149 / T007] While a handoff turn runs, an instruction waits for it to end, so the
     // guard never applies to it and it never folds into the context-only turn.
     if (this.handoffGuard?.active) {
@@ -761,6 +877,49 @@ export class RemoteBridge {
     this.turnActive = true;
     this.session.send(text);
   }
+
+  // [SCOPE 159 / T005] BEGIN — Who may answer a waiting gate (FR-004)
+  /** True while a push, an agent gate or a live Autopilot question is waiting for this text. */
+  private waitingGate(text: string): boolean {
+    return !!this.pendingPush || !!this.pendingApproval || (!!this.pendingAutopilotGate && !isQuestionPassThrough(text));
+  }
+
+  /**
+   * An answer counts from a person checked by user id (active company ADMIN or Project
+   * TEAM_MANAGER, via the approver route), or from KAIN relaying one: KAIN's relay is recorded as
+   * KAIN's, as the contract says until the mailbox carries `answeredBy`. A person's post with no
+   * user id fails closed in project-agent mode.
+   */
+  private checkApprover(msg: InboundMessage): { ok: true; name: string } | { ok: false } | Promise<{ ok: true; name: string } | { ok: false }> {
+    if (msg.roomAgent) return { ok: true, name: msg.from };
+    // A post with no user id (a console or a room that gives none) keeps the old path, the same
+    // rule SPEC-144 T010 uses for DQ and KR (decision-reply). The room always gives an id for a person.
+    if (!msg.authorId) return { ok: true, name: msg.from };
+    return this.approverLookup(msg.authorId).then(
+      (who) => (who.approver && who.name ? { ok: true as const, name: who.name } : { ok: false as const }),
+      () => ({ ok: false as const }),
+    );
+  }
+
+  private settleGate(text: string, from: string): void {
+    if (this.pendingPush) this.resolvePendingPush(text);
+    else if (this.pendingApproval) this.resolvePendingApproval(text, from);
+    else if (this.pendingAutopilotGate) this.resolvePendingAutopilotGate(text, from);
+  }
+
+  /** A non-approver's text settles nothing: the room is told once, the gate keeps waiting, the session sees it as discussion. */
+  private refuseGateAnswer(text: string): void {
+    void this.post(NOT_RECORDED_NOTE);
+    if (!this.session) return;
+    const labeled = notRecordedRelay(text);
+    if (this.handoffGuard?.active) {
+      this.heldDuringHandoff.push(labeled);
+      return;
+    }
+    this.turnActive = true;
+    this.session.send(labeled);
+  }
+  // [SCOPE 159 / T005] END
 
   // A person's post (authorId set) is recorded only for a Room Approver; otherwise a room note,
   // and the text goes to the session as discussion.
@@ -1050,6 +1209,7 @@ export class RemoteBridge {
         // [SCOPE 144 / T031] Refused while the review ran (teardown, lost room): nothing to ask.
         if (this.pendingApproval !== entry) return;
         entry.asked = true; // [SCOPE 144 / T026]
+        this.gateRaisers.raise(`agent-gate:${request.detail}`, { kind: "agent", id: this.opts.agent?.name ?? "agent" }); // [SCOPE 159 / T006] FR-029
         void this.post(
           [
             `${this.agentLabel()} is asking to run a gated action.`,
@@ -1057,7 +1217,8 @@ export class RemoteBridge {
             `  ${request.detail}`,
             ``,
             `${reviewNote}Reply CONFIRMED to allow, or NO to refuse` +
-            (this.opts.supervisor ? ` (you or ${this.opts.supervisor}).` : `.`),
+            // [SCOPE 159 / T005] only a Room Approver answers; the supervisor may relay one (FR-004)
+            (this.opts.supervisor ? ` (a Room Approver, or ${this.opts.supervisor} relaying one).` : `.`),
           ].join("\n"),
         );
       })();

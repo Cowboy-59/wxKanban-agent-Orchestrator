@@ -350,6 +350,8 @@ function runCli(argv) {
   const err = (s) => process.stderr.write(`${s}\n`);
 
   if (cmd === 'append') {
+    // [SCOPE 159 / T007] A worker process (WXAI_WORKER=1) never appends: the ledger takes only an owner-approved append (FR-021).
+    if (process.env.WXAI_WORKER === '1') return err('ledger append refused: workers may not append to the decision ledger (SPEC-159 FR-021)'), 3;
     if (typeof args.file !== 'string') return err('usage: append --file <entry.json> --approved-by <who> [--root <dir>]'), 2;
     const who = typeof args['approved-by'] === 'string' ? args['approved-by'] : '';
     let entry;

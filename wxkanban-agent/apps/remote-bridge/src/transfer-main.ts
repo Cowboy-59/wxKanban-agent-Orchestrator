@@ -3,11 +3,11 @@ import { join } from "path";
 import { createHandoffLogger } from "./handoff-log";
 import { preflightEnv, readHandoffInput, runHandoff } from "./handoff-writer";
 
-// [SCOPE 149 / T002] BEGIN — HANDOFF REMOTE writer entry point (FR-001 – FR-005)
+// [SCOPE 159 / T014] BEGIN — Transfer-to-agent writer entry point (FR-065, FR-066; was HANDOFF REMOTE, SPEC-149 T002 — moved, mapping: [SCOPE 149 / T002] -> [SCOPE 159 / T014])
 //
-// Run by the /remote command (HANDOFF REMOTE) through bin/handoff-remote.mjs:
+// Run on "transfer to agent" through bin/transfer-to-agent.mjs:
 //
-//   node wxkanban-agent/apps/remote-bridge/bin/handoff-remote.mjs --input <fields.json>
+//   node wxkanban-agent/apps/remote-bridge/bin/transfer-to-agent.mjs --input <fields.json>
 //   ... or the same JSON on stdin.
 //
 // Prints exactly one line on stdout — the file and the masked count, or the blocked cause and
@@ -32,7 +32,7 @@ async function handoffMain(): Promise<number> {
   try {
     input = readHandoffInput(readInputText(process.argv.slice(2)));
   } catch (err) {
-    process.stdout.write(`Handoff stopped: the summary input could not be read (${(err as Error).message}). Fix: pass the fields as JSON with --input <file> or on stdin.\n`);
+    process.stdout.write(`Transfer stopped: the summary input could not be read (${(err as Error).message}). Fix: pass the fields as JSON with --input <file> or on stdin.\n`);
     return 2;
   }
   const result = await runHandoff(input, { repoRoot: REPO_ROOT, env: preflightEnv(REPO_ROOT, process.env), logger: createHandoffLogger() });
@@ -45,8 +45,8 @@ void handoffMain().then(
     process.exitCode = code;
   },
   (err: unknown) => {
-    process.stdout.write(`Handoff stopped: ${(err as Error).message}. Fix: try again; nothing was posted.\n`);
+    process.stdout.write(`Transfer stopped: ${(err as Error).message}. Fix: try again; nothing was posted.\n`);
     process.exitCode = 1;
   },
 );
-// [SCOPE 149 / T002] END
+// [SCOPE 159 / T014] END

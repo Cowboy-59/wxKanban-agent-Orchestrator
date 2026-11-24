@@ -1,5 +1,5 @@
 ---
-description: remote — hand where the work stands to this repo's Project Agent so you can carry on from your phone (HANDOFF REMOTE).
+description: remote — hand where the work stands to this repo's Project Agent so you can carry on from your phone (transfer to agent).
 args: "{{args}}"
 ai-compat: universal
 claude-code: true
@@ -9,7 +9,7 @@ blackboxai: true
 
 # remote — Handoff to the Project Agent (SCOPE-149)
 
-Saying `HANDOFF REMOTE` (or `/remote`) is a **command, not a task to relay.** It hands where
+Saying `transfer to agent` (or `/remote`) is a **command, not a task to relay.** It hands where
 the work stands to this repo's Project Agent, which is already connected to the project's room.
 The agent posts it as `[HANDOFF]` under its own tag, then posts one reading of where the work
 stands and one question for you. You carry on from your phone.
@@ -37,13 +37,13 @@ stands and one question for you. You carry on from your phone.
 2. **Write the JSON to a temp file** (the OS temp folder or the session scratchpad, NOT inside
    the repo) and run the writer from the repo root:
 
-   `node wxkanban-agent/apps/remote-bridge/bin/handoff-remote.mjs --input <that temp file>`
+   `node wxkanban-agent/apps/remote-bridge/bin/transfer-to-agent.mjs --input <that temp file>`
 
-   Equivalent: `cd wxkanban-agent && npm run handoff -- --input <file>`.
+   Equivalent: `cd wxkanban-agent && npm run transfer -- --input <file>`.
 
 3. **Report the writer's ONE output line back verbatim.** It is either:
    - `Handoff written: .wxai/handoff/<timestamp>.md (N items masked). The Project Agent will post it to the room.`
-   - or `Handoff stopped: <cause>. Fix: <fix>` — the cause is one of: Allow remote is off, no
+   - or `Transfer stopped: <cause>. Fix: <fix>` — the cause is one of: Allow remote is off, no
      company YappChatt account, Project Agent not running, another session holds the tree, no
      kit token, settings unreachable.
 
