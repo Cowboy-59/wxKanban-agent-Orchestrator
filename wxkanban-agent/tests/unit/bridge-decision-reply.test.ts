@@ -8,8 +8,13 @@ import { join } from "node:path";
 import {
   decisionReplyFor,
   handleDecisionReply,
+  handleHumanDecision,
+  httpApproverLookup,
   nodeRunner,
+  NOT_RECORDED_NOTE,
+  notRecordedRelay, // [SCOPE 144 / T030]
   parseDecisionReply,
+  type ApproverLookup,
   type Runner,
 } from "../../apps/remote-bridge/src/decision-reply";
 
@@ -119,3 +124,90 @@ describe("end to end through the real kit scripts", () => {
     expect(JSON.parse(outbox[0]).text).toMatch(/KR-0001 .* the owner changed it to: "No, seeded data only\."/);
   });
 });
+
+// [SCOPE 144 / T010] BEGIN — Room Approver tests: only an approver's reply is recorded, under their name (FR-008)
+const APPROVER_ID = "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+
+function lookupOf(map: Record<string, { name: string; role: string }>, seen: string[] = []): ApproverLookup {
+  return async (id) => {
+    seen.push(id);
+    const hit = map[id];
+    return hit ? { approver: true, name: hit.name, role: hit.role } : { approver: false, name: null, role: null };
+  };
+}
+
+describe("httpApproverLookup (SPEC-144 FR-008, contract C4)", () => {
+  it("asks the approver route with the kit token as Bearer and returns the name", async () => {
+    const calls: Array<{ url: string; auth: string }> = [];
+    const lookup = httpApproverLookup("https://app.example/", "kit-token-1", async (url, init) => {
+      calls.push({ url, auth: init.headers.authorization });
+      return { ok: true, json: async () => ({ approver: true, name: "Ann Admin", role: "ADMIN" }) };
+    });
+    expect(await lookup(APPROVER_ID)).toEqual({ approver: true, name: "Ann Admin", role: "ADMIN" });
+    expect(calls).toEqual([{ url: `https://app.example/api/project-agent/approver?yappchattUserId=${APPROVER_ID}`, auth: "Bearer kit-token-1" }]);
+  });
+
+  it("a refusal, a thrown fetch, or no token is never an approver", async () => {
+    const refused = httpApproverLookup("https://app.example", "t", async () => ({ ok: false, json: async () => ({ approver: true, name: "X" }) }));
+    expect((await refused(APPROVER_ID)).approver).toBe(false);
+    const thrown = httpApproverLookup("https://app.example", "t", async () => {
+      throw new Error("offline");
+    });
+    expect((await thrown(APPROVER_ID)).approver).toBe(false);
+    let fetched = 0;
+    const noToken = httpApproverLookup("https://app.example", null, async () => {
+      fetched++;
+      return { ok: true, json: async () => ({ approver: true, name: "X" }) };
+    });
+    expect((await noToken(APPROVER_ID)).approver).toBe(false);
+    expect(fetched).toBe(0);
+  });
+});
+
+describe("handleHumanDecision: a person's reply is recorded only for a Room Approver", () => {
+  const dq = { kind: "answer" as const, dq: "DQ-01", answer: "no" };
+
+  it("an approver's DQ answer runs route.mjs with --approved-by <name>", async () => {
+    const calls: Array<{ script: string; args: string[] }> = [];
+    const o = await handleHumanDecision(dq, "DQ-01: no", APPROVER_ID, lookupOf({ [APPROVER_ID]: { name: "Ann Admin", role: "ADMIN" } }), fakeRunner('{"ok":true,"ledgerId":"D-0009","releases":["S06"]}', calls));
+    expect(calls[0]).toEqual({ script: "route.mjs", args: ["answer", "--dq", "DQ-01", "--answer", "no", "--approved-by", "Ann Admin"] });
+    expect(o.roomText).toMatch(/Recorded your answer to DQ-01 as D-0009/);
+    expect(o.sessionText).toMatch(/Ann Admin \(a Room Approver\) answered DQ-01/);
+    expect(o.relayText).toBeUndefined();
+  });
+
+  it("an approver's KR review runs kain.mjs with --approved-by <name>", async () => {
+    const calls: Array<{ script: string; args: string[] }> = [];
+    await handleHumanDecision({ kind: "review", kr: "KR-0001", verdict: "change", ownerAnswer: "seeded only" }, "KR-0001 change: seeded only", APPROVER_ID, lookupOf({ [APPROVER_ID]: { name: "Tom Manager", role: "TEAM_MANAGER" } }), fakeRunner('{"ok":true,"verdict":"changed","recheck":[]}', calls));
+    expect(calls[0]).toEqual({ script: "kain.mjs", args: ["review", "KR-0001", "change", "seeded only", "--approved-by", "Tom Manager"] });
+  });
+
+  it("a non-approver: nothing runs, the room note, and the text goes on as discussion", async () => {
+    const calls: Array<{ script: string; args: string[] }> = [];
+    const o = await handleHumanDecision(dq, "DQ-01: no", "0190a1b2-0000-7000-8000-000000000000", lookupOf({}), fakeRunner("{}", calls));
+    expect(calls).toHaveLength(0);
+    // [SCOPE 144 / T030] the relayed text is labeled not recorded, so the session never takes it as an answer
+    expect(o).toEqual({ roomText: NOT_RECORDED_NOTE, relayText: notRecordedRelay("DQ-01: no") });
+    expect(o.relayText).toBe(`[${NOT_RECORDED_NOTE} This room post is discussion only, not an answer.]\nDQ-01: no`);
+    // [SCOPE 144 / T030] consultant managers an engagement allows are approvers too (FR-012)
+    expect(NOT_RECORDED_NOTE).toBe(
+      "Not recorded: only an ADMIN, this project's TEAM_MANAGER, or a consultant manager the engagement allows can decide.",
+    );
+  });
+
+  it("no author id is never asked about and never recorded", async () => {
+    const seen: string[] = [];
+    const calls: Array<{ script: string; args: string[] }> = [];
+    const o = await handleHumanDecision(dq, "DQ-01: no", "", lookupOf({ "": { name: "X", role: "ADMIN" } }, seen), fakeRunner("{}", calls));
+    expect(seen).toHaveLength(0);
+    expect(calls).toHaveLength(0);
+    expect(o.roomText).toBe(NOT_RECORDED_NOTE);
+  });
+
+  it("end to end: the ledger entry's approved_by is the approver's name", async () => {
+    const o = await handleHumanDecision(dq, "DQ-01: no", APPROVER_ID, lookupOf({ [APPROVER_ID]: { name: "Ann Admin", role: "ADMIN" } }), nodeRunner(root));
+    expect(o.roomText).toMatch(/Recorded your answer to DQ-01/);
+    expect(readFileSync(join(root, "decisions", "ledger.yaml"), "utf8")).toMatch(/approved_by: "Ann Admin"/);
+  });
+});
+// [SCOPE 144 / T010] END

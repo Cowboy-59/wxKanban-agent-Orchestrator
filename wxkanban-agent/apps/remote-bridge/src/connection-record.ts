@@ -1,4 +1,5 @@
 // [SCOPE 151 / T004] BEGIN — the project agent's connection record (SCOPE-132 Amendment D, FR-059 – FR-061)
+// MODIFIED-BY: [SCOPE 144 / T025] — every heartbeat tick also carries the Room Link state (roomLink, roomLinkSince, roomLinkFailures, roomLinkReason; FR-016)
 //
 // KAIN learns which project agents are connected from one server-side record per connection, not
 // from any project folder: the agent opens it after binding its room, refreshes it every heartbeat
@@ -19,6 +20,19 @@ export interface HeartbeatPayload {
   lastEntry?: string;
   blockers?: string[];
   waitingQuestion?: string;
+  // [SCOPE 144 / T025] FR-016: the Room Link, beside (never instead of) idle/working/waiting.
+  roomLink?: RoomLinkFields["roomLink"];
+  roomLinkSince?: string;
+  roomLinkFailures?: number;
+  roomLinkReason?: string;
+}
+
+/** [SCOPE 144 / T025] The Room Link fields one heartbeat carries; the reason is already masked. */
+export interface RoomLinkFields {
+  roomLink: "connected" | "reconnecting" | "error";
+  roomLinkSince: string;
+  roomLinkFailures: number;
+  roomLinkReason?: string;
 }
 
 /** FR-059: the fixed refusal code when another machine holds the project's open record. */
@@ -125,15 +139,25 @@ export class ConnectionRecord {
 
   // MODIFIED-BY: [SCOPE 155 / T004] — the state producer may now do async work (SessionSummaryTracker.refresh()) before a tick sends
   /** FR-060: refresh the record with the agent's state on a timer that never keeps the process alive. */
-  startHeartbeat(buildPayload: () => ConnectionState | HeartbeatPayload | Promise<ConnectionState | HeartbeatPayload>): void {
+  // [SCOPE 144 / T025] roomLink, when given, is read on every tick and merged into the body, even
+  // when sharing is off: the Room Link is connection health, not session content.
+  startHeartbeat(
+    buildPayload: () => ConnectionState | HeartbeatPayload | Promise<ConnectionState | HeartbeatPayload>,
+    roomLink?: () => RoomLinkFields | undefined,
+  ): void {
     if (!this.connectionId || this.timer) return;
-    this.timer = setInterval(() => void this.tick(buildPayload), this.heartbeatSeconds * 1000);
+    this.timer = setInterval(() => void this.tick(buildPayload, roomLink), this.heartbeatSeconds * 1000);
     this.timer.unref?.();
   }
 
-  private async tick(buildPayload: () => ConnectionState | HeartbeatPayload | Promise<ConnectionState | HeartbeatPayload>): Promise<void> {
+  private async tick(
+    buildPayload: () => ConnectionState | HeartbeatPayload | Promise<ConnectionState | HeartbeatPayload>,
+    roomLink?: () => RoomLinkFields | undefined,
+  ): Promise<void> {
     const built = await buildPayload();
-    await this.beat(typeof built === "string" ? { state: built } : built);
+    const payload: HeartbeatPayload = typeof built === "string" ? { state: built } : built;
+    const link = roomLink?.();
+    await this.beat(link ? { ...payload, ...link } : payload);
   }
 
   /** One heartbeat. Exposed for tests; a failure changes nothing and the next tick tries again. */

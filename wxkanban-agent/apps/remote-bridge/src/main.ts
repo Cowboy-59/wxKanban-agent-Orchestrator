@@ -4,6 +4,7 @@ import { hostname } from "os"; // [SCOPE 151 / T004]
 import { basename, join } from "path";
 import { RemoteBridge } from "./bridge";
 import { clearRefusal, recordRefusal } from "./agent-status"; // [SCOPE 149 / T010]
+import { clearRoomLink } from "./agent-status"; // [SCOPE 144 / T030]
 import type { YappchattConnection } from "../../../core/yappchatt"; // [SCOPE 150 / T003]
 import { noticeRetiredRoomKeys } from "../../../core/bootstrap/retired-room-keys"; // [SCOPE 150 / T006]
 import {
@@ -28,6 +29,7 @@ import { SessionSummaryTracker } from "./session-summary"; // [SCOPE 155 / T004]
 // MODIFIED-BY: [SCOPE 150 / T006] — one-time notice for retired room keys in .env (FR-014)
 // MODIFIED-BY: [SCOPE 151 / T004] — opens, heartbeats and closes the connection record KAIN reads; another live machine refuses the start (FR-059 – FR-061)
 // MODIFIED-BY: [SCOPE 154 / T015] — a crash is logged to .wxai/project-agent-crash.log and posted to the room; startup names the billing path
+// MODIFIED-BY: [SCOPE 144 / T025] — the connection heartbeat also carries the bridge's Room Link state (FR-016)
 // The bridge runs only as the project's Project Agent: started by the Cockpit
 // (bin/project-agent.mjs) or `npm run remote`, both with --project-agent. The room, its token
 // and the read identity are fetched with the project's kit token and handed to the bridge in
@@ -99,6 +101,7 @@ async function main(): Promise<void> {
   // MODIFIED-BY: [SCOPE 149 / T010] — records the start refusal in .wxai/project-agent-status.json and clears it on bind (FR-002)
   // MODIFIED-BY: [SCOPE 150 / T002, T003] — the only mode; the connection goes to the bridge in memory, not process.env (FR-010, FR-011)
   // MODIFIED-BY: [SCOPE 151 / T004] — opens the connection record after the room binds; agent_already_connected refuses the start (FR-059)
+  // MODIFIED-BY: [SCOPE 144 / T030] — once the lock is held, the last run's Room Link fields are dropped from the status file (AB-1)
   // The kit's per-project agent. Everything an operator used to paste by hand is fetched
   // with the project's own kit token instead: the room (derived server-side), a room token
   // minted once and kept locally, the read identity, and a bound MCP token for filing
@@ -130,6 +133,9 @@ async function main(): Promise<void> {
     recordRefusal(REPO_ROOT, WORKTREE_LOCKED);
     process.exit(3);
   }
+  // [SCOPE 144 / T030] This run owns the tree now: a stale error must not show the Cockpit banner
+  // before this run's first Room Link status. A refusal record is kept until the bind clears it.
+  clearRoomLink(REPO_ROOT);
   try {
     const conn = await connectProjectAgent(paCfg, REPO_ROOT);
     const tag = process.env.YAPPCHATT_DISPLAY_NAME || conn.projectName;
@@ -203,7 +209,7 @@ async function main(): Promise<void> {
       blockers: s.blockers,
       waitingQuestion: state === "waiting" ? bridge.waitingQuestion() ?? undefined : undefined,
     };
-  }); // [SCOPE 151 / T004] FR-060
+  }, () => bridge.roomLinkState()); // [SCOPE 151 / T004] FR-060 [SCOPE 144 / T025] FR-016
 
   // [SCOPE 154 / T015] A crash used to end the agent without a word anywhere: the room just went
   // quiet. Now the stack goes to .wxai/project-agent-crash.log and one masked line to the room.

@@ -4,6 +4,7 @@ import { dirname, join } from "path";
 import { resolveApiToken } from "../../../core/http/mcp-client";
 
 // [SCOPE 134 / T030] BEGIN — project-agent mode (SCOPE-132 Amendment A, FR-030/031)
+// MODIFIED-BY: [SCOPE 144 / T011] — --create-company-account flag; postRoom createCompanyAccount; connectProjectAgent asks on 409 no_company_account (FR-006)
 //
 // The kit provides one agent per project. It runs on this bridge in the project's own
 // working tree, manages the project, and is supervised by KAIN through the project's
@@ -22,6 +23,8 @@ export interface ProjectAgentConfig {
   supervisor: string;
   appBaseUrl: string;
   mcpUrl: string;
+  /** The operator answered yes in advance (`--create-company-account`, SCOPE-144 FR-006). */
+  createCompanyAccount?: boolean;
 }
 
 export function readProjectAgentConfig(
@@ -45,6 +48,7 @@ export function readProjectAgentConfig(
     supervisor,
     appBaseUrl: (env.WXKANBAN_APP_BASE_URL || "https://wxkanban.wxperts.com").replace(/\/$/, ""),
     mcpUrl: (env.WXKANBAN_MCP_URL || "https://mcp.wxperts.com").replace(/\/$/, ""),
+    createCompanyAccount: argv.includes("--create-company-account"),
   };
 }
 
@@ -92,13 +96,51 @@ function writeRoomState(path: string, state: RoomState): void {
   writeFileSync(path, JSON.stringify(state, null, 2), { encoding: "utf-8", mode: 0o600 });
 }
 
-async function postRoom(cfg: ProjectAgentConfig, mintAgentToken: boolean): Promise<RoomResponse> {
+// [SCOPE 144 / T011] BEGIN — the server says the company has no YappChatt account yet (FR-006)
+/** Thrown on 409 no_company_account. `message` is the question put to the operator. */
+export class CompanyAccountNeededError extends Error {
+  readonly code = "no_company_account";
+  readonly contactEmail: string | null;
+
+  constructor(contactEmail: string | null, message?: string) {
+    super(
+      message ??
+        (contactEmail
+          ? `Create the company YappChatt account now, using ${contactEmail}?`
+          : "Create the company YappChatt account now?"),
+    );
+    this.name = "CompanyAccountNeededError";
+    this.contactEmail = contactEmail;
+  }
+}
+// [SCOPE 144 / T011] END
+
+async function postRoom(
+  cfg: ProjectAgentConfig,
+  mintAgentToken: boolean,
+  createCompanyAccount = false,
+): Promise<RoomResponse> {
   const res = await fetch(`${cfg.appBaseUrl}/api/project-agent/room`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${cfg.projectToken}` },
-    body: JSON.stringify({ supervisor: cfg.supervisor, ...(mintAgentToken ? { mintAgentToken: true } : {}) }),
+    body: JSON.stringify({
+      supervisor: cfg.supervisor,
+      ...(mintAgentToken ? { mintAgentToken: true } : {}),
+      ...(createCompanyAccount ? { createCompanyAccount: true } : {}),
+    }),
   });
   const text = await res.text();
+  if (res.status === 409) {
+    try {
+      const body = JSON.parse(text) as { error?: unknown; contactEmail?: unknown };
+      if (body.error === "no_company_account") {
+        throw new CompanyAccountNeededError(typeof body.contactEmail === "string" && body.contactEmail ? body.contactEmail : null);
+      }
+    } catch (err) {
+      if (err instanceof CompanyAccountNeededError) throw err;
+      /* not JSON: fall through to the plain refusal */
+    }
+  }
   if (!res.ok) {
     // Surfaced plainly and not retried (FR-016): an invalid token or not_a_member is not
     // something a retry can fix.
@@ -107,16 +149,53 @@ async function postRoom(cfg: ProjectAgentConfig, mintAgentToken: boolean): Promi
   return JSON.parse(text) as RoomResponse;
 }
 
+// [SCOPE 144 / T011] BEGIN — default y/N prompt for the company-account question (FR-006)
+/** Ask a yes/no question on the terminal. Only used when stdin is a TTY; default is no. */
+export async function askYesNoOnTty(question: string): Promise<boolean> {
+  const { createInterface } = await import("node:readline");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await new Promise<string>((resolve) => rl.question(`${question} [y/N] `, resolve));
+    return /^\s*y(es)?\s*$/i.test(answer);
+  } finally {
+    rl.close();
+  }
+}
+// [SCOPE 144 / T011] END
+
 /**
  * Bind the project agent's room. Mints a yca_ token only when this machine holds none
  * for the room — so connect count never grows the token count (SC-5).
+ * On 409 no_company_account it asks the operator and retries once with createCompanyAccount (FR-006).
  */
-export async function connectProjectAgent(cfg: ProjectAgentConfig, repoRoot: string): Promise<ProjectAgentConnection> {
+export async function connectProjectAgent(
+  cfg: ProjectAgentConfig,
+  repoRoot: string,
+  opts: { ask?: (question: string) => Promise<boolean>; isTTY?: boolean } = {},
+): Promise<ProjectAgentConnection> {
   const statePath = roomStatePath(repoRoot);
   const state = readRoomState(statePath);
   const key = `project-agent:${cfg.supervisor}`;
 
-  let r = await postRoom(cfg, false);
+  let create = cfg.createCompanyAccount === true;
+  let r: RoomResponse;
+  try {
+    r = await postRoom(cfg, false, create);
+  } catch (err) {
+    if (!(err instanceof CompanyAccountNeededError)) throw err;
+    const ask = opts.ask ?? ((opts.isTTY ?? process.stdin.isTTY) ? askYesNoOnTty : undefined);
+    if (!ask) {
+      throw new CompanyAccountNeededError(
+        err.contactEmail,
+        `${err.message} Re-run with --create-company-account to create it.`,
+      );
+    }
+    if (!(await ask(err.message))) {
+      throw new CompanyAccountNeededError(err.contactEmail, `${err.message} Not created.`);
+    }
+    create = true;
+    r = await postRoom(cfg, false, true);
+  }
   let token = r.room.agentToken;
   if (!token) {
     const held = state[key];
@@ -124,7 +203,7 @@ export async function connectProjectAgent(cfg: ProjectAgentConfig, repoRoot: str
       token = held.token;
     } else {
       // Bound room, but no copy here (new machine, wiped state). One deliberate mint.
-      r = await postRoom(cfg, true);
+      r = await postRoom(cfg, true, create);
       token = r.room.agentToken;
     }
   }
@@ -332,6 +411,7 @@ export async function recordOverride(
 // [SCOPE 134 / T019] END
 
 // [SCOPE 145 / T006] BEGIN — fixed lines the Cockpit reads (SPEC-145 FR-005)
+// MODIFIED-BY: [SCOPE 144 / T011] — refusalCode maps CompanyAccountNeededError to its code
 /** Printed once the "connected" post has landed in the room. Never carries a token. */
 export function readyLine(projectName: string): string {
   return `[bridge] ready project=${projectName}`;
@@ -351,6 +431,7 @@ export const WORKTREE_LOCKED = "worktree_locked";
  * none, and `unreachable` when no answer came back at all.
  */
 export function refusalCode(err: unknown): string {
+  if (err instanceof CompanyAccountNeededError) return err.code;
   const message = err instanceof Error ? err.message : String(err);
   const refused = /^project agent room refused \((\d{3})\): ([\s\S]*)$/.exec(message);
   if (!refused) return "unreachable";

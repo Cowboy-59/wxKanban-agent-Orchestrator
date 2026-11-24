@@ -12,6 +12,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeF
 import { dirname, join } from 'node:path';
 
 // [SCOPE 137 / T014] BEGIN — Agreement records: building one from a report (FR-013)
+// MODIFIED-BY: [SCOPE 136 / T053] — crossing metadata carries the marker's `by` and `bypass: true` for the impact bypass (SPEC-136 FR-045)
 export const QUEUE_FILE = join('.wxai', 'impact-queue.jsonl');
 
 const TYPE_FOR_KIND = {
@@ -39,7 +40,7 @@ const pad = (s) => String(s).replace(/^SCOPE-/i, '').padStart(3, '0');
  * event type, so a hand edit's self-agreement can only ever be stored as an
  * acknowledgment, never as an approval.
  */
-export function buildAgreementEvent({ projectId, actor, kind, answer, attended, entryPoint, report, hash, commit, specId }) {
+export function buildAgreementEvent({ projectId, actor, kind, answer, attended, entryPoint, report, hash, commit, specId, by, bypass }) {
   const type = TYPE_FOR_KIND[kind];
   if (!type) throw new Error(`unknown agreement kind: ${kind}`);
   const c = report.classification;
@@ -59,6 +60,8 @@ export function buildAgreementEvent({ projectId, actor, kind, answer, attended, 
     impact: { affected: report.summary.affected ?? reached.length, reasons: reasons.slice(0, 100), files: reached.slice(0, 500), ...(report.broad ? { broad: true } : {}) },
     scopes: scopes.slice(0, 100),
     entryPoint,
+    ...(by ? { by: String(by).slice(0, 200) } : {}),
+    ...(bypass ? { bypass: true } : {}),
     occurredAt: new Date().toISOString(),
   };
   const verb = { acknowledgment: 'acknowledged', approval: answer === 'approve' ? 'approved' : 'declined', crossing: 'crossed' }[kind];

@@ -30,7 +30,7 @@ import { buildReport, renderSummary, toImpactGraph } from './change-impact.mjs';
 import { dataLossChanges, dataLossIn, decide } from './lib/classify.mjs';
 import { fromMsysPath, readBashCommand } from './lib/shell.mjs';
 import { buildAgreementEvent, changeHash, mcpCall, mcpConnection, mcpSender, projectIdFor, recordAgreement } from './lib/agreement.mjs';
-import { consumeApproval, savePending } from './lib/approvals.mjs';
+import { consumeApproval, readPending, savePending } from './lib/approvals.mjs';
 import { logCrossingLine, unattendedState } from './lib/unattended.mjs';
 import { refreshOwnerImpactMode } from './lib/owner-mode.mjs';
 import { drainChatRelay, queueChatRelay, renderChatRelay } from './lib/chat-relay.mjs';
@@ -157,8 +157,12 @@ export function denyReason({ report, hash, dataLoss, file, state = null }) {
   }
   if (dataLoss.length && state?.remote) {
     lines.push('', 'Unattended under the Remote Session Bridge: ask this question in the room so it reaches the developer\'s phone, and wait for their answer. Do not continue past it.');
+  } else if (dataLoss.length && state?.unattended && state.attended) {
+    lines.push('', `Impact bypass (${state.by}): the developer is present. Show them this stop in chat and ask; data loss is never bypassed.`);
   } else if (dataLoss.length && state?.unattended) {
     lines.push('', `Unattended run (${state.by}): nobody can approve this now. Stop the run here, save your state, and say at the next checkpoint that this change is waiting for the developer.`);
+  } else if (state?.unattended && state.pendingBefore) {
+    lines.push('', `This exact change was already stopped for the developer's answer before the ${state.attended ? 'impact bypass' : 'unattended run'} began (${state.by}); a marker started afterwards does not let it through. Ask the developer.`);
   }
   lines.push('', approveHow(hash, dataLoss.length > 0));
   return lines.join('\n');
@@ -182,6 +186,7 @@ const inform = (text) => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', a
 // MODIFIED-BY: [SCOPE 137 / T018] — Bash commands go to decideBashCall (Amendment A, FR-008a)
 // MODIFIED-BY: [SCOPE 137 / T019] — refreshes the owner-set impactMode before the report (FR-007a)
 // MODIFIED-BY: [SCOPE 137 / T022] — logCrossing also queues the crossing for the chat relay (Amendment C, FR-010a)
+// MODIFIED-BY: [SCOPE 136 / T053] — attended marker wording; a change already pending a deny is not let through by a later marker; the agreement event names the bypass (SPEC-136 FR-045)
 /**
  * Decide one PreToolUse call. Returns the JSON to print, or null for "no opinion".
  * `deps` lets tests replace the network calls.
@@ -231,9 +236,12 @@ export async function decideToolCall(input, { root, deps = {} } = {}) {
 
   // 4. Ask (an Impact Boundary, or impactMode always).
   if (approval()) return null;
+  if (state.unattended && readPending(root, hash)) {
+    return deny(denyReason({ report, hash, dataLoss: [], file, state: { ...state, pendingBefore: true } }));
+  }
   if (state.unattended) {
     await logCrossing(root, report, hash, deps, state);
-    return inform(`Change Impact: unattended run — this edit to ${file} crossed an Impact Boundary and was logged; it will be listed at the next checkpoint.\n${c.reasons.map((r) => `  - ${r.detail}`).join('\n')}`);
+    return inform(`Change Impact: ${crossingLead(state)} — this edit to ${file} crossed an Impact Boundary and was logged; it will be listed at the next checkpoint.\n${c.reasons.map((r) => `  - ${r.detail}`).join('\n')}`);
   }
   savePending(root, { hash, files: [file], report, reason: 'boundary' });
   return deny(denyReason({ report, hash, dataLoss: [], file }));
@@ -242,6 +250,7 @@ export async function decideToolCall(input, { root, deps = {} } = {}) {
 // [SCOPE 137 / T018] BEGIN — Bash commands judged like edits (Amendment A, FR-008a)
 // MODIFIED-BY: [SCOPE 137 / T020] — a Git Bash path such as /e/project/file is judged, not skipped as outside the project
 // MODIFIED-BY: [SCOPE 137 / T019] — refreshes the owner-set impactMode before the report (FR-007a)
+// MODIFIED-BY: [SCOPE 136 / T053] — attended marker wording; a command already pending a deny is not let through by a later marker (SPEC-136 FR-045)
 /**
  * A Bash command that writes or deletes project files is judged like an edit of those files; SQL
  * it sends through a database client is checked for possible data loss. A command that touches
@@ -303,9 +312,12 @@ export async function decideBashCall(input, { root, deps = {} } = {}) {
   if (c.decision === 'none') return null;
   if (c.decision === 'notify') return inform(notifyContext(report, label));
   if (approval()) return null;
+  if (state.unattended && readPending(root, hash)) {
+    return deny(denyReason({ report, hash, dataLoss: [], file: label, state: { ...state, pendingBefore: true } }));
+  }
   if (state.unattended) {
     await logCrossing(root, report, hash, deps, state);
-    return inform(`Change Impact: unattended run — this Bash command changing ${files.join(', ')} crossed an Impact Boundary and was logged; it will be listed at the next checkpoint.\n${c.reasons.map((r) => `  - ${r.detail}`).join('\n')}`);
+    return inform(`Change Impact: ${crossingLead(state)} — this Bash command changing ${files.join(', ')} crossed an Impact Boundary and was logged; it will be listed at the next checkpoint.\n${c.reasons.map((r) => `  - ${r.detail}`).join('\n')}`);
   }
   savePending(root, { hash, files: key, report, reason: 'boundary' });
   return deny(denyReason({ report, hash, dataLoss: [], file: label }));
@@ -348,8 +360,13 @@ async function addSignoffs(root, report, deps) {
   }
 }
 
+/** How a logged crossing is introduced: an unattended run, or the impact bypass with the developer present. */
+function crossingLead(state) {
+  return state.attended ? `impact bypass (${state.by}), developer present` : 'unattended run';
+}
+
 async function logCrossing(root, report, hash, deps, state) {
-  logCrossingLine(root, { kind: 'crossing', files: report.changedFiles, hash, reasons: report.classification.reasons.map((r) => r.detail), affected: report.summary.affected, by: state.by });
+  logCrossingLine(root, { kind: 'crossing', files: report.changedFiles, hash, reasons: report.classification.reasons.map((r) => r.detail), affected: report.summary.affected, by: state.by, ...(state.attended ? { bypass: true } : {}) });
   // [SCOPE 137 / T022] Amendment C (FR-010a): the same crossing also reaches chat, informational
   // only — it is queued here and drained by the NEXT hook call, never waited on (FR-009's "0 waits").
   queueChatRelay(root, { source: 'unattended', files: report.changedFiles, hash, report });
@@ -358,6 +375,7 @@ async function logCrossing(root, report, hash, deps, state) {
   const event = buildAgreementEvent({
     projectId, actor: process.env.WXAI_AGENT_NAME ?? 'unattended-agent', kind: 'crossing', answer: 'continued',
     attended: false, entryPoint: state.remote ? 'remote' : 'unattended', report, hash,
+    by: state.by, bypass: state.attended === true,
   });
   await recordAgreement(root, event, deps.send ?? mcpSender(mcpConnection(root)));
 }

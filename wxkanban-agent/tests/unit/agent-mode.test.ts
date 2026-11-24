@@ -14,10 +14,12 @@ import { join } from "path";
 import {
   acquireWorktreeLock,
   assertDistinctTag,
+  CompanyAccountNeededError,
   connectProjectAgent,
   lockPath,
   readProjectAgentConfig,
   recordOverride,
+  refusalCode,
   roomStatePath,
   type ProjectAgentConfig,
 } from "../../apps/remote-bridge/src/agent-mode";
@@ -139,6 +141,82 @@ describe("connectProjectAgent — mint once (SC-5), nothing hand-wired (SC-1)", 
   });
 });
 // [SCOPE 134 / T030] END
+
+// [SCOPE 144 / T011] BEGIN — company account question (FR-006)
+describe("connectProjectAgent — no company account (SCOPE-144 FR-006)", () => {
+  const QUESTION = "Create the company YappChatt account now, using ops@acme.test?";
+  const noAccount = () =>
+    new Response(JSON.stringify({ error: "no_company_account", contactEmail: "ops@acme.test" }), { status: 409 });
+
+  function stubSequence(responses: Array<() => Response>) {
+    const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+    const fn = vi.fn(async (url: string, init: { body: string }) => {
+      calls.push({ url, body: JSON.parse(init.body) as Record<string, unknown> });
+      const next = responses.shift();
+      if (!next) throw new Error("unexpected extra fetch");
+      return next();
+    });
+    vi.stubGlobal("fetch", fn);
+    return calls;
+  }
+  const ok = () => new Response(JSON.stringify(roomReply({ minted: true, agentToken: "yca_new" })), { status: 200 });
+
+  it("yes: retries once with createCompanyAccount: true and connects", async () => {
+    const calls = stubSequence([noAccount, ok]);
+    const ask = vi.fn(async () => true);
+    const conn = await connectProjectAgent(cfg, root, { ask });
+
+    expect(ask).toHaveBeenCalledWith(QUESTION);
+    expect(calls).toHaveLength(2);
+    expect(calls[0].body.createCompanyAccount).toBeUndefined();
+    expect(calls[1].body.createCompanyAccount).toBe(true);
+    expect(conn.yappchattToken).toBe("yca_new");
+  });
+
+  it("no: stops with the question, creates nothing, one fetch only", async () => {
+    const calls = stubSequence([noAccount]);
+    const err = await connectProjectAgent(cfg, root, { ask: async () => false }).catch((e: unknown) => e);
+
+    expect((err as Error).message).toBe(`${QUESTION} Not created.`);
+    expect(refusalCode(err)).toBe("no_company_account");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://app.test/api/project-agent/room");
+  });
+
+  it("non-TTY with no ask: throws the re-run hint, one fetch only", async () => {
+    const calls = stubSequence([noAccount]);
+    await expect(connectProjectAgent(cfg, root, { isTTY: false })).rejects.toThrow(
+      `${QUESTION} Re-run with --create-company-account to create it.`,
+    );
+    expect(calls).toHaveLength(1);
+  });
+
+  it("--create-company-account: the first call already carries createCompanyAccount: true", async () => {
+    const c = readProjectAgentConfig(["--project-agent", "--create-company-account"], { WXKANBAN_API_TOKEN: "t" }, root);
+    expect(c?.createCompanyAccount).toBe(true);
+    expect(readProjectAgentConfig(["--project-agent"], { WXKANBAN_API_TOKEN: "t" }, root)?.createCompanyAccount).toBe(false);
+
+    const calls = stubSequence([ok]);
+    await connectProjectAgent({ ...cfg, createCompanyAccount: true }, root);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body.createCompanyAccount).toBe(true);
+  });
+
+  it("words the question without an email when the server sent none", async () => {
+    stubSequence([() => new Response(JSON.stringify({ error: "no_company_account" }), { status: 409 })]);
+    const ask = vi.fn(async () => false);
+    await connectProjectAgent(cfg, root, { ask }).catch(() => undefined);
+    expect(ask).toHaveBeenCalledWith("Create the company YappChatt account now?");
+  });
+
+  it("refusalCode still maps the needed-error to no_company_account", () => {
+    expect(refusalCode(new CompanyAccountNeededError("a@b.test"))).toBe("no_company_account");
+    expect(refusalCode(new Error('project agent room refused (409): {"error":"no_company_account"}'))).toBe(
+      "no_company_account",
+    );
+  });
+});
+// [SCOPE 144 / T011] END
 
 // [SCOPE 134 / T022] BEGIN — one agent per working tree
 describe("acquireWorktreeLock (FR-026)", () => {

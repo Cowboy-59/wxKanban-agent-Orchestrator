@@ -1,6 +1,7 @@
 import { execFile } from "child_process";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { resolveApiToken } from "../../../core/http/mcp-client"; // [SCOPE 144 / T010]
 
 // SPEC-142 Amendment A (FR-021, FR-023): a room reply that answers a parked question (DQ-nn) or
 // reviews a KAIN answer (KR-nnnn) is recorded by the bridge, because only the bridge knows who
@@ -112,14 +113,16 @@ function lastJson(stdout: string): Record<string, unknown> | undefined {
  * The supervisor's answer goes on the owner's review list; the supervisor can never review.
  */
 // [SCOPE 142 / T025] BEGIN — Bridge attributes DQ answers and KR verdicts by author (FR-021, FR-023)
-export async function handleDecisionReply(reply: DecisionReply, by: string, run: Runner): Promise<DecisionOutcome> {
+// MODIFIED-BY: [SCOPE 144 / T010] — approvedBy (the Room Approver's name) goes to route.mjs and kain.mjs as --approved-by (FR-008)
+export async function handleDecisionReply(reply: DecisionReply, by: string, run: Runner, approvedBy?: string): Promise<DecisionOutcome> {
   if (reply.kind === "review" && by !== "owner") {
     return { roomText: `${reply.kr}: only the owner reviews ${by}'s answers. That verdict was not recorded.` };
   }
+  const approver = by === "owner" && approvedBy && approvedBy.trim() ? ["--approved-by", approvedBy.trim()] : [];
   const r =
     reply.kind === "answer"
-      ? await run("route.mjs", ["answer", "--dq", reply.dq, "--answer", reply.answer, ...(by === "owner" ? [] : ["--by", by])])
-      : await run("kain.mjs", ["review", reply.kr, reply.verdict, ...(reply.verdict === "change" ? [reply.ownerAnswer] : [])]);
+      ? await run("route.mjs", ["answer", "--dq", reply.dq, "--answer", reply.answer, ...(by === "owner" ? approver : ["--by", by])])
+      : await run("kain.mjs", ["review", reply.kr, reply.verdict, ...(reply.verdict === "change" ? [reply.ownerAnswer] : []), ...approver]);
   const res = lastJson(r.stdout);
   const id = reply.kind === "answer" ? reply.dq : reply.kr;
   if (!res || res.ok !== true) {
@@ -132,7 +135,7 @@ export async function handleDecisionReply(reply: DecisionReply, by: string, run:
     if (by === "owner") {
       return {
         roomText: `Recorded your answer to ${reply.dq} as ${String(res.ledgerId ?? "a ledger decision")}. Released: ${released}.`,
-        sessionText: `[decision] The owner answered ${reply.dq} in the room: "${reply.answer}". It is in the decision ledger as ${String(res.ledgerId)}. Resume the units it blocked: ${released}.`,
+        sessionText: `[decision] ${approver.length ? `${approver[1]} (a Room Approver)` : "The owner"} answered ${reply.dq} in the room: "${reply.answer}". It is in the decision ledger as ${String(res.ledgerId)}. Resume the units it blocked: ${released}.`,
       };
     }
     return {
@@ -146,3 +149,74 @@ export async function handleDecisionReply(reply: DecisionReply, by: string, run:
     : {};
 }
 // [SCOPE 142 / T025] END
+
+// [SCOPE 144 / T010] BEGIN — Room Approver check before a person's DQ answer or KR review is recorded (FR-008, contract C4)
+// MODIFIED-BY: [SCOPE 144 / T030] — the note names consultant managers an engagement allows (FR-012); the relayed text is labeled not recorded
+// A person's post records a decision only when the app says its author is a Room Approver (a
+// company ADMIN, or a TEAM_MANAGER on this project). Anything else, including any failure to
+// ask, is not recorded: the text still reaches the session, as discussion.
+export interface ApproverResult {
+  approver: boolean;
+  name: string | null;
+  role: string | null;
+}
+
+export type ApproverLookup = (yappchattUserId: string) => Promise<ApproverResult>;
+
+export const NOT_RECORDED_NOTE =
+  "Not recorded: only an ADMIN, this project's TEAM_MANAGER, or a consultant manager the engagement allows can decide.";
+
+const NOT_APPROVER: ApproverResult = { approver: false, name: null, role: null };
+
+type ApproverFetch = (url: string, init: { headers: Record<string, string> }) => Promise<{ ok: boolean; json(): Promise<unknown> }>;
+
+export function httpApproverLookup(appBaseUrl: string, kitToken: string | null, fetchImpl: ApproverFetch = fetch as unknown as ApproverFetch): ApproverLookup {
+  const base = appBaseUrl.replace(/\/+$/, "");
+  return async (yappchattUserId) => {
+    if (!kitToken || !yappchattUserId) return NOT_APPROVER;
+    try {
+      const res = await fetchImpl(`${base}/api/project-agent/approver?yappchattUserId=${encodeURIComponent(yappchattUserId)}`, {
+        headers: { authorization: `Bearer ${kitToken}` },
+      });
+      if (!res.ok) return NOT_APPROVER;
+      const body = (await res.json()) as { approver?: unknown; name?: unknown; role?: unknown };
+      return {
+        approver: body.approver === true,
+        name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : null,
+        role: typeof body.role === "string" ? body.role : null,
+      };
+    } catch {
+      return NOT_APPROVER;
+    }
+  };
+}
+
+export function defaultApproverLookup(root: string, env: NodeJS.ProcessEnv = process.env): ApproverLookup {
+  const base = env.WXKANBAN_APP_BASE_URL?.trim() || "https://wxkanban.wxperts.com";
+  return httpApproverLookup(base, resolveApiToken({ projectRoot: root, env }));
+}
+
+export interface HumanDecisionOutcome extends DecisionOutcome {
+  /** Set when nothing was recorded: the post goes to the session as ordinary discussion. */
+  relayText?: string;
+}
+
+/** A person's DQ answer or KR review: recorded under the approver's name, or a room note and a relay. */
+export async function handleHumanDecision(
+  reply: DecisionReply,
+  text: string,
+  authorId: string | undefined,
+  lookup: ApproverLookup,
+  run: Runner,
+): Promise<HumanDecisionOutcome> {
+  const who = authorId ? await lookup(authorId) : NOT_APPROVER;
+  if (!who.approver || !who.name) return { roomText: NOT_RECORDED_NOTE, relayText: notRecordedRelay(text) }; // [SCOPE 144 / T030]
+  return handleDecisionReply(reply, "owner", run, who.name);
+}
+// [SCOPE 144 / T010] END
+
+// [SCOPE 144 / T030] BEGIN — a non-approver's DQ/KR text reaches the session labeled not recorded (FR-008)
+export function notRecordedRelay(text: string): string {
+  return `[${NOT_RECORDED_NOTE} This room post is discussion only, not an answer.]\n${text}`;
+}
+// [SCOPE 144 / T030] END

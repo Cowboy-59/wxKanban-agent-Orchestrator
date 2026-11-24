@@ -169,8 +169,11 @@ export function statusLine(searches, mode) {
  * else has a person present, so the hooks pass assume: false and an uncovered question goes to them
  * instead of being answered on their behalf (found live: a wxBrainstorm close approved its own
  * summary). The marker is read without a session, so this never binds it (the impact hook does).
+ * An attended marker (wxG-O-D --impact-bypass, SPEC-136 FR-045) means the developer is present:
+ * boundaries are bypassed, questions are not, so it is never "nobody to answer".
  */
 // [SCOPE 142 / T009] BEGIN — Ask Gate on plain-text questions: Stop hook, or the fallbac…
+// MODIFIED-BY: [SCOPE 136 / T054] — an attended impact-bypass marker is a person present (SPEC-136 FR-045)
 export async function nobodyToAnswer(root, env = process.env) {
   if (env.WXAI_REMOTE === '1') return false;
   if (env.WXAI_UNATTENDED === '1') return true;
@@ -179,7 +182,7 @@ export async function nobodyToAnswer(root, env = process.env) {
   try {
     const { unattendedState } = await import(pathToFileURL(file).href);
     const s = unattendedState(root, null, { env });
-    return Boolean(s?.unattended && !s.remote);
+    return Boolean(s?.unattended && !s.remote && !s.attended);
   } catch {
     return false;
   }

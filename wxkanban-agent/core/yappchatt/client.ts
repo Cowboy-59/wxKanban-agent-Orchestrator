@@ -3,6 +3,11 @@ import WebSocket from "ws";
 // [SCOPE 102 / T001] BEGIN — YappChatt client (plain-Node port of SCOPE-079 chatSocket)
 // MODIFIED-BY: [SCOPE 144 / T002] — read login sends the kit token as Bearer; messages carry authorId (C4)
 // MODIFIED-BY: [SCOPE 150 / T007] — the identities come from the project agent's connection, not .env (FR-011)
+// MODIFIED-BY: [SCOPE 144 / T022] — two missed heartbeat_acks terminate the socket and reconnect (FR-013)
+// MODIFIED-BY: [SCOPE 144 / T023] — a 401/403 on ws/token or history renews the session; a refused renewal stops retrying; secrets masked in every status and error (FR-014, FR-018)
+// MODIFIED-BY: [SCOPE 144 / T024] — failed reconnects in a row and the outage start/end go with every status (RoomLinkInfo) (FR-016, FR-017)
+// MODIFIED-BY: [SCOPE 144 / T026] — messages between replay_start and replay_end are marked replayed (FR-020)
+// MODIFIED-BY: [SCOPE 144 / T030] — a new socket counts as reconnected only once its first heartbeat_ack comes back; the outage starts at the last proof of life (FR-013, FR-015, FR-017)
 // Ported from vscode-extension/src/services/chatSocket.ts (ChatSocket, SCOPE-079/T006)
 // into the kit core so the Remote Session Bridge can reuse the exact same transport
 // without any VS Code dependency.
@@ -78,10 +83,34 @@ export interface YappchattMessage {
    * The bridge sends it to GET /api/project-agent/approver before recording a decision.
    */
   authorId?: string;
+  /**
+   * SPEC-144 FR-020: true when the message arrived between YappChatt's replay_start and
+   * replay_end (a resume after a drop). It is discussion only: it never answers a gate.
+   */
+  replayed?: boolean;
 }
 
+/** SPEC-144 FR-016: the Room Link as the connection heartbeat and session status report it. */
+export type RoomLinkState = "connected" | "reconnecting" | "error";
+
+export interface RoomLinkInfo {
+  roomLink: RoomLinkState;
+  /** ISO time the link entered this state (for an outage, when it was first lost). */
+  since: string;
+  /** Failed reconnects in a row; 0 on the first loss and once connected. */
+  failures: number;
+  /** The last failure's reason, secrets masked, at most 200 characters. */
+  reason?: string;
+  /** On the "connected" status that ends an outage: when it started and ended (ISO). */
+  outageStartedAt?: string;
+  outageEndedAt?: string;
+}
+
+/** SPEC-144 FR-017: the failed reconnect in a row that raises the alert and sets error. */
+export const ROOM_LINK_ALERT_FAILURES = 5;
+
 export interface YappchattHandlers {
-  onStatus(status: YappchattStatus, detail?: string): void;
+  onStatus(status: YappchattStatus, detail?: string, link?: RoomLinkInfo): void;
   onHistory(messages: YappchattMessage[]): void;
   onMessage(message: YappchattMessage): void;
   onTyping(from: string, typing: boolean): void;
@@ -103,6 +132,13 @@ export type SocketFactory = (url: string) => WebSocket;
 const HEARTBEAT_MS = 30_000;
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 15_000;
+const MISSED_ACKS_DEAD = 2; // SPEC-144 FR-013
+const REASON_MAX = 200;
+
+// SPEC-144 FR-014: YappChatt refused the read session (401/403 on ws/token or history).
+class SessionExpiredError extends Error {}
+// SPEC-144 FR-014: /api/community/session answered with a refusal (not a network failure).
+class SessionRefusedError extends Error {}
 
 export class YappchattClient {
   private ws?: WebSocket;
@@ -113,6 +149,28 @@ export class YappchattClient {
   private reconnectTimer?: ReturnType<typeof setTimeout>;
   private reconnectAttempts = 0;
   private disposed = false;
+  // [SCOPE 144 / T022] heartbeat sent and not yet acked; ticks in a row with no ack.
+  private awaitingAck = false;
+  private missedAcks = 0;
+  // [SCOPE 144 / T023] the session was just renewed (a second 401 does not renew again); a
+  // refused renewal halts the client until restart. Every cookie and token value ever held,
+  // so a dropped session's cookie is still masked.
+  private justRenewed = false;
+  private halted = false;
+  private readonly secrets = new Set<string>();
+  // [SCOPE 144 / T024] the Room Link: up or not, since when, failures in a row, last reason.
+  private linkUp = false;
+  private linkSince = Date.now();
+  private failures = 0;
+  private lastReason = "";
+  private outageStartedAt?: number;
+  // [SCOPE 144 / T026] between replay_start and replay_end.
+  private replaying = false;
+  // [SCOPE 144 / T030] The current socket has had a heartbeat_ack (FR-013: a heartbeat counts
+  // only once acked), and the last time the link was proven alive (an ack, or any frame on a
+  // proven socket). An open socket that never acks is still part of the outage.
+  private proven = false;
+  private lastAliveAt?: number;
 
   constructor(
     private readonly cfg: YappchattConfig,
@@ -138,17 +196,82 @@ export class YappchattClient {
     try {
       this.session = await this.provisionSession();
     } catch (err) {
-      this.handlers.onStatus("error", (err as Error).message);
-      this.handlers.onError(`Could not start the chat session — ${(err as Error).message}`);
+      const msg = this.scrub((err as Error).message);
+      this.handlers.onStatus("error", msg);
+      this.handlers.onError(`Could not start the chat session — ${msg}`);
       return;
     }
     // History is best-effort — a live socket is more important than backfill.
     try {
       this.handlers.onHistory(await this.loadHistory());
-    } catch {
-      /* ignore — the socket still connects */
+    } catch (err) {
+      // [SCOPE 144 / T023] A refused cookie here is renewed before the socket opens (FR-014).
+      if (err instanceof SessionExpiredError) {
+        this.session = undefined;
+        if (!(await this.renewSession())) return;
+      }
+      /* otherwise ignore — the socket still connects */
     }
     await this.connect();
+  }
+
+  /** [SCOPE 144 / T023] Mask every cookie and token value this client has held (FR-018). */
+  private scrub(text: string): string {
+    let out = text.replace(/yc_session=[^;\s"']*/gi, "yc_session=[masked]");
+    const known = [...this.secrets, this.cfg.kitApiToken ?? "", this.cfg.yappchatToken];
+    for (const s of known) {
+      const v = s.trim();
+      if (v.length >= 4) out = out.split(v).join("[masked]");
+    }
+    return out;
+  }
+
+  /** [SCOPE 144 / T024] The Room Link as of now (FR-016, FR-017). */
+  private linkInfo(): RoomLinkInfo {
+    const roomLink: RoomLinkState =
+      this.halted || this.failures >= ROOM_LINK_ALERT_FAILURES ? "error" : this.linkUp ? "connected" : "reconnecting";
+    return {
+      roomLink,
+      since: new Date(this.linkSince).toISOString(),
+      failures: this.failures,
+      ...(this.lastReason ? { reason: this.lastReason } : {}),
+    };
+  }
+
+  /**
+   * [SCOPE 144 / T023] Drop the session and get a new one through /api/community/session with the
+   * kit token (the FR-009 gate is unchanged). A refusal halts the client: one error status with the
+   * server's own words, and no further retry until restart. A network failure retries as before.
+   */
+  private async renewSession(): Promise<boolean> {
+    this.session = undefined;
+    try {
+      this.session = await this.provisionSession();
+      this.justRenewed = true;
+      return true;
+    } catch (err) {
+      if (err instanceof SessionRefusedError) {
+        this.halt((err as Error).message);
+        return false;
+      }
+      this.scheduleReconnect(`session: ${(err as Error).message}`);
+      return false;
+    }
+  }
+
+  /** [SCOPE 144 / T023] Stop for good (until restart): one error status, one error line. */
+  private halt(reason: string): void {
+    if (this.halted) return;
+    this.halted = true;
+    this.stopHeartbeat();
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = undefined;
+    const msg = this.scrub(reason).slice(0, REASON_MAX);
+    this.linkUp = false;
+    this.linkSince = Date.now();
+    this.lastReason = msg;
+    this.handlers.onStatus("error", msg, this.linkInfo());
+    this.handlers.onError(`The chat session was refused — ${msg}. Restart the agent to try again.`);
   }
 
   /**
@@ -195,7 +318,7 @@ export class YappchattClient {
       },
     );
     if (!res.ok) {
-      const detail = await safeText(res);
+      const detail = await safeText(res, (t) => this.scrub(t)); // [SCOPE 144 / T023] FR-018
       this.handlers.onError(`Message not sent (${res.status}) ${detail}`);
       return false;
     }
@@ -232,15 +355,17 @@ export class YappchattClient {
       body: JSON.stringify({ email: this.user.email, displayName: this.user.displayName }),
     });
     if (!res.ok) {
-      const detail = await safeText(res);
+      const detail = await safeText(res, (t) => this.scrub(t)); // [SCOPE 144 / T023] FR-018
       // The server's own words for a refusal (e.g. 403 "This email isn't a member of
       // your company"), shown as is.
-      throw new Error(refusalMessage(detail) ?? `community/session ${res.status}: ${detail}`);
+      // [SCOPE 144 / T023] A refusal, not a network failure: a renewal stops on it (FR-014).
+      throw new SessionRefusedError(refusalMessage(detail) ?? `community/session ${res.status}: ${detail}`);
     }
     const data = (await res.json()) as Partial<ConsumerSession>;
     if (!data.sessionToken || !data.userid) {
-      throw new Error("community/session returned an incomplete payload");
+      throw new SessionRefusedError("community/session returned an incomplete payload");
     }
+    this.secrets.add(data.sessionToken); // [SCOPE 144 / T023] FR-018
     return data as ConsumerSession;
   }
 
@@ -250,6 +375,7 @@ export class YappchattClient {
       `${this.cfg.yappchatBaseUrl}/api/engine/conversations/${this.cfg.conversationId}/messages`,
       { headers: { cookie: this.sessionCookie() } },
     );
+    if (res.status === 401 || res.status === 403) throw new SessionExpiredError(`history ${res.status}`); // [SCOPE 144 / T023]
     if (!res.ok) return [];
     const data = (await res.json()) as { messages?: unknown[] };
     const rows = Array.isArray(data.messages) ? data.messages : [];
@@ -260,19 +386,36 @@ export class YappchattClient {
     const res = await this.fetchImpl(`${this.cfg.yappchatBaseUrl}/api/ws/token`, {
       headers: { cookie: this.sessionCookie() },
     });
+    if (res.status === 401 || res.status === 403) throw new SessionExpiredError(`ws/token ${res.status}`); // [SCOPE 144 / T023]
     if (!res.ok) throw new Error(`ws/token ${res.status}`);
     const data = (await res.json()) as { token?: string };
     if (!data.token) throw new Error("ws/token returned no token");
+    this.secrets.add(data.token); // [SCOPE 144 / T023] FR-018
     return data.token;
   }
 
   // ── socket lifecycle ─────────────────────────────────────────────────────────
   private async connect(): Promise<void> {
-    if (this.disposed || !this.session) return;
+    if (this.disposed || this.halted) return;
+    // [SCOPE 144 / T023] A session dropped after a 401/403 is renewed here, with no restart.
+    if (!this.session && !(await this.renewSession())) return;
+    if (this.disposed || this.halted) return;
     let token: string;
     try {
       token = await this.wsToken();
     } catch (err) {
+      // [SCOPE 144 / T023] An expired cookie renews once; a fresh session refused again backs off.
+      if (err instanceof SessionExpiredError && !this.justRenewed) {
+        this.session = undefined;
+        await this.connect();
+        return;
+      }
+      // The fresh session was refused too: drop it, so the next attempt (after the back-off)
+      // renews again instead of retrying a dead cookie forever. Each attempt counts as a failure.
+      if (err instanceof SessionExpiredError) {
+        this.session = undefined;
+        this.justRenewed = false;
+      }
       this.scheduleReconnect(`token: ${(err as Error).message}`);
       return;
     }
@@ -282,22 +425,78 @@ export class YappchattClient {
     const scope = `conversation:${this.cfg.conversationId}`;
 
     ws.on("open", () => {
+      if (this.ws !== ws) return; // [SCOPE 144 / T022] a terminated socket's late event
       ws.send(JSON.stringify({ action: "subscribe", scope }));
       // After a reconnect, replay anything missed within the engine's 5-min window.
       if (this.lastEventId) ws.send(JSON.stringify({ action: "resume", lastEventId: this.lastEventId }));
-      this.reconnectAttempts = 0;
+      this.justRenewed = false; // [SCOPE 144 / T023]
+      this.replaying = false; // [SCOPE 144 / T026]
       this.startHeartbeat();
-      this.handlers.onStatus("connected");
+      // [SCOPE 144 / T030] Not connected yet: an open that drops at once must not reset the failure
+      // count or end the outage (FR-017, FR-015). A probe heartbeat goes now; its ack proves the
+      // socket (markProven). Unacked, it counts as the first missed beat, so a silent new socket is
+      // still killed within FR-013's 90 s.
+      this.proven = false;
+      try {
+        ws.send(JSON.stringify({ action: "heartbeat" }));
+      } catch {
+        /* ignore — a dead socket triggers close/reconnect */
+      }
+      this.awaitingAck = true;
     });
-    ws.on("message", (data: WebSocket.RawData) => this.onFrame(String(data)));
+    ws.on("message", (data: WebSocket.RawData) => {
+      if (this.ws === ws) this.onFrame(String(data)); // [SCOPE 144 / T022]
+    });
     ws.on("close", () => {
+      if (this.ws !== ws) return; // [SCOPE 144 / T022] already terminated and rescheduled
+      this.ws = undefined;
+      this.proven = false; // [SCOPE 144 / T030]
       this.stopHeartbeat();
       if (!this.disposed) this.scheduleReconnect("socket closed");
     });
     ws.on("error", (err: Error) => {
+      if (this.ws !== ws) return; // [SCOPE 144 / T022]
       // 'close' fires after 'error' and drives the reconnect; just surface it.
-      this.handlers.onStatus("error", err.message);
+      this.handlers.onStatus("error", this.scrub(err.message), this.linkInfo());
     });
+  }
+
+  /** [SCOPE 144 / T022] A socket that stopped acking is dead: kill it and reconnect (FR-013). */
+  private killSocket(detail: string): void {
+    const ws = this.ws;
+    this.ws = undefined;
+    this.proven = false; // [SCOPE 144 / T030]
+    this.stopHeartbeat();
+    try {
+      if (typeof ws?.terminate === "function") ws.terminate();
+      else ws?.close();
+    } catch {
+      /* ignore — it is being replaced */
+    }
+    this.scheduleReconnect(detail);
+  }
+
+  /**
+   * [SCOPE 144 / T030] The new socket's first heartbeat_ack: only now is the link back. Reset the
+   * failures in a row and report how long it was down (FR-013, FR-015, FR-016, FR-017).
+   */
+  private markProven(): void {
+    this.proven = true;
+    this.reconnectAttempts = 0;
+    const now = Date.now();
+    const started = this.outageStartedAt;
+    this.outageStartedAt = undefined;
+    this.linkUp = true;
+    this.linkSince = now;
+    this.failures = 0;
+    this.lastReason = "";
+    const link: RoomLinkInfo = {
+      ...this.linkInfo(),
+      ...(started !== undefined
+        ? { outageStartedAt: new Date(started).toISOString(), outageEndedAt: new Date(now).toISOString() }
+        : {}),
+    };
+    this.handlers.onStatus("connected", undefined, link);
   }
 
   private onFrame(raw: string): void {
@@ -307,15 +506,25 @@ export class YappchattClient {
     } catch {
       return;
     }
+    if (this.proven) this.lastAliveAt = Date.now(); // [SCOPE 144 / T030] a proven socket spoke
     switch (msg.type) {
       case "connected":
       case "subscribed":
-      case "heartbeat_ack":
-      case "replay_start":
-      case "replay_end":
+        return;
+      case "heartbeat_ack": // [SCOPE 144 / T022] the socket is alive
+        this.awaitingAck = false;
+        this.missedAcks = 0;
+        this.lastAliveAt = Date.now(); // [SCOPE 144 / T030]
+        if (!this.proven) this.markProven(); // [SCOPE 144 / T030]
+        return;
+      case "replay_start": // [SCOPE 144 / T026]
+        this.replaying = true;
+        return;
+      case "replay_end": // [SCOPE 144 / T026]
+        this.replaying = false;
         return;
       case "error":
-        this.handlers.onError(`Engine: ${(msg as { error?: string }).error ?? "unknown"}`);
+        this.handlers.onError(this.scrub(`Engine: ${(msg as { error?: string }).error ?? "unknown"}`)); // [SCOPE 144 / T023]
         return;
       case "event": {
         const ev = msg.event;
@@ -335,7 +544,7 @@ export class YappchattClient {
       if (!m) return;
       if (id && this.seen.has(m.id)) return; // dedupe replay overlap
       this.seen.add(m.id);
-      this.handlers.onMessage(m);
+      this.handlers.onMessage(this.replaying ? { ...m, replayed: true } : m); // [SCOPE 144 / T026]
       return;
     }
     if (type === "message.typing_start" || type === "message.typing_stop") {
@@ -347,12 +556,24 @@ export class YappchattClient {
 
   private startHeartbeat(): void {
     this.stopHeartbeat();
+    this.awaitingAck = false; // [SCOPE 144 / T022]
+    this.missedAcks = 0;
     this.heartbeatTimer = setInterval(() => {
+      // [SCOPE 144 / T022] A heartbeat counts only once acked. Two ticks in a row with the last
+      // one unacked kill the socket: a silent socket is reconnecting within 90 s (FR-013).
+      if (this.awaitingAck) {
+        this.missedAcks++;
+        if (this.missedAcks >= MISSED_ACKS_DEAD) {
+          this.killSocket("no heartbeat_ack");
+          return;
+        }
+      }
       try {
         this.ws?.send(JSON.stringify({ action: "heartbeat" }));
       } catch {
         /* ignore — a dead socket triggers close/reconnect */
       }
+      this.awaitingAck = true;
     }, HEARTBEAT_MS);
   }
 
@@ -362,8 +583,22 @@ export class YappchattClient {
   }
 
   private scheduleReconnect(detail: string): void {
-    if (this.disposed || this.reconnectTimer) return;
-    this.handlers.onStatus("reconnecting", detail);
+    if (this.disposed || this.halted || this.reconnectTimer) return;
+    // [SCOPE 144 / T024] The first loss starts the outage; each later call is one more failed
+    // reconnect in a row. The delay keeps its 15 s cap.
+    const now = Date.now();
+    if (this.outageStartedAt === undefined) {
+      // [SCOPE 144 / T030] The outage began at the last proof of life, not at its detection (up to
+      // 90 s later for a silent socket), so the notice's N and start time are right (FR-015). The
+      // status's own `since` stays the moment the bridge knew (FR-016).
+      this.outageStartedAt = Math.min(this.lastAliveAt ?? now, now);
+      this.linkSince = now;
+    }
+    this.linkUp = false;
+    this.failures = this.reconnectAttempts;
+    const msg = this.scrub(detail).slice(0, REASON_MAX);
+    this.lastReason = msg;
+    this.handlers.onStatus("reconnecting", msg, this.linkInfo());
     const delay = Math.min(RECONNECT_BASE_MS * 2 ** this.reconnectAttempts, RECONNECT_MAX_MS);
     this.reconnectAttempts++;
     this.reconnectTimer = setTimeout(() => {
@@ -420,9 +655,10 @@ function refusalMessage(body: string): string | undefined {
   }
 }
 
-async function safeText(res: { text(): Promise<string> }): Promise<string> {
+// MODIFIED-BY: [SCOPE 144 / T023] — masks before it cuts, so a secret at the 200-character edge is never half shown (FR-018)
+async function safeText(res: { text(): Promise<string> }, mask: (text: string) => string = (t) => t): Promise<string> {
   try {
-    return (await res.text()).slice(0, 200);
+    return mask(await res.text()).slice(0, 200);
   } catch {
     return "";
   }

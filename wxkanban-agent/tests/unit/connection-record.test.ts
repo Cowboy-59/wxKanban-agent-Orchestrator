@@ -4,6 +4,7 @@ import {
   AgentAlreadyConnectedError,
   ConnectionRecord,
   type ConnectionInfo,
+  type RoomLinkFields, // [SCOPE 144 / T025]
 } from "../../apps/remote-bridge/src/connection-record";
 
 const cfg = { appBaseUrl: "https://app.test", projectToken: "kit-token", supervisor: "KAIN" };
@@ -107,3 +108,59 @@ describe("ConnectionRecord (FR-059 – FR-061)", () => {
     await expect(rec.close()).resolves.toBeUndefined();
   });
 });
+
+// [SCOPE 144 / T025] BEGIN — every heartbeat tick carries the Room Link state (FR-016)
+describe("ConnectionRecord heartbeat — Room Link fields (SPEC-144 FR-016)", () => {
+  it("during an outage the tick says reconnecting with the start time; after reconnect, connected and 0", async () => {
+    vi.useFakeTimers();
+    try {
+      const f = fakeFetch([{ status: 201, body: { connectionId: "c1", heartbeatSeconds: 60 } }, { status: 200 }, { status: 200 }, { status: 200 }]);
+      const rec = new ConnectionRecord(cfg, info, vi.fn(), f.impl);
+      await rec.open();
+      const outageStart = "2026-11-23T10:00:00.000Z";
+      let link: RoomLinkFields | undefined = {
+        roomLink: "reconnecting",
+        roomLinkSince: outageStart,
+        roomLinkFailures: 2,
+        roomLinkReason: "socket closed",
+      };
+      let sharing = true;
+      rec.startHeartbeat(() => (sharing ? { state: "working", sharing: true } : { state: "idle", sharing: false }), () => link);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(f.calls[1].body).toEqual({
+        state: "working",
+        sharing: true,
+        roomLink: "reconnecting",
+        roomLinkSince: outageStart,
+        roomLinkFailures: 2,
+        roomLinkReason: "socket closed",
+      });
+      link = { roomLink: "connected", roomLinkSince: "2026-11-23T10:03:00.000Z", roomLinkFailures: 0 };
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(f.calls[2].body).toEqual({ state: "working", sharing: true, roomLink: "connected", roomLinkSince: "2026-11-23T10:03:00.000Z", roomLinkFailures: 0 });
+      // Sharing off hides session content, never the link's health.
+      sharing = false;
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(f.calls[3].body).toMatchObject({ state: "idle", sharing: false, roomLink: "connected", roomLinkFailures: 0 });
+      rec.stopHeartbeat();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("no Room Link status yet: the body is unchanged", async () => {
+    vi.useFakeTimers();
+    try {
+      const f = fakeFetch([{ status: 201, body: { connectionId: "c1", heartbeatSeconds: 60 } }, { status: 200 }]);
+      const rec = new ConnectionRecord(cfg, info, vi.fn(), f.impl);
+      await rec.open();
+      rec.startHeartbeat(() => "idle", () => undefined);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(f.calls[1].body).toEqual({ state: "idle" });
+      rec.stopHeartbeat();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+// [SCOPE 144 / T025] END
