@@ -80,6 +80,8 @@ import type { HookCallback } from "@anthropic-ai/claude-agent-sdk"; // [SCOPE 14
 import { fromLocalRoom, labelFromAgent, listTakesMessage, oldInboundPathOn, type InboundMessage } from "./inbound"; // [SCOPE 159 / T004]
 import { LocalRoom } from "./local-room"; // [SCOPE 159 / T004]
 import { RunLog } from "./run-log"; // [SCOPE 159 / T016]
+import { DISCUSSION_NOTE, InstructionQueue, devplanAction, isRunDevplan, type Standing } from "./instruction-intake"; // [SCOPE 159 / T013]
+import { UnitTrace } from "./unit-trace"; // [SCOPE 159 / T020]
 import { buildPanel, writePanelSnapshot, type GateInput, type WorkerInput } from "./room-view"; // [SCOPE 159 / T018]
 import { NOT_RECORDED_NOTE, notRecordedRelay } from "./decision-reply"; // [SCOPE 159 / T005]
 import { GateRaisers, WorkerRegistry, type WorkerIdentity } from "./worker-identity"; // [SCOPE 159 / T006]
@@ -726,6 +728,10 @@ export class RemoteBridge {
 
   // [SCOPE 159 / T018] BEGIN — Agent Room panel snapshot, rewritten on change; a write error never stops the bridge (FR-083, FR-084)
   private readonly lastBeat = new Map<string, Date>();
+  // [SCOPE 159 / T013] Every instruction is logged with its standing; discussion is logged, never queued (FR-062, FR-064).
+  private readonly intake = new InstructionQueue();
+  // [SCOPE 159 / T020] Unit start, park and finish go to the status file and the run record (FR-081, FR-085).
+  private readonly unitTrace = new UnitTrace({ root: this.opts.cwd, remoteLive: () => true });
   publishPanel(now: Date = new Date()): void {
     try {
       const workers: WorkerInput[] = [...this.workers.known.values()].map((w) => ({
@@ -873,10 +879,50 @@ export class RemoteBridge {
       this.heldDuringHandoff.push(text);
       return;
     }
-    console.log(`[bridge] operator → session: ${text.slice(0, 80)}`);
-    this.turnActive = true;
-    this.session.send(text);
+    // MODIFIED-BY: [SCOPE 159 / T013] — who may instruct the agent: local or KAIN pass, a room person is checked by user id, anyone else is discussion (FR-060, FR-062)
+    const relay = (standing: Standing): void => {
+      const sent = this.intake.submit(text, standing);
+      // [SCOPE 159 / T020] "run devplan" is a command, not a prompt: the developer or a Room Approver gets the list and it waits for go; KAIN starts it at once (FR-061).
+      if (sent === "queued" && this.autopilot && isRunDevplan(text)) {
+        this.intake.next();
+        this.intake.finish();
+        void this.runDevplanCommand(standing);
+        return;
+      }
+      if (!this.session) return;
+      const out = sent === "discussion" ? `[Room message from ${from}. ${DISCUSSION_NOTE}]\n${text}` : text;
+      if (sent === "queued") {
+        this.intake.next();
+        this.intake.finish();
+      }
+      if (this.handoffGuard?.active) {
+        this.heldDuringHandoff.push(out);
+        return;
+      }
+      process.stdout.write(`[bridge] ${sent === "discussion" ? "discussion" : "operator"} → session: ${text.slice(0, 80)}\n`);
+      this.turnActive = true;
+      this.session.send(out);
+    };
+    if (msg.source === "local") return relay("developer");
+    if (msg.roomAgent) return relay("kain");
+    // A post with no user id keeps the old path, the same rule the gates use (checkApprover).
+    if (!msg.authorId) return relay("developer");
+    void this.approverLookup(msg.authorId).then(
+      (who) => relay(who.approver ? "room_approver" : "discussion"),
+      () => relay("discussion"),
+    );
   }
+
+  // [SCOPE 159 / T020] BEGIN — "run devplan" (FR-061)
+  private async runDevplanCommand(standing: Standing): Promise<void> {
+    const ap = this.autopilot;
+    if (!ap) return;
+    const action = devplanAction(standing);
+    if (!action) return;
+    if (!ap.isAwaitingGo) await ap.start();
+    if (action === "start_now" && ap.isAwaitingGo) this.resolvePendingAutopilotGo("go");
+  }
+  // [SCOPE 159 / T020] END
 
   // [SCOPE 159 / T005] BEGIN — Who may answer a waiting gate (FR-004)
   /** True while a push, an agent gate or a live Autopilot question is waiting for this text. */
@@ -1594,7 +1640,18 @@ export class RemoteBridge {
         while (this.autopilotPaused && !abort.signal.aborted) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
-        return rawRunUnit(unit, opts);
+        // MODIFIED-BY: [SCOPE 159 / T020] — each unit's start, park and finish feed the parallel status file and the run record (FR-081, FR-085)
+        this.unitTrace.start(unit);
+        const result = await rawRunUnit(unit, {
+          ...opts,
+          resolveGate: async (scopeNum, question) => {
+            const r = await opts.resolveGate(scopeNum, question);
+            if (r) this.unitTrace.gate(unit, r.ledgerId || question.slice(0, 40), r.ledgerId ? `ledger:${r.ledgerId}` : "room");
+            return r;
+          },
+        });
+        this.unitTrace.end(unit, result);
+        return result;
       };
       // [SCOPE 154 / T013] Ledger first (cheapest, no room round trip); only when that misses
       // does a unit's question reach a human, and only a live answer is persisted back.

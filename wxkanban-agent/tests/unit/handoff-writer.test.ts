@@ -41,10 +41,11 @@ function holdLock(root: string, pid = LIVE_PID, owner = "project agent"): void {
   writeFileSync(join(root, ".wxai", "remote-session.lock"), JSON.stringify({ pid, owner, since: new Date().toISOString() }));
 }
 
-function stubSettings(allowRemote: boolean | "throw"): ReturnType<typeof vi.fn> {
+// [SCOPE 159 / T015] transferEnabled defaults on so the older cases keep their meaning; one case turns it off
+function stubSettings(allowRemote: boolean | "throw", transferEnabled = true): ReturnType<typeof vi.fn> {
   const fn = vi.fn(async () => {
     if (allowRemote === "throw") throw new Error("ECONNREFUSED");
-    return new Response(JSON.stringify({ allowRemote, projectName: "p", feedbackSink: false }), { status: 200 });
+    return new Response(JSON.stringify({ allowRemote, transferEnabled, projectName: "p", feedbackSink: false }), { status: 200 });
   });
   vi.stubGlobal("fetch", fn);
   return fn;
@@ -147,6 +148,14 @@ describe("handoff writer — preflight (FR-002)", () => {
     rmSync(bare, { recursive: true, force: true });
   });
 
+  it("stops when the company ADMIN transfer switch is off, and the line names the fix (T015, FR-072)", async () => {
+    stubSettings(true, false);
+    holdLock(root);
+    const r = await preflight({ repoRoot: root, env: ENV, pidAlive: alive });
+    expect(!r.ok && r.cause).toBe("transfer_switch_off");
+    expect(!r.ok && r.line).toContain("transfer switch is off");
+  });
+
   it("stops when the settings route cannot be reached", async () => {
     stubSettings("throw");
     holdLock(root);
@@ -157,7 +166,7 @@ describe("handoff writer — preflight (FR-002)", () => {
   it("each blocked line is one plain line naming a fix", () => {
     for (const line of Object.values(BLOCKED_LINES)) {
       expect(line).not.toMatch(/\n/);
-      expect(line).toMatch(/^Handoff stopped: .+ Fix: .+/);
+      expect(line).toMatch(/^(Handoff|Transfer) stopped: .+ Fix: .+/);
     }
   });
 });

@@ -251,6 +251,8 @@ export interface ProjectAgentSettings {
   feedbackSink: boolean;
   /** Whether the project owner has turned Autopilot on (SPEC-154 FR-001). */
   autopilotEnabled: boolean;
+  /** The company ADMIN "transfer to agent" switch (SPEC-159 FR-072). Missing reads as off. */
+  transferEnabled: boolean;
 }
 
 /**
@@ -265,11 +267,12 @@ export async function fetchProjectAgentSettings(cfg: ProjectAgentConfig): Promis
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`project agent settings refused (${res.status}): ${text.slice(0, 300)}`);
-  const body = JSON.parse(text) as { allowRemote?: unknown; feedbackSink?: unknown; autopilotEnabled?: unknown };
+  const body = JSON.parse(text) as { allowRemote?: unknown; feedbackSink?: unknown; autopilotEnabled?: unknown; transferEnabled?: unknown };
   return {
     allowRemote: body.allowRemote === true,
     feedbackSink: body.feedbackSink === true,
     autopilotEnabled: body.autopilotEnabled === true,
+    transferEnabled: body.transferEnabled === true,
   };
 }
 

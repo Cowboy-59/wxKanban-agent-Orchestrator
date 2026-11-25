@@ -4,7 +4,8 @@
  * and asserts runPipeline is reached with the approved scopes, each outcome is persisted, and a
  * final summary is posted — the exact gap the owner found 2026-11-08.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { rmSync } from "node:fs"; // [SCOPE 159 / T020]
 
 const room = vi.hoisted(() => ({
   posts: [] as string[],
@@ -157,6 +158,12 @@ vi.mock("../../apps/remote-bridge/src/autopilot-pipeline", async () => {
 import { RemoteBridge } from "../../apps/remote-bridge/src/bridge";
 
 const AGENT = { name: "PROJECT-AGENT", projectId: "p-1", mcpUrl: "https://mcp.test", mcpToken: "tok" };
+
+// [SCOPE 159 / T020] cwd is "." here, so the unit trace writes its status file into the repo: remove it.
+afterAll(() => {
+  rmSync("docs/GOD-Parallel-Status.md", { force: true });
+  rmSync("docs/GOD-Parallel-Status.md.tmp", { force: true });
+});
 
 async function connectedBridge(): Promise<RemoteBridge> {
   const bridge = new RemoteBridge({

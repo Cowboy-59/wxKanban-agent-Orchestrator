@@ -109,7 +109,14 @@ export async function callMcpToolWithEnvelope<T extends Record<string, unknown> 
   args: Record<string, unknown>,
   options: McpCallOptions = {},
 ): Promise<McpEnvelopeShape<T>> {
-  const response = await sendMcpRequest(name, args, options);
+  // Hosted MCP rate-limits bursts (429 + retryAfterSec). Wait and retry instead of failing the push.
+  let response = await sendMcpRequest(name, args, options);
+  for (let attempt = 1; response.status === 429 && attempt <= 6; attempt++) {
+    const header = Number(response.headers.get('retry-after'));
+    const waitSec = Number.isFinite(header) && header > 0 ? header : 1;
+    await new Promise((r) => setTimeout(r, waitSec * 1000 * attempt + 250));
+    response = await sendMcpRequest(name, args, options);
+  }
   try {
     return await parseEnvelope<T>(response);
   } catch (err) {

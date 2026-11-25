@@ -199,6 +199,7 @@ export type BlockedCause =
   | "no_token"
   | "settings_unreachable"
   | "remote_not_allowed"
+  | "transfer_switch_off"
   | "no_company_account"
   | "worktree_locked"
   | "agent_not_running";
@@ -221,6 +222,8 @@ export const BLOCKED_LINES: Record<BlockedCause, string> = {
     "Handoff stopped: could not check this project's Allow remote setting with wxKanban. Fix: check the connection and the project's kit token, then try again.",
   remote_not_allowed:
     "Handoff stopped: Allow remote is off for this project. Fix: a company ADMIN or the project's TEAM_MANAGER turns on Allow remote in the project's Kit tab in wxKanban.",
+  transfer_switch_off:
+    "Transfer stopped: the company ADMIN transfer switch is off. Fix: a company ADMIN turns on Transfer to agent in the company settings in wxKanban.",
   no_company_account:
     "Handoff stopped: your company has no YappChatt account, so the Project Agent cannot open the project room. Fix: start the Project Agent from the Dev Cockpit and accept creating the company YappChatt account, or ask a company ADMIN to set it up.",
   worktree_locked:
@@ -263,12 +266,17 @@ export async function preflight(deps: PreflightDeps): Promise<PreflightResult> {
   if (!cfg) return blocked("no_token");
 
   let allowRemote: boolean;
+  let transferEnabled: boolean;
   try {
-    allowRemote = (await fetchProjectAgentSettings(cfg)).allowRemote;
+    const settings = await fetchProjectAgentSettings(cfg);
+    allowRemote = settings.allowRemote;
+    transferEnabled = settings.transferEnabled;
   } catch {
     return blocked("settings_unreachable");
   }
   if (!allowRemote) return blocked("remote_not_allowed");
+  // [SCOPE 159 / T015] the company ADMIN switch, off by default (FR-072)
+  if (!transferEnabled) return blocked("transfer_switch_off");
 
   if (projectAgentLive(deps.repoRoot, deps.pidAlive)) return { ok: true };
 

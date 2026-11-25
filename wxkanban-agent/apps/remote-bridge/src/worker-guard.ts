@@ -158,12 +158,16 @@ export function gitShimSource(realGit: string): string {
 export function gitShimCmdSource(realGit: string): string {
   return [
     "@echo off",
-    `if "%${WORKER_MARK_ENV}%"=="1" (`,
-    "  for %%a in (%*) do (",
-    '    if /I "%%a"=="commit" (echo git commit refused: workers may not commit or push 1>&2 & exit /b 1)',
-    '    if /I "%%a"=="push" (echo git push refused: workers may not commit or push 1>&2 & exit /b 1)',
-    "  )",
+    `if not "%${WORKER_MARK_ENV}%"=="1" goto run`,
+    "for %%a in (%*) do (",
+    '  if /I "%%a"=="commit" goto refuse',
+    '  if /I "%%a"=="push" goto refuse',
     ")",
+    "goto run",
+    ":refuse",
+    "echo git commit or push refused: workers may not commit or push (SPEC-159 FR-021) 1>&2",
+    "exit /b 1",
+    ":run",
     `"${realGit}" %*`,
     "",
   ].join("\r\n");
