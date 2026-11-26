@@ -296,6 +296,7 @@ export async function preflight(deps: PreflightDeps): Promise<PreflightResult> {
 
 // [SCOPE 149 / T002] BEGIN — the handoff run: preflight, render, write exactly one file (FR-001 – FR-005)
 // MODIFIED-BY: [SCOPE 149 / T003] — ensures the .gitignore entries before the first handoff is written (FR-005)
+// MODIFIED-BY: [SCOPE 159 / T022] — writeOne is exported with an optional folder and name, so the command lane writes the same atomic way (FR-095)
 
 export interface HandoffRunDeps extends PreflightDeps {
   now?: () => Date;
@@ -306,17 +307,24 @@ export type HandoffRunResult =
   | { ok: true; line: string; relPath: string; masked: number }
   | { ok: false; line: string; cause: BlockedCause };
 
+/** Where writeOne writes. Absent: the handoff folder and its `<timestamp>.md` names. */
+export interface WriteTarget {
+  dir: string;
+  nameFor: (d: Date) => string;
+}
+
 /** Write the file atomically: a dot-temp in the same folder (ignored by the watcher), then rename. */
-function writeOne(repoRoot: string, createdAt: Date, doc: string): string {
+export function writeOne(repoRoot: string, createdAt: Date, doc: string, target?: WriteTarget): string {
   // An existing project gets the ignore entries at the moment it first needs them, the same
   // way entitlement-cache.ts ensures its own entry when it writes its file. Never creates a
   // .gitignore, never throws.
   ensureHandoffGitignore(repoRoot);
-  const dir = handoffDir(repoRoot);
+  const dir = target?.dir ?? handoffDir(repoRoot);
+  const nameFor = target?.nameFor ?? handoffFileName;
   mkdirSync(dir, { recursive: true });
   let at = createdAt.getTime();
-  let name = handoffFileName(new Date(at));
-  while (existsSync(join(dir, name))) name = handoffFileName(new Date(++at));
+  let name = nameFor(new Date(at));
+  while (existsSync(join(dir, name))) name = nameFor(new Date(++at));
   const tmp = join(dir, `.${name}.${process.pid}.tmp`);
   try {
     writeFileSync(tmp, doc, { encoding: "utf-8", flag: "wx", mode: 0o600 });

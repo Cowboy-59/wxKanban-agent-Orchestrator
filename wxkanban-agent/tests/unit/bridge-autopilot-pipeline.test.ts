@@ -231,10 +231,12 @@ describe("Run-state persistence (SCOPE-154 T003)", () => {
     for (let i = 0; i < 5; i++) await tick();
 
     const withStartupList = savedStates.find((s) => Array.isArray(s.startupList));
+    // [SCOPE 159 / T024] Each item now keeps its stage, so the local "autopilot" prints the room's text (FR-097).
     expect(withStartupList?.startupList).toEqual([
-      { scope: "200", title: "First scope", status: "waiting" },
-      { scope: "201", title: "Second scope", status: "waiting" },
+      { scope: "200", title: "First scope", status: "waiting", stage: "implementation" },
+      { scope: "201", title: "Second scope", status: "waiting", stage: "implementation" },
     ]);
+    expect(typeof withStartupList?.startupListAt).toBe("string");
   });
 
   it("sets currentScope/currentStep/stepStartedAt before each unit runs, and clears them when the run ends", async () => {

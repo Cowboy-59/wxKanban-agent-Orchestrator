@@ -4,8 +4,10 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { resolveCommand } from "./command-set"; // [SCOPE 159 / T024]
 
 // [SCOPE 159 / T013] BEGIN — Who may instruct (FR-060)
+// MODIFIED-BY: [SCOPE 159 / T021] — any person on the Project's user list instructs: room_approver is now project_user (FR-094)
 export type Channel = "local" | "room";
 
 export interface Instructor {
@@ -19,13 +21,14 @@ export interface Instructor {
 export interface IntakeContext {
   /** The one user id bound to the agent's own token; undefined when the token's user could not be resolved. */
   developerUserId?: string;
-  /** Room Approver check by user id (FR-004). */
-  isRoomApprover: (userId: string) => boolean;
+  /** Is this user id an active person on the Project's user list (FR-094). */
+  isProjectUser: (userId: string) => boolean;
 }
 
-export type Standing = "developer" | "kain" | "room_approver" | "discussion";
+export type Standing = "developer" | "kain" | "project_user" | "discussion";
 
-export const DISCUSSION_NOTE = "Not taken as an instruction: only the developer running the agent, KAIN or a Room Approver can instruct it.";
+export const DISCUSSION_NOTE =
+  "Not taken as an instruction: only a person on this Project's user list, the developer running the agent or KAIN can instruct it.";
 
 /** Local: whoever is at the machine. Room: by user id, never display name; unresolved token never falls back. */
 export function standingOf(who: Instructor, ctx: IntakeContext): Standing {
@@ -33,7 +36,7 @@ export function standingOf(who: Instructor, ctx: IntakeContext): Standing {
   if (who.kain) return "kain";
   if (!who.userId) return "discussion";
   if (ctx.developerUserId && who.userId === ctx.developerUserId) return "developer";
-  if (ctx.isRoomApprover(who.userId)) return "room_approver";
+  if (ctx.isProjectUser(who.userId)) return "project_user";
   return "discussion";
 }
 
@@ -48,23 +51,25 @@ export interface IntakeLogRow {
 // [SCOPE 159 / T013] END
 
 // [SCOPE 159 / T013] BEGIN — "run devplan" and the list wait (FR-061)
-export const RUN_DEVPLAN = /^\s*run\s+devplan\s*[.!]?\s*$/i;
-export const isRunDevplan = (text: string): boolean => RUN_DEVPLAN.test(text);
+// MODIFIED-BY: [SCOPE 159 / T021] — a project user's go, no or skip answers the list wait (FR-094)
+// MODIFIED-BY: [SCOPE 159 / T024] — "autopilot" and every alias on its list entry start the list, resolved through the one command list (FR-097)
+/** "autopilot", "run devplan" or any word the one list adds to that entry: whole message, any casing. */
+export const isRunDevplan = (text: string): boolean => resolveCommand(text)?.name === "autopilot";
 
 export type DevplanAction = "show_list_and_wait" | "start_now";
 
-/** From the developer the list is shown and waits; from KAIN the run starts at once in devplan order. */
+/** From the developer or a project user the list is shown and waits; from KAIN the run starts at once in devplan order. */
 export function devplanAction(standing: Standing): DevplanAction | null {
   if (standing === "kain") return "start_now";
-  if (standing === "developer" || standing === "room_approver") return "show_list_and_wait";
+  if (standing === "developer" || standing === "project_user") return "show_list_and_wait";
   return null;
 }
 
-/** While a list waits, only go, no and skip answer it (from the developer or KAIN); anything else is an instruction. */
+/** While a list waits, only go, no and skip answer it (from the developer, a project user or KAIN); anything else is an instruction. */
 export function listWaitRoutes(text: string, standing: Standing): "answer" | "instruction" | "discussion" {
   if (standing === "discussion") return "discussion";
   const answers = /^\s*(go|no|skip\b.*)\s*[.!]?\s*$/i.test(text);
-  return answers && (standing === "developer" || standing === "kain") ? "answer" : "instruction";
+  return answers ? "answer" : "instruction";
 }
 // [SCOPE 159 / T013] END
 

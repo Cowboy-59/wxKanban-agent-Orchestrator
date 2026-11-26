@@ -126,6 +126,7 @@ describe("end to end through the real kit scripts", () => {
 });
 
 // [SCOPE 144 / T010] BEGIN — Room Approver tests: only an approver's reply is recorded, under their name (FR-008)
+// MODIFIED-BY: [SCOPE 159 / T021] — any person on the Project's user list decides; the notes say so (FR-094)
 const APPROVER_ID = "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
 
 function lookupOf(map: Record<string, { name: string; role: string }>, seen: string[] = []): ApproverLookup {
@@ -172,7 +173,7 @@ describe("handleHumanDecision: a person's reply is recorded only for a Room Appr
     const o = await handleHumanDecision(dq, "DQ-01: no", APPROVER_ID, lookupOf({ [APPROVER_ID]: { name: "Ann Admin", role: "ADMIN" } }), fakeRunner('{"ok":true,"ledgerId":"D-0009","releases":["S06"]}', calls));
     expect(calls[0]).toEqual({ script: "route.mjs", args: ["answer", "--dq", "DQ-01", "--answer", "no", "--approved-by", "Ann Admin"] });
     expect(o.roomText).toMatch(/Recorded your answer to DQ-01 as D-0009/);
-    expect(o.sessionText).toMatch(/Ann Admin \(a Room Approver\) answered DQ-01/);
+    expect(o.sessionText).toMatch(/Ann Admin \(a person on this Project's user list\) answered DQ-01/);
     expect(o.relayText).toBeUndefined();
   });
 
@@ -191,7 +192,7 @@ describe("handleHumanDecision: a person's reply is recorded only for a Room Appr
     expect(o.relayText).toBe(`[${NOT_RECORDED_NOTE} This room post is discussion only, not an answer.]\nDQ-01: no`);
     // [SCOPE 144 / T030] consultant managers an engagement allows are approvers too (FR-012)
     expect(NOT_RECORDED_NOTE).toBe(
-      "Not recorded: only an ADMIN, this project's TEAM_MANAGER, or a consultant manager the engagement allows can decide.",
+      "Not recorded: only a person on this Project's user list, or a consultant manager the engagement allows, can decide.",
     );
   });
 

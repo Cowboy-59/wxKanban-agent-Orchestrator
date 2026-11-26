@@ -41,6 +41,7 @@ describe("ensureHandoffGitignore (SPEC-149 FR-005)", () => {
       "**/.wxai/project-agent-status.json",
       "**/.wxai/retired-room-keys-notice.json", // [SCOPE 150 / T006]
       "**/.wxai/agent-room.json", // SPEC-151: the room token file
+      "**/.wxai/command/", // [SCOPE 159 / T022] the command lane folder
     ]);
   });
 

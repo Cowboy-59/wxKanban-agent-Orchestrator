@@ -15,6 +15,7 @@ import {
 import { type McpTokenHolder } from "./mcp-token";
 
 // [SCOPE 154 / T003] BEGIN — AutopilotSchedule (FR-002)
+// MODIFIED-BY: [SCOPE 159 / T024] — start() returns what it found (the list, an empty list, or null for no devplan) so the bridge persists the room's answer (FR-097)
 //
 // On connect, read the Autopilot gate, then — if on — fetch the server devplan, filter it to
 // scopes not yet done, and post the list to the room for the owner's "go". There is no clock and
@@ -67,8 +68,10 @@ export class AutopilotSchedule {
    * Read the Autopilot gate, then — if on — post the startup list or the reason there isn't one.
    * Mirrors TriageSchedule.start()'s shape: every failure posts one explanatory line and leaves
    * the schedule unarmed, never throws.
+   * [SCOPE 159 / T024] Resolves to the scopes it posted (an empty array when the devplan had nothing
+   * to run), null when no devplan was found, or undefined when the gate is off or a step failed.
    */
-  async start(): Promise<void> {
+  async start(): Promise<StartupScope[] | null | undefined> {
     let settings: ProjectAgentSettings;
     try {
       settings = await (this.opts.fetchSettings ?? fetchProjectAgentSettings)(this.opts.config);
@@ -103,15 +106,16 @@ export class AutopilotSchedule {
 
     if (scopes === null) {
       await this.opts.post(NO_DEVPLAN_MESSAGE);
-      return;
+      return null;
     }
     this.armed = true;
     if (scopes.length === 0) {
       await this.opts.post(NOTHING_TO_DO_MESSAGE);
-      return;
+      return scopes;
     }
     this.awaiting = scopes;
     await this.opts.post(formatStartupList(scopes));
+    return scopes;
   }
 
   /** The owner said "go" (FR-002). Returns the approved list once, then clears the wait. */

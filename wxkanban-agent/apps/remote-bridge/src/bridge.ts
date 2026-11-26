@@ -30,6 +30,7 @@ import { TriageSchedule } from "./triage-schedule"; // [SCOPE 148 / T012]
 import { localDate } from "./triage-run"; // [SCOPE 154 / T008]
 import { AutopilotSchedule } from "./autopilot-schedule"; // [SCOPE 154 / T003]
 import { fetchScopeStage } from "./autopilot-startup"; // [SCOPE 154 / T004]
+import { formatStartupList, type StartupScope } from "./autopilot-startup"; // [SCOPE 159 / T024]
 import { buildHeartbeat, buildFullSummary } from "./autopilot-heartbeat"; // [SCOPE 154 / T008]
 import { isHeartbeatMissed, stepOutage, formatHeartbeatMissed, formatHeartbeatBack } from "./autopilot-outage"; // [SCOPE 154 / T009]
 import { redactSecrets } from "./redact"; // [SCOPE 155 / T004]
@@ -87,6 +88,11 @@ import { ActivityTracker, type ActivityKind } from "./agent-activity"; // [SCOPE
 import { NOT_RECORDED_NOTE, notRecordedRelay } from "./decision-reply"; // [SCOPE 159 / T005]
 import { GateRaisers, WorkerRegistry, type WorkerIdentity } from "./worker-identity"; // [SCOPE 159 / T006]
 import type { ContractResult, RoomMessage, SenderStamp } from "../../../common-room/src/index"; // [SCOPE 159 / T004]
+import { resolveCommand } from "./command-set"; // [SCOPE 159 / T022]
+import { CommandLane, createCommandLogger, LANE_PUSH_NOTE } from "./command-lane"; // [SCOPE 159 / T022]
+import { RUN_IN_PROGRESS_LINE } from "./command-lane"; // [SCOPE 159 / T024]
+import { statusFromBridge } from "./status-source"; // [SCOPE 159 / T023]
+import type { StatusMemory, StatusQuestion } from "./status-summary"; // [SCOPE 159 / T023]
 
 // [SCOPE 134 / T018] One yes/no parser, used by BOTH the operator-initiated push
 // confirmation and the agent-initiated gate. It was inline in resolvePendingPush; two
@@ -107,6 +113,7 @@ function parseYesNo(text: string): boolean | undefined {
 // setTimeout armed 15 minutes or hours ahead (a suspended laptop would miss that fire time).
 const AUTOPILOT_HEARTBEAT_MS = 15 * 60_000;
 const AUTOPILOT_SUMMARY_HOUR = 18;
+const STATUS_REFRESH_MS = 2_000; // [SCOPE 159 / T023] how often the status memory is checked for a snapshot rewrite
 
 // [SCOPE 102 / T005] BEGIN — RemoteBridge: composes the room transport with the session
 // MODIFIED-BY: [SCOPE 145 / T006] — prints the fixed ready line once the "connected" post lands
@@ -122,6 +129,9 @@ const AUTOPILOT_SUMMARY_HOUR = 18;
 // MODIFIED-BY: [SCOPE 144 / T026] — on a reconnect, each gate still waiting is asked again once (FR-020)
 // MODIFIED-BY: [SCOPE 144 / T030] — an outage holds an Autopilot gate: its 10/15 min timers stop while the link is down and restart from the re-ask (FR-020)
 // MODIFIED-BY: [SCOPE 144 / T031] — pendingApproval carries `reviewNoted`: the one room note per approval for a reply sent before its question (FR-021)
+// MODIFIED-BY: [SCOPE 159 / T022] — arms the local command lane (.wxai/command/) beside the hand-off watcher in project-agent mode (FR-095)
+// MODIFIED-BY: [SCOPE 159 / T023] — starts the status snapshot refresh beside the command lane (FR-096)
+// MODIFIED-BY: [SCOPE 159 / T024] — the connect-time devplan list starts and is saved through startDevplanList, the same path as the "autopilot" command (FR-097)
 // Outbound relay (session -> room) is the handler set passed to BridgeSession; inbound
 // routing (room -> session) is onRoomMessage. Connect announce on first 'connected'
 // (FR-002), disconnect notice on shutdown (FR-009). Concise by default: assistant text
@@ -236,6 +246,8 @@ export class RemoteBridge {
   // [SCOPE 149 / T006] Project-agent mode only: the hand-off folder watcher and its one-slot queue.
   private handoffWatcher?: HandoffWatcher;
   private handoffQueue?: HandoffQueue;
+  // [SCOPE 159 / T022] Project-agent mode only: the local session's command lane (FR-095).
+  private commandLane?: CommandLane;
   // [SCOPE 149 / T007] Project-agent mode only: the context-only guard for a [HANDOFF] turn, a
   // handoff waiting for the current turn to end, and operator messages held while one runs.
   private handoffGuard?: HandoffTurnGuard;
@@ -349,20 +361,10 @@ export class RemoteBridge {
         });
         // [SCOPE 154 / T003] Once the devplan list is posted and the schedule is waiting on the
         // owner's "go", persist it to the run state so the Cockpit (T014) can show it before the
-        // run itself starts. A `start()` that found nothing to do (no devplan, or an empty list)
-        // leaves `pendingScopes` undefined, and nothing is written.
-        void this.autopilot
-          .start()
-          .then(() => {
-            const scopes = this.autopilot?.pendingScopes;
-            if (scopes && scopes.length > 0) {
-              const next = recordStartupList(
-                loadAutopilotState(this.opts.cwd),
-                scopes.map((s) => ({ num: s.num, title: s.title })),
-              );
-              saveAutopilotState(this.opts.cwd, next);
-            }
-          })
+        // run itself starts.
+        // [SCOPE 159 / T024] The same start-and-save path as the "autopilot" command: the list, an
+        // empty list or "no devplan" is saved with the time it was given (FR-097).
+        void this.startDevplanList()
           .catch((err) => {
             console.error(`[autopilot] schedule failed to start: ${(err as Error).message}`);
           });
@@ -390,6 +392,14 @@ export class RemoteBridge {
           logger: handoffLogger,
         });
         this.handoffWatcher.start();
+        // [SCOPE 159 / T022] The local session's commands arrive here and go to the one handler (FR-095).
+        this.commandLane = new CommandLane({
+          repoRoot: this.opts.cwd,
+          deliver: (t) => void this.receiveLocalCommand(t),
+          logger: createCommandLogger(),
+        });
+        this.commandLane.start();
+        this.startStatusRefresh(); // [SCOPE 159 / T023] the local "status" reads the panel snapshot (FR-096)
       }
     }
   }
@@ -429,6 +439,7 @@ export class RemoteBridge {
 
   // [SCOPE 144 / T026] BEGIN — replayed messages are discussion only; waiting gates are re-asked (FR-020)
   // MODIFIED-BY: [SCOPE 144 / T030] — the re-asked Autopilot gate's timers restart from the re-ask
+  // MODIFIED-BY: [SCOPE 159 / T021] — the re-asked approval names a person on this Project's user list as the one who answers (FR-094)
   // A message YappChatt replays after a drop was posted while the agent could not see the room, so
   // it never settles anything the bridge waits on: not a gated action, a push, an Autopilot gate or
   // go, a skip cascade, a DQ or KR answer, nor a control word. It reaches the session as discussion,
@@ -457,7 +468,7 @@ export class RemoteBridge {
     if (this.pendingApproval?.asked) {
       asks.push(
         `${lead}${this.agentLabel()} is asking to run a gated action.\n\n  ${this.pendingApproval.request.detail}\n\n` +
-          `Reply CONFIRMED to allow, or NO to refuse${this.opts.supervisor ? ` (a Room Approver, or ${this.opts.supervisor} relaying one).` : "."}`, // [SCOPE 159 / T005]
+          `Reply CONFIRMED to allow, or NO to refuse${this.opts.supervisor ? ` (a person on this Project's user list, or ${this.opts.supervisor} relaying one).` : "."}`, // [SCOPE 159 / T005]
       );
     }
     if (this.pendingAutopilotGate) {
@@ -669,6 +680,8 @@ export class RemoteBridge {
   // MODIFIED-BY: [SCOPE 144 / T030] — a failed decision outcome is logged through Pino, masked, never unhandled
   // MODIFIED-BY: [SCOPE 144 / T031] — a pending approval is settled only after its question is posted; before that the message is discussion and the room is told once (FR-021)
   // MODIFIED-BY: [SCOPE 159 / T004] — onRoomMessage only normalizes; one handler (ingest) takes every source (FR-003)
+  // MODIFIED-BY: [SCOPE 159 / T021] — any person on the Project's user list instructs; their standing is project_user (FR-094)
+  // MODIFIED-BY: [SCOPE 159 / T022] — a command-lane message never settles a push or an approval, and lane push starts no gate (FR-095)
   private onRoomMessage(m: YappchattMessage): void {
     let text = m.text.trim();
     if (!text) return;
@@ -736,7 +749,31 @@ export class RemoteBridge {
   }
   // [SCOPE 159 / T006] END
 
+  // [SCOPE 159 / T022] BEGIN — The local command lane into the one handler, and its safety limit (FR-095)
+  /**
+   * A command from the local session's lane (.wxai/command/). Only a listed command the lane
+   * carries is taken; it then goes through the same handler as a room message, as the developer.
+   */
+  receiveLocalCommand(text: string): boolean {
+    const entry = resolveCommand(text);
+    if (!entry || entry.local === "transfer-rule" || entry.local === "room-only") return false;
+    this.ingest({ source: "local", fromAgent: false, from: "developer", text, viaCommandLane: true });
+    return true;
+  }
+
+  /**
+   * A lane command never settles a waiting push or approval, and lane push never starts the push
+   * gate: those are answered by a person in the room. The room is told in one line.
+   */
+  private laneHeld(text: string): boolean {
+    if (!this.pendingPush && !this.pendingApproval && resolveCommand(text)?.local !== "push-rule") return false;
+    void this.post(LANE_PUSH_NOTE);
+    return true;
+  }
+  // [SCOPE 159 / T022] END
+
   // [SCOPE 159 / T018] BEGIN — Agent Room panel snapshot, rewritten on change; a write error never stops the bridge (FR-083, FR-084)
+  // MODIFIED-BY: [SCOPE 159 / T023] — the snapshot carries the status memory, rewritten when it changes, for the local "status" (FR-096)
   private readonly lastBeat = new Map<string, Date>();
   // [SCOPE 159 / T013] Every instruction is logged with its standing; discussion is logged, never queued (FR-062, FR-064).
   private readonly intake = new InstructionQueue();
@@ -769,10 +806,22 @@ export class RemoteBridge {
         lastBeatAt: this.lastBeat.get(w.id) ?? now,
       }));
       const gates: GateInput[] = this.gateRaisers.waiting().map((g) => ({ gateId: g.gateId, raisedBy: g.raisedBy.id, raisedAt: new Date(g.raisedAt) }));
-      writePanelSnapshot(this.opts.cwd, buildPanel(this.opts.cwd, workers, gates, [], now, this.activity.snapshot()));
+      const status = this.statusMemory(); // [SCOPE 159 / T023]
+      writePanelSnapshot(this.opts.cwd, { ...buildPanel(this.opts.cwd, workers, gates, [], now, this.activity.snapshot()), status });
+      this.lastStatusMemory = JSON.stringify(status);
     } catch {
       /* the panel is a view, not a gate */
     }
+  }
+  // [SCOPE 159 / T023] The local "status" reads the snapshot: rewrite it when the status memory changes.
+  private lastStatusMemory?: string;
+  private statusRefresh?: ReturnType<typeof setInterval>;
+  private startStatusRefresh(): void {
+    this.publishPanel();
+    this.statusRefresh = setInterval(() => {
+      if (JSON.stringify(this.statusMemory()) !== this.lastStatusMemory) this.publishPanel();
+    }, STATUS_REFRESH_MS);
+    this.statusRefresh.unref?.();
   }
   // [SCOPE 159 / T018] END
 
@@ -818,6 +867,8 @@ export class RemoteBridge {
       this.relayReplayed(text, from);
       return;
     }
+    // [SCOPE 159 / T022] The safety limit: push and CONFIRMED are a person's, in the room (FR-095).
+    if (msg.viaCommandLane && this.laneHeld(text)) return;
     // [SCOPE 144 / T031] An agent-initiated approval counts a reply only once its question is in
     // the room (FR-021). While a push's review still runs, a message settles nothing at all: not
     // the approval, not a push, an Autopilot gate or go, a skip cascade, a DQ or KR answer, nor a
@@ -908,7 +959,7 @@ export class RemoteBridge {
     // MODIFIED-BY: [SCOPE 159 / T013] — who may instruct the agent: local or KAIN pass, a room person is checked by user id, anyone else is discussion (FR-060, FR-062)
     const relay = (standing: Standing): void => {
       const sent = this.intake.submit(text, standing);
-      // [SCOPE 159 / T020] "run devplan" is a command, not a prompt: the developer or a Room Approver gets the list and it waits for go; KAIN starts it at once (FR-061).
+      // [SCOPE 159 / T020] "run devplan" is a command, not a prompt: the developer or a person on the Project's user list gets the list and it waits for go; KAIN starts it at once (FR-061).
       if (sent === "queued" && this.autopilot && isRunDevplan(text)) {
         this.intake.next();
         this.intake.finish();
@@ -934,31 +985,66 @@ export class RemoteBridge {
     // A post with no user id keeps the old path, the same rule the gates use (checkApprover).
     if (!msg.authorId) return relay("developer");
     void this.approverLookup(msg.authorId).then(
-      (who) => relay(who.approver ? "room_approver" : "discussion"),
+      (who) => relay(who.approver ? "project_user" : "discussion"),
       () => relay("discussion"),
     );
   }
 
   // [SCOPE 159 / T020] BEGIN — "run devplan" (FR-061)
+  // MODIFIED-BY: [SCOPE 159 / T024] — "autopilot" starts and saves the list through startDevplanList, the connect-time path (FR-097)
   private async runDevplanCommand(standing: Standing): Promise<void> {
     const ap = this.autopilot;
     if (!ap) return;
     const action = devplanAction(standing);
     if (!action) return;
-    if (!ap.isAwaitingGo) await ap.start();
+    await this.startDevplanList();
     if (action === "start_now" && ap.isAwaitingGo) this.resolvePendingAutopilotGo("go");
   }
   // [SCOPE 159 / T020] END
 
+  // [SCOPE 159 / T024] BEGIN — One devplan start for connect time and "autopilot"; the answer is saved to run state (FR-097)
+  /**
+   * Posts the devplan list (or the reason there is none) and saves the answer to run state with the
+   * time it was given, the same way at connect time and for the "autopilot" command. A list already
+   * waiting is posted again, not rebuilt. While a run is active nothing starts and nothing is saved.
+   * The panel snapshot is written before the run state, so once the local writer sees the saved
+   * answer the snapshot already shows the list waiting for go.
+   */
+  private async startDevplanList(): Promise<void> {
+    const ap = this.autopilot;
+    if (!ap) return;
+    if (this.autopilotRunAbort) {
+      await this.post(RUN_IN_PROGRESS_LINE);
+      return;
+    }
+    let found: readonly StartupScope[] | null | undefined;
+    if (ap.isAwaitingGo) {
+      found = ap.pendingScopes;
+      if (found && found.length > 0) await this.post(formatStartupList([...found]));
+    } else {
+      const result = await ap.start();
+      found = ap.isAwaitingGo ? ap.pendingScopes : result;
+    }
+    if (found === undefined) return;
+    this.publishPanel();
+    try {
+      saveAutopilotState(this.opts.cwd, recordStartupList(loadAutopilotState(this.opts.cwd), found));
+    } catch {
+      /* the run state is a record: unsaved, the room still has the list and the local writer prints the sent line */
+    }
+  }
+  // [SCOPE 159 / T024] END
+
   // [SCOPE 159 / T005] BEGIN — Who may answer a waiting gate (FR-004)
+  // MODIFIED-BY: [SCOPE 159 / T021] — any active person on the Project's user list answers; role never decides (FR-094)
   /** True while a push, an agent gate or a live Autopilot question is waiting for this text. */
   private waitingGate(text: string): boolean {
     return !!this.pendingPush || !!this.pendingApproval || (!!this.pendingAutopilotGate && !isQuestionPassThrough(text));
   }
 
   /**
-   * An answer counts from a person checked by user id (active company ADMIN or Project
-   * TEAM_MANAGER, via the approver route), or from KAIN relaying one: KAIN's relay is recorded as
+   * An answer counts from a person checked by user id (any active person on the Project's user
+   * list, or a company ADMIN, via the approver route), or from KAIN relaying one: KAIN's relay is recorded as
    * KAIN's, as the contract says until the mailbox carries `answeredBy`. A person's post with no
    * user id fails closed in project-agent mode.
    */
@@ -1039,14 +1125,18 @@ export class RemoteBridge {
 
   // [SCOPE 102 / T007] BEGIN — control vocabulary (parsed before relaying to the session)
   // MODIFIED-BY: [SCOPE 149 / T007] — STOP lifts the handoff guard and drops what it held (FR-007)
+  // MODIFIED-BY: [SCOPE 159 / T022] — the words come from the one command list (command-set.ts), so the room and the local lane resolve them alike (FR-095)
+  // MODIFIED-BY: [SCOPE 159 / T023] — STATUS posts the one status builder's text; the old status line is gone (FR-096)
   private handleControl(text: string): boolean {
-    switch (text.toUpperCase()) {
-      case "STOP":
+    // [SCOPE 159 / T022] Whole message, any casing, an optional trailing "." or "!". The answers
+    // (go, no, skip), the Autopilot words and the transfer resolve too, and fall to default here.
+    switch (resolveCommand(text)?.name) {
+      case "stop":
         void this.post(this.stopHandoffTurn()); // [SCOPE 149 / T007]
         void this.session?.interrupt();
         this.turnActive = false;
         return true;
-      case "CONTINUE":
+      case "continue":
         this.turnActive = true;
         this.session?.send("Continue.");
         return true;
@@ -1054,42 +1144,41 @@ export class RemoteBridge {
       // same heartbeat content early (FR-007) instead of the plain connection status line.
       // MODIFIED-BY: [SCOPE 154 / T015] — STATUS re-posts a waiting question, or brings back the oldest
       // parked one when none waits (FR-015). The run's heartbeat already carries a waiting question.
-      case "STATUS":
-        if (this.pendingAutopilotGate) {
-          if (this.autopilotRunAbort) this.postHeartbeat();
-          else void this.post(formatQuestionReminder(this.pendingAutopilotGate));
-          return true;
-        }
-        if (this.autopilotRunAbort) this.postHeartbeat();
-        if (this.bringBackParkedQuestion()) return true;
-        if (!this.autopilotRunAbort) void this.post(this.statusLine());
+      // MODIFIED-BY: [SCOPE 159 / T023] — STATUS posts the one status builder's text in every state,
+      // filled from this bridge's memory; it still brings back the oldest parked question when none waits (FR-096).
+      case "status": {
+        if (!this.pendingAutopilotGate) this.bringBackParkedQuestion();
+        const now = new Date();
+        this.publishPanel(now);
+        void this.post(statusFromBridge(this.opts.cwd, this.statusMemory(), now).join("\n"));
         return true;
+      }
       // [SCOPE 154 / T009] PAUSE/RESUME an active Autopilot run (FR-008). Outside a run these
       // fall through as ordinary text, same as CONFIRMED/NO with no pending push.
-      case "PAUSE":
+      case "pause":
         if (!this.autopilotRunAbort) return false;
         this.autopilotPaused = true;
         void this.post("Autopilot: paused. Reply \"resume\" to continue.");
         return true;
-      case "RESUME":
+      case "resume":
         if (!this.autopilotRunAbort) return false;
         this.autopilotPaused = false;
         void this.post("Autopilot: resumed.");
         return true;
-      case "VERBOSE":
+      case "verbose":
         this.verbose = true;
         void this.post("🔊 verbose: streaming output as Claude types");
         return true;
-      case "CONCISE":
+      case "concise":
         this.flushVerbose();
         this.verbose = false;
         void this.post("🔉 concise: summarised output only");
         return true;
-      case "CANCEL REMOTE":
+      case "cancel remote":
         void this.shutdown().finally(() => process.exit(0));
         return true;
       // MODIFIED-BY: [SCOPE 102 / T008] — review-gated push control words
-      case "PUSH":
+      case "push":
         void this.runPushGate();
         return true;
       // MODIFIED-BY: [SCOPE 148 / T012] — TRIAGE runs the feedback sweep (FR-002)
@@ -1097,7 +1186,7 @@ export class RemoteBridge {
       // KAIN's "[KAIN] TRIAGE" arrives here as plain TRIAGE. With no schedule (an operator
       // bridge, or a non-sink project that never armed) it falls through as ordinary text
       // rather than being swallowed: SCOPE-102's behavior is unchanged where triage is absent.
-      case "TRIAGE":
+      case "triage":
         if (!this.triage) return false;
         void this.triage.trigger();
         return true;
@@ -1108,11 +1197,25 @@ export class RemoteBridge {
     }
   }
 
-  private statusLine(): string {
-    const state = !this.session ? "starting" : this.turnActive ? "working" : "idle";
-    const id = this.session?.id ? this.session.id.slice(0, 8) : "—";
-    const verbosity = this.verbose ? "verbose" : "concise";
-    return `Status — project ${this.opts.projectName} · session ${id} · ${state} · ${verbosity}`;
+  /** [SCOPE 159 / T023] What only this bridge's memory knows for "status"; masked, so it can go into the panel snapshot (FR-096). */
+  statusMemory(): StatusMemory {
+    let question: StatusQuestion | undefined;
+    if (this.pendingPush) {
+      question = { who: "push", text: `Push ${this.pendingPush.branch} to ${this.pendingPush.remote}?` };
+    } else if (this.pendingApproval) {
+      const { action, toolName, detail } = this.pendingApproval.request;
+      question = { who: "gated action", text: `${action} via ${toolName}: ${detail}` };
+    } else if (this.pendingAutopilotGate) {
+      question = { who: `SCOPE-${this.pendingAutopilotGate.scopeNum}`, text: this.pendingAutopilotGate.question };
+    }
+    const awaitingGo = this.autopilot?.isAwaitingGo ? (this.autopilot.pendingScopes?.length ?? 0) : undefined;
+    return {
+      state: this.session ? this.connectionState() : "starting",
+      runActive: !!this.autopilotRunAbort,
+      paused: this.autopilotPaused,
+      ...(awaitingGo !== undefined ? { awaitingGo } : {}),
+      ...(question ? { question: { who: redactSecrets(question.who).text, text: redactSecrets(question.text).text.slice(0, 300) } } : {}),
+    };
   }
   // [SCOPE 102 / T007] END
 
@@ -1230,6 +1333,7 @@ export class RemoteBridge {
   // MODIFIED-BY: [SCOPE 148 / T012] — recordDecision files through the shared token holder (FR-016)
   // MODIFIED-BY: [SCOPE 144 / T026] — marks the request asked once its question is posted, for the reconnect re-ask (FR-020)
   // MODIFIED-BY: [SCOPE 144 / T031] — the review's outcome touches only its own request; an abandoned request posts no question (FR-021)
+  // MODIFIED-BY: [SCOPE 159 / T021] — the question names a person on this Project's user list as the one who answers (FR-094)
   /**
    * Surface a gated action to the operator and resolve with their answer.
    *
@@ -1289,8 +1393,8 @@ export class RemoteBridge {
             `  ${request.detail}`,
             ``,
             `${reviewNote}Reply CONFIRMED to allow, or NO to refuse` +
-            // [SCOPE 159 / T005] only a Room Approver answers; the supervisor may relay one (FR-004)
-            (this.opts.supervisor ? ` (a Room Approver, or ${this.opts.supervisor} relaying one).` : `.`),
+            // [SCOPE 159 / T005] only a person on this Project's user list answers; the supervisor may relay one (FR-004, FR-094)
+            (this.opts.supervisor ? ` (a person on this Project's user list, or ${this.opts.supervisor} relaying one).` : `.`),
           ].join("\n"),
         );
       })();
@@ -1768,6 +1872,8 @@ export class RemoteBridge {
 
   // [SCOPE 102 / T005] BEGIN — teardown notice (FR-009 seed; full CANCEL REMOTE in T009)
 // MODIFIED-BY: [SCOPE 149 / T006] — arms the hand-off watcher and one-slot queue in project-agent mode; posts [HANDOFF] when free (FR-006, FR-008)
+  // MODIFIED-BY: [SCOPE 159 / T022] — stops the local command lane (FR-095)
+  // MODIFIED-BY: [SCOPE 159 / T023] — stops the status snapshot refresh (FR-096)
   async shutdown(): Promise<void> {
     if (this.tornDown) return;
     this.tornDown = true;
@@ -1782,6 +1888,8 @@ export class RemoteBridge {
     this.triage?.stop();
     this.handoffWatcher?.stop(); // [SCOPE 149 / T006]
     this.handoffQueue?.stop();
+    this.commandLane?.stop(); // [SCOPE 159 / T022]
+    if (this.statusRefresh) clearInterval(this.statusRefresh); // [SCOPE 159 / T023]
     try {
       await this.post(`Claude on project ${this.opts.projectName} is disconnected`);
     } catch {

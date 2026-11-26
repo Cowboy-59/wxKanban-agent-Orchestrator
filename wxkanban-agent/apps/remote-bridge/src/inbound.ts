@@ -2,8 +2,10 @@
 // room) is turned into an InboundMessage before the bridge's one handler sees it. Pure: no I/O.
 
 import type { RoomMessage } from "../../../common-room/src/index";
+import { resolveCommand } from "./command-set"; // [SCOPE 159 / T022]
 
 // [SCOPE 159 / T004] BEGIN — One inbound message shape and the devplan-list rule (FR-003, FR-017)
+// MODIFIED-BY: [SCOPE 159 / T022] — the list's answers come from the one command list; a lane message is marked (FR-095)
 export type InboundSource = "yappchatt" | "local";
 
 export interface InboundMessage {
@@ -22,11 +24,13 @@ export interface InboundMessage {
   roomAgent?: boolean;
   /** Local-room seq, when the message came from the journal. */
   seq?: number;
+  /** A listed command from the local session's command lane (.wxai/command/). It never settles a push or gated action (FR-095). */
+  viaCommandLane?: boolean;
 }
 
-/** The only texts that answer a waiting devplan list: go, go debug, no, skip <num>. */
+/** The only texts that answer a waiting devplan list: the list's answer commands (go, go debug, no, skip <num>). */
 export function isListAnswer(text: string): boolean {
-  return /^(go|go\s+debug|no|skip\s+\d+)[.!]*$/i.test(text.trim());
+  return resolveCommand(text)?.kind === "answer";
 }
 
 /**

@@ -4,6 +4,7 @@ import { join } from "path";
 
 // [SCOPE 154 / T004] BEGIN — skip cascade via scope-impact.mjs (FR-003, SCOPE-132 FR-094)
 // MODIFIED-BY: [SCOPE 154 / T007] — adds UnitRunRecord/recordUnitOutcome, the per-unit done/failed/parked line
+// MODIFIED-BY: [SCOPE 159 / T024] — a startup list item keeps its stage, and the list carries the time it was posted (startupListAt), loaded through (FR-097)
 //
 // When a scope in the startup list is skipped (a parked gate, a failed unit, or the owner's own
 // choice — decided by T005/T007, not here), its dependents must not quietly keep running against
@@ -130,6 +131,8 @@ export interface StartupListItem {
   scope: string;
   title: string;
   status: "waiting" | "in-progress" | "done" | "failed" | "skipped";
+  /** [SCOPE 159 / T024] The stage the list showed, so the local session prints the room's own text. */
+  stage?: string;
 }
 
 export interface AutopilotRunState {
@@ -137,8 +140,15 @@ export interface AutopilotRunState {
   skips: AutopilotSkipRecord[];
   units?: UnitRunRecord[];
   // [SCOPE 154 / T003] BEGIN — "where things stand right now", read by the Cockpit (T014)
+  // MODIFIED-BY: [SCOPE 159 / T024] — startupListAt: when the agent last answered a devplan start (FR-097)
   /** The startup list posted at run start (FR-002), in build order. */
   startupList?: StartupListItem[];
+  /**
+   * [SCOPE 159 / T024] ISO time the agent last answered a devplan start: with a list, an empty list
+   * (nothing to run) or no list at all (no devplan). The local "autopilot" prints only an answer
+   * written after its own command, so an earlier run's list is never shown as the new one.
+   */
+  startupListAt?: string;
   /** The scope of the unit currently running, if any. */
   currentScope?: string;
   /**
@@ -167,6 +177,7 @@ export function loadAutopilotState(root: string, path: string = AUTOPILOT_STATE_
       // [SCOPE 154 / T003] Carried through on every load so a skip/unit-outcome write downstream
       // never silently drops the posted startup list or the in-flight step markers.
       startupList: Array.isArray(parsed.startupList) ? parsed.startupList : undefined,
+      startupListAt: typeof parsed.startupListAt === "string" ? parsed.startupListAt : undefined, // [SCOPE 159 / T024]
       currentScope: typeof parsed.currentScope === "string" ? parsed.currentScope : undefined,
       currentStep: typeof parsed.currentStep === "string" ? parsed.currentStep : undefined,
       stepStartedAt: typeof parsed.stepStartedAt === "string" ? parsed.stepStartedAt : undefined,
@@ -219,13 +230,26 @@ export function recordUnitOutcome(state: AutopilotRunState, record: UnitRunRecor
 }
 
 // [SCOPE 154 / T003] BEGIN — persists "where things stand right now" for the Cockpit (FR-002/FR-014)
+// MODIFIED-BY: [SCOPE 159 / T024] — keeps each item's stage, stamps startupListAt, and null records "no devplan" (FR-097)
 /**
  * Persists the startup list exactly as posted to the room (FR-002), each item "waiting". Written
  * once, when the list is posted; never re-written afterwards — the Cockpit view overlays the real
  * status from `skips`/`units` on top of it by scope as the run proceeds.
+ * [SCOPE 159 / T024] `at` stamps startupListAt. An empty list means the devplan had nothing to run;
+ * `null` means no devplan was found, and clears the list.
  */
-export function recordStartupList(state: AutopilotRunState, scopes: { num: string; title: string }[]): AutopilotRunState {
-  return { ...state, startupList: scopes.map((s) => ({ scope: s.num, title: s.title, status: "waiting" as const })) };
+export function recordStartupList(
+  state: AutopilotRunState,
+  scopes: readonly { num: string; title: string; stage?: string }[] | null,
+  at: string = new Date().toISOString(),
+): AutopilotRunState {
+  const startupList = scopes?.map((s) => ({
+    scope: s.num,
+    title: s.title,
+    status: "waiting" as const,
+    ...(s.stage !== undefined ? { stage: s.stage } : {}),
+  }));
+  return { ...state, startupList, startupListAt: at };
 }
 
 /**

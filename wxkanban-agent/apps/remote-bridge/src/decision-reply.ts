@@ -114,6 +114,7 @@ function lastJson(stdout: string): Record<string, unknown> | undefined {
  */
 // [SCOPE 142 / T025] BEGIN — Bridge attributes DQ answers and KR verdicts by author (FR-021, FR-023)
 // MODIFIED-BY: [SCOPE 144 / T010] — approvedBy (the Room Approver's name) goes to route.mjs and kain.mjs as --approved-by (FR-008)
+// MODIFIED-BY: [SCOPE 159 / T021] — the session note names the answerer as a person on this Project's user list (FR-094)
 export async function handleDecisionReply(reply: DecisionReply, by: string, run: Runner, approvedBy?: string): Promise<DecisionOutcome> {
   if (reply.kind === "review" && by !== "owner") {
     return { roomText: `${reply.kr}: only the owner reviews ${by}'s answers. That verdict was not recorded.` };
@@ -135,7 +136,7 @@ export async function handleDecisionReply(reply: DecisionReply, by: string, run:
     if (by === "owner") {
       return {
         roomText: `Recorded your answer to ${reply.dq} as ${String(res.ledgerId ?? "a ledger decision")}. Released: ${released}.`,
-        sessionText: `[decision] ${approver.length ? `${approver[1]} (a Room Approver)` : "The owner"} answered ${reply.dq} in the room: "${reply.answer}". It is in the decision ledger as ${String(res.ledgerId)}. Resume the units it blocked: ${released}.`,
+        sessionText: `[decision] ${approver.length ? `${approver[1]} (a person on this Project's user list)` : "The owner"} answered ${reply.dq} in the room: "${reply.answer}". It is in the decision ledger as ${String(res.ledgerId)}. Resume the units it blocked: ${released}.`,
       };
     }
     return {
@@ -152,8 +153,9 @@ export async function handleDecisionReply(reply: DecisionReply, by: string, run:
 
 // [SCOPE 144 / T010] BEGIN — Room Approver check before a person's DQ answer or KR review is recorded (FR-008, contract C4)
 // MODIFIED-BY: [SCOPE 144 / T030] — the note names consultant managers an engagement allows (FR-012); the relayed text is labeled not recorded
-// A person's post records a decision only when the app says its author is a Room Approver (a
-// company ADMIN, or a TEAM_MANAGER on this project). Anything else, including any failure to
+// MODIFIED-BY: [SCOPE 159 / T021] — any active person on the Project's user list decides; the note says so (FR-094)
+// A person's post records a decision only when the app says its author may answer (any active
+// person on this Project's user list, or a company ADMIN). Anything else, including any failure to
 // ask, is not recorded: the text still reaches the session, as discussion.
 export interface ApproverResult {
   approver: boolean;
@@ -164,7 +166,7 @@ export interface ApproverResult {
 export type ApproverLookup = (yappchattUserId: string) => Promise<ApproverResult>;
 
 export const NOT_RECORDED_NOTE =
-  "Not recorded: only an ADMIN, this project's TEAM_MANAGER, or a consultant manager the engagement allows can decide.";
+  "Not recorded: only a person on this Project's user list, or a consultant manager the engagement allows, can decide.";
 
 const NOT_APPROVER: ApproverResult = { approver: false, name: null, role: null };
 

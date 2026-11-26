@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { redactSecrets } from "./redact";
 import { RUN_LOG_DIR_REL } from "./run-log";
 import type { AgentActivity } from "./agent-activity";
+import type { StatusMemory } from "./status-summary"; // [SCOPE 159 / T023]
 
 // [SCOPE 159 / T018] BEGIN — Lane health lights (FR-015)
 export type Light = "live" | "stale" | "gone";
@@ -22,6 +23,7 @@ export function laneLight(lastBeatAt: Date | null, now: Date): Light {
 // [SCOPE 159 / T018] END
 
 // [SCOPE 159 / T018] BEGIN — Panel rows, masked (FR-058, FR-083, FR-087)
+// MODIFIED-BY: [SCOPE 159 / T023] — the snapshot carries the bridge's status memory for the local "status" reader (FR-096)
 export interface WorkerInput {
   id: string;
   role: "manager" | "worker";
@@ -61,6 +63,8 @@ export interface PanelModel {
   runLogFile: string;
   /** What the agent received and is doing (masked by the tracker); absent in older snapshots. */
   activity?: AgentActivity;
+  /** What only the bridge's memory knows for "status" (masked); absent in older snapshots. */
+  status?: StatusMemory;
 }
 
 const m = (s: string): string => redactSecrets(s).text;

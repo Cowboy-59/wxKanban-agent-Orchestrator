@@ -1,6 +1,7 @@
 import pino, { type DestinationStream, type Logger } from "pino";
 
 // [SCOPE 149 / T008] BEGIN — handoff audit lines with Pino, never the content (FR-017)
+// MODIFIED-BY: [SCOPE 159 / T022] — "run" and "dropped" events for the command lane, with the command name as a fixed reason code (FR-095)
 //
 // One structured line per handoff event. The fields are an allow-list: an event name, the
 // handoff's created-at time, counts, and a short fixed reason code. There is deliberately no
@@ -11,7 +12,7 @@ import pino, { type DestinationStream, type Logger } from "pino";
 // `[project-agent] refused` lines on stdout, and the writer prints its one result line on
 // stdout; neither may be interleaved with JSON log lines.
 
-export type HandoffEvent = "queued" | "posted" | "replaced" | "expired" | "masked" | "ignored" | "denied";
+export type HandoffEvent = "queued" | "posted" | "replaced" | "expired" | "masked" | "ignored" | "denied" | "run" | "dropped";
 
 export interface HandoffLogFields {
   /** The handoff's own created-at time (ISO), when known. */

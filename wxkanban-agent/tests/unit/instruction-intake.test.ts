@@ -1,5 +1,6 @@
 /**
  * [SCOPE 159 / T013] The Project Agent takes any instruction (FR-060..FR-064).
+ * [SCOPE 159 / T021] Any person on the Project's user list instructs and answers the list wait (FR-094).
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,6 +8,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   AGENT_CONFIG_REL,
+  DISCUSSION_NOTE,
   InstructionQueue,
   ScheduleTicker,
   devplanAction,
@@ -27,21 +29,26 @@ afterEach(() => {
   while (dirs.length) rmSync(dirs.pop() as string, { recursive: true, force: true });
 });
 
-const ctx = { developerUserId: "u-dev", isRoomApprover: (id: string) => id === "u-appr" };
+const ctx = { developerUserId: "u-dev", isProjectUser: (id: string) => id === "u-member" };
 
 describe("UT-053 who may instruct", () => {
   it("local is the developer; room is by user id; KAIN is stamped", () => {
     expect(standingOf({ channel: "local" }, ctx)).toBe("developer");
     expect(standingOf({ channel: "room", userId: "u-dev" }, ctx)).toBe("developer");
-    expect(standingOf({ channel: "room", userId: "u-appr" }, ctx)).toBe("room_approver");
+    expect(standingOf({ channel: "room", userId: "u-member" }, ctx)).toBe("project_user");
     expect(standingOf({ channel: "room", kain: true }, ctx)).toBe("kain");
   });
-  it("a TEAM_MEMBER who is not the developer is discussion only", () => {
+  it("a person not on the Project's user list is discussion only (FR-094)", () => {
     expect(standingOf({ channel: "room", userId: "u-other" }, ctx)).toBe("discussion");
     expect(standingOf({ channel: "room" }, ctx)).toBe("discussion");
   });
   it("an unresolved token never falls back to any room member", () => {
-    expect(standingOf({ channel: "room", userId: "u-dev" }, { isRoomApprover: () => false })).toBe("discussion");
+    expect(standingOf({ channel: "room", userId: "u-dev" }, { isProjectUser: () => false })).toBe("discussion");
+  });
+  it("the discussion note names the Project's user list (FR-094)", () => {
+    expect(DISCUSSION_NOTE).toBe(
+      "Not taken as an instruction: only a person on this Project's user list, the developer running the agent or KAIN can instruct it.",
+    );
   });
 });
 
@@ -50,6 +57,7 @@ describe("UT-054 run devplan and the list wait", () => {
     expect(isRunDevplan("Run devplan")).toBe(true);
     expect(isRunDevplan("run devplan now please")).toBe(false);
     expect(devplanAction("developer")).toBe("show_list_and_wait");
+    expect(devplanAction("project_user")).toBe("show_list_and_wait");
     expect(devplanAction("kain")).toBe("start_now");
     expect(devplanAction("discussion")).toBeNull();
   });
@@ -58,6 +66,12 @@ describe("UT-054 run devplan and the list wait", () => {
     expect(listWaitRoutes("skip 3", "kain")).toBe("answer");
     expect(listWaitRoutes("fix the login bug", "developer")).toBe("instruction");
     expect(listWaitRoutes("go", "discussion")).toBe("discussion");
+  });
+  it("a project user's go, no or skip answers the list wait (FR-094)", () => {
+    expect(listWaitRoutes("go", "project_user")).toBe("answer");
+    expect(listWaitRoutes("no", "project_user")).toBe("answer");
+    expect(listWaitRoutes("skip 2", "project_user")).toBe("answer");
+    expect(listWaitRoutes("fix the login bug", "project_user")).toBe("instruction");
   });
 });
 

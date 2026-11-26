@@ -2,6 +2,8 @@
  * [SCOPE 159 / T005] User-id gate check on every gate kind (SPEC-159 FR-004).
  * A person with a user id who is not an approver answers no gate; an approver does;
  * the supervisor's relay (KAIN) does; the gate keeps waiting after a refusal.
+ * [SCOPE 159 / T021] An approver is any person on the Project's user list, whatever the role
+ * (FR-094); bridge-gate-project-user.test.ts covers a TEAM_MEMBER on each gate kind.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -86,7 +88,11 @@ async function bridge(): Promise<RemoteBridge> {
     supervisor: "KAIN",
     projectAgentConfig: { mcpUrl: "https://mcp.test" } as never,
     approverLookup: async (id: string) =>
-      id === "u-admin" ? { approver: true, name: "Andy", role: "ADMIN" } : { approver: false, name: "Bob", role: "MEMBER" },
+      id === "u-admin"
+        ? { approver: true, name: "Andy", role: "ADMIN" }
+        : id === "u-member"
+          ? { approver: true, name: "Tom", role: "TEAM_MEMBER" }
+          : { approver: false, name: null, role: null },
   } as never);
   await b.run();
   room.handlers?.onStatus("connected");
@@ -115,6 +121,13 @@ describe("FR-004 who may answer a waiting gate", () => {
   it("an approver id settles the gate", async () => {
     await bridge();
     say("Andy", "go", "u-admin");
+    await settle();
+    expect(go.confirmed).toBe(1);
+  });
+
+  it("a TEAM_MEMBER on the Project's user list settles the list go (FR-094)", async () => {
+    await bridge();
+    say("Tom", "go", "u-member");
     await settle();
     expect(go.confirmed).toBe(1);
   });

@@ -131,6 +131,7 @@ beforeEach(() => {
 });
 
 // [SCOPE 134 / T019] BEGIN — decisions are filed, naming who decided
+// MODIFIED-BY: [SCOPE 159 / T021] — the ask names a person on this Project's user list as the one who answers (FR-094)
 describe("agent-mode bridge — every decision is recorded (T019)", () => {
   it("a grant is filed with the human who answered it", async () => {
     await connectedBridge();
@@ -169,7 +170,7 @@ describe("agent-mode bridge — every decision is recorded (T019)", () => {
     void askGate("drizzle-kit push");
     await tick();
     const ask = room.posts.find((p) => p.startsWith("The project agent is asking to run a gated action."));
-    expect(ask).toMatch(/\(a Room Approver, or KAIN relaying one\)/);
+    expect(ask).toMatch(/\(a person on this Project's user list, or KAIN relaying one\)/);
   });
 
   it("KAIN may grant (FR-033), and the record names KAIN as grantor", async () => {

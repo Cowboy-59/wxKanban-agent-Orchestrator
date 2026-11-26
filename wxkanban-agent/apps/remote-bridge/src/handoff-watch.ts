@@ -1,10 +1,11 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, unlinkSync, watch, type FSWatcher } from "fs";
 import { join } from "path";
 import type { Logger } from "pino";
-import { HANDOFF_NAME_RE, handoffDir } from "./handoff-writer";
+import { HANDOFF_DIR, HANDOFF_NAME_RE } from "./handoff-writer";
 import { logHandoff } from "./handoff-log";
 
 // [SCOPE 149 / T005] BEGIN — hand-off folder watcher: safe reads and 4-hour expiry (FR-006)
+// MODIFIED-BY: [SCOPE 159 / T022] — an optional folder format (folder, name pattern, size cap, max age, parser) so the command lane reuses the same safe reads (FR-095)
 //
 // The Project Agent's side of the carrier. It watches `.wxai/handoff/` under the repo root and
 // hands each valid file on, once, to the handoff queue (handoff-queue.ts). Everything in the
@@ -50,9 +51,30 @@ export function parseHandoff(text: string): { createdAt: Date; masked: number; b
   return { createdAt, masked: Number(m[2]), body: m[3].trim() };
 }
 
+/** What a watched folder holds. The handoff folder is the default; the command lane passes its own. */
+export interface WatchFormat {
+  /** The folder, relative to the repo root. */
+  relDir: string;
+  nameRe: RegExp;
+  maxBytes: number;
+  maxAgeMs: number;
+  /** A created-at this far ahead of the agent's clock is not trusted. */
+  futureSkewMs: number;
+  parse: (text: string) => { createdAt: Date; masked: number; body: string } | null;
+}
+
+export const HANDOFF_FORMAT: WatchFormat = {
+  relDir: HANDOFF_DIR,
+  nameRe: HANDOFF_NAME_RE,
+  maxBytes: HANDOFF_MAX_BYTES,
+  maxAgeMs: HANDOFF_MAX_AGE_MS,
+  futureSkewMs: FUTURE_SKEW_MS,
+  parse: parseHandoff,
+};
+
 /** Classify one directory entry. Never throws; never follows a symlink. */
-export function readHandoffEntry(dir: string, name: string, now: Date): HandoffRead {
-  if (!HANDOFF_NAME_RE.test(name)) return { kind: "ignored", name, reason: "name" };
+export function readHandoffEntry(dir: string, name: string, now: Date, format: WatchFormat = HANDOFF_FORMAT): HandoffRead {
+  if (!format.nameRe.test(name)) return { kind: "ignored", name, reason: "name" };
   const path = join(dir, name);
   let st;
   try {
@@ -62,17 +84,17 @@ export function readHandoffEntry(dir: string, name: string, now: Date): HandoffR
   }
   if (st.isSymbolicLink()) return { kind: "ignored", name, reason: "symlink" };
   if (!st.isFile()) return { kind: "ignored", name, reason: "not-file" };
-  if (st.size > HANDOFF_MAX_BYTES) return { kind: "ignored", name, reason: "oversize" };
+  if (st.size > format.maxBytes) return { kind: "ignored", name, reason: "oversize" };
   let text: string;
   try {
     text = readFileSync(path, "utf-8");
   } catch {
     return { kind: "ignored", name, reason: "unreadable" };
   }
-  const parsed = parseHandoff(text);
+  const parsed = format.parse(text);
   if (!parsed) return { kind: "ignored", name, reason: "malformed" };
-  if (parsed.createdAt.getTime() > now.getTime() + FUTURE_SKEW_MS) return { kind: "ignored", name, reason: "future" };
-  if (now.getTime() - parsed.createdAt.getTime() > HANDOFF_MAX_AGE_MS) {
+  if (parsed.createdAt.getTime() > now.getTime() + format.futureSkewMs) return { kind: "ignored", name, reason: "future" };
+  if (now.getTime() - parsed.createdAt.getTime() > format.maxAgeMs) {
     return { kind: "expired", name, createdAt: parsed.createdAt };
   }
   return { kind: "ok", file: { name, path, ...parsed } };
@@ -80,6 +102,8 @@ export function readHandoffEntry(dir: string, name: string, now: Date): HandoffR
 
 export interface HandoffWatcherOptions {
   repoRoot: string;
+  /** The folder and its rules. Absent: the handoff folder. */
+  format?: WatchFormat;
   /** A valid, current handoff. Called once per file name. */
   onReady: (file: HandoffFile) => void;
   /** A stale handoff was deleted unposted; post the short removal note. */
@@ -97,10 +121,12 @@ export class HandoffWatcher {
   private readonly seen = new Set<string>();
   private readonly now: () => Date;
   private readonly dir: string;
+  private readonly format: WatchFormat;
 
   constructor(private readonly opts: HandoffWatcherOptions) {
     this.now = opts.now ?? (() => new Date());
-    this.dir = handoffDir(opts.repoRoot);
+    this.format = opts.format ?? HANDOFF_FORMAT;
+    this.dir = join(opts.repoRoot, this.format.relDir);
   }
 
   start(): void {
@@ -134,7 +160,7 @@ export class HandoffWatcher {
       if (this.seen.has(name)) continue;
       // The writer's own atomic temp files: in flight, not ours yet, not worth a log line.
       if (name.startsWith(".") && name.endsWith(".tmp")) continue;
-      const r = readHandoffEntry(this.dir, name, this.now());
+      const r = readHandoffEntry(this.dir, name, this.now(), this.format);
       if (r.kind === "ok") {
         this.seen.add(name);
         this.opts.onReady(r.file);

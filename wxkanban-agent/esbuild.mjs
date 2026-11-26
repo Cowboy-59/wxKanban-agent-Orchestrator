@@ -71,6 +71,14 @@ await build({
   outExtension: { ".js": ".cjs" },
 });
 
+// [SCOPE 159 / T022] The agent-command writer (the local session's command lane, FR-095), loaded by bin/agent-command.mjs.
+await build({
+  ...bridgeBuild,
+  entryPoints: { "agent-command": "apps/remote-bridge/src/command-main.ts" },
+  outdir: "dist",
+  outExtension: { ".js": ".cjs" },
+});
+
 // [SCOPE 155 / T002] The masking rules, standalone (no internal deps) so the plain-Node
 // session-feed hook (_wxAI/remote/) can require() it without pulling in a bundler of its own.
 await build({
@@ -80,4 +88,4 @@ await build({
   outExtension: { ".js": ".cjs" },
 });
 
-console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs + dist/remote-bridge.cjs + dist/transfer-to-agent.cjs + dist/redact.cjs");
+console.log("esbuild: wrote dist/cli.cjs + dist/http.cjs + dist/remote-bridge.cjs + dist/transfer-to-agent.cjs + dist/agent-command.cjs + dist/redact.cjs");

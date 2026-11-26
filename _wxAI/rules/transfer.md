@@ -63,16 +63,14 @@ from the phone.
 
 ## Driving it from the room
 
-The Project Agent still honors these control words (case-insensitive):
+The Project Agent honors the words on its one command list (SPEC-159 FR-095), case-insensitive,
+in the room and from the local session alike. The list is not copied here, so it cannot drift:
+print it with
 
-| Word | Effect |
-| --- | --- |
-| `STOP` / `CONTINUE` | interrupt the current turn / resume after a stop |
-| `STATUS` | report project, session, working or idle, verbosity |
-| `VERBOSE` / `CONCISE` | output detail |
-| `PUSH` → `CONFIRMED` / `NO` | run a pre-push review; push only on `CONFIRMED` |
-| `CANCEL REMOTE` | end remote mode |
-| `TRIAGE` | run feedback triage (feedback-sink project only) |
+`node wxkanban-agent/apps/remote-bridge/bin/agent-command.mjs --list`
+
+How the local session sends those words to the running agent is in
+`_wxAI/rules/agent-commands.md`. In the room, `PUSH` still asks a person for `CONFIRMED` / `NO`.
 
 ## References
 

@@ -8,11 +8,13 @@ import { join } from "path";
 // [SCOPE 149 / T003] BEGIN — Handoff gitignore entries
 // MODIFIED-BY: [SCOPE 150 / T006] — the retired room key notice state (FR-014)
 // MODIFIED-BY: [SCOPE 151 / T006] — the project agent's room token file, a live yca_ credential
+// MODIFIED-BY: [SCOPE 159 / T022] — the local session's command lane folder (FR-095)
 export const HANDOFF_GITIGNORE_ENTRIES: readonly string[] = [
   "**/.wxai/handoff/",
   "**/.wxai/project-agent-status.json",
   "**/.wxai/retired-room-keys-notice.json",
   "**/.wxai/agent-room.json",
+  "**/.wxai/command/",
 ];
 // [SCOPE 149 / T003] END
 
