@@ -154,9 +154,10 @@ export async function handleDecisionReply(reply: DecisionReply, by: string, run:
 // [SCOPE 144 / T010] BEGIN — Room Approver check before a person's DQ answer or KR review is recorded (FR-008, contract C4)
 // MODIFIED-BY: [SCOPE 144 / T030] — the note names consultant managers an engagement allows (FR-012); the relayed text is labeled not recorded
 // MODIFIED-BY: [SCOPE 159 / T021] — any active person on the Project's user list decides; the note says so (FR-094)
+// MODIFIED-BY: [SCOPE 159 / T025] — the note names consultants on the Project (FR-099)
 // A person's post records a decision only when the app says its author may answer (any active
-// person on this Project's user list, or a company ADMIN). Anything else, including any failure to
-// ask, is not recorded: the text still reaches the session, as discussion.
+// person on this Project's user list, a company ADMIN, or a consultant on this Project). Anything
+// else, including any failure to ask, is not recorded: the text still reaches the session, as discussion.
 export interface ApproverResult {
   approver: boolean;
   name: string | null;
@@ -166,7 +167,7 @@ export interface ApproverResult {
 export type ApproverLookup = (yappchattUserId: string) => Promise<ApproverResult>;
 
 export const NOT_RECORDED_NOTE =
-  "Not recorded: only a person on this Project's user list, or a consultant manager the engagement allows, can decide.";
+  "Not recorded: only a person on this Project's user list, or a consultant on this Project, can decide.";
 
 const NOT_APPROVER: ApproverResult = { approver: false, name: null, role: null };
 

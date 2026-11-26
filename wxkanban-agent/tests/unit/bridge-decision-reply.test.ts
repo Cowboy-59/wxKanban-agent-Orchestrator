@@ -190,9 +190,9 @@ describe("handleHumanDecision: a person's reply is recorded only for a Room Appr
     // [SCOPE 144 / T030] the relayed text is labeled not recorded, so the session never takes it as an answer
     expect(o).toEqual({ roomText: NOT_RECORDED_NOTE, relayText: notRecordedRelay("DQ-01: no") });
     expect(o.relayText).toBe(`[${NOT_RECORDED_NOTE} This room post is discussion only, not an answer.]\nDQ-01: no`);
-    // [SCOPE 144 / T030] consultant managers an engagement allows are approvers too (FR-012)
+    // [SCOPE 159 / T025] consultants on the Project are approvers too (FR-099)
     expect(NOT_RECORDED_NOTE).toBe(
-      "Not recorded: only a person on this Project's user list, or a consultant manager the engagement allows, can decide.",
+      "Not recorded: only a person on this Project's user list, or a consultant on this Project, can decide.",
     );
   });
 
