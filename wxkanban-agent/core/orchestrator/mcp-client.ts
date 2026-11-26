@@ -18,6 +18,9 @@ import {
   type McpEnvelope as McpEnvelopeShape,
 } from './mcp-envelope';
 import { trustSystemCertificates } from '../bootstrap/system-ca';
+import { acquireMcpSlot, noteMcpThrottled } from './mcp-pacer';
+
+const MAX_429_RETRIES = 10;
 
 // Trust the OS cert store before the first hub fetch, no matter which entry
 // point imported us (covers dbpush, createspecs, and every other hub caller).
@@ -110,11 +113,15 @@ export async function callMcpToolWithEnvelope<T extends Record<string, unknown> 
   options: McpCallOptions = {},
 ): Promise<McpEnvelopeShape<T>> {
   // Hosted MCP rate-limits bursts (429 + retryAfterSec). Wait and retry instead of failing the push.
+  // Every call takes a slot from the shared pacer (mcp-pacer.ts) first, so a bulk push stays under the
+  // server's 60/min budget instead of bursting into 429s. A 429 still retries, but through the SAME shared
+  // cooldown, so parallel callers back off together rather than retrying in the same instant.
+  await acquireMcpSlot();
   let response = await sendMcpRequest(name, args, options);
-  for (let attempt = 1; response.status === 429 && attempt <= 6; attempt++) {
+  for (let attempt = 1; response.status === 429 && attempt <= MAX_429_RETRIES; attempt++) {
     const header = Number(response.headers.get('retry-after'));
-    const waitSec = Number.isFinite(header) && header > 0 ? header : 1;
-    await new Promise((r) => setTimeout(r, waitSec * 1000 * attempt + 250));
+    noteMcpThrottled(Number.isFinite(header) && header > 0 ? header * attempt : attempt);
+    await acquireMcpSlot();
     response = await sendMcpRequest(name, args, options);
   }
   try {
