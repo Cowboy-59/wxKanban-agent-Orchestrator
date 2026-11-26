@@ -75,7 +75,7 @@ import { defaultApproverLookup, handleHumanDecision, httpApproverLookup, type Ap
 import { HandoffWatcher } from "./handoff-watch"; // [SCOPE 149 / T006]
 import { HandoffQueue } from "./handoff-queue"; // [SCOPE 149 / T006]
 import { createHandoffLogger } from "./handoff-log"; // [SCOPE 149 / T006]
-import { HandoffTurnGuard, handoffPrompt } from "./handoff-turn"; // [SCOPE 149 / T007]
+import { HandoffTurnGuard, handoffWorkPrompt } from "./handoff-turn"; // [SCOPE 149 / T007]
 import type { HookCallback } from "@anthropic-ai/claude-agent-sdk"; // [SCOPE 149 / T007]
 import { fromLocalRoom, labelFromAgent, listTakesMessage, oldInboundPathOn, type InboundMessage } from "./inbound"; // [SCOPE 159 / T004]
 import { LocalRoom } from "./local-room"; // [SCOPE 159 / T004]
@@ -83,6 +83,7 @@ import { RunLog } from "./run-log"; // [SCOPE 159 / T016]
 import { DISCUSSION_NOTE, InstructionQueue, devplanAction, isRunDevplan, type Standing } from "./instruction-intake"; // [SCOPE 159 / T013]
 import { UnitTrace } from "./unit-trace"; // [SCOPE 159 / T020]
 import { buildPanel, writePanelSnapshot, type GateInput, type WorkerInput } from "./room-view"; // [SCOPE 159 / T018]
+import { ActivityTracker, type ActivityKind } from "./agent-activity"; // [SCOPE 159 / T018] what the agent received and is doing
 import { NOT_RECORDED_NOTE, notRecordedRelay } from "./decision-reply"; // [SCOPE 159 / T005]
 import { GateRaisers, WorkerRegistry, type WorkerIdentity } from "./worker-identity"; // [SCOPE 159 / T006]
 import type { ContractResult, RoomMessage, SenderStamp } from "../../../common-room/src/index"; // [SCOPE 159 / T004]
@@ -295,6 +296,7 @@ export class RemoteBridge {
 
   private onStatus(status: YappchattStatus, detail?: string, link?: RoomLinkInfo): void {
     console.log(`[room] ${status}${detail ? " — " + detail : ""}`);
+    this.noteActivity("link", `${status}${detail ? " — " + detail : ""}`); // the Cockpit shows the room link state
     if (link) this.onRoomLink(status, link); // [SCOPE 144 / T024]
     // [SCOPE 144 / T030] Until SPEC-160 an outage holds a gate: stop the Autopilot question timers.
     // A socket "error" on a link still up is followed by its close, which reconnects; it is not down.
@@ -372,7 +374,10 @@ export class RemoteBridge {
           // so the reading and the question always follow the post (FR-007).
           deliver: async (f) => {
             const ok = await this.post(`[HANDOFF]\n${f.body}`);
-            if (ok) this.startHandoffTurn(f.body);
+            if (ok) {
+              this.noteActivity("handoff", `handoff received and posted: ${f.body}`, true);
+              this.startHandoffTurn(f.body);
+            }
             return ok;
           },
           logger: handoffLogger,
@@ -553,9 +558,10 @@ export class RemoteBridge {
       this.deferredHandoff = summary;
       return;
     }
-    this.handoffGuard.arm();
+    // FR-007a: this handoff came from the operator's own folder, so the work goes on. The read-only
+    // guard stays disarmed; the session's normal rules apply.
     this.turnActive = true;
-    this.session.send(handoffPrompt(summary));
+    this.session.send(handoffWorkPrompt(summary));
   }
 
   // [SCOPE 149 / T007] After any turn: lift the guard, then send what waited behind the handoff
@@ -626,16 +632,19 @@ export class RemoteBridge {
           console.log(`[session] · ${summary}`);
           if (this.verbose) this.flushVerbose(); // keep streamed text before the tool line, in order
           void this.post(`· ${summary}`);
+          this.noteActivity("tool", summary, true); // what the agent is doing, for the Cockpit and the run feed
         },
         onAssistantDone: (text) => {
           console.log(`[session] assistant (${text.length} chars): ${text.slice(0, 100)}`);
           if (this.verbose) this.flushVerbose();
           else void this.post(text);
+          this.noteActivity("reply", text, true);
         },
         onResult: (subtype) => {
           console.log(`[session] result: ${subtype}`);
           if (this.verbose) this.flushVerbose();
           this.turnActive = false;
+          this.noteActivity("result", subtype);
           if (subtype !== "success") void this.post(`⚠ turn ended: ${subtype}`);
           this.afterTurn(); // [SCOPE 149 / T007]
         },
@@ -734,6 +743,19 @@ export class RemoteBridge {
   // [SCOPE 159 / T020] Unit start, park and finish go to the status file and the run record (FR-081, FR-085).
   // Assigned in the constructor: a field initializer runs before the `opts` parameter property is set under define-semantics (tsx / Node 24), so `this.opts` was undefined here.
   private readonly unitTrace: UnitTrace;
+  private readonly activity = new ActivityTracker();
+  /** Record what just happened, rewrite the Cockpit panel file, and (for the agent's own lines) add it to the run feed. */
+  private noteActivity(kind: ActivityKind, text: string, feed = false): void {
+    this.activity.note(kind, text);
+    if (feed) {
+      try {
+        new RunLog({ root: this.opts.cwd }).writeFeed(text, "assistant");
+      } catch {
+        /* the log is a record, not a gate */
+      }
+    }
+    this.publishPanel();
+  }
   publishPanel(now: Date = new Date()): void {
     try {
       const workers: WorkerInput[] = [...this.workers.known.values()].map((w) => ({
@@ -747,7 +769,7 @@ export class RemoteBridge {
         lastBeatAt: this.lastBeat.get(w.id) ?? now,
       }));
       const gates: GateInput[] = this.gateRaisers.waiting().map((g) => ({ gateId: g.gateId, raisedBy: g.raisedBy.id, raisedAt: new Date(g.raisedAt) }));
-      writePanelSnapshot(this.opts.cwd, buildPanel(this.opts.cwd, workers, gates, [], now));
+      writePanelSnapshot(this.opts.cwd, buildPanel(this.opts.cwd, workers, gates, [], now, this.activity.snapshot()));
     } catch {
       /* the panel is a view, not a gate */
     }
@@ -773,6 +795,8 @@ export class RemoteBridge {
     } catch {
       /* the log is a record, not a gate */
     }
+    // The Cockpit panel shows what just arrived (masked, capped); a replay is history, not new work.
+    if (!msg.replayed) this.noteActivity(text.startsWith("[HANDOFF]") ? "handoff" : "received", `${from}: ${text}`);
     // [SCOPE 159 / T004] A local worker or agent line is information: it answers no gate and runs
     // no control word. The session sees it labeled from-agent (FR-003, FR-020).
     if (msg.source === "local" && msg.fromAgent) {

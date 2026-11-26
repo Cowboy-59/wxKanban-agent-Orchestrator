@@ -36,7 +36,7 @@ describe("UT-089..092 panel", () => {
     expect(JSON.stringify(p)).not.toContain("AKIAIOSFODNN7EXAMPLE");
   });
   it("open run log points at today's file", () => {
-    expect(todayRunLog("/r", now).split("\\").join("/")).toBe("/r/.wxai/run-log/2026-11-24.jsonl");
+    expect(todayRunLog("/r", now).split("\\").join("/")).toBe("/r/.wxai/run-log/feed-2026-11-24.jsonl");
   });
 });
 

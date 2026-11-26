@@ -193,7 +193,11 @@ export class BridgeSession {
       return;
     }
     if (msg.type === "assistant") {
-      const text = extractText((msg as Extract<SDKMessage, { type: "assistant" }>).message.content);
+      const content = (msg as Extract<SDKMessage, { type: "assistant" }>).message.content;
+      // The tool line is fired from the COMPLETED message: at content_block_start the input is still
+      // empty, so the line was only the bare tool name. Here it carries the command or path.
+      for (const block of toolUseBlocks(content)) this.handlers.onToolUse(block.name ?? "tool", summarizeToolInput(block));
+      const text = extractText(content);
       if (text) this.handlers.onAssistantDone(text);
       return;
     }
@@ -211,9 +215,7 @@ export class BridgeSession {
       this.handlers.onText(ev.delta.text);
       return;
     }
-    if (ev?.type === "content_block_start" && ev.content_block?.type === "tool_use") {
-      this.handlers.onToolUse(ev.content_block.name ?? "tool", summarizeToolInput(ev.content_block));
-    }
+    // tool_use is NOT announced here: its input is empty at block start. handle() announces it from the completed assistant message.
   }
 
   /** Interrupt the current turn (STOP) — keeps the session live for the next turn. */
@@ -271,6 +273,19 @@ function extractText(content: unknown): string {
     })
     .join("")
     .trim();
+}
+
+/** The tool_use blocks of a completed assistant message, with their full input. */
+function toolUseBlocks(content: unknown): Array<{ name?: string; input?: unknown }> {
+  if (!Array.isArray(content)) return [];
+  const out: Array<{ name?: string; input?: unknown }> = [];
+  for (const block of content) {
+    if (block && typeof block === "object") {
+      const b = block as { type?: unknown; name?: unknown; input?: unknown };
+      if (b.type === "tool_use") out.push({ name: typeof b.name === "string" ? b.name : undefined, input: b.input });
+    }
+  }
+  return out;
 }
 
 function summarizeToolInput(block: { name?: string; input?: unknown }): string {

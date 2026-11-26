@@ -5,6 +5,7 @@
 import { join } from "node:path";
 import { redactSecrets } from "./redact";
 import { RUN_LOG_DIR_REL } from "./run-log";
+import type { AgentActivity } from "./agent-activity";
 
 // [SCOPE 159 / T018] BEGIN — Lane health lights (FR-015)
 export type Light = "live" | "stale" | "gone";
@@ -58,13 +59,16 @@ export interface PanelModel {
   gates: Array<{ gateId: string; raisedBy: string; raisedAt: string }>;
   /** What "open run log" opens: today's file. */
   runLogFile: string;
+  /** What the agent received and is doing (masked by the tracker); absent in older snapshots. */
+  activity?: AgentActivity;
 }
 
 const m = (s: string): string => redactSecrets(s).text;
-export const todayRunLog = (root: string, now: Date): string => join(root, RUN_LOG_DIR_REL, `${now.toISOString().slice(0, 10)}.jsonl`);
+// The feed file is what the run log really writes (feed-<date>.jsonl); the old name pointed at nothing.
+export const todayRunLog = (root: string, now: Date): string => join(root, RUN_LOG_DIR_REL, `feed-${now.toISOString().slice(0, 10)}.jsonl`);
 
 /** Built from data the bridge already holds: the same inputs give the same rows in every view. */
-export function buildPanel(root: string, workers: readonly WorkerInput[], gates: readonly GateInput[], rates: readonly PersonaRate[], now: Date): PanelModel {
+export function buildPanel(root: string, workers: readonly WorkerInput[], gates: readonly GateInput[], rates: readonly PersonaRate[], now: Date, activity?: AgentActivity): PanelModel {
   const rate = new Map(rates.map((r) => [r.persona, r.hitRate]));
   return {
     rows: workers.map((w) => ({
@@ -80,6 +84,7 @@ export function buildPanel(root: string, workers: readonly WorkerInput[], gates:
     })),
     gates: gates.map((g) => ({ gateId: m(g.gateId), raisedBy: m(g.raisedBy), raisedAt: g.raisedAt.toISOString() })),
     runLogFile: todayRunLog(root, now),
+    ...(activity ? { activity } : {}),
   };
 }
 // [SCOPE 159 / T018] END

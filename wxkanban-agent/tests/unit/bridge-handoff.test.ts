@@ -200,11 +200,12 @@ describe("bridge handoff turn", () => {
     expect(session.sent[0]).toContain("Goal: ship the thing");
   });
 
-  it("arms the guard for the handoff turn and lifts it when the turn ends", async () => {
+  // [SCOPE 149 / FR-007a] A folder handoff carries the operator's intent: the agent starts the work, so no read-only guard.
+  it("sends the work-mode prompt and does not arm the read-only guard for a folder handoff", async () => {
     plantHandoff();
     await connectAgent();
-    expect(await guardDecision()).toBe("deny");
-    session.handlers?.onResult("success");
+    expect(session.sent[0]).toContain("start");
+    expect(session.sent[0]).not.toContain("Do not carry out its next step");
     expect(await guardDecision()).toBeUndefined();
   });
 
@@ -217,31 +218,23 @@ describe("bridge handoff turn", () => {
     expect(await guardDecision()).toBeUndefined();
   });
 
-  it("holds an operator message during the handoff turn, then runs it as a normal turn", async () => {
+  // [SCOPE 149 / FR-007a] No guard means no holding: the operator's message reaches the session like any other.
+  it("passes an operator message through during the handoff work turn", async () => {
     plantHandoff();
     await connectAgent();
     room.handlers?.onMessage({ id: "m2", from: "andy", text: "rename the helper", ts: Date.now() });
-    expect(session.sent).toHaveLength(1);
-    session.handlers?.onResult("success");
     expect(session.sent).toHaveLength(2);
     expect(session.sent[1]).toBe("rename the helper");
     expect(await guardDecision()).toBeUndefined();
   });
 
-  it("STOP during the handoff turn lifts the guard at once and drops what it held", async () => {
+  it("STOP during the handoff work turn leaves the agent able to hear the next message", async () => {
     plantHandoff();
     await connectAgent();
-    room.handlers?.onMessage({ id: "m3", from: "andy", text: "rename the helper", ts: Date.now() });
     room.handlers?.onMessage({ id: "m4", from: "andy", text: "stop", ts: Date.now() });
-    // No onResult: the interrupted turn may never report, and the agent must not stay deaf.
     expect(await guardDecision()).toBeUndefined();
-    expect(room.posts.some((p) => p.includes("1 held message(s) dropped"))).toBe(true);
     room.handlers?.onMessage({ id: "m5", from: "andy", text: "run the tests", ts: Date.now() });
-    expect(session.sent).toHaveLength(2);
-    expect(session.sent[1]).toBe("run the tests");
-    // A late result from the interrupted turn releases nothing that was dropped.
-    session.handlers?.onResult("error_during_execution");
-    expect(session.sent).toHaveLength(2);
+    expect(session.sent[session.sent.length - 1]).toBe("run the tests");
   });
 });
 // [SCOPE 149 / T007] END
