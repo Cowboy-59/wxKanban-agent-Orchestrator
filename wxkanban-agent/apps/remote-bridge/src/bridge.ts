@@ -256,6 +256,7 @@ export class RemoteBridge {
   private roomLinkDown = false;
 
   constructor(private readonly opts: RemoteBridgeOptions) {
+    this.unitTrace = new UnitTrace({ root: opts.cwd, remoteLive: () => true });
     const { config, user } = resolveYappchattConfig(opts.connection); // [SCOPE 150 / T003]
     // [SCOPE 144 / T002] The read login sends the project's kit token (FR-009): the server
     // opens a session only for an email of the token's company. Absent, it goes without.
@@ -731,7 +732,8 @@ export class RemoteBridge {
   // [SCOPE 159 / T013] Every instruction is logged with its standing; discussion is logged, never queued (FR-062, FR-064).
   private readonly intake = new InstructionQueue();
   // [SCOPE 159 / T020] Unit start, park and finish go to the status file and the run record (FR-081, FR-085).
-  private readonly unitTrace = new UnitTrace({ root: this.opts.cwd, remoteLive: () => true });
+  // Assigned in the constructor: a field initializer runs before the `opts` parameter property is set under define-semantics (tsx / Node 24), so `this.opts` was undefined here.
+  private readonly unitTrace: UnitTrace;
   publishPanel(now: Date = new Date()): void {
     try {
       const workers: WorkerInput[] = [...this.workers.known.values()].map((w) => ({
